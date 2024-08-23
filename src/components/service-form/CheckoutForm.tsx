@@ -1,5 +1,7 @@
+import { useElements, useStripe } from "@stripe/react-stripe-js"
 import { Accordion, Button, Checkbox, Dropdown, Label, TextInput } from "flowbite-react"
 import { FC, FormEvent, useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 interface CheckoutFormElements extends HTMLFormControlsCollection {
     eventType: HTMLButtonElement
@@ -23,15 +25,24 @@ type Props = {
 const CheckoutForm: FC<Props> = ({}) => {
     const [mailingStateValue, setMailingStateValue] = useState('')
     const [displayBillingAddress, setDisplayBillingAddress] = useState(false)
+    const navigate = useNavigate()
+    const stripe = useStripe()
+    const elements = useElements()
 
     useEffect(() => {
         // console.log(history.state)
         //preform state validation otherwise redirect
-    }, [])
+    }, [stripe])
 
     function handleSubmit(event: FormEvent<CheckoutForm>){
         event.preventDefault()
         const form = event.currentTarget
+    }
+
+    function handleBack(){
+        navigate('/service-form', {
+            state: { ...history.state.usr }
+        })
     }
 
     function billingAddress(){
@@ -238,10 +249,16 @@ const CheckoutForm: FC<Props> = ({}) => {
                                 </Accordion.Content>
                             </Accordion.Panel>
                             {billingAddress()}
+                            <Accordion.Panel>
+                                <Accordion.Title className="text-2xl font-semibold">Payment Info</Accordion.Title>
+                                <Accordion.Content>
+
+                                </Accordion.Content>
+                            </Accordion.Panel>
                         </Accordion>
 
                         <div className="flex justify-between mt-12">
-                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6"  color="light">Back</Button>
+                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6"  color="light" onClick={handleBack}>Back</Button>
                             <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" >Purchase</Button>
                         </div>
                     </div>
