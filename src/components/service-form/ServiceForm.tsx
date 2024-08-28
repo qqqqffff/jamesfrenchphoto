@@ -1,15 +1,15 @@
 import { Button, Carousel, Dropdown, Label, Radio, TextInput } from "flowbite-react";
 import { FC, FormEvent, useState, type MouseEvent } from "react";
-import outputs from '../../../amplify_outputs.json'
-import { Amplify } from "aws-amplify";
 import { HiOutlineArrowRight, HiOutlineArrowLeft } from "react-icons/hi";
 import TRFAttendantPackage from '../../assets/tyler-rose-festival/2024/formatted-Attendant-packages.png'
 import TRFDebutantePackage1 from '../../assets/tyler-rose-festival/2024/formatted-Debutante-packages-1.png'
 import TRFDebutantePackage2 from '../../assets/tyler-rose-festival/2024/formatted-Debutante-packages-2.png'
 import TRFEscortPackage from '../../assets/tyler-rose-festival/2024/formatted-Escort-packages.png'
 import { useNavigate } from "react-router-dom";
+import { generateClient } from "aws-amplify/api";
+import type { Schema } from '../../../amplify/data/resource'
 
-Amplify.configure(outputs)
+const client = generateClient<Schema>({authMode: 'lambda'})
 
 interface PackageFormElements extends HTMLFormControlsCollection {
     eventType: HTMLButtonElement
@@ -47,20 +47,27 @@ const ServiceForm: FC<Props> = ({ event, pack }) => {
         // console.log(form.elements.phoneNumber.value)
         // console.log(form.elements.email.value)
         //preform validation
+        // console.log((await ))
+        
+        console.log(client)
+        const paymentIntent = await client.queries.GetPaymentIntent({ objects: [form.elements.eventType.innerText]})
+        // console.log(paymentIntent)
+
 
         //routing
-        navigate('/service-form/checkout', {
-            preventScrollReset: false,
-            state: {
-                eventType: form.elements.eventType.innerText,
-                serviceType: form.elements.trfServiceType!.value,
-                packageType: form.elements.trfPackageType!.value,
-                firstName: form.elements.firstName.value,
-                lastName: form.elements.lastName.value,
-                phoneNumber: form.elements.phoneNumber.value,
-                email: form.elements.email.value,
-            }
-        })
+        // navigate('/service-form/checkout', {
+        //     preventScrollReset: false,
+        //     state: {
+        //         eventType: form.elements.eventType.innerText,
+        //         serviceType: form.elements.trfServiceType!.value,
+        //         packageType: form.elements.trfPackageType!.value,
+        //         firstName: form.elements.firstName.value,
+        //         lastName: form.elements.lastName.value,
+        //         phoneNumber: form.elements.phoneNumber.value,
+        //         email: form.elements.email.value,
+        //         paymentIntentSecret: await client.queries.GetPaymentIntent({ objects: [form.elements.eventType.innerText]})
+        //     }
+        // })
     }
 
     function handlePackageType(event: MouseEvent){
