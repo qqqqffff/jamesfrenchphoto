@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { generateClient } from "aws-amplify/api";
 import type { Schema } from '../../../amplify/data/resource'
 
-const client = generateClient<Schema>({authMode: 'lambda'})
+const client = generateClient<Schema>({authMode: 'none'})
 
 interface PackageFormElements extends HTMLFormControlsCollection {
     eventType: HTMLButtonElement
