@@ -28,17 +28,21 @@ const schema = a.schema({
     })
     .returns(a.ref('PaymentIntent'))
     .authorization((allow) => [allow.guest()])
-    .handler(a.handler.function(getPaymentIntent))
+    .handler(a.handler.function(getPaymentIntent)),
+  UserProfile: a
+    .model({
+      // firstName
+    })
 });
 
 export type Schema = ClientSchema<typeof schema>;
 
 export const data = defineData({
   schema,
-  // authorizationModes: {
-  //   defaultAuthorizationMode: 'identityPool',
-  //   apiKeyAuthorizationMode: { expiresInDays: 7 }
-  // },
+  authorizationModes: {
+    defaultAuthorizationMode: 'identityPool',
+    apiKeyAuthorizationMode: { expiresInDays: 7 }
+  },
 });
 
 /*== STEP 2 ===============================================================

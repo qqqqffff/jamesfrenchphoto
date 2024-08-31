@@ -9,5 +9,5 @@ import { getPaymentIntent } from './functions/get-payment-intent/resource';
 defineBackend({
   auth,
   data,
-  getPaymentIntent,
+  // getPaymentIntent,
 });
