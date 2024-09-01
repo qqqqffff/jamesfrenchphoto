@@ -16,7 +16,7 @@ export default function () {
             </div>
         )
     }
-    const [successNotification, setSuccessNotification] = useState(history.state && history.state.usr.contactSuccess ? (alertComponent('Successfully sent message. Please allow time for a team member to review your request!')) : (<></>))
+    const [successNotification, setSuccessNotification] = useState(history.state && history.state.usr && history.state.usr.contactSuccess ? (alertComponent('Successfully sent message. Please allow time for a team member to review your request!')) : (<></>))
     setTimeout(() => {
         setSuccessNotification((<></>))
     }, 10_000)

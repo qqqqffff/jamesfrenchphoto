@@ -1,5 +1,6 @@
 import { type ClientSchema, a, defineData, defineFunction } from '@aws-amplify/backend';
 import { getPaymentIntent } from '../functions/get-payment-intent/resource';
+import { postConfirmation } from '../auth/post-confirmation/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -31,9 +32,15 @@ const schema = a.schema({
     .handler(a.handler.function(getPaymentIntent)),
   UserProfile: a
     .model({
-      // firstName
+      email: a.string(),
+      firstName: a.string(),
+      lastName: a.string(),
+      phoneNumber: a.string(),
+      options: a.string().array()
     })
-});
+    .authorization((allow) => [allow.ownerDefinedIn("email")])
+})
+.authorization((allow) => [allow.resource(postConfirmation)]);
 
 export type Schema = ClientSchema<typeof schema>;
 
