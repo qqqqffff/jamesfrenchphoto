@@ -1,5 +1,6 @@
 import './App.css'
-import { SignIn, SignUp } from './components/authenticator/Authenticator'
+import SignIn from './components/authenticator/SingInForm'
+import SignUp from './components/authenticator/SignUpForm'
 import Header from './components/header/Header'
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom'
 import ServiceForm from './components/service-form/ServiceForm'
@@ -8,7 +9,8 @@ import CheckoutForm from './components/service-form/CheckoutForm'
 // import { loadStripe } from '@stripe/stripe-js'
 import { Amplify } from 'aws-amplify'
 import outputs from '../amplify_outputs.json'
-import Dashboard from './components/admin/Dashboard'
+import { Dashboard as AdminDashboard } from './components/admin/Dashboard'
+import { Dashboard as ClientDashboard } from './components/client/dashboard'
 import ContactForm from './components/service-form/ContactForm'
 
 Amplify.configure(outputs)
@@ -22,7 +24,8 @@ const router = createBrowserRouter(
       <Route path='register' element={<SignUp />} />
       <Route path='service-form' element={<ServiceForm />} />
       <Route path='service-form/checkout' element={<CheckoutForm />} />
-      <Route path='admin/dashboard' element={<Dashboard />} />
+      <Route path='admin/dashboard' element={<AdminDashboard />} />
+      <Route path='client/dashboard' element={<ClientDashboard />} />
       <Route path='contact-form' element={<ContactForm />} />
     </Route>
   )

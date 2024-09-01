@@ -1,11 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import Header from "../header/Header";
 
-const Dashboard = () => {
+export const Dashboard = () => {
     return (
         <>
             Hello {'admin'}
         </>
     )
 }
-export default Dashboard

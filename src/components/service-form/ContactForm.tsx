@@ -1,6 +1,6 @@
 import { Button, Label, Textarea, TextInput } from "flowbite-react"
 import { FC, FormEvent } from "react"
-import { redirect, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 
 interface IntentFormElements extends HTMLFormControlsCollection {
     message: HTMLButtonElement
@@ -19,7 +19,6 @@ type Props = {}
 
 const ContactForm: FC<Props> = ({}) => {
     const navigate = useNavigate()
-    setTimeout(() => redirect('/'), )
 
     function handleSubmit(event: FormEvent<IntentFormFields>){
         event.preventDefault()
