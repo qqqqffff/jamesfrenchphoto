@@ -1,16 +1,15 @@
-import { Amplify } from "aws-amplify";
 import { FormEvent } from "react";
-import outputs from '../../../amplify_outputs.json'
-import { signIn } from "aws-amplify/auth";
+import { fetchAuthSession, fetchUserAttributes, getCurrentUser, signIn } from "aws-amplify/auth";
 import { Button, Label, TextInput } from "flowbite-react";
 import { useNavigate } from "react-router-dom";
-// import { generateClient } from "aws-amplify/api";
-// import { Schema } from "../../../amplify/data/resource";
+import { generateClient } from "aws-amplify/api";
+import { Amplify } from "aws-amplify";
+import outputs from '../../../amplify_outputs.json'
+import { Schema } from "../../../amplify/data/resource";
 
 //todo: split into different classes
-
 Amplify.configure(outputs)
-// const client = generateClient<Schema>()
+const client = generateClient<Schema>()
 
 interface SignInFormElements extends HTMLFormControlsCollection {
     email: HTMLInputElement
@@ -38,7 +37,24 @@ export default function SignIn() {
         console.log(response)
 
         //TODO: route to user client/admin screens
-        navigate('/client/dashboard')
+        const user = await getCurrentUser();
+        const session = await fetchAuthSession()
+        const attributes = await fetchUserAttributes()
+        const groups = JSON.stringify(session.tokens?.accessToken.payload['cognito:groups'])
+        const profile = await client.models.UserProfile.get({id: user.userId}, {authToken: session.tokens?.accessToken.toString()})
+
+        window.sessionStorage.setItem('user', JSON.stringify({
+            user: user, 
+            session: session,
+            attributes: attributes, 
+            groups: groups, 
+            profile: profile
+        }))
+
+        if(JSON.stringify(groups).includes('USERS')){
+            navigate('/client/dashboard')
+        }
+        navigate('admin/dashboard')
     }
 
     return (

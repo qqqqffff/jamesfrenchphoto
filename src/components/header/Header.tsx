@@ -3,11 +3,35 @@ import bannerIcon from '../../assets/headerPhoto.png'
 import { Dropdown } from 'flowbite-react'
 import { HiOutlineMenu } from 'react-icons/hi'
 import { HiOutlineUserCircle } from 'react-icons/hi'
+import { useEffect, useState } from 'react'
+import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth'
+
 
 export default function Header() {
+    const [userState, setUserState] = useState(false)
+    const [adminState, setAdminState] = useState(false)
+    useEffect(() => {
+        async function userInfo() {
+            const userStorage = window.sessionStorage.getItem('user');
+            if(userStorage){
+                const user = JSON.parse(userStorage)
+                
+                // const auth = await fetchAuthSession()
+                // const admin = JSON.stringify(auth.tokens?.accessToken.payload['cognito:groups']).includes('ADMINS')
+                // if(admin){
+                //     setAdminState(true)
+                //     console.log('admin')
+                // }
+                // else{
+                //     setUserState(true)
+                //     console.log('user')
+                // }
+            }
+        }
+        userInfo()
+    }, [])
     const dev = false
     const borders = dev ? 'border border-black' : ''
-    const adminView = false
     return (
         <>
             <div className={'grid grid-cols-3 px-8 py-4 font-main border-b-2 border-gray-300 mb-12' + borders}>
@@ -60,7 +84,7 @@ export default function Header() {
                     </Dropdown>
                     <Link to="contact-form">Contact Us</Link>
                     <Link to="online-forms">Online Forms</Link>
-                    <Link to="Login">Login</Link>
+                    {!userState ? (<Link to="Login">Login</Link>) : (<Link to='Logout'>Logout</Link>)}
                 </div>
             </div>
             <Outlet />

@@ -1,5 +1,5 @@
 import './App.css'
-import SignIn from './components/authenticator/SingInForm'
+import SignIn from './components/authenticator/SignInForm'
 import SignUp from './components/authenticator/SignUpForm'
 import Header from './components/header/Header'
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom'
