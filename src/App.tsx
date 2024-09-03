@@ -11,8 +11,9 @@ import { Amplify } from 'aws-amplify'
 import outputs from '../amplify_outputs.json'
 import { Dashboard as AdminDashboard } from './components/admin/Dashboard'
 import { Dashboard as ClientDashboard } from './components/client/Dashboard'
-import { Base as AdminBase } from './components/admin/Base'
+import { Base } from './components/common/Base'
 import ContactForm from './components/service-form/ContactForm'
+import SignOut from './components/authenticator/SignOut'
 
 Amplify.configure(outputs)
 // const stripePromise = loadStripe('pk_test_51LFMxh4ILV990wpfvwN6CptxsdmG6X3mChYd7sx2JzLnLVfirqA9Ns5vKMi9c8rX6xrYV6HKT6ZiWBavtN7KvZ9100lZNFdI32')
@@ -25,11 +26,14 @@ const router = createBrowserRouter(
       <Route path='register' element={<SignUp />} />
       <Route path='service-form' element={<ServiceForm />} />
       <Route path='service-form/checkout' element={<CheckoutForm />} />
-      <Route path='admin' element={<AdminBase />} >
+      <Route path='admin' element={<Base />} >
         <Route path='dashboard' element={<AdminDashboard />} />
       </Route>
-      <Route path='client/dashboard' element={<ClientDashboard />} />
+      <Route path='client' element={<Base />} >
+        <Route path='dashboard' element={<ClientDashboard />} />
+      </Route>
       <Route path='contact-form' element={<ContactForm />} />
+      <Route path='logout' element={<SignOut />} />
     </Route>
   )
 )

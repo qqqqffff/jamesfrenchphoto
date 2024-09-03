@@ -1,29 +1,43 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Carousel } from "flowbite-react";
 import { HiOutlineArrowLeft, HiOutlineArrowRight } from "react-icons/hi";
 
 
 
 export default function () {
-    // let successNotification = (<></>)
-    // let successNotification = 
-    const alertComponent = (text: string) => {
+    const [notification, setNotification] = useState((<></>))
+    const notificationComponent = (text: string, color: string) => {
         return (
             <div className="flex justify-center items-center font-main mb-4">
-                <Alert color='green' className="text-lg w-[90%]" onDismiss={() => {setSuccessNotification((<></>))}}>
+                <Alert color={color} className="text-lg w-[90%]" onDismiss={() => {setNotification((<></>))}}>
                     <p>{text}</p>
                 </Alert>
             </div>
         )
     }
-    const [successNotification, setSuccessNotification] = useState(history.state && history.state.usr && history.state.usr.contactSuccess ? (alertComponent('Successfully sent message. Please allow time for a team member to review your request!')) : (<></>))
+    useEffect(() => {
+        if(history.state && history.state.usr){
+            let components = []
+            if(history.state.usr.contactSuccess){
+                components.push(notificationComponent('Successfully sent message. Please allow time for a teammember to review your message!', 'green'))
+            }
+            if(history.state.usr.logoutSuccess){
+                components.push(notificationComponent('Successfully logged out!', 'green'))
+            }
+            setNotification((<>{components.map((element, index) => <div key={index}>{element}</div>)}</>))
+        }
+
+
+    }, [])
     setTimeout(() => {
-        setSuccessNotification((<></>))
+        setNotification((<></>))
     }, 10_000)
+
+    
 
     return (
         <>
-            {successNotification}
+            {notification}
             <div className="flex justify-center items-center">
                 <div className="h-[600px] w-[75%] min-h-[600px]">
                     <Carousel

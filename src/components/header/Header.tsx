@@ -1,36 +1,47 @@
 import { Link, Outlet } from 'react-router-dom'
 import bannerIcon from '../../assets/headerPhoto.png'
 import { Dropdown } from 'flowbite-react'
-import { HiOutlineMenu } from 'react-icons/hi'
-import { HiOutlineUserCircle } from 'react-icons/hi'
-import { useEffect, useState } from 'react'
-import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth'
+import { useEffect } from 'react'
+import { UserStorage } from '../../types'
 
 
 export default function Header() {
-    const [userState, setUserState] = useState(false)
-    const [adminState, setAdminState] = useState(false)
+    // const [userState, setUserState] = useState(false)
+    // const [adminState, setAdminState] = useState(false)
     useEffect(() => {
-        async function userInfo() {
-            const userStorage = window.sessionStorage.getItem('user');
-            if(userStorage){
-                const user = JSON.parse(userStorage)
-                console.log(user)
-                
-                // const auth = await fetchAuthSession()
-                // const admin = JSON.stringify(auth.tokens?.accessToken.payload['cognito:groups']).includes('ADMINS')
-                // if(admin){
-                //     setAdminState(true)
-                //     console.log('admin')
-                // }
-                // else{
-                //     setUserState(true)
-                //     console.log('user')
-                // }
-            }
-        }
-        userInfo()
+        
     }, [])
+
+    let userState = false;
+    let adminState = false;
+    const userStorage = window.localStorage.getItem('user');
+    if(userStorage){
+        const user: UserStorage = JSON.parse(userStorage)
+        if(user.groups.includes('ADMINS')){
+            adminState = true;
+        }
+        else if(user.groups.includes('USERS')){
+            userState = true;
+        }
+    }
+    const dashboardUrl = '/' +  (adminState ? 'admin' : 'client') + '/dashboard'
+    let loginRender = !userState && !adminState ? (<Link to='login'>Login</Link>) : 
+        (<Dropdown
+            arrowIcon={false}
+            inline
+            label={'Profile'}
+            trigger='hover'
+        >
+            <Dropdown.Item>Profile</Dropdown.Item>
+            <Dropdown.Item>
+                <a href={dashboardUrl}>Dashboard</a>
+            </Dropdown.Item>
+            <Dropdown.Item>
+                <a href='/logout'>Logout</a>
+            </Dropdown.Item>
+        </Dropdown>)
+
+    
     const dev = false
     const borders = dev ? 'border border-black' : ''
     return (
@@ -85,7 +96,7 @@ export default function Header() {
                     </Dropdown>
                     <Link to="contact-form">Contact Us</Link>
                     <Link to="online-forms">Online Forms</Link>
-                    {!userState ? (<Link to="Login">Login</Link>) : (<Link to='Logout'>Logout</Link>)}
+                    {loginRender}
                 </div>
             </div>
             <Outlet />
