@@ -51,10 +51,13 @@ export default function SignIn() {
             profile: profile
         }))
 
-        if(JSON.stringify(groups).includes('USERS')){
+        if(groups.includes('ADMINS')){
+            navigate('admin/dashboard')
+        }
+        else if(groups.includes('USERS')){
             navigate('/client/dashboard')
         }
-        navigate('admin/dashboard')
+        
     }
 
     return (

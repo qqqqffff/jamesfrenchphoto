@@ -1,45 +1,46 @@
 import { Link, Outlet } from 'react-router-dom'
 import bannerIcon from '../../assets/headerPhoto.png'
 import { Dropdown } from 'flowbite-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { UserStorage } from '../../types'
 
 
 export default function Header() {
     // const [userState, setUserState] = useState(false)
     // const [adminState, setAdminState] = useState(false)
+    const [loginRender, setLoginRender] = useState((<></>))
     useEffect(() => {
-        
+        let userState = false;
+        let adminState = false;
+        const userStorage = window.localStorage.getItem('user');
+        if(userStorage){
+            const user: UserStorage = JSON.parse(userStorage)
+            if(user.groups.includes('ADMINS')){
+                adminState = true;
+            }
+            else if(user.groups.includes('USERS')){
+                userState = true;
+            }
+        }
+        const dashboardUrl = '/' +  (adminState ? 'admin' : 'client') + '/dashboard'
+        setLoginRender(((!userState && !adminState) ? (<Link to='login'>Login</Link>) : 
+            (<Dropdown
+                arrowIcon={false}
+                inline
+                label={'Profile'}
+                trigger='hover'
+            >
+                <Dropdown.Item>Profile</Dropdown.Item>
+                <Dropdown.Item>
+                    <a href={dashboardUrl}>Dashboard</a>
+                </Dropdown.Item>
+                <Dropdown.Item>
+                    <a href='/logout'>Logout</a>
+                </Dropdown.Item>
+            </Dropdown>)))
     }, [])
 
-    let userState = false;
-    let adminState = false;
-    const userStorage = window.localStorage.getItem('user');
-    if(userStorage){
-        const user: UserStorage = JSON.parse(userStorage)
-        if(user.groups.includes('ADMINS')){
-            adminState = true;
-        }
-        else if(user.groups.includes('USERS')){
-            userState = true;
-        }
-    }
-    const dashboardUrl = '/' +  (adminState ? 'admin' : 'client') + '/dashboard'
-    let loginRender = !userState && !adminState ? (<Link to='login'>Login</Link>) : 
-        (<Dropdown
-            arrowIcon={false}
-            inline
-            label={'Profile'}
-            trigger='hover'
-        >
-            <Dropdown.Item>Profile</Dropdown.Item>
-            <Dropdown.Item>
-                <a href={dashboardUrl}>Dashboard</a>
-            </Dropdown.Item>
-            <Dropdown.Item>
-                <a href='/logout'>Logout</a>
-            </Dropdown.Item>
-        </Dropdown>)
+    
 
     
     const dev = false

@@ -90,8 +90,8 @@ export default function SignUp(){
                 <Modal.Body className="flex flex-col gap-3 font-main">
                     <form onSubmit={handleCodeSubmit}>
                         <p>Please enter in the verification code sent to the email associated with this account.</p>
-                        <div className="flex items-center gap-4">
-                            <Label className="ms-4 font-medium text-lg" htmlFor="authCode">Verification Code:</Label>
+                        <div className="flex items-center gap-4 mt-4">
+                            <Label className="font-medium text-lg" htmlFor="authCode">Verification Code:</Label>
                             <TextInput className='' sizing='md' placeholder="Verification Code" type="number" id="authCode" name="authCode"/>
                         </div>
                         <div className="flex flex-row justify-end gap-4 mt-4">
