@@ -10,7 +10,8 @@ import CheckoutForm from './components/service-form/CheckoutForm'
 import { Amplify } from 'aws-amplify'
 import outputs from '../amplify_outputs.json'
 import { Dashboard as AdminDashboard } from './components/admin/Dashboard'
-import { Dashboard as ClientDashboard } from './components/client/dashboard'
+import { Dashboard as ClientDashboard } from './components/client/Dashboard'
+import { Base as AdminBase } from './components/admin/Base'
 import ContactForm from './components/service-form/ContactForm'
 
 Amplify.configure(outputs)
@@ -24,7 +25,9 @@ const router = createBrowserRouter(
       <Route path='register' element={<SignUp />} />
       <Route path='service-form' element={<ServiceForm />} />
       <Route path='service-form/checkout' element={<CheckoutForm />} />
-      <Route path='admin/dashboard' element={<AdminDashboard />} />
+      <Route path='admin' element={<AdminBase />} >
+        <Route path='dashboard' element={<AdminDashboard />} />
+      </Route>
       <Route path='client/dashboard' element={<ClientDashboard />} />
       <Route path='contact-form' element={<ContactForm />} />
     </Route>

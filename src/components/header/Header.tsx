@@ -15,6 +15,7 @@ export default function Header() {
             const userStorage = window.sessionStorage.getItem('user');
             if(userStorage){
                 const user = JSON.parse(userStorage)
+                console.log(user)
                 
                 // const auth = await fetchAuthSession()
                 // const admin = JSON.stringify(auth.tokens?.accessToken.payload['cognito:groups']).includes('ADMINS')
