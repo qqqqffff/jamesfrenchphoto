@@ -1,5 +1,6 @@
 import { defineAuth } from '@aws-amplify/backend';
 import { postConfirmation } from './post-confirmation/resource';
+import { getAuthUsers } from './get-auth-users/resource';
 
 /**
  * Define and configure your auth resource
@@ -14,6 +15,7 @@ export const auth = defineAuth({
     postConfirmation
   },
   access: (allow) => [
-    allow.resource(postConfirmation).to(["addUserToGroup"])
+    allow.resource(postConfirmation).to(["addUserToGroup"]),
+    allow.resource(getAuthUsers).to(['listUsers'])
   ],
 });
