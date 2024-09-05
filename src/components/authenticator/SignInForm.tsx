@@ -52,7 +52,7 @@ export default function SignIn() {
         }))
 
         if(groups.includes('ADMINS')){
-            navigate('admin/dashboard')
+            navigate('/admin/dashboard')
         }
         else if(groups.includes('USERS')){
             navigate('/client/dashboard')

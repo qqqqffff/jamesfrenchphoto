@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { UserStorage } from "../../types";
 import { Badge, Button } from "flowbite-react";
-import { HiOutlineCalendar, HiOutlineClipboardList, HiOutlineChat, HiOutlineDocumentText } from "react-icons/hi";
+import { HiOutlineCalendar, HiOutlineClipboardList, HiOutlineChat, HiOutlineDocumentText, HiOutlinePlusCircle } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
+import { HiArrowUturnLeft } from "react-icons/hi2";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
+    const [adminView, setAdminView] = useState(false)
     const navigate = useNavigate()
     useEffect(() => {
         if(!user){
@@ -13,7 +15,9 @@ export const Dashboard = () => {
                 navigate('/client')
             }
             else{
-                setUser(JSON.parse(window.localStorage.getItem('user')!))
+                const tempUser: UserStorage = JSON.parse(window.localStorage.getItem('user')!);
+                setUser(tempUser)
+                setAdminView(tempUser.groups.includes('ADMINS'))
             }
         }
     }, [])
@@ -24,7 +28,24 @@ export const Dashboard = () => {
         else{
             return 'Loading...'
         }
-       
+    }
+
+    function addClassComponent(){
+        if(adminView){
+            return (<Badge color='gray' onClick={() => console.log('hello world')} icon={HiOutlinePlusCircle} size='md' />)
+        }
+        return (<></>)
+    }
+
+    function returnToAdminConsoleComponent(){
+        if(adminView){
+            return (
+                <Button color='gray' onClick={() => navigate('/admin/dashboard')}>
+                    <HiArrowUturnLeft className="mt-1 me-1"/> Return to Admin View
+                </Button>
+            )
+        }
+        return (<></>)
     }
     return (
         <>
@@ -33,6 +54,7 @@ export const Dashboard = () => {
                 <div className="flex flex-row gap-2 items-center mb-10">
                     {/* TODO: replace me with dynamically piped information*/}
                     <Badge color='blue' className="py-1 text-md">TRF Princess Debutante 2024</Badge>
+                    {addClassComponent()}
                 </div>
                 <p className="font-medium text-xl mb-1">Quick Actions:</p>
                 <Button.Group outline>
@@ -48,6 +70,7 @@ export const Dashboard = () => {
                     <Button color='gray'>
                         <HiOutlineDocumentText className="mt-1 me-1"/> Package Info
                     </Button>
+                    {returnToAdminConsoleComponent()}
                 </Button.Group>
             </div>
         </>
