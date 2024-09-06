@@ -4,12 +4,11 @@ import { Dropdown } from 'flowbite-react'
 import { useEffect, useState } from 'react'
 import { UserStorage } from '../../types'
 
-
 export default function Header() {
     // const [userState, setUserState] = useState(false)
     // const [adminState, setAdminState] = useState(false)
     const [loginRender, setLoginRender] = useState((<></>))
-    useEffect(() => {
+    function readUserStorage(){
         let userState = false;
         let adminState = false;
         const userStorage = window.localStorage.getItem('user');
@@ -38,10 +37,13 @@ export default function Header() {
                     <a href='/logout'>Logout</a>
                 </Dropdown.Item>
             </Dropdown>)))
+    }
+    useEffect(() => {
+        readUserStorage()
+        window.addEventListener('storage', () => {
+            readUserStorage()
+        })
     }, [])
-
-    
-
     
     const dev = false
     const borders = dev ? 'border border-black' : ''

@@ -6,15 +6,7 @@ import { HiOutlineArrowLeft, HiOutlineArrowRight } from "react-icons/hi";
 
 export default function () {
     const [notification, setNotification] = useState((<></>))
-    const notificationComponent = (text: string, color: string) => {
-        return (
-            <div className="flex justify-center items-center font-main mb-4">
-                <Alert color={color} className="text-lg w-[90%]" onDismiss={() => {setNotification((<></>))}}>
-                    <p>{text}</p>
-                </Alert>
-            </div>
-        )
-    }
+    
     useEffect(() => {
         if(history.state && history.state.usr){
             let components = []
@@ -26,14 +18,22 @@ export default function () {
             }
             setNotification((<>{components.map((element, index) => <div key={index}>{element}</div>)}</>))
         }
-
-
     }, [])
     setTimeout(() => {
         setNotification((<></>))
     }, 10_000)
 
     
+
+    const notificationComponent = (text: string, color: string) => {
+        return (
+            <div className="flex justify-center items-center font-main mb-4">
+                <Alert color={color} className="text-lg w-[90%]" onDismiss={() => {setNotification((<></>))}}>
+                    <p>{text}</p>
+                </Alert>
+            </div>
+        )
+    }
 
     return (
         <>

@@ -5,7 +5,7 @@ import { HiOutlineCalendar, HiOutlineClipboardList, HiOutlineChat, HiOutlineDocu
 import { useNavigate } from "react-router-dom";
 import { HiArrowUturnLeft } from "react-icons/hi2";
 
-export const Dashboard = () => {
+export function Dashboard() {
     const [user, setUser] = useState<UserStorage>()
     const [adminView, setAdminView] = useState(false)
     const navigate = useNavigate()
@@ -57,7 +57,7 @@ export const Dashboard = () => {
                     {addClassComponent()}
                 </div>
                 <p className="font-medium text-xl mb-1">Quick Actions:</p>
-                <Button.Group outline>
+                <Button.Group outline={true}>
                     <Button color='gray'>
                         <HiOutlineCalendar className="mt-1 me-1"/> Schedule
                     </Button>

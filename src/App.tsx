@@ -29,8 +29,13 @@ const router = createBrowserRouter(
       <Route path='admin' element={<Base />} >
         <Route path='dashboard' element={<AdminDashboard />} />
       </Route>
-      <Route path='client' element={<Base />} >
-        <Route path='dashboard' element={<ClientDashboard />} />
+      <Route path='client' element={<Base />} action={async ({}) => {
+        //todo: replace me with the logic inside of the base
+      }}>
+        <Route path='dashboard' element={<ClientDashboard />} loader={async ({}) => {
+          //todo: add fetching from amplify in here
+          return null
+        }}/>
       </Route>
       <Route path='contact-form' element={<ContactForm />} />
       <Route path='logout' element={<SignOut />} />

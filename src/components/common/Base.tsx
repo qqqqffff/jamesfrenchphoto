@@ -1,6 +1,6 @@
 import { fetchAuthSession, fetchUserAttributes, getCurrentUser } from "aws-amplify/auth"
 import { useEffect } from "react"
-import { Outlet, redirect, useNavigate } from "react-router-dom"
+import { Outlet, useNavigate } from "react-router-dom"
 import { Amplify } from "aws-amplify";
 import outputs from '../../../amplify_outputs.json'
 import { Schema } from "../../../amplify/data/resource";
@@ -16,7 +16,6 @@ export const Base = () => {
         async function verifyUser(){
             let group = ''
             if(!window.localStorage.getItem('user')){
-                console.log('nothing in local storage, attempting to fetch from aws')
                 const user = await getCurrentUser();
                 const session = await fetchAuthSession();
                 if(user && session && session.tokens && session.tokens?.accessToken){
@@ -30,6 +29,7 @@ export const Base = () => {
                         groups: groups, 
                         profile: profile
                     }))
+                    window.dispatchEvent(new Event('storage'))
                     if(groups.includes('ADMINS')){
                         group = 'ADMIN'
                     }
@@ -37,7 +37,6 @@ export const Base = () => {
                         group = 'USERS'
                     }
                 }
-                console.log('nothing in db, redirecting to login')
             }
             else{
                 const userStorage: UserStorage = JSON.parse(window.localStorage.getItem('user')!)
@@ -50,19 +49,29 @@ export const Base = () => {
             }
 
             if(group === 'ADMIN'){
-                redirect('admin/dashboard')
+                navigate('/admin/dashboard')
             }
             else if(group === 'USERS'){
-                redirect('client/dashboard')
+                navigate('/client/dashboard')
             }
-            else {
-                navigate('login', {
+            
+        }
+
+        if(window.localStorage.getItem('user')){
+            const tempUser: UserStorage = JSON.parse(window.localStorage.getItem('user')!)
+            if(tempUser.groups.includes('ADMINS')){
+                navigate('/admin/dashboard')
+            }
+            else if(tempUser.groups.includes('USERS')){
+                navigate('/client/dashboard')
+            }
+            else{
+                navigate('/login', {
                     state: {
                         unauthorized: true
                     }
                 })
             }
-            
         }
         verifyUser()
     }, [])

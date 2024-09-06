@@ -13,10 +13,14 @@ export const Dashboard = () => {
     useEffect(() => {
         if(!user){
             if(!window.localStorage.getItem('user')){
-                navigate('/client')
+                navigate('/login')
             }
             else{
                 const tempUser: UserStorage = JSON.parse(window.localStorage.getItem('user')!);
+                console.log(tempUser)
+                if(!tempUser.groups.includes('ADMINS')){
+                    navigate('/client/dashboard')
+                }
                 setUser(tempUser)
             }
         }
@@ -54,7 +58,7 @@ export const Dashboard = () => {
             <div className="flex flex-col items-center justify-center font-main">
                 <p className="font-semibold text-3xl mb-4">Welcome {structureFullname()}</p>
                 <p className="font-medium text-xl mb-1">Management Consoles:</p>
-                <Button.Group outline>
+                <Button.Group outline={true}>
                     <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
                         <HiOutlineCalendar className="mt-1 me-1"/> Scheduler
                     </Button>
