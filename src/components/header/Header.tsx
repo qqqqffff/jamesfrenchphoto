@@ -40,9 +40,8 @@ export default function Header() {
     }
     useEffect(() => {
         readUserStorage()
-        window.addEventListener('storage', () => {
-            readUserStorage()
-        })
+        window.addEventListener('storage', readUserStorage)
+        return () => window.removeEventListener('storage', readUserStorage)
     }, [])
     
     const dev = false
