@@ -11,6 +11,32 @@ and "delete" any "Todo" records.
 =========================================================================*/
 
 const schema = a.schema({
+  Events: a
+    .model({
+      id: a.id().required(),
+      name: a.string(),
+      subCategories: a.hasMany('SubCategory', 'id')
+    }).identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  SubCategory: a
+    .model({
+      id: a.id().required(),
+      headers: a.string().array(),
+      fields: a.hasMany('SubCategoryFields', 'id'),
+      event: a.belongsTo('Events', 'id')
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  SubCategoryFields: a
+    .model({
+      id: a.id().required(),
+      subCategory: a.belongsTo('SubCategory', 'id'),
+      row: a.integer().required(),
+      key: a.string().required(),
+      value: a.string()
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS')]),
   Pricing: a
     .model({
       object: a.string(),
