@@ -21,8 +21,10 @@ const schema = a.schema({
   SubCategory: a
     .model({
       id: a.id().required(),
+      name: a.string().required(),
       headers: a.string().array(),
       fields: a.hasMany('SubCategoryFields', 'id'),
+      eventId: a.id().required(),
       event: a.belongsTo('Events', 'id')
     })
     .identifier(['id'])
@@ -30,6 +32,7 @@ const schema = a.schema({
   SubCategoryFields: a
     .model({
       id: a.id().required(),
+      subCategoryId: a.id().required(),
       subCategory: a.belongsTo('SubCategory', 'id'),
       row: a.integer().required(),
       key: a.string().required(),

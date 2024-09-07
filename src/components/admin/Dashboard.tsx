@@ -17,7 +17,6 @@ export const Dashboard = () => {
             }
             else{
                 const tempUser: UserStorage = JSON.parse(window.localStorage.getItem('user')!);
-                console.log(tempUser)
                 if(!tempUser.groups.includes('ADMINS')){
                     navigate('/client/dashboard')
                 }

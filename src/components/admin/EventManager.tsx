@@ -1,7 +1,9 @@
-import { Dropdown } from "flowbite-react";
-import { useState } from "react";
-import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineDocumentReport, HiOutlinePlus } from "react-icons/hi";
+import { generateClient } from "aws-amplify/api";
+import { Button, Dropdown, Label, Modal, TextInput } from "flowbite-react";
+import { FormEvent, useEffect, useState } from "react";
+import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineDocumentReport, HiOutlinePlusCircle } from "react-icons/hi";
 import { HiEllipsisHorizontal, HiOutlinePencil } from "react-icons/hi2";
+import { Schema } from "../../../amplify/data/resource";
 
 interface EventTableData {
     headings: string[]
@@ -18,9 +20,44 @@ interface Field {
     [key: string]: string
 }
 
+interface CreateEventFormElements extends HTMLFormControlsCollection{
+    name: HTMLInputElement
+}
+
+interface CreateEventForm extends HTMLFormElement{
+    readonly elements: CreateEventFormElements
+}
+
+const client = generateClient<Schema>()
+
 export default function EventManager(){
     const [groupToggles, setGroupToggles] = useState<Boolean[]>([false])
     const [eventItem, setEventItem] = useState(<>Select An Event Item to View</>)
+    const [createModalVisible, setCreateModalVisible] = useState(false)
+    const [createTableModalVisible, setCreateTableModalVisible] = useState(false)
+    const [eventList, setEventList] = useState<any>()
+
+    useEffect(() => {
+        if(!eventList){
+            (async () => setEventList(await client.models.Events.list()))()
+            console.log('fetched')
+        }
+        const updateSub = client.models.Events.onUpdate().subscribe({
+            next: (data) => setEventList(data)
+        })
+        const deleteSub = client.models.Events.onDelete().subscribe({
+            next: (data) => setEventList(data)
+        })
+        const createSub = client.models.Events.onCreate().subscribe({
+            next: (data) => setEventList(data)
+        })
+        return () => {
+            updateSub.unsubscribe()
+            deleteSub.unsubscribe()
+            createSub.unsubscribe()
+        }
+    })
+    console.log(eventList)
 
     function groupToggled(index: number){
         if(groupToggles[index]){
@@ -154,10 +191,60 @@ export default function EventManager(){
             )
         }
     }
+
+    async function handleCreateEvent(event: FormEvent<CreateEventForm>){
+        event.preventDefault()
+        const form = event.currentTarget;
+
+        const response = await client.models.Events.create({
+            name: form.elements.name.value
+        })
+
+        console.log(response)
+
+        if(!response.errors){
+            const eventList = await client.models.Events.list();
+            setEventList(eventList)
+        }
+        //trigger a rerender of the side console
+    }
+
+    async function handleCreateTable(event: FormEvent<CreateEventForm>){
+        event.preventDefault()
+        const form = event.currentTarget;
+        // const response = await client.models.SubCategory.create({
+            
+        // })
+    }
     return (
         <>
+            <Modal show={createModalVisible} onClose={() => setCreateModalVisible(false)}>
+                <Modal.Header>Create a new Event</Modal.Header>
+                <Modal.Body>
+                    <form onSubmit={handleCreateEvent} className="flex flex-col">
+                        <Label className="ms-2 font-semibold text-xl mb-4" htmlFor="name">Event Name:</Label>
+                        <TextInput sizing='lg' className="mb-6" placeholder="Event Name" type="name" id="name" name="name" />
+                        <div className="flex flex-row justify-end border-t">
+                            <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" >Create</Button>
+
+                        </div>
+                    </form>
+                </Modal.Body>
+            </Modal>
+            <Modal show={createTableModalVisible} onClose={() => setCreateTableModalVisible(false)}>
+                <Modal.Header>Create Table</Modal.Header>
+                <Modal.Body>
+                    <form onSubmit={handleCreateTable}>
+
+                    </form>
+                </Modal.Body>
+            </Modal>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
+                    <div className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer" onClick={() => setCreateModalVisible(true)}>
+                        <span className="text-xl ms-4 mb-1">Create New Event</span>
+                        <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2"/>
+                    </div>
                     <div className="flex flex-row">
                         <div className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer" onClick={() => {setGroupToggles([!groupToggles[0], ...groupToggles])}}>
                             <span className="text-xl ms-4 mb-1">2024 TRF</span>
@@ -165,7 +252,7 @@ export default function EventManager(){
                         </div>
                         <Dropdown label={<HiEllipsisHorizontal size={24} className="hover:border-gray-400 hover:border rounded-full"/>} inline arrowIcon={false}>
                             <Dropdown.Item><HiOutlinePencil className="me-1"/>Rename Event</Dropdown.Item>
-                            <Dropdown.Item><HiOutlinePlus className="me-1"/>Create Table</Dropdown.Item>
+                            <Dropdown.Item><HiOutlinePlusCircle className="me-1"/>Create Table</Dropdown.Item>
                         </Dropdown>
                     </div>
                     {eventItems('2024 TRF', groupToggles[0])}
