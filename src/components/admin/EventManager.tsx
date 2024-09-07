@@ -39,7 +39,12 @@ export default function EventManager(){
 
     useEffect(() => {
         if(!eventList){
-            (async () => setEventList(await client.models.Events.list()))()
+            (async () => {
+                const eventList = await client.models.Events.list()
+                const groupToggles = eventList.data.map(() => false)
+                setGroupToggles(groupToggles)
+                setEventList(eventList)
+            })()
             console.log('fetched')
         }
         const updateSub = client.models.Events.onUpdate().subscribe({
@@ -66,7 +71,7 @@ export default function EventManager(){
         return (<HiOutlineChevronLeft className="me-3" />)
     }
 
-    function eventItems(eventName: string, visible: Boolean){
+    function eventItems(eventName: string, eventId: string, visible: Boolean){
         if(eventName == '2024 TRF'){}
         const items: EventItem[] = [
             {
@@ -213,8 +218,32 @@ export default function EventManager(){
         event.preventDefault()
         const form = event.currentTarget;
         // const response = await client.models.SubCategory.create({
-            
+        //     eventId:
         // })
+    }
+
+    function eventListComponents(){
+        if(eventList?.data){
+            return (eventList!.data.map((event: any, index: number) => {
+                return (
+                    <div className="flex flex-col" key={index}>
+                        <div className="flex flex-row">
+                            <div className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer" onClick={() => {setGroupToggles([!groupToggles[index], ...groupToggles])}}>
+                                <span className="text-xl ms-4 mb-1">{event.name}</span>
+                                {groupToggled(index)}
+                            </div>
+                            <Dropdown label={<HiEllipsisHorizontal size={24} className="hover:border-gray-400 hover:border rounded-full"/>} inline arrowIcon={false}>
+                                <Dropdown.Item><HiOutlinePencil className="me-1"/>Rename Event</Dropdown.Item>
+                                <Dropdown.Item><HiOutlinePlusCircle className="me-1"/>Create Table</Dropdown.Item>
+                            </Dropdown>
+                        </div>
+                        {eventItems(event.name, event.id, groupToggles[index])}
+                    </div>
+                    
+                    
+                )
+            }))
+        }
     }
     return (
         <>
@@ -255,7 +284,8 @@ export default function EventManager(){
                             <Dropdown.Item><HiOutlinePlusCircle className="me-1"/>Create Table</Dropdown.Item>
                         </Dropdown>
                     </div>
-                    {eventItems('2024 TRF', groupToggles[0])}
+                    {eventItems('2024 TRF', '123', groupToggles[0])}
+                    {eventListComponents()}
                 </div>
                 <div className="flex col-span-4 justify-center border border-gray-400 rounded-lg">
                     {eventItem}
