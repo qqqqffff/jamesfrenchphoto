@@ -36,9 +36,10 @@ const schema = a.schema({
       subCategory: a.belongsTo('SubCategory', 'id'),
       row: a.integer().required(),
       key: a.string().required(),
-      value: a.string()
+      value: a.string().required(),
     })
     .identifier(['id'])
+    .secondaryIndexes((index) => [index('subCategoryId')])
     .authorization((allow) => [allow.group('ADMINS')]),
   Pricing: a
     .model({
