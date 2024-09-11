@@ -1,12 +1,13 @@
 import { generateClient } from "aws-amplify/api";
 import { Button, Dropdown, FileInput, Label, Modal, TextInput } from "flowbite-react";
 import { FormEvent, useEffect, useState } from "react";
-import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineDocumentReport, HiOutlinePlusCircle } from "react-icons/hi";
+import { HiOutlineCamera, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineDocumentReport, HiOutlinePlusCircle } from "react-icons/hi";
 import { HiEllipsisHorizontal, HiOutlinePencil } from "react-icons/hi2";
 import { Schema } from "../../../amplify/data/resource";
+import { uploadData } from "aws-amplify/storage";
 
 
-//todo create a data type for the things
+//TODO: create a data type for the things
 interface EventTableData {
     headings: string[]
     fields: Field[]
@@ -17,6 +18,7 @@ interface EventItem {
     type: string
     tableData?: EventTableData
 }
+
 
 interface Field {
     [key: string]: string
@@ -30,12 +32,22 @@ interface CreateTableFormElements extends CreateEventFormElements{
     importData: HTMLInputElement
 }
 
+interface UploadImagesFormElements extends HTMLFormControlsCollection{
+    eventId: HTMLInputElement
+    subCategoryId: HTMLInputElement
+    files: HTMLInputElement
+}
+
 interface CreateEventForm extends HTMLFormElement{
     readonly elements: CreateEventFormElements
 }
 
 interface CreateTableForm extends HTMLFormElement{
     readonly elements: CreateTableFormElements
+}
+
+interface UploadImagesForm extends HTMLFormElement{
+    readonly elements: UploadImagesFormElements
 }
 
 const client = generateClient<Schema>()
@@ -47,56 +59,127 @@ export default function EventManager(){
     const [eventItem, setEventItem] = useState(<>Select An Event Item to View</>)
     const [createModalVisible, setCreateModalVisible] = useState(false)
     const [createTableModalVisible, setCreateTableModalVisible] = useState(false)
+    const [createPhotoCollectionModalVisible, setCreatePhotoCollectionModalVisible] = useState(false)
     const [eventList, setEventList] = useState<any>()
     const [subCategories, setSubcategories] = useState<any>()
     const [createColumnModalVisible, setCreateColumnModalVisible] = useState(false)
     const [tableId, setTableId] = useState('')
-    function renderEventControls(disabled: boolean[]){
+    const [tableFields, setTableFields] = useState<any>()
+    function renderEventControls(type: string, disabled: boolean[]){
+        if(type === 'table'){
+            return (
+                <>
+                    <div className="flex flex-col gap-4 items-center w-full">
+                        <span className="mt-2 text-2xl">Table Controls</span>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[0]} 
+                            onClick={() => setCreateColumnModalVisible(true)}
+                        >
+                            Add Column
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[1]} 
+                            onClick={async () => {
+                                const keys = subCategories.filter((sc: any) => sc.id === tableId).map((sc: any) => sc.headers)[0]
+                                const fields = (await client.models.SubCategoryFields.listSubCategoryFieldsBySubCategoryId({subCategoryId: tableId})).data
+                                let max = -1
+                                fields.forEach((field) => max = Math.max(field.row, max))
+                                keys.forEach(async (heading: string) => {
+                                    const response = await client.models.SubCategoryFields.create({
+                                        subCategoryId: tableId,
+                                        row: max + 1,
+                                        key: heading,
+                                        value: ''
+                                    })
+                                    console.log(response)
+                                })
+                                const sc = (await client.models.SubCategory.list()).data
+                                setSubcategories(sc)
+                            }}
+                        >
+                            Add Row
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[2]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Delete Column
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[3]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Delete Row
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[4]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Rename Subcategory
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 mb-6 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[5]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Delete Subcategory
+                        </button>
+                    </div>
+                </>
+            )
+        }
+        else if(type === 'photoCollection'){
+            return (
+                <>
+                    <div className="flex flex-col gap-4 items-center w-full">
+                        <span className="mt-2 text-2xl">Photo Collection Controls</span>
+                            {/* <input className=" focus:border-none" type="file" multiple onChange={(event) => setFiles(event.target.files)}/> */}
+                            <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                                disabled={disabled[0]} 
+                                onClick={() => {console.log('hello world')}}
+                                type="submit"
+                            >
+                                Upload Picture{'(s)'}
+                            </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[1]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Delete Picture
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[2]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Assign Pictures
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[3]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Auto Assign
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[4]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Rename Subcategory
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 mb-6 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[5]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Delete Subcategory
+                        </button>
+                    </div>
+                </>
+            )
+        }
         return (
             <>
-                <div className="flex flex-col gap-4 items-center w-full">
-                    <span className="mt-2 text-2xl">Controls</span>
-                    <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                        disabled={disabled[0]} 
-                        onClick={() => {console.log('hello world')}}
-                    >
-                        Add Column
-                    </button>
-                    <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                        disabled={disabled[1]} 
-                        onClick={() => {console.log('hello world')}}
-                    >
-                        Add Row
-                    </button>
-                    <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                        disabled={disabled[2]} 
-                        onClick={() => {console.log('hello world')}}
-                    >
-                        Delete Column
-                    </button>
-                    <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                        disabled={disabled[3]} 
-                        onClick={() => {console.log('hello world')}}
-                    >
-                        Delete Row
-                    </button>
-                    <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                        disabled={disabled[4]} 
-                        onClick={() => {console.log('hello world')}}
-                    >
-                        Rename Subcategory
-                    </button>
-                    <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 mb-6 border disabled:border-gray-400 border-black" 
-                        disabled={disabled[5]} 
-                        onClick={() => {console.log('hello world')}}
-                    >
-                        Delete Subcategory
-                    </button>
-                </div>
             </>
         )
     }
-    const [eventControls, setEventControls] = useState(renderEventControls([true, true, true, true, true, true]))
+    const [eventControls, setEventControls] = useState(renderEventControls('', []))
     const [createTableForId, setCreateTableForId] = useState('')
 
     useEffect(() => {
@@ -219,7 +302,7 @@ export default function EventManager(){
         //     }
         // ]
 
-        //todo convert div to button
+        //TODO: convert div to button
         if(visible) {
             return items.map((item: any, index) => {
                 return (
@@ -227,7 +310,7 @@ export default function EventManager(){
                         setEventItem(await renderEvent(item))
                         setTableId(item.id)
                     }}>
-                        <HiOutlineDocumentReport className="mt-0.5 me-2"/>{item.name}
+                        {item.type === 'table' ? (<HiOutlineDocumentReport className="mt-0.5 me-2"/>) : (<HiOutlineCamera className="mt-0.5 me-2"/>)}{item.name}
                     </div>
                 )
             })
@@ -236,84 +319,94 @@ export default function EventManager(){
     }
 
     async function renderEvent(item: any){
-        if(!item.headers){
-            setEventControls(renderEventControls([false, true, true, true, false, false]))
-            return (
-                <>
-                    <p>No table data. Start by uploading a csv, or adding a column!</p>
-                </>
-            )
-        }
-        else{
-            //todo: add a conditional for the parsed event fields
-            setEventControls(renderEventControls([false, false, false, false, false, false]))
-            const fields = await client.models.SubCategoryFields.listSubCategoryFieldsBySubCategoryId({
-                subCategoryId: item.id
-            })
-
-            type TableRows = {
-                [key: string]: string;
-              } & {
-                index: number;
-              };
-            const rows: TableRows[] = []
-            fields.data.forEach(field => {
-                const r = rows.find((x) => x.index == field.row)
-                if(r){
-                    const row: TableRows = r
-                    const index = rows.indexOf(row)
-                    Object.entries(row).map(([key, value]) => {
-                        if(key == field.key){
-                            return [key, field.value]
-                        }
-                        return [key, value]
-                    })
-                    rows[index] = row
+        switch(item.type){
+            case 'table':
+                if(!item.headers){
+                    setEventControls(renderEventControls(item.type, [false, true, true, true, false, false]))
+                    return (
+                        <>
+                            <p>No table data. Start by uploading a csv, or adding a column!</p>
+                        </>
+                    )
                 }
                 else{
-                    const row: any = {
-                        [field.key]: field.value,
-                        index: field.row
+                    //TODO: add a conditional for the parsed event fields
+                    setEventControls(renderEventControls(item.type, [false, false, false, false, false, false]))
+                    let fields = tableFields
+                    if(tableId != item.id){
+                        fields = (await client.models.SubCategoryFields.listSubCategoryFieldsBySubCategoryId({
+                            subCategoryId: item.id
+                        })).data
+                        setTableFields(fields)
+                        console.log('call')
                     }
-                    rows.push(row)
-                }
-            });
 
-            console.log(rows)
+                    type TableRows = {
+                        [key: string]: string;
+                    }
 
-            setEventControls(renderEventControls([false, false, true, true]))
-            return (
-                <>
-                    <div className="relative overflow-x-auto overflow-y-auto max-h-[100rem] shadow-md sm:rounded-lg">
-                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                <tr>
-                                    {item.headers.map((heading: any, index: number) => (
-                                        <th scope='col' className='px-6 py-3 border-x border-x-gray-300 border-b border-b-gray-300' key={index}>
-                                            {heading}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                //todo fix for fields
-                                {/* {fields.data.map((field, index) => {
-                                    return (
-                                        <tr key={index} className="bg-white border-b ">
-                                            {Object.values(field).map((x, index) => {
-                                                return (
-                                                    <td className="overflow-ellipsis px-6 py-4" key={index}>{x}</td>
-                                                )
-                                            })}
+                    const rowMap: { [rowNumber: number]: TableRows} = {}
+                    fields.forEach((entry: any) => {
+                        if (!rowMap[entry.row]) {
+                            rowMap[entry.row] = {};
+                        }
+                        rowMap[entry.row][entry.key] = entry.value;
+                    });
+        
+                    return (
+                        <>
+                            <div className="relative overflow-x-auto overflow-y-auto max-h-[100rem] shadow-md sm:rounded-lg">
+                                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                        <tr>
+                                            {item.headers.map((heading: any, index: number) => (
+                                                <th scope='col' className='px-6 py-3 border-x border-x-gray-300 border-b border-b-gray-300' key={index}>
+                                                    {heading}
+                                                </th>
+                                            ))}
                                         </tr>
-                                    )    
-                                })} */}
-                            </tbody>
-                        </table>
-                    </div>
-                </>
-            )
+                                    </thead>
+                                    <tbody>
+                                        {Object.values(rowMap).map((field, index) => {
+                                            return (
+                                                <tr key={index} className="bg-white border-b ">
+                                                    {Object.entries(field).map(([key, value], index) => {
+                                                        return (
+                                                            <td className="overflow-ellipsis px-6 py-4" key={index}>
+                                                                <TextInput sizing='sm' className="" defaultValue={value} placeholder="Click Here to Edit" onChange={async (event) => {
+                                                                    const response = await client.models.SubCategoryFields.update({
+                                                                        id: fields.filter((field: any) => field.key == key && index == field.row).map((sc: any) => sc.id)[0],
+                                                                        value: event.target.value
+                                                                    })
+                                                                    console.log(response)
+                                                                    //TODO: put in a reducer
+                                                                }}/>
+                                                            </td>
+                                                        )
+                                                    })}
+                                                </tr>
+                                            )    
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )
+                }
+            case 'photoCollection':
+                setEventControls(renderEventControls(item.type, [false, true, true, true, false, false]))
+                return (
+                    <>
+                        <p>Upload pictures to start!</p>
+                    </>
+                )
+            default:
+                return (
+                    <>
+                    </>
+                )
         }
+        
     }
 
     async function handleCreateEvent(event: FormEvent<CreateEventForm>){
@@ -343,7 +436,8 @@ export default function EventManager(){
         // })
         const response = await client.models.SubCategory.create({
             eventId: createTableForId,
-            name: form.elements.name.value
+            name: form.elements.name.value,
+            type: 'table'
         })
         console.log(response)
 
@@ -355,6 +449,84 @@ export default function EventManager(){
             setCreateTableModalVisible(false)
             setCreateTableForId('')
         }
+    }
+
+    async function handleCreatePhotoCollection(event: FormEvent<CreateTableForm>){
+        event.preventDefault()
+        const form = event.currentTarget;
+
+        const response = await client.models.SubCategory.create({
+            eventId: createTableForId,
+            name: form.elements.name.value,
+            type: 'photoCollection'
+        })
+        console.log(response)
+
+        const photoCollectionResponse = await client.models.PhotoCollection.create({
+            name: form.elements.name.value,
+            subCategoryId: response.data!.id
+        })
+        console.log(photoCollectionResponse)
+
+        if(!response.errors){
+            const scList = (await client.models.SubCategory.list()).data
+            console.log(scList)
+            setSubcategories(scList)
+            setCreatePhotoCollectionModalVisible(false)
+            setCreateTableForId('')
+        }
+    }
+
+    async function handleUploadPhotos(event: FormEvent<UploadImagesForm>){
+        event.preventDefault()
+        const form = event.currentTarget
+
+        //TODO: preform form validation
+        const paths = await Promise.all(
+            Array.from(form.elements.files.files!).map(async (file) => {
+                const result = await uploadData({
+                    path: `photo-collections/${form.elements.eventId.value}_${form.elements.subCategoryId.value}_${file.name}`,
+                    data: file,
+                }).result
+
+                return result.path
+            })
+        )
+
+        const response = await client.models.SubCategory.get({
+            id: form.elements.subCategoryId.value
+        })
+
+        console.log(response)
+
+        const photoCollection = await client.models.PhotoCollection.listPhotoCollectionBySubCategoryId({
+            subCategoryId: response.data!.id
+        })
+
+        console.log(photoCollection)
+
+        const result = await client.models.PhotoCollection.update({
+            id: photoCollection.data[0].id,
+            imagePaths: paths
+        })
+
+        console.log(result)
+    }
+
+    async function handleCreateColumn(event: FormEvent<CreateEventForm>) {
+        event.preventDefault()
+        const form = event.currentTarget;
+        const headers = subCategories.filter((sc: any) => sc.id == tableId).map((sc: any) => sc.headers)[0]
+        headers.push(form.elements.name.value)
+        const response = await client.models.SubCategory.update({
+            id: tableId,
+            headers: headers
+        })
+        console.log(response)
+        const scList = (await client.models.SubCategory.list()).data
+        setSubcategories(scList)
+        setCreateColumnModalVisible(false)
+        //TODO: append values to existing fields
     }
 
     function eventListComponents(){
@@ -376,6 +548,13 @@ export default function EventManager(){
                                 >
                                     <HiOutlinePlusCircle className="me-1"/>Create Table
                                 </Dropdown.Item>
+                                <Dropdown.Item onClick={() => {
+                                        setCreatePhotoCollectionModalVisible(true)
+                                        setCreateTableForId(event.id)
+                                    }}
+                                >
+                                    <HiOutlinePlusCircle className="me-1"/>Create Photo Collection
+                                </Dropdown.Item>
                             </Dropdown>
                         </div>
                         {eventItems(event.name, event.id, groupToggles[index])}
@@ -384,6 +563,7 @@ export default function EventManager(){
             }))
         }
     }
+
     return (
         <>
             <Modal show={createModalVisible} onClose={() => setCreateModalVisible(false)}>
@@ -417,6 +597,40 @@ export default function EventManager(){
                     </form>
                 </Modal.Body>
             </Modal>
+            <Modal show={createPhotoCollectionModalVisible} onClose={() => setCreatePhotoCollectionModalVisible(false)}>
+                <Modal.Header>Create Table</Modal.Header>
+                <Modal.Body>
+                    <form onSubmit={handleCreatePhotoCollection}>
+                        <div className="flex flex-col">
+                            <Label className="ms-2 font-semibold text-xl mb-2" htmlFor="name">Photo Collection Name:</Label>
+                            <TextInput className="mb-6" placeholder="Event Name" type="name" id="name" name="name" />
+                        </div>
+                        <div className="flex flex-col">
+                            <Label className="ms-2 font-semibold text-xl mb-2" htmlFor="importData">Upload Photos:</Label>
+                            <FileInput id="importData" name="importData" helperText='Photo file types are supported' className=""/>
+                        </div>
+                        <div className="flex flex-row justify-end border-t mt-4">
+                            <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" >Create</Button>
+
+                        </div>
+                    </form>
+                </Modal.Body>
+            </Modal>
+            <Modal show={createColumnModalVisible} onClose={() => setCreateColumnModalVisible(false)}>
+                <Modal.Header>Create Table</Modal.Header>
+                <Modal.Body>
+                    <form onSubmit={handleCreateColumn}>
+                        <div className="flex flex-col">
+                            <Label className="ms-2 font-semibold text-xl mb-2" htmlFor="name">Column Header:</Label>
+                            <TextInput className="mb-6" placeholder="Column Name" type="name" id="name" name="name" />
+                        </div>
+                        <div className="flex flex-row justify-end border-t mt-4">
+                            <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" >Create</Button>
+
+                        </div>
+                    </form>
+                </Modal.Body>
+            </Modal>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
                     <div className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer" onClick={() => setCreateModalVisible(true)}>
@@ -439,7 +653,7 @@ export default function EventManager(){
                 <div className="flex col-span-4 justify-center border border-gray-400 rounded-lg">
                     {eventItem}
                 </div>
-                <div className="flex justify-center border border-gray-400 rounded-lg">
+                <div className="flex justify-center border border-gray-400 rounded-lg me-5">
                     {eventControls}
                 </div>
             </div>

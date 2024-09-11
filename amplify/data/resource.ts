@@ -24,11 +24,24 @@ const schema = a.schema({
       name: a.string().required(),
       headers: a.string().array(),
       fields: a.hasMany('SubCategoryFields', 'id'),
+      collection: a.hasOne('PhotoCollection', 'id'),
+      type: a.string().required(),
       eventId: a.id().required(),
       event: a.belongsTo('Events', 'id')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS')]),
+  PhotoCollection: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      imagePaths: a.string().array(),
+      subCategoryId: a.id().required(),
+      subCategory: a.belongsTo('SubCategory', 'id'),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('subCategoryId')])
+    .authorization((allow) => [allow.authenticated()]),
   SubCategoryFields: a
     .model({
       id: a.id().required(),
@@ -75,6 +88,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(getAuthUsers))
     .returns(a.json())
+  
 })
 .authorization((allow) => [allow.resource(postConfirmation)]);
 
