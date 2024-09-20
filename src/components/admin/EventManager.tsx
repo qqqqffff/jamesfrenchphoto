@@ -1,10 +1,10 @@
 import { generateClient } from "aws-amplify/api";
 import { Button, Dropdown, FileInput, Label, Modal, TextInput } from "flowbite-react";
-import { FormEvent, useEffect, useState } from "react";
-import { HiOutlineCamera, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineDocumentReport, HiOutlinePlusCircle } from "react-icons/hi";
-import { HiEllipsisHorizontal, HiOutlinePencil } from "react-icons/hi2";
+import { FC, FormEvent, useEffect, useState } from "react";
+import { HiOutlineCamera, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineDocumentReport, HiOutlineExclamationCircle, HiOutlinePlusCircle } from "react-icons/hi";
+import { HiEllipsisHorizontal, HiOutlinePencil, HiOutlineXMark } from "react-icons/hi2";
 import { Schema } from "../../../amplify/data/resource";
-import { uploadData } from "aws-amplify/storage";
+import { getUrl, uploadData } from "aws-amplify/storage";
 
 
 //TODO: create a data type for the things
@@ -52,7 +52,26 @@ interface UploadImagesForm extends HTMLFormElement{
 
 const client = generateClient<Schema>()
 
+//TODO: replace me
+enum EventTypes {
+    PhotoCollection = 'photoCollection',
+    Table = 'table'
+}
 
+type PicturePath = {
+    url: string;
+    path: string;
+    height: number;
+    width: number;
+}
+
+type PhotoCollection = {
+    coverPath: string | null;
+    createdAt: string;
+    id: string;
+    name: string;
+    updatedAt: string;
+}
 
 export default function EventManager(){
     const [groupToggles, setGroupToggles] = useState<Boolean[]>([false])
@@ -60,127 +79,21 @@ export default function EventManager(){
     const [createModalVisible, setCreateModalVisible] = useState(false)
     const [createTableModalVisible, setCreateTableModalVisible] = useState(false)
     const [createPhotoCollectionModalVisible, setCreatePhotoCollectionModalVisible] = useState(false)
+    const [uploadPhotosModalVisible, setUploadPhotosModalVisible] = useState(false)
     const [eventList, setEventList] = useState<any>()
     const [subCategories, setSubcategories] = useState<any>()
     const [createColumnModalVisible, setCreateColumnModalVisible] = useState(false)
-    const [tableId, setTableId] = useState('')
+    const [subcategoryId, setSubcategoryId] = useState<string>()
     const [tableFields, setTableFields] = useState<any>()
-    function renderEventControls(type: string, disabled: boolean[]){
-        if(type === 'table'){
-            return (
-                <>
-                    <div className="flex flex-col gap-4 items-center w-full">
-                        <span className="mt-2 text-2xl">Table Controls</span>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[0]} 
-                            onClick={() => setCreateColumnModalVisible(true)}
-                        >
-                            Add Column
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[1]} 
-                            onClick={async () => {
-                                const keys = subCategories.filter((sc: any) => sc.id === tableId).map((sc: any) => sc.headers)[0]
-                                const fields = (await client.models.SubCategoryFields.listSubCategoryFieldsBySubCategoryId({subCategoryId: tableId})).data
-                                let max = -1
-                                fields.forEach((field) => max = Math.max(field.row, max))
-                                keys.forEach(async (heading: string) => {
-                                    const response = await client.models.SubCategoryFields.create({
-                                        subCategoryId: tableId,
-                                        row: max + 1,
-                                        key: heading,
-                                        value: ''
-                                    })
-                                    console.log(response)
-                                })
-                                const sc = (await client.models.SubCategory.list()).data
-                                setSubcategories(sc)
-                            }}
-                        >
-                            Add Row
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[2]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            Delete Column
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[3]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            Delete Row
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[4]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            Rename Subcategory
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 mb-6 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[5]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            Delete Subcategory
-                        </button>
-                    </div>
-                </>
-            )
-        }
-        else if(type === 'photoCollection'){
-            return (
-                <>
-                    <div className="flex flex-col gap-4 items-center w-full">
-                        <span className="mt-2 text-2xl">Photo Collection Controls</span>
-                            {/* <input className=" focus:border-none" type="file" multiple onChange={(event) => setFiles(event.target.files)}/> */}
-                            <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                                disabled={disabled[0]} 
-                                onClick={() => {console.log('hello world')}}
-                                type="submit"
-                            >
-                                Upload Picture{'(s)'}
-                            </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[1]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            Delete Picture
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[2]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            Assign Pictures
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[3]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            Auto Assign
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[4]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            Rename Subcategory
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 mb-6 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[5]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            Delete Subcategory
-                        </button>
-                    </div>
-                </>
-            )
-        }
-        return (
-            <>
-            </>
-        )
-    }
-    const [eventControls, setEventControls] = useState(renderEventControls('', []))
+    const [pictureCollection, setPictureCollection] = useState<PhotoCollection | undefined>()
+    const [pictureCollectionPaths, setPictureCollectionPaths] = useState<PicturePath[] | undefined>()
+    const [columnsDeletable, setColumnsDeletable] = useState()
+    const [filesUpload, setFilesUpload] = useState<File[] | null>()
+    const [interactingCollection, setInteractingCollection] = useState({ interactionOverride: true, selectedURLs: ([] as string[]), buttonText: ['Delete Picture(s)', 'Assign Picture(s)'] })
+    const [eventControls, setEventControls] = useState((<></>))
     const [createTableForId, setCreateTableForId] = useState('')
+    const [photoViewUrl, setPhotoViewUrl] = useState<string>()
+    const [photoModalVisible, setPhotoModalVisible] = useState(false)
 
     useEffect(() => {
         if(!eventList){
@@ -227,88 +140,152 @@ export default function EventManager(){
         return (<HiOutlineChevronLeft className="me-3" />)
     }
 
+    function renderEventControls(type: string, disabled: boolean[], itemId: string){
+        if(type === 'table'){
+            return (
+                <>
+                    <div className="flex flex-col gap-4 items-center w-full">
+                        <span className="mt-2 text-2xl">Table Controls</span>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[0]} 
+                            onClick={() => setCreateColumnModalVisible(true)}
+                        >
+                            Add Column
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[1]} 
+                            onClick={async () => {
+                                let keys = subCategories
+                                if(!keys || !(keys satisfies [])){
+                                    keys = (await client.models.SubCategory.get({ id: itemId })).data?.headers
+                                }
+                                else{
+                                    keys = keys.filter((sc: any) => sc.id === itemId).map((sc: any) => sc.headers)[0]
+                                }
+                                console.log(keys)
+                                let fields = tableFields
+                                if(!fields || !(fields satisfies []))
+                                    fields = (await client.models.SubCategoryFields.listSubCategoryFieldsBySubCategoryId({subCategoryId: itemId})).data
+                                let max = -1
+                                fields.forEach((field: any) => max = Math.max(field.row, max))
+                                keys.forEach(async (heading: string) => {
+                                    const response = await client.models.SubCategoryFields.create({
+                                        subCategoryId: subcategoryId!,
+                                        row: max + 1,
+                                        key: heading,
+                                        value: ''
+                                    })
+                                    console.log(response)
+                                })
+                                const sc = (await client.models.SubCategory.list()).data
+                                setSubcategories(sc)
+                            }}
+                        >
+                            Add Row
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[2]} 
+                            onClick={async () => {
+
+                            }}
+                        >
+                            Delete Column
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[3]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Delete Row
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[4]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Rename Subcategory
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 mb-6 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[5]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Delete Subcategory
+                        </button>
+                    </div>
+                </>
+            )
+        }
+        else if(type === 'photoCollection'){
+            return (
+                <>
+                    <div className="flex flex-col gap-4 items-center w-full">
+                        <span className="mt-2 text-2xl">Photo Collection Controls</span>
+                            {/* <input className=" focus:border-none" type="file" multiple onChange={(event) => setFiles(event.target.files)}/> */}
+                            <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                                disabled={disabled[0]} 
+                                onClick={() => setUploadPhotosModalVisible(true)}
+                                type="submit"
+                            >
+                                Upload Picture(s)
+                            </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[1]} 
+                            onClick={async () => {
+                                const temp = { ...interactingCollection }
+                                temp.buttonText[0] = temp.buttonText[0] === 'Delete Picture(s)' ? 'Confirm Selections' : 'Delete Picture(s)'
+                                temp.interactionOverride = temp.buttonText[0] === 'Confirm Selections'
+                                temp.buttonText[1] = 'Assign Picture(s)'
+                                setInteractingCollection(temp)
+                                setEventControls(renderEventControls('photoCollection', [false, false, false, false, false, false], itemId))
+                                setEventItem(await renderEvent(subCategories.filter((sc: any) => sc.id === itemId)[0], temp.interactionOverride))
+                            }}
+                        >
+                            {interactingCollection.buttonText[0]}
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[2]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            {interactingCollection.buttonText[1]}
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[3]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Auto Assign
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[4]} 
+                            onClick={async () => {
+                                
+                            }}
+                        >
+                            Rename Subcategory
+                        </button>
+                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 mb-6 border disabled:border-gray-400 border-black" 
+                            disabled={disabled[5]} 
+                            onClick={() => {console.log('hello world')}}
+                        >
+                            Delete Subcategory
+                        </button>
+                    </div>
+                </>
+            )
+        }
+        return (
+            <>
+            </>
+        )
+    }
+
     function eventItems(eventName: string, eventId: string, visible: Boolean){
         const items: [] = subCategories.filter((sc: any) => (sc.eventId === eventId))
-        // console.log(itm)
-        // const items: EventItem[] = [
-        //     {
-        //         title: '2024 TRF LIW',
-        //         type: 'table',
-        //     },
-        //     {
-        //         title: '2024 TRF Duchesses',
-        //         type: 'table',
-        //         tableData: {
-        //             headings: [
-        //                 'Last', 
-        //                 'First', 
-        //                 'Parent', 
-        //                 'Number', 
-        //                 'Email', 
-        //                 'Package', 
-        //                 'Paid', 
-        //                 'City', 
-        //                 'Headshot', 
-        //                 'Signed up for portrait', 
-        //                 'Portrait Choice', 
-        //                 'Formal Name', 
-        //                 'Address', 
-        //                 'Zip', 
-        //                 'Formal Title', 
-        //                 'Costume', 
-        //                 'Notes',
-        //                 'Formal Parents Names',
-        //                 'Dad',
-        //                 'Dad address',
-        //                 'Dad Formal Name',
-        //             ],
-        //             fields: [
-        //                 {
-        //                     firstName: 'Apollo',
-        //                     lastName: 'Rowe',
-        //                     parent: 'Christina',
-        //                     number: '408-316-2737',
-        //                     email: '1apollo.rowe@gmail.com',
-        //                     package: 'Needs to select',
-        //                     paid: 'Done',
-        //                     city: 'Lawrence',
-        //                     headshot: 'Done!',
-        //                     signedUpForPortrait: 'Done',
-        //                     portraitChoice: '',
-        //                     formalName: 'Mr Apollinaris Iparragirre T Rowe',
-        //                     address: '481 S Broadway Unit 25',
-        //                     zip: '01843',
-        //                     formalTitle: 'King of Massachussets',
-        //                     costume: 'English Royal',
-        //                     notes: 'Divorced parents',
-        //                     formalParentsNames: 'Ms. Christina Louise Rowe',
-        //                     dad: '',
-        //                     dadFormalName: '',
-        //                 }
-        //             ]
-        //         }
-        //     },
-        //     {
-        //         title: '2024 TRF Attendants',
-        //         type: 'table',
-        //     },
-        //     {
-        //         title: '2024 TRF Escorts',
-        //         type: 'table',
-        //     },
-        //     {
-        //         title: '2024 TRF Docs, etc',
-        //         type: 'table',
-        //     }
-        // ]
 
         //TODO: convert div to button
         if(visible) {
             return items.map((item: any, index) => {
                 return (
                     <div key={index} className="flex flex-row items-center ms-4 my-1 hover:bg-gray-100 ps-2 py-1 rounded-3xl cursor-pointer" onClick={async () => {
-                        setEventItem(await renderEvent(item))
-                        setTableId(item.id)
+                        setSubcategoryId(item.id)
+                        setEventItem(await renderEvent(item, false))
                     }}>
                         {item.type === 'table' ? (<HiOutlineDocumentReport className="mt-0.5 me-2"/>) : (<HiOutlineCamera className="mt-0.5 me-2"/>)}{item.name}
                     </div>
@@ -318,11 +295,11 @@ export default function EventManager(){
         return (<></>)
     }
 
-    async function renderEvent(item: any){
+    async function renderEvent(item: any, interactionOverride: boolean){
         switch(item.type){
             case 'table':
                 if(!item.headers){
-                    setEventControls(renderEventControls(item.type, [false, true, true, true, false, false]))
+                    setEventControls(renderEventControls(item.type, [false, true, true, true, false, false], item.id))
                     return (
                         <>
                             <p>No table data. Start by uploading a csv, or adding a column!</p>
@@ -331,9 +308,9 @@ export default function EventManager(){
                 }
                 else{
                     //TODO: add a conditional for the parsed event fields
-                    setEventControls(renderEventControls(item.type, [false, false, false, false, false, false]))
+                    setEventControls(renderEventControls(item.type, [false, false, false, false, false, false], item.id))
                     let fields = tableFields
-                    if(tableId != item.id){
+                    if(subcategoryId != item.id){
                         fields = (await client.models.SubCategoryFields.listSubCategoryFieldsBySubCategoryId({
                             subCategoryId: item.id
                         })).data
@@ -379,7 +356,7 @@ export default function EventManager(){
                                                                         value: event.target.value
                                                                     })
                                                                     console.log(response)
-                                                                    //TODO: put in a reducer
+                                                                    //TODO: put in a reducer and analyze for efficency
                                                                 }}/>
                                                             </td>
                                                         )
@@ -394,10 +371,84 @@ export default function EventManager(){
                     )
                 }
             case 'photoCollection':
-                setEventControls(renderEventControls(item.type, [false, true, true, true, false, false]))
+                setInteractingCollection({interactionOverride: false, buttonText: ['Delete Picture(s)', 'Assign Picture(s)'], selectedURLs: ([] as string[])})
+                
+                let picturePaths = ([] as PicturePath[])
+                if(subcategoryId != item.id){
+                    const collection = (await client.models.PhotoCollection.listPhotoCollectionBySubCategoryId({
+                        subCategoryId: item.id
+                    })).data[0]
+                    console.log(collection)
+                    setPictureCollection({ ...collection })
+
+                    let paths = (await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: collection.id })).data.map((item) => {
+                        return {
+                            path: item.path,
+                            width: !item.displayWidth ? 200 : item.displayWidth,
+                            height: !item.displayHeight ? 200 : item.displayHeight,
+                            url: ''
+                        }
+                    })
+                    console.log(paths)
+
+                    if(paths && paths.length > 0){
+                        paths = await Promise.all(paths.map(async (item) => {
+                            return {
+                                ...item,
+                                url: (await getUrl({
+                                    path: item.path
+                                })).url.toString()
+                            }
+                        }))
+                        setPictureCollectionPaths(paths)
+                    }
+                    picturePaths = paths
+                }
+                else{
+                    picturePaths = !pictureCollectionPaths ? [] : pictureCollectionPaths
+                }
+                console.log(picturePaths)
+
+                if(picturePaths.length > 0){
+                    setEventControls(renderEventControls('photoCollection', [false, false, false, false, false, false], item.id))
+                }
+                else{
+                    setEventControls(renderEventControls('photoCollection', [false, true, true, true, false, false], item.id))
+                }
+
+                const pictures = picturePaths.map((path, index: number) => {
+                    let styling = "enabled:hover:bg-gray-200 w-auto h-auto"
+                    if(interactingCollection.selectedURLs){
+                        styling += (interactingCollection.selectedURLs.includes(path.url) ? 'bg-gray-100' : '')
+                    }
+                    return (
+                        <button key={index} className="flex flex-row hover:bg-gray-200 h-[200px]" onClick={() => {
+                            if(interactionOverride){
+                                const interacting = {...interactingCollection}
+                                interacting.selectedURLs.push(path.url)
+                                setInteractingCollection(interacting)
+                                console.log(interacting)
+                            }
+                            else{
+                                setPhotoViewUrl(path.url)
+                                setPhotoModalVisible(true)
+                            }
+                        }}>
+                            <img  src={path.url} alt="picture" className="h-[200px] w-[200px]"/>
+                        </button>
+                    )
+                })
+                    
                 return (
                     <>
-                        <p>Upload pictures to start!</p>
+                        
+                        {pictures ? 
+                            (
+                                <div className="flex flex-row border-black border gap-1">
+                                    {pictures}
+                                </div>
+                            ) 
+                            : (<p>Upload pictures to start!</p>)}
                     </>
                 )
             default:
@@ -482,47 +533,107 @@ export default function EventManager(){
         const form = event.currentTarget
 
         //TODO: preform form validation
-        const paths = await Promise.all(
-            Array.from(form.elements.files.files!).map(async (file) => {
-                const result = await uploadData({
-                    path: `photo-collections/${form.elements.eventId.value}_${form.elements.subCategoryId.value}_${file.name}`,
-                    data: file,
-                }).result
+        let paths = []
+        const sc = subCategories.filter((sc: any) => sc.id === subcategoryId)[0]
+        if(filesUpload) {
+            paths = await Promise.all(
+                filesUpload.map(async (file) => {
+                    const result = await uploadData({
+                        path: `photo-collections/${sc.eventId}_${subcategoryId}_${file.name}`,
+                        data: file,
+                    }).result
+                    console.log(result)
+                    return result.path
+                })
+            )
+        }
+        else {
+            setFilesUpload(null)
+            setUploadPhotosModalVisible(false)
+            return
+        }
 
-                return result.path
+        
+        let collectionId: string
+
+        if(!pictureCollection){
+            const photoCollection = await client.models.PhotoCollection.listPhotoCollectionBySubCategoryId({
+                subCategoryId: subcategoryId!
             })
-        )
+            console.log(photoCollection)
 
-        const response = await client.models.SubCategory.get({
-            id: form.elements.subCategoryId.value
+            if(photoCollection.data.length == 0){
+                const photoCollectionResponse = (await client.models.PhotoCollection.create({
+                    subCategoryId: subcategoryId!,
+                    name: sc.name,
+                })).data!
+                collectionId = photoCollectionResponse.id
+                setPictureCollection({
+                    id: photoCollectionResponse.id,
+                    name: photoCollectionResponse.name,
+                    coverPath: photoCollectionResponse.coverPath ? photoCollectionResponse.coverPath : null,
+                    createdAt: photoCollectionResponse.createdAt,
+                    updatedAt: photoCollectionResponse.updatedAt,
+                 })
+            }
+            else{
+                collectionId = photoCollection.data[0].id
+                setPictureCollection(photoCollection.data[0])
+            }
+
+            
+            // console.log(photoCollectionResponse)
+            
+            
+        }
+        else {
+            collectionId = pictureCollection.id
+        }
+        paths.forEach(async (path) => {
+            const photoPathsResponse = await client.models.PhotoPaths.create({
+                path: path,
+                displayHeight: 200,
+                displayWidth: 200,
+                collectionId: collectionId
+            })
+            console.log(photoPathsResponse)
         })
+        
 
-        console.log(response)
-
-        const photoCollection = await client.models.PhotoCollection.listPhotoCollectionBySubCategoryId({
-            subCategoryId: response.data!.id
-        })
-
-        console.log(photoCollection)
-
-        const result = await client.models.PhotoCollection.update({
-            id: photoCollection.data[0].id,
-            imagePaths: paths
-        })
-
-        console.log(result)
+        //TODO: manage state
+        setFilesUpload(null)
+        setUploadPhotosModalVisible(false)
     }
 
     async function handleCreateColumn(event: FormEvent<CreateEventForm>) {
         event.preventDefault()
         const form = event.currentTarget;
-        const headers = subCategories.filter((sc: any) => sc.id == tableId).map((sc: any) => sc.headers)[0]
+        const headers = subCategories.filter((sc: any) => sc.id == subcategoryId).map((sc: any) => sc.headers)[0]
         headers.push(form.elements.name.value)
         const response = await client.models.SubCategory.update({
-            id: tableId,
+            id: subcategoryId!,
             headers: headers
         })
         console.log(response)
+        let fields: any = tableFields
+        if(!tableFields)
+            fields = (await client.models.SubCategoryFields.listSubCategoryFieldsBySubCategoryId({ subCategoryId: response.data!.id})).data
+        let max = -1
+        fields.forEach((field: any) => max = Math.max(field.row, max))
+        if(max >= 0){
+            for(let i = 0; i <= max; i++){
+                const resp = await client.models.SubCategoryFields.create({
+                    subCategoryId: response.data!.id,
+                    row: i,
+                    key: form.elements.name.value,
+                    value: ''
+                })
+                console.log(resp)
+                //TODO: sanity check
+                fields.push(resp.data!)
+            }
+        }
+        setTableFields(fields)
         const scList = (await client.models.SubCategory.list()).data
         setSubcategories(scList)
         setCreateColumnModalVisible(false)
@@ -562,6 +673,10 @@ export default function EventManager(){
                 )
             }))
         }
+    }
+
+    function parsePhotoURL(url: string){
+        return url
     }
 
     return (
@@ -630,6 +745,111 @@ export default function EventManager(){
                         </div>
                     </form>
                 </Modal.Body>
+            </Modal>
+            <Modal show={uploadPhotosModalVisible} onClose={() => {
+                setUploadPhotosModalVisible(false)
+                setFilesUpload(null)
+            }}>
+                <Modal.Header>Upload Picture(s)</Modal.Header>
+                <Modal.Body>
+                    <form onSubmit={handleUploadPhotos}>
+                        <div className="flex flex-col">
+                            <div className="flex items-center justify-center w-full">
+                                <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                                        </svg>
+                                        <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Picture Files Supported</p>
+                                    </div>
+                                    <input id="dropzone-file" type="file" className="hidden" multiple onChange={(event) => {
+                                        if(event.target.files){
+                                            const files = event.target.files
+                                            if(filesUpload)
+                                                setFilesUpload([...Array.from(files), ...filesUpload])
+                                            else
+                                                setFilesUpload([...Array.from(files)])
+                                        }
+                                    }}/>
+                                </label>
+                            </div>
+                            <Label className="ms-2 font-semibold text-xl mt-3" htmlFor="name">Files:</Label>
+                            {filesUpload ? 
+                                (<>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex flex-row ms-6 justify-between me-16">
+                                            <span className="underline font-semibold">File Name:</span>
+                                            <span className="underline font-semibold">Size:</span>
+                                        </div>
+                                        {filesUpload!.map((file) => {
+                                            return (
+                                                <>
+                                                    <div className="flex flex-row ms-6 justify-between me-6">
+                                                        <span>{file.name}</span>
+                                                        <div className="flex flex-row gap-2">
+                                                            <span>{(file.size * 0.000001).toFixed(5)} MB</span>
+                                                            <button className="hover:border-gray-500 border border-transparent rounded-full p-0.5" onClick={() => {
+                                                                setFilesUpload(filesUpload.filter(f => file != f))
+                                                            }}><HiOutlineXMark size={20}/></button>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )
+                                        })}
+                                    </div>
+                                    
+                                </>) 
+                                : 
+                                (<>
+                                    <span className=" italic text-sm ms-6">Upload files to preview them here!</span>
+                                </>)
+                            }
+                        </div>
+                        <div className="flex flex-row justify-end border-t mt-4">
+                            <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" >Upload</Button>
+
+                        </div>
+                    </form>
+                </Modal.Body>
+            </Modal>
+            <Modal show={photoModalVisible} onClose={() => {
+                setPhotoModalVisible(false)
+                setPhotoViewUrl(undefined)
+            }}>
+                <Modal.Header>Viewing Photo {[''].map(() => {
+                    if(!photoViewUrl) {
+                        return ''
+                    }
+                    let urlstr = photoViewUrl!.substring(photoViewUrl!.indexOf('photo-collections/'), photoViewUrl!.indexOf('?'))
+                    urlstr = urlstr.substring(urlstr.indexOf(subcategoryId!))
+                    urlstr = urlstr.substring(urlstr.indexOf('_') + 1)
+                    return urlstr
+                })}</Modal.Header>
+                <Modal.Body className="flex flex-col justify-center items-center gap-2">
+                    <img src={photoViewUrl!} />
+                    <>{[''].map(() => {
+                        if(!photoViewUrl){
+                            return (<></>)
+                        }
+                        console.log(pictureCollection)
+                        let img = document.createElement('img')
+                        img.src = photoViewUrl!
+                        let imgSizeError = img.naturalWidth > 1280 || img.naturalHeight < 720 ? (<div className="flex flex-row items-center"><HiOutlineExclamationCircle className="me-1" size={24}/>Small image</div>) : (<></>)
+                        return (
+                            <div className="flex flex-col gap-1 items-center justify-center">
+                                <p>Size: {img.naturalWidth + ' x ' + img.naturalHeight}</p>
+                                {imgSizeError}
+                            </div>
+                        )
+                    })}
+                    </>
+                    {}
+                </Modal.Body>
+                <Modal.Footer className="flex flex-row justify-end gap-1">
+                    <Button color='light'>Delete</Button>
+                    <Button >Done</Button>
+                </Modal.Footer>
             </Modal>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">

@@ -35,12 +35,25 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       name: a.string().required(),
-      imagePaths: a.string().array(),
+      coverPath: a.string(),
+      imagePaths: a.hasMany('PhotoPaths', 'id'),
       subCategoryId: a.id().required(),
       subCategory: a.belongsTo('SubCategory', 'id'),
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('subCategoryId')])
+    .authorization((allow) => [allow.authenticated()]),
+  PhotoPaths: a
+    .model({
+      id: a.id().required(),
+      path: a.string().required(),
+      displayHeight: a.integer(),
+      displayWidth: a.integer(),
+      collectionId: a.id().required(),
+      collection: a.belongsTo('PhotoCollection', 'id')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('collectionId')])
     .authorization((allow) => [allow.authenticated()]),
   SubCategoryFields: a
     .model({
