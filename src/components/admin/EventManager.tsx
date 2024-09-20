@@ -4,7 +4,7 @@ import { FC, FormEvent, useEffect, useState } from "react";
 import { HiOutlineCamera, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineDocumentReport, HiOutlineExclamationCircle, HiOutlinePlusCircle } from "react-icons/hi";
 import { HiEllipsisHorizontal, HiOutlinePencil, HiOutlineXMark } from "react-icons/hi2";
 import { Schema } from "../../../amplify/data/resource";
-import { getUrl, uploadData } from "aws-amplify/storage";
+import { getUrl, remove, uploadData } from "aws-amplify/storage";
 
 
 //TODO: create a data type for the things
@@ -98,7 +98,7 @@ export default function EventManager(){
     const [pictureCollectionPaths, setPictureCollectionPaths] = useState<PicturePath[] | undefined>()
     const [columnsDeletable, setColumnsDeletable] = useState()
     const [filesUpload, setFilesUpload] = useState<File[] | null>()
-    const [interactingCollection, setInteractingCollection] = useState({ interactionOverride: true, selectedURLs: ([] as string[]), buttonText: ['Delete Picture(s)', 'Assign Picture(s)'] })
+    const [interactingCollection, setInteractingCollection] = useState({ interactionOverride: false, selectedURLs: ([] as string[]), buttonText: 'Delete Picture(s)' })
     const [eventControls, setEventControls] = useState((<></>))
     const [createTableForId, setCreateTableForId] = useState('')
     const [photoViewUrl, setPhotoViewUrl] = useState<PicturePath>()
@@ -155,7 +155,7 @@ export default function EventManager(){
         return (<HiOutlineChevronLeft className="me-3" />)
     }
 
-    function renderEventControls(type: string, disabled: boolean[], itemId: string){
+    function renderEventControls(type: string, disabled: boolean[], itemId: string, ic?: {interactionOverride: boolean, selectedURLs: string[], buttonText: string}){
         if(type === 'table'){
             return (
                 <>
@@ -253,28 +253,38 @@ export default function EventManager(){
                             disabled={disabled[1]} 
                             onClick={async () => {
                                 const temp = { ...interactingCollection }
-                                temp.buttonText[0] = temp.buttonText[0] === 'Delete Picture(s)' ? 'Confirm Selections' : 'Delete Picture(s)'
-                                temp.interactionOverride = temp.buttonText[0] === 'Confirm Selections'
-                                temp.buttonText[1] = 'Assign Picture(s)'
+                                if((ic ? ic.buttonText : temp.buttonText) == 'Confirm Selections'){
+                                    const urls = (ic ? ic.selectedURLs : temp.selectedURLs)
+                                    urls.forEach(async (url) => {
+                                        const response = await remove({
+                                            path: url
+                                        })
+                                        console.log(response)
+                                    })
+
+                                    setPictureCollectionPaths(pictureCollectionPaths!.filter(async (path) => {
+                                        if(urls.includes(path.path)){
+                                            const response = await client.models.PhotoPaths.delete({ id: path.id })
+                                            console.log(response)
+                                        }
+                                        return !urls.includes(path.path)
+                                    }))
+                                }
+                                temp.buttonText = (ic ? ic.buttonText : temp.buttonText) === 'Delete Picture(s)' ? 'Confirm Selections' : 'Delete Picture(s)'
+                                temp.interactionOverride = temp.buttonText === 'Confirm Selections'
                                 setInteractingCollection(temp)
-                                setEventControls(renderEventControls('photoCollection', [false, false, false, false, false, false], itemId))
+                                setEventControls(renderEventControls(type, disabled, itemId, temp))
                                 const subcategory = subCategories ? subCategories.filter((sc) => sc.id === itemId)[0] : undefined
                                 setEventItem(await renderEvent(subcategory, temp.interactionOverride))
                             }}
                         >
-                            {interactingCollection.buttonText[0]}
-                        </button>
-                        <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                            disabled={disabled[2]} 
-                            onClick={() => {console.log('hello world')}}
-                        >
-                            {interactingCollection.buttonText[1]}
+                            {ic ? ic.buttonText : interactingCollection.buttonText}
                         </button>
                         <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
                             disabled={disabled[3]} 
                             onClick={() => {console.log('hello world')}}
                         >
-                            Auto Assign
+                            Tag Pictures
                         </button>
                         <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
                             disabled={disabled[4]} 
@@ -399,7 +409,8 @@ export default function EventManager(){
                     )
                 }
             case 'photoCollection':
-                setInteractingCollection({interactionOverride: false, buttonText: ['Delete Picture(s)', 'Assign Picture(s)'], selectedURLs: ([] as string[])})
+                if(!interactionOverride)
+                    setInteractingCollection({interactionOverride: false, buttonText: 'Delete Picture(s)', selectedURLs: ([] as string[])})
                 
                 let picturePaths = ([] as PicturePath[])
                 if(subcategoryId != item.id){
@@ -436,13 +447,14 @@ export default function EventManager(){
                 else{
                     picturePaths = !pictureCollectionPaths ? [] : pictureCollectionPaths
                 }
-                console.log(picturePaths)
-
-                if(picturePaths.length > 0){
-                    setEventControls(renderEventControls('photoCollection', [false, false, false, false, false, false], item.id))
-                }
-                else{
-                    setEventControls(renderEventControls('photoCollection', [false, true, true, true, false, false], item.id))
+                // console.log(picturePaths)
+                if(!interactionOverride) {
+                    if(picturePaths.length > 0){
+                        setEventControls(renderEventControls('photoCollection', [false, false, false, false, false, false], item.id))
+                    }
+                    else{
+                        setEventControls(renderEventControls('photoCollection', [false, true, true, true, false, false], item.id))
+                    }
                 }
 
                 const pictures = picturePaths.map((path, index: number) => {
@@ -451,11 +463,17 @@ export default function EventManager(){
                         styling += (interactingCollection.selectedURLs.includes(path.url) ? 'bg-gray-100' : '')
                     }
                     return (
-                        <button key={index} className={`flex flex-row hover:bg-gray-200 h-[${path.height.toString()}px] w-[${path.width.toString()}px]`} onClick={() => {
+                        //TODO: fix the display when the photos are selected
+                        <button key={index} className={`flex flex-row hover:bg-gray-200 ${interactingCollection.selectedURLs.includes(path.path) ? 'bg-gray-300' : 'bg-transparent'} h-[${path.height.toString()}px] w-[${path.width.toString()}px]`} onClick={async () => {
                             if(interactionOverride){
                                 const interacting = {...interactingCollection}
-                                interacting.selectedURLs.push(path.url)
+                                if(!interacting.selectedURLs.includes(path.path))
+                                    interacting.selectedURLs.push(path.path)
+                                else{
+                                    interacting.selectedURLs = interacting.selectedURLs.filter((item) => item != path.path)
+                                }
                                 setInteractingCollection(interacting)
+                                setEventItem(await renderEvent(item, interactionOverride))
                                 console.log(interacting)
                             }
                             else{
@@ -884,7 +902,7 @@ export default function EventManager(){
                         if(!photoViewUrl || !photoViewUrl.url){
                             return (<></>)
                         }
-                        console.log(photoViewUrl)
+                        // console.log(photoViewUrl)
                         let img = document.createElement('img')
                         img.src = photoViewUrl.url!
                         let imgSizeError = img.naturalWidth > 1280 || img.naturalHeight < 720 ? (<div className="flex flex-row items-center"><HiOutlineExclamationCircle className="me-1" size={24}/>Small image</div>) : (<></>)
@@ -910,9 +928,35 @@ export default function EventManager(){
                     </div>
                 </Modal.Body>
                 <Modal.Footer className="flex flex-row justify-end gap-1">
-                    <Button color='light'>Delete</Button>
+                    <Button color='light' onClick={async () => {
+                        if(!photoViewUrl || !pictureCollection || !pictureCollectionPaths || !subCategories){
+                            setPhotoModalVisible(false)
+                            setPhotoViewUrl(undefined)
+                            return
+                        }
+                        const s3removeResponse = await remove({
+                            path: photoViewUrl.path,
+                            // bucket: 'photo-collections'
+                        })
+                        console.log(s3removeResponse)
+                        const pathsRemoveResponse = await client.models.PhotoPaths.delete({ id: photoViewUrl.id })
+                        console.log(pathsRemoveResponse)
+                        console.log(pictureCollectionPaths.filter((path) => path.id !== photoViewUrl.id))
+                        setPictureCollectionPaths(pictureCollectionPaths.filter((path) => path.id !== photoViewUrl.id))
+                        setEventItem(await renderEvent(subCategories.filter((subcategory) => subcategory.id == subcategoryId)[0], false))
+                        setPhotoModalVisible(false)
+                        setPhotoViewUrl(undefined)
+                    }}>Delete</Button>
                     <Button onClick={async () => {
                         if(!photoViewUrl || !pictureCollectionPaths || !subCategories){
+                            setPhotoModalVisible(false)
+                            setPhotoViewUrl(undefined)
+                            return
+                        }
+                        const originalPath = pictureCollectionPaths.filter((picture) => picture.id == photoViewUrl.id)[0]
+                        if(originalPath.width == photoViewUrl.width && originalPath.height == photoViewUrl.height){
+                            setPhotoModalVisible(false)
+                            setPhotoViewUrl(undefined)
                             return
                         }
                         const response = await client.models.PhotoPaths.update({
@@ -933,6 +977,7 @@ export default function EventManager(){
                             }
                         }))
                         console.log(response)
+                        //TODO: passing updates
                         setEventItem(await renderEvent(subCategories.filter((subcategory) => subcategory.id == subcategoryId)[0], false))
                         setPhotoModalVisible(false)
                         setPhotoViewUrl(undefined)
@@ -945,17 +990,6 @@ export default function EventManager(){
                         <span className="text-xl ms-4 mb-1">Create New Event</span>
                         <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2"/>
                     </div>
-                    {/* <div className="flex flex-row">
-                        <div className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer" onClick={() => {setGroupToggles([!groupToggles[0], ...groupToggles])}}>
-                            <span className="text-xl ms-4 mb-1">2024 TRF</span>
-                            {groupToggled(0)}
-                        </div>
-                        <Dropdown label={<HiEllipsisHorizontal size={24} className="hover:border-gray-400 hover:border rounded-full"/>} inline arrowIcon={false}>
-                            <Dropdown.Item><HiOutlinePencil className="me-1"/>Rename Event</Dropdown.Item>
-                            <Dropdown.Item><HiOutlinePlusCircle className="me-1"/>Create Table</Dropdown.Item>
-                        </Dropdown>
-                    </div>
-                    {eventItems('2024 TRF', '123', groupToggles[0])} */}
                     {eventListComponents()}
                 </div>
                 <div className="flex col-span-4 justify-center border border-gray-400 rounded-lg">
