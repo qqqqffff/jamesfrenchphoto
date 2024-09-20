@@ -59,6 +59,7 @@ enum EventTypes {
 }
 
 type PicturePath = {
+    id: string;
     url: string;
     path: string;
     height: number;
@@ -73,6 +74,14 @@ type PhotoCollection = {
     updatedAt: string;
 }
 
+type Subcategory = {
+    id: string,
+    name: string,
+    headers?: string[],
+    type: string,
+    eventId: string,
+}
+
 export default function EventManager(){
     const [groupToggles, setGroupToggles] = useState<Boolean[]>([false])
     const [eventItem, setEventItem] = useState(<>Select An Event Item to View</>)
@@ -81,7 +90,7 @@ export default function EventManager(){
     const [createPhotoCollectionModalVisible, setCreatePhotoCollectionModalVisible] = useState(false)
     const [uploadPhotosModalVisible, setUploadPhotosModalVisible] = useState(false)
     const [eventList, setEventList] = useState<any>()
-    const [subCategories, setSubcategories] = useState<any>()
+    const [subCategories, setSubcategories] = useState<Subcategory[] | undefined>()
     const [createColumnModalVisible, setCreateColumnModalVisible] = useState(false)
     const [subcategoryId, setSubcategoryId] = useState<string>()
     const [tableFields, setTableFields] = useState<any>()
@@ -92,14 +101,20 @@ export default function EventManager(){
     const [interactingCollection, setInteractingCollection] = useState({ interactionOverride: true, selectedURLs: ([] as string[]), buttonText: ['Delete Picture(s)', 'Assign Picture(s)'] })
     const [eventControls, setEventControls] = useState((<></>))
     const [createTableForId, setCreateTableForId] = useState('')
-    const [photoViewUrl, setPhotoViewUrl] = useState<string>()
+    const [photoViewUrl, setPhotoViewUrl] = useState<PicturePath>()
     const [photoModalVisible, setPhotoModalVisible] = useState(false)
 
     useEffect(() => {
         if(!eventList){
             (async () => {
                 const eList = (await client.models.Events.list()).data
-                const scList = (await client.models.SubCategory.list()).data
+                const scList: Subcategory[] = (await client.models.SubCategory.list()).data.map((subcategory) => {
+                    const headers = subcategory.headers ? subcategory.headers.filter((header): header is string => header !== null) : ([] as string[])
+                    return {
+                        ...subcategory,
+                        headers: headers
+                    }
+                })
                 const groupToggles = eList.map(() => false)
 
                 setGroupToggles(groupToggles)
@@ -155,12 +170,13 @@ export default function EventManager(){
                         <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
                             disabled={disabled[1]} 
                             onClick={async () => {
-                                let keys = subCategories
-                                if(!keys || !(keys satisfies [])){
-                                    keys = (await client.models.SubCategory.get({ id: itemId })).data?.headers
+                                let keys: string[] = []
+                                if(!subCategories){
+                                    const response = (await client.models.SubCategory.get({ id: itemId })).data
+                                    if(response) keys = response.headers ? response.headers.filter((header): header is string => header !== null) : []
                                 }
                                 else{
-                                    keys = keys.filter((sc: any) => sc.id === itemId).map((sc: any) => sc.headers)[0]
+                                    keys = subCategories.filter((sc) => sc.id === itemId).map((sc) => (sc.headers ? sc.headers : []))[0]
                                 }
                                 console.log(keys)
                                 let fields = tableFields
@@ -177,7 +193,14 @@ export default function EventManager(){
                                     })
                                     console.log(response)
                                 })
-                                const sc = (await client.models.SubCategory.list()).data
+                                //TODO: replace without doing a db call
+                                const sc: Subcategory[] = (await client.models.SubCategory.list()).data.map((subcategory) => {
+                                    const headers = subcategory.headers ? subcategory.headers.filter((header): header is string => header !== null) : []
+                                    return {
+                                        ...subcategory,
+                                        headers
+                                    }
+                                })
                                 setSubcategories(sc)
                             }}
                         >
@@ -235,7 +258,8 @@ export default function EventManager(){
                                 temp.buttonText[1] = 'Assign Picture(s)'
                                 setInteractingCollection(temp)
                                 setEventControls(renderEventControls('photoCollection', [false, false, false, false, false, false], itemId))
-                                setEventItem(await renderEvent(subCategories.filter((sc: any) => sc.id === itemId)[0], temp.interactionOverride))
+                                const subcategory = subCategories ? subCategories.filter((sc) => sc.id === itemId)[0] : undefined
+                                setEventItem(await renderEvent(subcategory, temp.interactionOverride))
                             }}
                         >
                             {interactingCollection.buttonText[0]}
@@ -277,11 +301,12 @@ export default function EventManager(){
     }
 
     function eventItems(eventName: string, eventId: string, visible: Boolean){
-        const items: [] = subCategories.filter((sc: any) => (sc.eventId === eventId))
+        if(!subCategories) return (<></>)
+        const items = subCategories.filter((sc) => (sc.eventId === eventId))
 
         //TODO: convert div to button
         if(visible) {
-            return items.map((item: any, index) => {
+            return items.map((item, index) => {
                 return (
                     <div key={index} className="flex flex-row items-center ms-4 my-1 hover:bg-gray-100 ps-2 py-1 rounded-3xl cursor-pointer" onClick={async () => {
                         setSubcategoryId(item.id)
@@ -295,7 +320,10 @@ export default function EventManager(){
         return (<></>)
     }
 
-    async function renderEvent(item: any, interactionOverride: boolean){
+    async function renderEvent(item: Subcategory | undefined, interactionOverride: boolean){
+        if(!item){
+            return (<>Error</>)
+        }
         switch(item.type){
             case 'table':
                 if(!item.headers){
@@ -383,6 +411,7 @@ export default function EventManager(){
 
                     let paths = (await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: collection.id })).data.map((item) => {
                         return {
+                            id: item.id,
                             path: item.path,
                             width: !item.displayWidth ? 200 : item.displayWidth,
                             height: !item.displayHeight ? 200 : item.displayHeight,
@@ -422,7 +451,7 @@ export default function EventManager(){
                         styling += (interactingCollection.selectedURLs.includes(path.url) ? 'bg-gray-100' : '')
                     }
                     return (
-                        <button key={index} className="flex flex-row hover:bg-gray-200 h-[200px]" onClick={() => {
+                        <button key={index} className={`flex flex-row hover:bg-gray-200 h-[${path.height.toString()}px] w-[${path.width.toString()}px]`} onClick={() => {
                             if(interactionOverride){
                                 const interacting = {...interactingCollection}
                                 interacting.selectedURLs.push(path.url)
@@ -430,11 +459,11 @@ export default function EventManager(){
                                 console.log(interacting)
                             }
                             else{
-                                setPhotoViewUrl(path.url)
+                                setPhotoViewUrl(path)
                                 setPhotoModalVisible(true)
                             }
                         }}>
-                            <img  src={path.url} alt="picture" className="h-[200px] w-[200px]"/>
+                            <img  src={path.url} alt="picture" className={`h-[${path.height.toString()}px] w-[${path.width.toString()}px] object-fill`}/>
                         </button>
                     )
                 })
@@ -481,10 +510,7 @@ export default function EventManager(){
     async function handleCreateTable(event: FormEvent<CreateTableForm>){
         event.preventDefault()
         const form = event.currentTarget;
-        // console.log(form.elements.importData.files)
-        // const response = await client.models.SubCategory.create({
-        //     eventId:
-        // })
+
         const response = await client.models.SubCategory.create({
             eventId: createTableForId,
             name: form.elements.name.value,
@@ -494,7 +520,13 @@ export default function EventManager(){
 
 
         if(!response.errors){
-            const scList = (await client.models.SubCategory.list()).data
+            const scList: Subcategory[] = (await client.models.SubCategory.list()).data.map((item) => {
+                const headers = item.headers ? item.headers.filter((str): str is string => str !== null) : undefined
+                return {
+                    ...item,
+                    headers: headers
+                }
+            })
             console.log(scList)
             setSubcategories(scList)
             setCreateTableModalVisible(false)
@@ -520,7 +552,13 @@ export default function EventManager(){
         console.log(photoCollectionResponse)
 
         if(!response.errors){
-            const scList = (await client.models.SubCategory.list()).data
+            const scList: Subcategory[] = (await client.models.SubCategory.list()).data.map((subcategory) => {
+                const headers = subcategory.headers ? subcategory.headers.filter((header): header is string => header !== null) : undefined
+                return {
+                    ...subcategory,
+                    headers: headers
+                }
+            })
             console.log(scList)
             setSubcategories(scList)
             setCreatePhotoCollectionModalVisible(false)
@@ -534,7 +572,8 @@ export default function EventManager(){
 
         //TODO: preform form validation
         let paths = []
-        const sc = subCategories.filter((sc: any) => sc.id === subcategoryId)[0]
+        if(!subCategories || !subcategoryId) return
+        const sc = subCategories.filter((sc) => sc.id === subcategoryId)[0]
         if(filesUpload) {
             paths = await Promise.all(
                 filesUpload.map(async (file) => {
@@ -608,7 +647,10 @@ export default function EventManager(){
     async function handleCreateColumn(event: FormEvent<CreateEventForm>) {
         event.preventDefault()
         const form = event.currentTarget;
-        const headers = subCategories.filter((sc: any) => sc.id == subcategoryId).map((sc: any) => sc.headers)[0]
+        if(!subCategories || !subcategoryId) return
+        let headers = subCategories.filter((sc) => sc.id == subcategoryId).map((sc) => sc.headers)[0]
+        headers = headers ? headers : ([] as string[])
+        //TODO: check for duplicates
         headers.push(form.elements.name.value)
         const response = await client.models.SubCategory.update({
             id: subcategoryId!,
@@ -634,7 +676,13 @@ export default function EventManager(){
             }
         }
         setTableFields(fields)
-        const scList = (await client.models.SubCategory.list()).data
+        const scList: Subcategory[] = (await client.models.SubCategory.list()).data.map((subcategory) => {
+            const headers = subcategory.headers ? subcategory.headers.filter((header): header is string => header !== null) : undefined
+            return {
+                ...subcategory,
+                headers: headers
+            }
+        })
         setSubcategories(scList)
         setCreateColumnModalVisible(false)
         //TODO: append values to existing fields
@@ -673,10 +721,6 @@ export default function EventManager(){
                 )
             }))
         }
-    }
-
-    function parsePhotoURL(url: string){
-        return url
     }
 
     return (
@@ -817,38 +861,82 @@ export default function EventManager(){
                 setPhotoModalVisible(false)
                 setPhotoViewUrl(undefined)
             }}>
+                {/* //TODO: replace with a function */}
                 <Modal.Header>Viewing Photo {[''].map(() => {
                     if(!photoViewUrl) {
                         return ''
                     }
-                    let urlstr = photoViewUrl!.substring(photoViewUrl!.indexOf('photo-collections/'), photoViewUrl!.indexOf('?'))
+                    let photoPath = photoViewUrl.url
+                    if(!photoPath){
+                        console.log(photoViewUrl)
+                        return ''
+                    }
+                    let urlstr = photoPath!.substring(photoPath!.indexOf('photo-collections/'), photoPath!.indexOf('?'))
                     urlstr = urlstr.substring(urlstr.indexOf(subcategoryId!))
                     urlstr = urlstr.substring(urlstr.indexOf('_') + 1)
                     return urlstr
                 })}</Modal.Header>
-                <Modal.Body className="flex flex-col justify-center items-center gap-2">
-                    <img src={photoViewUrl!} />
+                <Modal.Body className="flex flex-col justify-center items-center gap-3">
+                    {/* className={`w-[${photoViewUrl.width}px] h-[${photoViewUrl.height}px] hover:bg-gray-50 object-fill`} */}
+                    {photoViewUrl && photoViewUrl.url ? (<img src={photoViewUrl.url} className={`w-[${photoViewUrl.width.toString()}px] h-[${photoViewUrl.height.toString()}px] object-fill`}/>) : (<></>)}
+                    {/* //TODO: replace with a function */}
                     <>{[''].map(() => {
-                        if(!photoViewUrl){
+                        if(!photoViewUrl || !photoViewUrl.url){
                             return (<></>)
                         }
-                        console.log(pictureCollection)
+                        console.log(photoViewUrl)
                         let img = document.createElement('img')
-                        img.src = photoViewUrl!
+                        img.src = photoViewUrl.url!
                         let imgSizeError = img.naturalWidth > 1280 || img.naturalHeight < 720 ? (<div className="flex flex-row items-center"><HiOutlineExclamationCircle className="me-1" size={24}/>Small image</div>) : (<></>)
                         return (
                             <div className="flex flex-col gap-1 items-center justify-center">
-                                <p>Size: {img.naturalWidth + ' x ' + img.naturalHeight}</p>
+                                <p>Display Size: {photoViewUrl.width + ' x ' + photoViewUrl.height}</p>
+                                <p>Natural Size: {img.naturalWidth + ' x ' + img.naturalHeight}</p>
                                 {imgSizeError}
                             </div>
                         )
                     })}
                     </>
-                    {}
+                    <div>
+                        <Dropdown
+                            className="mt-1"
+                            inline
+                            label='Display Size'
+                        >
+                            <Dropdown.Item onClick={() => setPhotoViewUrl({...photoViewUrl!, width: 180, height: 180})}>Square (180x180)</Dropdown.Item>
+                            <Dropdown.Item onClick={() => setPhotoViewUrl({...photoViewUrl!, width: 120, height: 180})}>Portrait (120x180)</Dropdown.Item>
+                            <Dropdown.Item onClick={() => setPhotoViewUrl({...photoViewUrl!, width: 180, height: 120})}>Landscape (180x120)</Dropdown.Item>
+                        </Dropdown>
+                    </div>
                 </Modal.Body>
                 <Modal.Footer className="flex flex-row justify-end gap-1">
                     <Button color='light'>Delete</Button>
-                    <Button >Done</Button>
+                    <Button onClick={async () => {
+                        if(!photoViewUrl || !pictureCollectionPaths || !subCategories){
+                            return
+                        }
+                        const response = await client.models.PhotoPaths.update({
+                            id: photoViewUrl.id,
+                            displayWidth: photoViewUrl.width,
+                            displayHeight: photoViewUrl.height,
+                        })
+                        setPictureCollectionPaths(pictureCollectionPaths.map((picture) => {
+                            if(picture.id === photoViewUrl.id){
+                                return {
+                                    ...picture,
+                                    width: photoViewUrl.width,
+                                    height: photoViewUrl.height,
+                                }
+                            }
+                            return { 
+                                ...picture,
+                            }
+                        }))
+                        console.log(response)
+                        setEventItem(await renderEvent(subCategories.filter((subcategory) => subcategory.id == subcategoryId)[0], false))
+                        setPhotoModalVisible(false)
+                        setPhotoViewUrl(undefined)
+                    }}>Done</Button>
                 </Modal.Footer>
             </Modal>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
