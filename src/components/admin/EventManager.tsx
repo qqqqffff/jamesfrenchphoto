@@ -1,10 +1,12 @@
 import { generateClient } from "aws-amplify/api";
-import { Button, Dropdown, FileInput, Label, Modal, TextInput } from "flowbite-react";
+import { Button, Checkbox, Dropdown, FileInput, Label, Modal, TextInput } from "flowbite-react";
 import { FC, FormEvent, useEffect, useState } from "react";
 import { HiOutlineCamera, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineDocumentReport, HiOutlineExclamationCircle, HiOutlinePlusCircle } from "react-icons/hi";
 import { HiEllipsisHorizontal, HiOutlinePencil, HiOutlineXMark } from "react-icons/hi2";
 import { Schema } from "../../../amplify/data/resource";
 import { getUrl, remove, uploadData } from "aws-amplify/storage";
+import { PhotoCollectionComponent } from "./PhotoCollection";
+import { PhotoCollection, PicturePath, Subcategory } from "../../types";
 
 
 //TODO: create a data type for the things
@@ -58,29 +60,6 @@ enum EventTypes {
     Table = 'table'
 }
 
-type PicturePath = {
-    id: string;
-    url: string;
-    path: string;
-    height: number;
-    width: number;
-}
-
-type PhotoCollection = {
-    coverPath: string | null;
-    createdAt: string;
-    id: string;
-    name: string;
-    updatedAt: string;
-}
-
-type Subcategory = {
-    id: string,
-    name: string,
-    headers?: string[],
-    type: string,
-    eventId: string,
-}
 
 export default function EventManager(){
     const [groupToggles, setGroupToggles] = useState<Boolean[]>([false])
@@ -88,7 +67,7 @@ export default function EventManager(){
     const [createModalVisible, setCreateModalVisible] = useState(false)
     const [createTableModalVisible, setCreateTableModalVisible] = useState(false)
     const [createPhotoCollectionModalVisible, setCreatePhotoCollectionModalVisible] = useState(false)
-    const [uploadPhotosModalVisible, setUploadPhotosModalVisible] = useState(false)
+    const [renameSubcategoryModalVisible, setRenameSubcategoryModalVisible] = useState(false)
     const [eventList, setEventList] = useState<any>()
     const [subCategories, setSubcategories] = useState<Subcategory[] | undefined>()
     const [createColumnModalVisible, setCreateColumnModalVisible] = useState(false)
@@ -97,12 +76,12 @@ export default function EventManager(){
     const [pictureCollection, setPictureCollection] = useState<PhotoCollection | undefined>()
     const [pictureCollectionPaths, setPictureCollectionPaths] = useState<PicturePath[] | undefined>()
     const [columnsDeletable, setColumnsDeletable] = useState()
-    const [filesUpload, setFilesUpload] = useState<File[] | null>()
     const [interactingCollection, setInteractingCollection] = useState({ interactionOverride: false, selectedURLs: ([] as string[]), buttonText: 'Delete Picture(s)' })
-    const [eventControls, setEventControls] = useState((<></>))
     const [createTableForId, setCreateTableForId] = useState('')
     const [photoViewUrl, setPhotoViewUrl] = useState<PicturePath>()
     const [photoModalVisible, setPhotoModalVisible] = useState(false)
+    const [createEnumColumn, setCreateEnumColumn] = useState(false)
+    const [createEnumColumnValues, setCreateEnumColumnValues] = useState<string[] | undefined>()
 
     useEffect(() => {
         if(!eventList){
@@ -242,13 +221,6 @@ export default function EventManager(){
                     <div className="flex flex-col gap-4 items-center w-full">
                         <span className="mt-2 text-2xl">Photo Collection Controls</span>
                             {/* <input className=" focus:border-none" type="file" multiple onChange={(event) => setFiles(event.target.files)}/> */}
-                            <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
-                                disabled={disabled[0]} 
-                                onClick={() => setUploadPhotosModalVisible(true)}
-                                type="submit"
-                            >
-                                Upload Picture(s)
-                            </button>
                         <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
                             disabled={disabled[1]} 
                             onClick={async () => {
@@ -273,7 +245,7 @@ export default function EventManager(){
                                 temp.buttonText = (ic ? ic.buttonText : temp.buttonText) === 'Delete Picture(s)' ? 'Confirm Selections' : 'Delete Picture(s)'
                                 temp.interactionOverride = temp.buttonText === 'Confirm Selections'
                                 setInteractingCollection(temp)
-                                setEventControls(renderEventControls(type, disabled, itemId, temp))
+                                // setEventControls(renderEventControls(type, disabled, itemId, temp))
                                 const subcategory = subCategories ? subCategories.filter((sc) => sc.id === itemId)[0] : undefined
                                 setEventItem(await renderEvent(subcategory, temp.interactionOverride))
                             }}
@@ -288,8 +260,8 @@ export default function EventManager(){
                         </button>
                         <button className="flex flex-row w-[80%] justify-center hover:bg-gray-100 disabled:hover:bg-transparent disabled:text-gray-400 rounded-3xl py-2 border disabled:border-gray-400 border-black" 
                             disabled={disabled[4]} 
-                            onClick={async () => {
-                                
+                            onClick={() => {
+                                setRenameSubcategoryModalVisible(true)
                             }}
                         >
                             Rename Subcategory
@@ -337,7 +309,7 @@ export default function EventManager(){
         switch(item.type){
             case 'table':
                 if(!item.headers){
-                    setEventControls(renderEventControls(item.type, [false, true, true, true, false, false], item.id))
+                    // setEventControls(renderEventControls(item.type, [false, true, true, true, false, false], item.id))
                     return (
                         <>
                             <p>No table data. Start by uploading a csv, or adding a column!</p>
@@ -346,7 +318,7 @@ export default function EventManager(){
                 }
                 else{
                     //TODO: add a conditional for the parsed event fields
-                    setEventControls(renderEventControls(item.type, [false, false, false, false, false, false], item.id))
+                    // setEventControls(renderEventControls(item.type, [false, false, false, false, false, false], item.id))
                     let fields = tableFields
                     if(subcategoryId != item.id){
                         fields = (await client.models.SubCategoryFields.listSubCategoryFieldsBySubCategoryId({
@@ -355,6 +327,10 @@ export default function EventManager(){
                         setTableFields(fields)
                         console.log('call')
                     }
+
+                    console.log(fields)
+                    console.log(subCategories)
+                    
 
                     type TableRows = {
                         [key: string]: string;
@@ -409,95 +385,109 @@ export default function EventManager(){
                     )
                 }
             case 'photoCollection':
-                if(!interactionOverride)
-                    setInteractingCollection({interactionOverride: false, buttonText: 'Delete Picture(s)', selectedURLs: ([] as string[])})
+                const photoCollection = ((await client.models.PhotoCollection.listPhotoCollectionBySubCategoryId({ subCategoryId: item.id })).data[0]) as PhotoCollection
+                console.log(photoCollection)
+                const paths = await Promise.all(((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: photoCollection.id })).data).map(async (path) => {
+                    return {
+                        id: path.id,
+                        order: path.order,
+                        width: path.displayWidth,
+                        height: path.displayHeight,
+                        path: path.path,
+                        url: ''
+                    } as PicturePath
+                }))
+                console.log(paths)
+                return (<PhotoCollectionComponent subcategory={item} photoCollection={photoCollection} photoPaths={paths}/>)
+                // if(!interactionOverride)
+                //     setInteractingCollection({interactionOverride: false, buttonText: 'Delete Picture(s)', selectedURLs: ([] as string[])})
                 
-                let picturePaths = ([] as PicturePath[])
-                if(subcategoryId != item.id){
-                    const collection = (await client.models.PhotoCollection.listPhotoCollectionBySubCategoryId({
-                        subCategoryId: item.id
-                    })).data[0]
-                    console.log(collection)
-                    setPictureCollection({ ...collection })
+                // let picturePaths = ([] as PicturePath[])
+                // if(subcategoryId != item.id){
+                //     const collection = (await client.models.PhotoCollection.listPhotoCollectionBySubCategoryId({
+                //         subCategoryId: item.id
+                //     })).data[0]
+                //     console.log(collection)
+                //     setPictureCollection({ ...collection })
 
-                    let paths = (await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: collection.id })).data.map((item) => {
-                        return {
-                            id: item.id,
-                            path: item.path,
-                            width: !item.displayWidth ? 200 : item.displayWidth,
-                            height: !item.displayHeight ? 200 : item.displayHeight,
-                            url: ''
-                        }
-                    })
-                    console.log(paths)
+                //     let paths = (await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: collection.id })).data.map((item) => {
+                //         return {
+                //             id: item.id,
+                //             path: item.path,
+                //             width: !item.displayWidth ? 200 : item.displayWidth,
+                //             height: !item.displayHeight ? 200 : item.displayHeight,
+                //             url: ''
+                //         }
+                //     })
+                //     console.log(paths)
 
-                    if(paths && paths.length > 0){
-                        paths = await Promise.all(paths.map(async (item) => {
-                            return {
-                                ...item,
-                                url: (await getUrl({
-                                    path: item.path
-                                })).url.toString()
-                            }
-                        }))
-                        setPictureCollectionPaths(paths)
-                    }
-                    picturePaths = paths
-                }
-                else{
-                    picturePaths = !pictureCollectionPaths ? [] : pictureCollectionPaths
-                }
-                // console.log(picturePaths)
-                if(!interactionOverride) {
-                    if(picturePaths.length > 0){
-                        setEventControls(renderEventControls('photoCollection', [false, false, false, false, false, false], item.id))
-                    }
-                    else{
-                        setEventControls(renderEventControls('photoCollection', [false, true, true, true, false, false], item.id))
-                    }
-                }
+                //     if(paths && paths.length > 0){
+                //         paths = await Promise.all(paths.map(async (item) => {
+                //             return {
+                //                 ...item,
+                //                 url: (await getUrl({
+                //                     path: item.path
+                //                 })).url.toString()
+                //             }
+                //         }))
+                //         setPictureCollectionPaths(paths)
+                //     }
+                //     picturePaths = paths
+                // }
+                // else{
+                //     picturePaths = !pictureCollectionPaths ? [] : pictureCollectionPaths
+                // }
+                // // console.log(picturePaths)
+                // if(!interactionOverride) {
+                //     if(picturePaths.length > 0){
+                //         setEventControls(renderEventControls('photoCollection', [false, false, false, false, false, false], item.id))
+                //     }
+                //     else{
+                //         setEventControls(renderEventControls('photoCollection', [false, true, true, true, false, false], item.id))
+                //     }
+                // }
 
-                const pictures = picturePaths.map((path, index: number) => {
-                    let styling = "enabled:hover:bg-gray-200 w-auto h-auto"
-                    if(interactingCollection.selectedURLs){
-                        styling += (interactingCollection.selectedURLs.includes(path.url) ? 'bg-gray-100' : '')
-                    }
-                    return (
-                        //TODO: fix the display when the photos are selected
-                        <button key={index} className={`flex flex-row hover:bg-gray-200 ${interactingCollection.selectedURLs.includes(path.path) ? 'bg-gray-300' : 'bg-transparent'} h-[${path.height.toString()}px] w-[${path.width.toString()}px]`} onClick={async () => {
-                            if(interactionOverride){
-                                const interacting = {...interactingCollection}
-                                if(!interacting.selectedURLs.includes(path.path))
-                                    interacting.selectedURLs.push(path.path)
-                                else{
-                                    interacting.selectedURLs = interacting.selectedURLs.filter((item) => item != path.path)
-                                }
-                                setInteractingCollection(interacting)
-                                setEventItem(await renderEvent(item, interactionOverride))
-                                console.log(interacting)
-                            }
-                            else{
-                                setPhotoViewUrl(path)
-                                setPhotoModalVisible(true)
-                            }
-                        }}>
-                            <img  src={path.url} alt="picture" className={`h-[${path.height.toString()}px] w-[${path.width.toString()}px] object-fill`}/>
-                        </button>
-                    )
-                })
+                // const pictures = picturePaths.map((path, index: number) => {
+                //     let styling = "enabled:hover:bg-gray-200 w-auto h-auto"
+                //     if(interactingCollection.selectedURLs){
+                //         styling += (interactingCollection.selectedURLs.includes(path.url) ? 'bg-gray-100' : '')
+                //     }
+                //     return (
+                //         //TODO: fix the display when the photos are selected
+                //         <button key={index} className={`flex flex-row hover:bg-gray-200 ${interactingCollection.selectedURLs.includes(path.path) ? 'bg-gray-300' : 'bg-transparent'} h-[${path.height.toString()}px] w-[${path.width.toString()}px]`} onClick={async () => {
+                //             if(interactionOverride){
+                //                 const interacting = {...interactingCollection}
+                //                 if(!interacting.selectedURLs.includes(path.path))
+                //                     interacting.selectedURLs.push(path.path)
+                //                 else{
+                //                     interacting.selectedURLs = interacting.selectedURLs.filter((item) => item != path.path)
+                //                 }
+                //                 setInteractingCollection(interacting)
+                //                 setEventItem(await renderEvent(item, interactionOverride))
+                //                 console.log(interacting)
+                //             }
+                //             else{
+                //                 setPhotoViewUrl(path)
+                //                 setPhotoModalVisible(true)
+                //             }
+                //         }}>
+                //             <img  src={path.url} alt="picture" className={`h-[${path.height.toString()}px] w-[${path.width.toString()}px] object-fill`}/>
+                //         </button>
+                //     )
+                // })
                     
-                return (
-                    <>
+                // return (
+                //     <>
                         
-                        {pictures ? 
-                            (
-                                <div className="flex flex-row border-black border gap-1">
-                                    {pictures}
-                                </div>
-                            ) 
-                            : (<p>Upload pictures to start!</p>)}
-                    </>
-                )
+                //         {pictures ? 
+                //             (
+                //                 <div className="flex flex-row border-black border gap-1">
+                //                     {pictures}
+                //                 </div>
+                //             ) 
+                //             : (<p>Upload pictures to start!</p>)}
+                //     </>
+                // )
             default:
                 return (
                     <>
@@ -564,7 +554,6 @@ export default function EventManager(){
         console.log(response)
 
         const photoCollectionResponse = await client.models.PhotoCollection.create({
-            name: form.elements.name.value,
             subCategoryId: response.data!.id
         })
         console.log(photoCollectionResponse)
@@ -584,84 +573,6 @@ export default function EventManager(){
         }
     }
 
-    async function handleUploadPhotos(event: FormEvent<UploadImagesForm>){
-        event.preventDefault()
-        const form = event.currentTarget
-
-        //TODO: preform form validation
-        let paths = []
-        if(!subCategories || !subcategoryId) return
-        const sc = subCategories.filter((sc) => sc.id === subcategoryId)[0]
-        if(filesUpload) {
-            paths = await Promise.all(
-                filesUpload.map(async (file) => {
-                    const result = await uploadData({
-                        path: `photo-collections/${sc.eventId}_${subcategoryId}_${file.name}`,
-                        data: file,
-                    }).result
-                    console.log(result)
-                    return result.path
-                })
-            )
-        }
-        else {
-            setFilesUpload(null)
-            setUploadPhotosModalVisible(false)
-            return
-        }
-
-        
-        let collectionId: string
-
-        if(!pictureCollection){
-            const photoCollection = await client.models.PhotoCollection.listPhotoCollectionBySubCategoryId({
-                subCategoryId: subcategoryId!
-            })
-            console.log(photoCollection)
-
-            if(photoCollection.data.length == 0){
-                const photoCollectionResponse = (await client.models.PhotoCollection.create({
-                    subCategoryId: subcategoryId!,
-                    name: sc.name,
-                })).data!
-                collectionId = photoCollectionResponse.id
-                setPictureCollection({
-                    id: photoCollectionResponse.id,
-                    name: photoCollectionResponse.name,
-                    coverPath: photoCollectionResponse.coverPath ? photoCollectionResponse.coverPath : null,
-                    createdAt: photoCollectionResponse.createdAt,
-                    updatedAt: photoCollectionResponse.updatedAt,
-                 })
-            }
-            else{
-                collectionId = photoCollection.data[0].id
-                setPictureCollection(photoCollection.data[0])
-            }
-
-            
-            // console.log(photoCollectionResponse)
-            
-            
-        }
-        else {
-            collectionId = pictureCollection.id
-        }
-        paths.forEach(async (path) => {
-            const photoPathsResponse = await client.models.PhotoPaths.create({
-                path: path,
-                displayHeight: 200,
-                displayWidth: 200,
-                collectionId: collectionId
-            })
-            console.log(photoPathsResponse)
-        })
-        
-
-        //TODO: manage state
-        setFilesUpload(null)
-        setUploadPhotosModalVisible(false)
-    }
-
     async function handleCreateColumn(event: FormEvent<CreateEventForm>) {
         event.preventDefault()
         const form = event.currentTarget;
@@ -670,23 +581,29 @@ export default function EventManager(){
         headers = headers ? headers : ([] as string[])
         //TODO: check for duplicates
         headers.push(form.elements.name.value)
+        console.log(headers)
         const response = await client.models.SubCategory.update({
-            id: subcategoryId!,
+            id: subcategoryId,
             headers: headers
         })
         console.log(response)
         let fields: any = tableFields
         if(!tableFields)
             fields = (await client.models.SubCategoryFields.listSubCategoryFieldsBySubCategoryId({ subCategoryId: response.data!.id})).data
+        console.log(fields)
         let max = -1
         fields.forEach((field: any) => max = Math.max(field.row, max))
         if(max >= 0){
             for(let i = 0; i <= max; i++){
                 const resp = await client.models.SubCategoryFields.create({
-                    subCategoryId: response.data!.id,
+                    subCategoryId: subcategoryId,
                     row: i,
                     key: form.elements.name.value,
-                    value: ''
+                    value: '',
+                    enum: createEnumColumn ? {
+                        options: createEnumColumnValues
+                        // TODO: implement colors:
+                    } : undefined
                 })
                 console.log(resp)
                 //TODO: sanity check
@@ -704,6 +621,23 @@ export default function EventManager(){
         setSubcategories(scList)
         setCreateColumnModalVisible(false)
         //TODO: append values to existing fields
+    }
+
+    //TODO: preform a full refresh on complete to fetch new name
+    async function handleRenameSubcategory(event: FormEvent<CreateEventForm>){
+        event.preventDefault()
+        const form = event.currentTarget;
+        if(!subCategories) return ''
+        const subcategory = subCategories.filter((subcategory) => subcategory.id == subcategoryId)
+        if(!subcategory || !subcategory[0]) return ''
+
+        const response = await client.models.SubCategory.update({
+            id: subcategory[0].id,
+            name: form.elements.name.value
+        })
+        console.log(response)
+        
+        setRenameSubcategoryModalVisible(false)
     }
 
     function eventListComponents(){
@@ -741,6 +675,13 @@ export default function EventManager(){
         }
     }
 
+    function subcategoryName(){
+        if(!subCategories) return ''
+        const subcategory = subCategories.filter((subcategory) => subcategory.id == subcategoryId)
+        if(!subcategory || !subcategory[0]) return ''
+        return subcategory[0].name
+    }
+
     return (
         <>
             <Modal show={createModalVisible} onClose={() => setCreateModalVisible(false)}>
@@ -761,7 +702,7 @@ export default function EventManager(){
                     <form onSubmit={handleCreateTable}>
                         <div className="flex flex-col">
                             <Label className="ms-2 font-semibold text-xl mb-2" htmlFor="name">Subcategory Name:</Label>
-                            <TextInput className="mb-6" placeholder="Event Name" type="name" id="name" name="name" />
+                            <TextInput className="mb-6" placeholder="Subcategory Name" type="name" id="name" name="name" />
                         </div>
                         <div className="flex flex-col">
                             <Label className="ms-2 font-semibold text-xl mb-2" htmlFor="importData">Import Table Data:</Label>
@@ -794,83 +735,60 @@ export default function EventManager(){
                 </Modal.Body>
             </Modal>
             <Modal show={createColumnModalVisible} onClose={() => setCreateColumnModalVisible(false)}>
-                <Modal.Header>Create Table</Modal.Header>
+                <Modal.Header>Create Column</Modal.Header>
                 <Modal.Body>
                     <form onSubmit={handleCreateColumn}>
                         <div className="flex flex-col">
                             <Label className="ms-2 font-semibold text-xl mb-2" htmlFor="name">Column Header:</Label>
-                            <TextInput className="mb-6" placeholder="Column Name" type="name" id="name" name="name" />
+                            <TextInput className="mb-6" placeholder="Column Name" type="text" id="name" name="name" />
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex gap-2 items-center">
+                                    <Checkbox className="p-2.5" id='enumColumn' name="enumColumn" onClick={() => {
+                                        setCreateEnumColumnValues([''])
+                                        setCreateEnumColumn(!createEnumColumn)
+                                    }}/>
+                                    <Label className="text-xl font-light">Enum Column</Label>
+                                </div>
+                                {createEnumColumn ? (<Button color='light' onClick={() => {
+                                    if(!createEnumColumnValues || !createEnumColumn){
+                                        return
+                                    }
+                                    const temp = [...createEnumColumnValues]
+                                    temp.push('')
+                                    setCreateEnumColumnValues(temp)
+                                }}>Add Value</Button>) : (<></>)}
+                            </div>
+                            
+                            {createEnumColumn ? createEnumColumnValues?.map((value, index) => {
+                                return (
+                                    <div key={index} className="flex flex-row items-center gap-3 mb-4 w-full justify-between">
+                                        <div className="flex flex-row items-center gap-3 w-full">
+                                            <Label className="text-lg">Value {index + 1}:</Label>
+                                            <TextInput className='w-[40%]' placeholder='Expected Column Value' sizing='sm' defaultValue={value} onChange={(event) => {
+                                                const temp = [...createEnumColumnValues]
+                                                temp[index] = event.target.value
+                                                console.log(temp)
+                                                setCreateEnumColumnValues(temp)
+                                            }} />
+                                        </div>
+                                        {
+                                            createEnumColumnValues.length > 1 ? (
+                                            <button className="me-4" onClick={() => {
+                                                let temp = [...createEnumColumnValues]
+                                                temp = temp.filter((_, i) => i != index)
+                                                setCreateEnumColumnValues(temp)
+                                            }}>
+                                                <HiOutlineXMark size={16}/>
+                                            </button>
+                                            ) : (<></>)
+                                        }
+                                        
+                                    </div>
+                                )
+                            }) : (<></>)}
                         </div>
                         <div className="flex flex-row justify-end border-t mt-4">
                             <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" >Create</Button>
-
-                        </div>
-                    </form>
-                </Modal.Body>
-            </Modal>
-            <Modal show={uploadPhotosModalVisible} onClose={() => {
-                setUploadPhotosModalVisible(false)
-                setFilesUpload(null)
-            }}>
-                <Modal.Header>Upload Picture(s)</Modal.Header>
-                <Modal.Body>
-                    <form onSubmit={handleUploadPhotos}>
-                        <div className="flex flex-col">
-                            <div className="flex items-center justify-center w-full">
-                                <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                                        </svg>
-                                        <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">Picture Files Supported</p>
-                                    </div>
-                                    <input id="dropzone-file" type="file" className="hidden" multiple onChange={(event) => {
-                                        if(event.target.files){
-                                            const files = event.target.files
-                                            if(filesUpload)
-                                                setFilesUpload([...Array.from(files), ...filesUpload])
-                                            else
-                                                setFilesUpload([...Array.from(files)])
-                                        }
-                                    }}/>
-                                </label>
-                            </div>
-                            <Label className="ms-2 font-semibold text-xl mt-3" htmlFor="name">Files:</Label>
-                            {filesUpload ? 
-                                (<>
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex flex-row ms-6 justify-between me-16">
-                                            <span className="underline font-semibold">File Name:</span>
-                                            <span className="underline font-semibold">Size:</span>
-                                        </div>
-                                        {filesUpload!.map((file) => {
-                                            return (
-                                                <>
-                                                    <div className="flex flex-row ms-6 justify-between me-6">
-                                                        <span>{file.name}</span>
-                                                        <div className="flex flex-row gap-2">
-                                                            <span>{(file.size * 0.000001).toFixed(5)} MB</span>
-                                                            <button className="hover:border-gray-500 border border-transparent rounded-full p-0.5" onClick={() => {
-                                                                setFilesUpload(filesUpload.filter(f => file != f))
-                                                            }}><HiOutlineXMark size={20}/></button>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )
-                                        })}
-                                    </div>
-                                    
-                                </>) 
-                                : 
-                                (<>
-                                    <span className=" italic text-sm ms-6">Upload files to preview them here!</span>
-                                </>)
-                            }
-                        </div>
-                        <div className="flex flex-row justify-end border-t mt-4">
-                            <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" >Upload</Button>
-
                         </div>
                     </form>
                 </Modal.Body>
@@ -984,6 +902,20 @@ export default function EventManager(){
                     }}>Done</Button>
                 </Modal.Footer>
             </Modal>
+            <Modal show={renameSubcategoryModalVisible} onClose={() => setRenameSubcategoryModalVisible(false)}>
+                <Modal.Header>Rename Subcategory</Modal.Header>
+                <Modal.Body>
+                    <form onSubmit={handleRenameSubcategory}>
+                        <div className="flex flex-col">
+                            <Label className="ms-2 font-semibold text-xl mb-2" htmlFor="name">Subcategory Name:</Label>
+                            <TextInput className="mb-6" placeholder="Subcategory Name" type="name" id="name" name="name" defaultValue={subcategoryName()}/>
+                        </div>
+                        <div className="flex flex-row justify-end border-t mt-4">
+                            <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" >Rename</Button>
+                        </div>
+                    </form>
+                </Modal.Body>
+            </Modal>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
                     <div className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer" onClick={() => setCreateModalVisible(true)}>
@@ -992,11 +924,8 @@ export default function EventManager(){
                     </div>
                     {eventListComponents()}
                 </div>
-                <div className="flex col-span-4 justify-center border border-gray-400 rounded-lg">
+                <div className="col-span-5">
                     {eventItem}
-                </div>
-                <div className="flex justify-center border border-gray-400 rounded-lg me-5">
-                    {eventControls}
                 </div>
             </div>
         </>

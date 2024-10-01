@@ -34,7 +34,6 @@ const schema = a.schema({
   PhotoCollection: a
     .model({
       id: a.id().required(),
-      name: a.string().required(),
       coverPath: a.string(),
       imagePaths: a.hasMany('PhotoPaths', 'id'),
       subCategoryId: a.id().required(),
@@ -49,6 +48,7 @@ const schema = a.schema({
       path: a.string().required(),
       displayHeight: a.integer(),
       displayWidth: a.integer(),
+      order: a.integer().required(),
       collectionId: a.id().required(),
       collection: a.belongsTo('PhotoCollection', 'id')
     })
@@ -63,6 +63,10 @@ const schema = a.schema({
       row: a.integer().required(),
       key: a.string().required(),
       value: a.string().required(),
+      enum: a.customType({
+        options: a.string().array(),
+        color: a.string().array()
+      })
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('subCategoryId')])

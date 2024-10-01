@@ -14,8 +14,14 @@ import { Dashboard as ClientDashboard } from './components/client/Dashboard'
 import { Base } from './components/common/Base'
 import ContactForm from './components/service-form/ContactForm'
 import SignOut from './components/authenticator/SignOut'
+import { generateClient } from 'aws-amplify/api'
+import { Schema } from '../amplify/data/resource'
+import { CollectionViewer } from './components/client/CollectionViewer'
+import { PicturePath } from './components/admin/EventManager'
+import { getUrl } from 'aws-amplify/storage'
 
 Amplify.configure(outputs)
+const client = generateClient<Schema>()
 // const stripePromise = loadStripe('pk_test_51LFMxh4ILV990wpfvwN6CptxsdmG6X3mChYd7sx2JzLnLVfirqA9Ns5vKMi9c8rX6xrYV6HKT6ZiWBavtN7KvZ9100lZNFdI32')
 
 const router = createBrowserRouter(
@@ -36,9 +42,26 @@ const router = createBrowserRouter(
           //todo: add fetching from amplify in here
           return null
         }}/>
+        
       </Route>
       <Route path='contact-form' element={<ContactForm />} />
       <Route path='logout' element={<SignOut />} />
+      {/* <Route path='photo-collection' element={<PhotoCollectionComponent />} /> */}
+      <Route path='photo-collection/:collectionId' element={<CollectionViewer />} loader={async ({ params }) => {
+          console.log(params)
+          if(!params.collectionId) return
+          return Promise.all((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: params.collectionId })).data.map(async (path) => {
+            return {
+              id: path.id,
+              width: path.displayWidth,
+              height: path.displayHeight,
+              path: path.path,
+              url: (await getUrl({
+                path: path.path,
+              })).url.toString()
+            } as PicturePath
+          }))
+      }} />
     </Route>
   )
 )
