@@ -1,24 +1,34 @@
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
 import { Button } from "flowbite-react"
-import { MouseEventHandler, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { UserStorage } from "../../types"
 import { Amplify } from "aws-amplify"
 import outputs from '../../../amplify_outputs.json'
-import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineMinusCircle, HiOutlinePlus, HiOutlinePlusCircle } from "react-icons/hi"
+import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineMinusCircle, HiOutlinePlusCircle } from "react-icons/hi"
+import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand"
+import { getCurrentUser } from "aws-amplify/auth"
+import { CreateUserModal } from "../modals"
 
 Amplify.configure(outputs)
 const client = generateClient<Schema>()
 
-interface TableField {
-    [key: string]: {
-        [key: string]: string
-    }
+interface UserData {
+    email: string;
+    emailVerified: boolean;
+    last: string;
+    first: string;
+    userId: string;
+    status: string;
+    created?: Date;
+    updated?: Date;
+    enabled?: boolean;
 }
 
 export default function UserManagement(){
     const [admin, setAdmin] = useState<UserStorage>()
-    const [userData, setUserData] = useState<TableField[]>()
+    const [createUserModalVisible, setCreateUserModalVisible] = useState(false)
+    const [userData, setUserData] = useState<UserData[] | undefined>()
     const [sideBarToggles, setSideBarToggles] = useState<Boolean[]>([false])
 
     function parseAttribute(attribute: string){
@@ -32,46 +42,51 @@ export default function UserManagement(){
             case 'given_name':
                 return 'First'
             case 'sub':
-                return 'User ID'
+                return 'UserID'
             default:
                 return 'Attribute'
         }
     }
     async function getUsers() {
+        console.log('api call')
         const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
-        setUserData(JSON.parse(json.data?.toString()!).Users)
-        return JSON.parse(json.data?.toString()!).Users.map((user: any) => {
-            const attributes = user.Attributes.map((attribute: any) => {
-                return { Name: parseAttribute(attribute.name), Value: String(attribute.Value) }
-            })
-            const enabled = { Name: 'Enabled', Value: String(user.Enabled) }
-            const createDate = { Name: 'Created', Value: String(user.UserCreateDate) }
-            const lastModifyDate = { Name: 'Last Updated', Value: String(user.UserLastModifiedDate) }
-            const status = { Name: 'Status', Value: String(user.UserStatus) }
-            const userId = { Name: 'User ID', Value: String(user.Username) }
-
+        
+        const users = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput
+        if(!users || !users.Users) return
+        const parsedUsers = users.Users.map((user) => {
+            let attributes = new Map<string, string>()
+            if(user.Attributes){
+                user.Attributes.filter((attribute) => attribute.Name && attribute.Value).forEach((attribute) => {
+                    attributes.set(parseAttribute(attribute.Name!), attribute.Value!)
+                })
+            }
+            const enabled = user.Enabled
+            const created = user.UserCreateDate
+            const updated = user.UserLastModifiedDate
+            const status = String(user.UserStatus)
+            const userId = String(user.Username)
             return {
-                ...attributes,
+                ...Object.fromEntries(attributes),
                 enabled,
-                createDate,
-                lastModifyDate,
+                created,
+                updated,
                 status,
                 userId,
-            }
+            } as UserData
         })
+
+        console.log(parsedUsers)
+        setUserData(parsedUsers)
+        return parsedUsers
     }
     useEffect(() => {
-        // window.sessionStorage.setItem('users', JSON.stringify(client.queries.))
-        
-        if(!admin)
-            setAdmin(JSON.parse(window.localStorage.getItem('user')!))
         if(!userData){
             getUsers()
         }
     }, [])
 
     const createUser = () => {
-        console.log('hellow world')
+        setCreateUserModalVisible(true)
     }
     const notifyUser = () => {}
     const deleteUser = () => {}
@@ -130,8 +145,14 @@ export default function UserManagement(){
         }
         return (<HiOutlineChevronLeft className="me-3" />)
     }
+
+    function displayKeys(key: string): boolean{
+        return key != 'userId'
+    }
+
     return (
         <>
+            <CreateUserModal open={createUserModalVisible} onClose={() => setCreateUserModalVisible(false)} />
             <Button onClick={async () => console.log(await getUsers())}></Button>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
@@ -145,31 +166,52 @@ export default function UserManagement(){
                 </div>
                 <div className="flex col-span-4 justify-center border border-gray-400 rounded-lg">
                 <div className="relative overflow-x-auto overflow-y-auto max-h-[100rem] shadow-md sm:rounded-lg">
-                    {/* <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                {Object.keys(userData).map((heading, index) => (
-                                    <th scope='col' className='px-6 py-3 border-x border-x-gray-300 border-b border-b-gray-300' key={index}>
-                                        {heading}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {item.tableData.fields.map((field, index) => {
+                    {userData && userData.length > 0 ? 
+                        (
+                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                <tr>
+                                    {Object.keys(userData[0]).filter((key) => displayKeys(key)).map((heading, i) => (
+                                        <th scope='col' className='px-6 py-3 border-x border-x-gray-300 border-b border-b-gray-300' key={i}>
+                                            {heading}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {userData.map((field, i) => {
                                 return (
-                                    <tr key={index} className="bg-white border-b ">
-                                        {Object.values(field).map((x, index) => {
+                                    <tr key={i} className="bg-white border-b ">
+                                        {Object.entries(field).filter((entry) => entry[0] != 'userId').map(([k, v], j) => {
+                                            // console.log(k, v)
+                                            let formatted: String = ''
+                                            let tempDate = new Date(v)
+                                            let currentUserBolding = ''
+                                            if(!isNaN(tempDate.getTime()) && tempDate.getTime() > 1){
+                                                formatted = tempDate.toLocaleString()
+                                            }
+                                            else if(k.toUpperCase() !== 'USERID'){
+                                                formatted = [...String(v)][0].toUpperCase() + String(v).substring(1).toLowerCase()
+                                            }
+                                            else {
+                                                formatted = v
+                                            }
+                                            const currentUser = sessionStorage.getItem('user');
+                                            if(currentUser && JSON.parse(currentUser).user.userId === field.userId){
+                                                currentUserBolding = 'font-bold'
+                                            }
+
                                             return (
-                                                <td className="overflow-ellipsis px-6 py-4" key={index}>{x}</td>
+                                                <td className={`text-ellipsis px-6 py-4 ${currentUserBolding}`} key={j}>{formatted}</td>
                                             )
                                         })}
                                     </tr>
                                 )    
                             })}
                         </tbody>
-                    </table> */}
-                    {userData ? Object.entries(userData).map(([key, value]) => (<div key={key}>{value.toString()}</div>)) : <></>}
+                        </table>
+                    )
+                    : (<></>)}
                 </div>
                 </div>
                 <div className="border border-red-400">

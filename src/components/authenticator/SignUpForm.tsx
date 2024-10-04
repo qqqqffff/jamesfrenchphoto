@@ -1,7 +1,11 @@
+import { generateClient } from "aws-amplify/api"
 import { confirmSignUp, signUp } from "aws-amplify/auth"
 import { Button, Label, Modal, TextInput } from "flowbite-react"
-import { FormEvent, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { FormEvent, useEffect, useState } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import { Schema } from "../../../amplify/data/resource"
+
+const client = generateClient<Schema>()
 
 interface SignUpFormElements extends HTMLFormControlsCollection {
     email: HTMLInputElement
@@ -24,10 +28,53 @@ interface AuthCodeForm extends HTMLFormElement{
     readonly elements: AuthFormElements
 }
 
+type PrefilledElements = {
+    email?: string;
+    auth?: string;
+}
+
 export default function SignUp(){
     const [openModal, setOpenModal] = useState(false);
     const [username, setUsername] = useState('');
+    const [serachParams, setSearchParams] = useSearchParams()
+    const [signupPrefilledElements, setSignupPrefilledElements] = useState<PrefilledElements | undefined>()
     const navigate = useNavigate()
+
+    useEffect(() => {
+        async function verify() {
+            if([...serachParams].length <= 0){
+                console.log('no params')
+            }
+            else{
+                const formPrereqs: PrefilledElements = Object.fromEntries([...serachParams]) as PrefilledElements
+                if(!formPrereqs.email || !formPrereqs.auth){
+                    console.log('bad request')
+                }
+                else{
+                    // const response = await client.models.TemporaryCreateUsersTokens.get({ id: formPrereqs.auth })
+                    const response = await client.models.TemporaryCreateUsersTokens.list()
+
+                    console.log(response)
+
+                    // if(response.data && response.data.id == formPrereqs.auth){
+                    //     if(new Date(response.data.expires).getTime() > new Date().getTime()){
+                    //         setSignupPrefilledElements(formPrereqs)
+                    //     }
+                    //     else{
+                    //         //Expired
+                    //         const deleteResponse = await client.models.TemporaryCreateUsersTokens.delete({ id: formPrereqs.auth })
+                    //         console.log(deleteResponse)
+                    //     }
+                    // }
+                    
+                    console.log('good request')
+                    
+                }
+            }
+        }
+        verify()
+    }, [])
+    
 
     async function handleSubmit(event: FormEvent<SignUpForm>){
         event.preventDefault()
@@ -118,7 +165,7 @@ export default function SignUp(){
                         <Label className="ms-2 font-medium text-lg" htmlFor="phoneNumber">Phone Number:</Label>
                         <TextInput sizing='md' className="mb-4" placeholder="Phone Number" type="tel" id="phoneNumber" name="phoneNumber"/>
                         <Label className="ms-2 font-medium text-lg" htmlFor="email">Email<sup className="italic text-red-600">*</sup>:</Label>
-                        <TextInput sizing='md' className="mb-4" placeholder="Email" type="email" id="email" name="email" />
+                        <TextInput sizing='md' className="mb-4" placeholder="Email" type="email" id="email" name="email" disabled={true} defaultValue={signupPrefilledElements?.email} />
                         <Label className="ms-2 font-medium text-lg" htmlFor="password">Password<sup className="italic text-red-600">*</sup>:</Label>
                         <TextInput sizing='md' className="mb-4" placeholder="Password" type="password" id="password" name="password" />
                         <Label className="ms-2 font-medium text-lg" htmlFor="confirmPassword">Confirm Password<sup className="italic text-red-600">*</sup>:</Label>

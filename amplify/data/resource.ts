@@ -2,6 +2,7 @@ import { type ClientSchema, a, defineData, defineFunction } from '@aws-amplify/b
 import { getPaymentIntent } from '../functions/get-payment-intent/resource';
 import { postConfirmation } from '../auth/post-confirmation/resource';
 import { getAuthUsers } from '../auth/get-auth-users/resource';
+import { sendCreateUserEmail } from '../functions/send-create-user/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -89,7 +90,7 @@ const schema = a.schema({
       objects: a.string().array(),
     })
     .returns(a.ref('PaymentIntent'))
-    .authorization((allow) => [allow.guest()])
+    .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(getPaymentIntent)),
   UserProfile: a
     .model({
@@ -104,10 +105,25 @@ const schema = a.schema({
     .query()
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(getAuthUsers))
-    .returns(a.json())
-  
+    .returns(a.json()),
+  SendCreateUserEmail: a
+    .query()
+    .arguments({
+      email: a.string(),
+    })
+    .authorization((allow) => [allow.group('ADMINS')])
+    .handler(a.handler.function(sendCreateUserEmail))
+    .returns(a.json()),
+  TemporaryCreateUsersTokens: a
+    .model({
+      id: a.id().required(),
+      expires: a.datetime().required(),
+      email: a.string().required(),
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS')])
 })
-.authorization((allow) => [allow.resource(postConfirmation)]);
+.authorization((allow) => [allow.resource(postConfirmation), allow.resource(sendCreateUserEmail)]);
 
 export type Schema = ClientSchema<typeof schema>;
 

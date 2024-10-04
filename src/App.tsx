@@ -17,7 +17,7 @@ import SignOut from './components/authenticator/SignOut'
 import { generateClient } from 'aws-amplify/api'
 import { Schema } from '../amplify/data/resource'
 import { CollectionViewer } from './components/client/CollectionViewer'
-import { PicturePath } from './components/admin/EventManager'
+import { PicturePath } from './types'
 import { getUrl } from 'aws-amplify/storage'
 
 Amplify.configure(outputs)
@@ -50,6 +50,7 @@ const router = createBrowserRouter(
       <Route path='photo-collection/:collectionId' element={<CollectionViewer />} loader={async ({ params }) => {
           console.log(params)
           if(!params.collectionId) return
+          console.log('api call')
           return Promise.all((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: params.collectionId })).data.map(async (path) => {
             return {
               id: path.id,

@@ -1,4 +1,5 @@
 import { UploadImagesModal as uploadImages } from './UploadImages'
+import { CreateUserModal as createUser } from './CreateUser';
 
 export type ModalProps = {
     open: boolean;
@@ -6,3 +7,4 @@ export type ModalProps = {
 }
 
 export const UploadImagesModal = uploadImages;
+export const CreateUserModal = createUser
