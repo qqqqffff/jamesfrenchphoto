@@ -3,6 +3,7 @@ import { getPaymentIntent } from '../functions/get-payment-intent/resource';
 import { postConfirmation } from '../auth/post-confirmation/resource';
 import { getAuthUsers } from '../auth/get-auth-users/resource';
 import { sendCreateUserEmail } from '../functions/send-create-user/resource';
+import { addEmailQueue } from '../functions/add-email-queue/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -113,6 +114,14 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(sendCreateUserEmail))
+    .returns(a.json()),
+  AddEmailQueue: a
+    .query()
+    .arguments({
+      email: a.string(),
+    })
+    .authorization((allow) => [allow.group('ADMINS')])
+    .handler(a.handler.function(addEmailQueue))
     .returns(a.json()),
   TemporaryCreateUsersTokens: a
     .model({

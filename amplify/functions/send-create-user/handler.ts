@@ -35,51 +35,34 @@ const client = new SESClient()
 const dynamoClient = new DynamoDBClient()
 
 export const handler: Schema['SendCreateUserEmail']['functionHandler'] = async (event) => {
-    let { email } = event.arguments
-
-    if(!email) {
-        return JSON.stringify('no email - failed')
-    }
-
-    const uid = v4()
-
-    const putUUIDCommand = new PutItemCommand({
-        TableName: 'TemporaryCreateUsersTokens-syymw3momfhyfcpmjctmbhhsie-NONE',
-        Item: {
-            'id': { S: uid },
-            'email': { S: email },
-            'expires': { S: new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toString() }
-        }
-    })
-
-    const responseUUID = await dynamoClient.send(putUUIDCommand)
-
-    console.log(responseUUID)
-
-    const link = `http://localhost:5173/register?emai=${email}&auth=${uid}`
     
-    const command = new SendEmailCommand({
-        Destination: {
-            ToAddresses: [
-                email
-            ]
-        },
-        Message: {
-            Body: {
-                Html: {
-                    Charset: 'UTF-8',
-                    Data: template.replace('{{email}}', email).replace('{{link}}', link)
-                },
-            },
-            Subject: {
-                Charset: 'UTF-8',
-                Data: 'User Creation Notification'
-            }
-        },
-        Source: 'no-reply@jamesfrenchphotography.com'
-    })
 
-    const response = await client.send(command)
+    // console.log(responseUUID)
 
-    return JSON.stringify([response, responseUUID, uid])
+    // const link = `http://localhost:5173/register?emai=${email}&auth=${uid}`
+    
+    // const command = new SendEmailCommand({
+    //     Destination: {
+    //         ToAddresses: [
+    //             email
+    //         ]
+    //     },
+    //     Message: {
+    //         Body: {
+    //             Html: {
+    //                 Charset: 'UTF-8',
+    //                 Data: template.replace('{{email}}', email).replace('{{link}}', link)
+    //             },
+    //         },
+    //         Subject: {
+    //             Charset: 'UTF-8',
+    //             Data: 'User Creation Notification'
+    //         }
+    //     },
+    //     Source: 'no-reply@jamesfrenchphotography.com'
+    // })
+
+    // const response = await client.send(command)
+// [response, responseUUID, uid]
+    return JSON.stringify('')
 }
