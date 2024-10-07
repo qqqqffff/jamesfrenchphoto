@@ -1,8 +1,7 @@
-import { type ClientSchema, a, defineData, defineFunction } from '@aws-amplify/backend';
+import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { getPaymentIntent } from '../functions/get-payment-intent/resource';
 import { postConfirmation } from '../auth/post-confirmation/resource';
 import { getAuthUsers } from '../auth/get-auth-users/resource';
-import { sendCreateUserEmail } from '../functions/send-create-user/resource';
 import { addEmailQueue } from '../functions/add-email-queue/resource';
 
 /*== STEP 1 ===============================================================
@@ -107,14 +106,14 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(getAuthUsers))
     .returns(a.json()),
-  SendCreateUserEmail: a
-    .query()
-    .arguments({
-      email: a.string(),
-    })
-    .authorization((allow) => [allow.group('ADMINS')])
-    .handler(a.handler.function(sendCreateUserEmail))
-    .returns(a.json()),
+  // SendCreateUserEmail: a
+  //   .query()
+  //   .arguments({
+  //     email: a.string(),
+  //   })
+  //   .authorization((allow) => [allow.group('ADMINS')])
+  //   .handler(a.handler.function(sendCreateUserEmail))
+  //   .returns(a.json()),
   AddEmailQueue: a
     .query()
     .arguments({
@@ -132,7 +131,7 @@ const schema = a.schema({
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS')])
 })
-.authorization((allow) => [allow.resource(postConfirmation), allow.resource(sendCreateUserEmail)]);
+.authorization((allow) => [allow.resource(postConfirmation)]);
 
 export type Schema = ClientSchema<typeof schema>;
 

@@ -16,7 +16,7 @@ export const CreateUserModal: FC<CreateUserProps> = ({open, onClose}) => {
             <Modal.Header>Create a new User</Modal.Header>
             <Modal.Body>
                 <Button onClick={async () => {
-                    const response = await client.queries.SendCreateUserEmail({ email: 'noreply.jfphoto@gmail.com' })
+                    const response = await client.queries.AddEmailQueue({ email: 'noreply.jfphoto@gmail.com' })
                     console.log(response)
                 }}>Create User</Button>
             </Modal.Body>

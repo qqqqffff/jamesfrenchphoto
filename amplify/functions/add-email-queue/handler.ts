@@ -1,10 +1,9 @@
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
-import { Handler } from "aws-lambda";
 import { SQSClient, SendMessageCommandInput, SendMessageCommand, GetQueueUrlCommand } from '@aws-sdk/client-sqs'
 import { Schema } from "../../data/resource";
 import { v4 } from 'uuid'
+import { stackConstants } from '../../constants';
+import { EmailType } from '../../custom/types';
 
-const dynamoClient = new DynamoDBClient()
 const sqsClient = new SQSClient()
 
 export const handler: Schema['AddEmailQueue']['functionHandler'] = async (event) => {
@@ -16,21 +15,15 @@ export const handler: Schema['AddEmailQueue']['functionHandler'] = async (event)
 
     const uid = v4()
 
-    const putUUIDCommand = new PutItemCommand({
-        TableName: 'TemporaryCreateUsersTokens-syymw3momfhyfcpmjctmbhhsie-NONE',
-        Item: {
-            'id': { S: uid },
-            'email': { S: email },
-            'expires': { S: new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toString() }
-        }
-    })
+    const urlResponse = (await sqsClient.send(new GetQueueUrlCommand({
+        QueueName: stackConstants.emailQueueName
+    })))
 
-    const responseUUID = await dynamoClient.send(putUUIDCommand)
-
+    if(!urlResponse.QueueUrl){
+        return JSON.stringify(['No url found', urlResponse])
+    }
     const sendEmailMessage: SendMessageCommandInput = {
-        QueueUrl: (await sqsClient.send(new GetQueueUrlCommand({
-            QueueName: 'EmailQueue'
-        }))).QueueUrl,
+        QueueUrl: urlResponse.QueueUrl,
         MessageBody: `${v4()}-send-email-message`,
         MessageAttributes: {
             'email': {
@@ -40,10 +33,18 @@ export const handler: Schema['AddEmailQueue']['functionHandler'] = async (event)
             'uid':  {
                 DataType: 'String',
                 StringValue: uid
+            },
+            'expires': {
+                DataType: 'String',
+                StringValue: new Date(new Date().getTime() + 24 * 60 * 60 * 1000).getTime().toString()
+            },
+            'emailType': {
+                DataType: 'String',
+                StringValue: String(EmailType.CreateUserEmail)
             }
         }
     }
     const queueMessageResponse = await sqsClient.send(new SendMessageCommand(sendEmailMessage))
     
-    return JSON.stringify([responseUUID, queueMessageResponse])
+    return JSON.stringify([queueMessageResponse])
 }
