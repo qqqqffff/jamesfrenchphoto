@@ -7,6 +7,7 @@ import { Chain, Choice, Condition, DefinitionBody, IStateMachine, StateMachine }
 import { LambdaInvoke } from "aws-cdk-lib/aws-stepfunctions-tasks";
 import { Construct } from "constructs";
 import * as url from 'node:url'
+import { stackConstants } from "../constants";
 
 type EmailStepFunctionProps = {
     addCreateUserQueue: IFunction
@@ -28,39 +29,43 @@ export class EmailStepFunction extends Construct {
             runtime: Runtime.NODEJS_18_X,
         })
 
+        const contactEmailLambda = new NodejsFunction(this, 'contactEmailer', {
+            entry: url.fileURLToPath(new URL('contactEmailer/handler.ts', import.meta.url)),
+            runtime: Runtime.NODEJS_18_X,
+        })
+
         const receiveMeessageLambda = new NodejsFunction(this, 'receiveMessage', {
             entry: url.fileURLToPath(new URL('receiveMessage/handler.ts', import.meta.url)),
             runtime: Runtime.NODEJS_18_X,
+            environment: {
+                STATEMACHINE_ARN: stackConstants.stateMachineArn
+            }
         })
         this.emailQueue.grantConsumeMessages(receiveMeessageLambda)
         receiveMeessageLambda.addEventSource(new SqsEventSource(this.emailQueue, {
             batchSize: 1
         }))
 
-        const receiveMessageTask = new LambdaInvoke(this, 'Receive Message', {
-            lambdaFunction: receiveMeessageLambda,
-            outputPath: '$.Payload'
-        })
-
         const createUserEmailTask = new LambdaInvoke(this, 'Create User Email', {
             lambdaFunction: createUserEmailLambda,
-            outputPath: '$.Payload',
-            inputPath: '$.Payload',
+        })
+        const contactEmailTask = new LambdaInvoke(this, 'Contact Email', {
+            lambdaFunction: contactEmailLambda
         })
 
-        const emailerChoice = new Choice(this, 'Email Handler Choise')
+        const emailerChoice = new Choice(this, 'Email Handler Choice')
 
         this.emailQueue.grantSendMessages(props.addCreateUserQueue)
 
         const chain = Chain
-            .start(receiveMessageTask)
-            .next(
-                emailerChoice
-                    .when(Condition.numberEquals('$.emailType', 0), createUserEmailTask)
+            .start(emailerChoice
+                .when(Condition.numberEquals('$.emailType', 0), createUserEmailTask)
+                .when(Condition.numberEquals('$.emailType', 1), contactEmailTask)
             )
-
+                
         this.emailStateMachine = new StateMachine(this, 'EmailStateMachine', {
             definitionBody: DefinitionBody.fromChainable(chain)
         })
+        this.emailStateMachine.grantStartExecution(receiveMeessageLambda)
     }
 }
