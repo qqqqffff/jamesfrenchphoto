@@ -16,6 +16,7 @@
     "@aws-sdk/client-sfn": "^3.666.0",
     "@aws-sdk/client-sns": "^3.637.0",
     "@aws-sdk/client-sqs": "^3.665.0",
+    "@google-cloud/recaptcha-enterprise": "^5.11.0",
     "@stripe/react-stripe-js": "^2.8.0",
     "@stripe/stripe-js": "^4.3.0",
     "aws-amplify": "^6.5.1",
@@ -24,6 +25,7 @@
     "flowbite-react": "^0.10.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-google-recaptcha": "^3.1.0",
     "react-icons": "^5.3.0",
     "react-router-dom": "^6.26.1",
     "stripe": "^16.8.0"
@@ -35,6 +37,7 @@
     "@types/aws-lambda": "^8.10.143",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/react-google-recaptcha": "^2.1.9",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "aws-cdk": "^2.152.0",

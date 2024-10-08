@@ -48,7 +48,7 @@ export default function Header() {
     const borders = dev ? 'border border-black' : ''
     return (
         <>
-            <div className={'grid grid-cols-3 px-8 py-4 font-main border-b-2 border-gray-300 mb-12' + borders}>
+            <div className={'grid grid-cols-3 px-8 py-4 font-main border-b-2 border-gray-300' + borders}>
                 <div className={'flex flex-row justify-between items-center px-12 text-xl ' + borders}>
                     <Dropdown
                         arrowIcon={false}

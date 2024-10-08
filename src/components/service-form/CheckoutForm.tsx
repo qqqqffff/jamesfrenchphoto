@@ -1,4 +1,4 @@
-import { useElements, useStripe } from "@stripe/react-stripe-js"
+import { useStripe } from "@stripe/react-stripe-js"
 import { Accordion, Button, Checkbox, Dropdown, Label, TextInput } from "flowbite-react"
 import { FC, FormEvent, useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -27,7 +27,7 @@ const CheckoutForm: FC<Props> = ({}) => {
     const [displayBillingAddress, setDisplayBillingAddress] = useState(false)
     const navigate = useNavigate()
     const stripe = useStripe()
-    const elements = useElements()
+    // const elements = useElements()
 
     useEffect(() => {
         // console.log(history.state)
@@ -36,7 +36,7 @@ const CheckoutForm: FC<Props> = ({}) => {
 
     function handleSubmit(event: FormEvent<CheckoutForm>){
         event.preventDefault()
-        const form = event.currentTarget
+        // const form = event.currentTarget
     }
 
     function handleBack(){

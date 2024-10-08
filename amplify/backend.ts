@@ -3,7 +3,7 @@ import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { getPaymentIntent } from './functions/get-payment-intent/resource';
 import { storage } from './storage/resource';
-import { addEmailQueue } from './functions/add-email-queue/resource';
+import { addCreateUserQueue } from './functions/add-create-user-queue/resource';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { EmailStepFunction } from './custom/resource';
 
@@ -14,19 +14,15 @@ const backend = defineBackend({
   auth,
   data,
   storage,
-  addEmailQueue
+  addCreateUserQueue
   
   // getPaymentIntent,
 });
 
-const allowSendEmailPolicy = new PolicyStatement({
-  sid: 'AllowSendEmail',
-  actions: ['ses:SendEmail', 'ses:SendRawEmail'],
-  resources: ['*']
-})
 
-const addCreateUserQueueLambda = backend.addEmailQueue.resources.lambda
-addCreateUserQueueLambda.addToRolePolicy(allowSendEmailPolicy)
+
+const addCreateUserQueueLambda = backend.addCreateUserQueue.resources.lambda
+// addCreateUserQueueLambda.addToRolePolicy(allowSendEmailPolicy)
 
 const customEmailerStepFunction = new EmailStepFunction(
   backend.createStack('EmailStepFunction'),

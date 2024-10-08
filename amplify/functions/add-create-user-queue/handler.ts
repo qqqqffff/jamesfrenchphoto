@@ -6,7 +6,7 @@ import { EmailType } from '../../custom/types';
 
 const sqsClient = new SQSClient()
 
-export const handler: Schema['AddEmailQueue']['functionHandler'] = async (event) => {
+export const handler: Schema['AddCreateUserQueue']['functionHandler'] = async (event) => {
     let { email } = event.arguments
 
     if(!email) {

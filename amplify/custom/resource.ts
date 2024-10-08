@@ -8,6 +8,7 @@ import { LambdaInvoke } from "aws-cdk-lib/aws-stepfunctions-tasks";
 import { Construct } from "constructs";
 import * as url from 'node:url'
 import { stackConstants } from "../constants";
+import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 
 type EmailStepFunctionProps = {
     addCreateUserQueue: IFunction
@@ -23,16 +24,24 @@ export class EmailStepFunction extends Construct {
             deliveryDelay: Duration.seconds(15)
         })
 
+        const allowSendEmailPolicy = new PolicyStatement({
+            sid: 'AllowSendEmail',
+            actions: ['ses:SendEmail'],
+            resources: ['*']
+          })
+
         // lambda functions
         const createUserEmailLambda = new NodejsFunction(this, 'createUserEmailer', {
             entry: url.fileURLToPath(new URL('createUserEmailer/handler.ts', import.meta.url)),
             runtime: Runtime.NODEJS_18_X,
         })
+        createUserEmailLambda.addToRolePolicy(allowSendEmailPolicy)
 
         const contactEmailLambda = new NodejsFunction(this, 'contactEmailer', {
             entry: url.fileURLToPath(new URL('contactEmailer/handler.ts', import.meta.url)),
             runtime: Runtime.NODEJS_18_X,
         })
+        contactEmailLambda.addToRolePolicy(allowSendEmailPolicy)
 
         const receiveMeessageLambda = new NodejsFunction(this, 'receiveMessage', {
             entry: url.fileURLToPath(new URL('receiveMessage/handler.ts', import.meta.url)),

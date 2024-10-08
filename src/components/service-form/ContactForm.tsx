@@ -1,6 +1,7 @@
 import { Button, Label, Textarea, TextInput } from "flowbite-react"
-import { FC, FormEvent } from "react"
-import { useNavigate } from "react-router-dom"
+import { createRef, FC, FormEvent } from "react"
+// import { useNavigate } from "react-router-dom"
+import ReCAPTCHA from "react-google-recaptcha";
 
 interface IntentFormElements extends HTMLFormControlsCollection {
     message: HTMLButtonElement
@@ -18,7 +19,8 @@ interface IntentFormFields extends HTMLFormElement{
 type Props = {}
 
 const ContactForm: FC<Props> = ({}) => {
-    const navigate = useNavigate()
+    // const navigate = useNavigate()
+    const recaptchaRef = createRef<ReCAPTCHA>()
 
     function handleSubmit(event: FormEvent<IntentFormFields>){
         event.preventDefault()
@@ -28,13 +30,16 @@ const ContactForm: FC<Props> = ({}) => {
         form.elements.phoneNumber
         form.elements.email
         form.elements.message
-        navigate('/',
-            {
-                state: {
-                    contactSuccess: true
-                }
-            }
-        )
+
+        console.log(recaptchaRef.current?.getValue())
+
+        // navigate('/',
+        //     {
+        //         state: {
+        //             contactSuccess: true
+        //         }
+        //     }
+        // )
     }
 
     return (
@@ -64,8 +69,11 @@ const ContactForm: FC<Props> = ({}) => {
                         <Label className="ms-2 mb-3 font-semibold text-xl" htmlFor="message">Message<sup>*</sup>:</Label>
                         <Textarea className="min-h-24 mb-4" placeholder="Message of desired service or intent" id="message" name="message"/>
                         <p className="italic text-sm"><sup>*</sup> Indicates required fields</p>
-                        <div className="flex justify-end mt-12">
-                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" >Submit</Button>
+                        <div className="flex justify-center mt-6">
+                            <ReCAPTCHA sitekey={import.meta.env.VITE_GOOGLE_RECAPTCHA_SECRET_KEY} ref={recaptchaRef}/>
+                        </div>
+                        <div className="flex justify-end mt-4">
+                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit">Submit</Button>
                         </div>
                     </div>
                 </div>

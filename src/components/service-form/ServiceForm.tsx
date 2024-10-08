@@ -5,7 +5,7 @@ import TRFAttendantPackage from '../../assets/tyler-rose-festival/2024/formatted
 import TRFDebutantePackage1 from '../../assets/tyler-rose-festival/2024/formatted-Debutante-packages-1.png'
 import TRFDebutantePackage2 from '../../assets/tyler-rose-festival/2024/formatted-Debutante-packages-2.png'
 import TRFEscortPackage from '../../assets/tyler-rose-festival/2024/formatted-Escort-packages.png'
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import { generateClient } from "aws-amplify/api";
 import type { Schema } from '../../../amplify/data/resource'
 
@@ -34,11 +34,11 @@ type Props = {
 const ServiceForm: FC<Props> = ({ event, pack }) => {
     const [eventType, setEventType] = useState(event)
     const [packageType, setPackageType] = useState(pack)
-    const navigate = useNavigate()
+    // const navigate = useNavigate()
 
     async function handlesubmit(event: FormEvent<PackageRequestForm>){
         event.preventDefault()
-        const form = event.currentTarget;
+        // const form = event.currentTarget;
         // console.log(form.elements.eventType.innerText)
         // console.log(form.elements.trfServiceType!.value)
         // console.log(form.elements.trfPackageType!.value)
@@ -50,7 +50,7 @@ const ServiceForm: FC<Props> = ({ event, pack }) => {
         // console.log((await ))
         
         console.log(client)
-        const paymentIntent = await client.queries.GetPaymentIntent({ objects: [form.elements.eventType.innerText]})
+        // const paymentIntent = await client.queries.GetPaymentIntent({ objects: [form.elements.eventType.innerText]})
         // console.log(paymentIntent)
 
 

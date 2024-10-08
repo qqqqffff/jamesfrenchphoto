@@ -36,8 +36,8 @@ type PrefilledElements = {
 export default function SignUp(){
     const [openModal, setOpenModal] = useState(false);
     const [username, setUsername] = useState('');
-    const [serachParams, setSearchParams] = useSearchParams()
-    const [signupPrefilledElements, setSignupPrefilledElements] = useState<PrefilledElements | undefined>()
+    const [serachParams] = useSearchParams()
+    const [signupPrefilledElements] = useState<PrefilledElements | undefined>()
     const navigate = useNavigate()
 
     useEffect(() => {

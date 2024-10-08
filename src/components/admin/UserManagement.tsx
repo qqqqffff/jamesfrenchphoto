@@ -2,12 +2,10 @@ import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
 import { Button } from "flowbite-react"
 import { useEffect, useState } from "react"
-import { UserStorage } from "../../types"
 import { Amplify } from "aws-amplify"
 import outputs from '../../../amplify_outputs.json'
 import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineMinusCircle, HiOutlinePlusCircle } from "react-icons/hi"
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand"
-import { getCurrentUser } from "aws-amplify/auth"
 import { CreateUserModal } from "../modals"
 
 Amplify.configure(outputs)
@@ -26,7 +24,6 @@ interface UserData {
 }
 
 export default function UserManagement(){
-    const [admin, setAdmin] = useState<UserStorage>()
     const [createUserModalVisible, setCreateUserModalVisible] = useState(false)
     const [userData, setUserData] = useState<UserData[] | undefined>()
     const [sideBarToggles, setSideBarToggles] = useState<Boolean[]>([false])

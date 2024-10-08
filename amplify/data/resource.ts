@@ -2,7 +2,8 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { getPaymentIntent } from '../functions/get-payment-intent/resource';
 import { postConfirmation } from '../auth/post-confirmation/resource';
 import { getAuthUsers } from '../auth/get-auth-users/resource';
-import { addEmailQueue } from '../functions/add-email-queue/resource';
+import { addCreateUserQueue } from '../functions/add-create-user-queue/resource';
+import { verifyContactChallenge } from '../functions/verify-contact-challenge/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -106,6 +107,15 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(getAuthUsers))
     .returns(a.json()),
+  VerifyContactChallenge: a
+    .query()
+    .arguments({
+      token: a.string().required(),
+      contact: a.string()
+    })
+    .authorization((allow) => [allow.guest(), allow.authenticated('userPools')])
+    .handler(a.handler.function(verifyContactChallenge))
+    .returns(a.json()),
   // SendCreateUserEmail: a
   //   .query()
   //   .arguments({
@@ -114,13 +124,13 @@ const schema = a.schema({
   //   .authorization((allow) => [allow.group('ADMINS')])
   //   .handler(a.handler.function(sendCreateUserEmail))
   //   .returns(a.json()),
-  AddEmailQueue: a
+  AddCreateUserQueue: a
     .query()
     .arguments({
-      email: a.string(),
+      email: a.string().required(),
     })
     .authorization((allow) => [allow.group('ADMINS')])
-    .handler(a.handler.function(addEmailQueue))
+    .handler(a.handler.function(addCreateUserQueue))
     .returns(a.json()),
   TemporaryCreateUsersTokens: a
     .model({

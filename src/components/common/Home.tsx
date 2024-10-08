@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { Alert, Carousel } from "flowbite-react";
 import { HiOutlineArrowLeft, HiOutlineArrowRight } from "react-icons/hi";
+import carousel1 from '../../assets/home-carousel/carousel-1.jpg'
+import carousel2 from '../../assets/home-carousel/carousel-2.jpg'
+import carousel3 from '../../assets/home-carousel/carousel-3.jpg'
+import carousel4 from '../../assets/home-carousel/carousel-4.jpg'
+import carousel5 from '../../assets/home-carousel/carousel-5.jpg'
+import carousel6 from '../../assets/home-carousel/carousel-6.jpg'
+import carousel7 from '../../assets/home-carousel/carousel-7.jpg'
+import carousel8 from '../../assets/home-carousel/carousel-8.jpg'
+import carousel9 from '../../assets/home-carousel/carousel-9.jpg'
 
 
 
@@ -36,10 +45,10 @@ export default function () {
     }
 
     return (
-        <>
+        <div className="flex-col">
             {notification}
             <div className="flex justify-center items-center">
-                <div className="h-[600px] w-[75%] min-h-[600px]">
+                <div className="h-[750px] w-[100%] min-h-[600px]">
                     <Carousel
                         slideInterval={5000}
                         leftControl={
@@ -54,13 +63,27 @@ export default function () {
                         }
                         className="border-2 border-black rounded-lg"
                     >
-                        <div className="flex h-full items-center justify-center bg-gray-400">1</div>
-                        <div className="flex h-full items-center justify-center bg-gray-400">2</div>
-                        <div className="flex h-full items-center justify-center bg-gray-400">3</div>
+                        <div className="flex h-full items-center justify-center bg-gray-400">
+                            <img src={carousel1} className="h-full"/>
+                            <img src={carousel2} className="h-full"/>
+                            <img src={carousel3} className="h-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-gray-400">
+                            <img src={carousel4} className="h-full"/>
+                            <img src={carousel5} className="h-full"/>
+                            <img src={carousel6} className="h-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-gray-400">
+                            <img src={carousel7} className="h-full"/>
+                            <img src={carousel8} className="h-full"/>
+                            <img src={carousel9} className="h-full"/>
+                        </div>
+                        {/* <div className="flex h-full items-center justify-center bg-gray-400">2</div>
+                        <div className="flex h-full items-center justify-center bg-gray-400">3</div> */}
                     </Carousel>
                 </div>
             </div>
-        </>
+        </div>
         
     )
 }
