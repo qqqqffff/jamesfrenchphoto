@@ -1,0 +1,43 @@
+<mjml>
+  <mj-head>
+    <mj-raw>
+      <meta name="color-scheme" content="light" />
+      <meta name="supported-color-schemes" content="light" />
+    </mj-raw>
+    <mj-style>
+      a {
+      color: #F48668;
+      text-decoration: none;
+      }
+    </mj-style>
+  </mj-head>
+  <mj-body background-color="#FAFAFA">
+    <mj-wrapper border-radius="8px" padding="15px">
+      <mj-section background-color="#F48668" border-radius="8px 8px 0 0">
+      </mj-section>
+      <mj-section background-color="#FFFFFF" border-radius="0 08px 8px">
+        <mj-column>
+          <mj-text font-family="Trebuchet MS" color="#173940" font-size="22px" font-weight="600" align="center">
+            Welcome to James French Photography
+          </mj-text>
+          <mj-spacer></mj-spacer>
+          <mj-text font-family="Trebuchet MS" color="#173940" font-size="16px" align="center">
+            Hello {{email}}, here is a link to create your account:
+          </mj-text>
+          <mj-text align='center'>
+            <a href={{link}}>{{link}}</a>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+    <mj-wrapper border-radius="8px" padding="15px">
+      <mj-section background-color="#FFFFFF" border-radius="8px">
+        <mj-column>
+          <mj-text font-family="Trebuchet MS" color="#173940" font-size="16px" align="center">
+            Ran into a problem ? Do not hesitate to contact us at <a href="mailto:contact@jamesfrenchphotography.com"><b>contact@jamesfrenchphotography.com</b></a>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+  </mj-body>
+</mjml>

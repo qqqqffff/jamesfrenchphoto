@@ -1,0 +1,57 @@
+<mjml>
+  <mj-head>
+    <mj-raw>
+      <meta name="color-scheme" content="light" />
+      <meta name="supported-color-schemes" content="light" />
+    </mj-raw>
+    <mj-style>
+      a {
+      color: #F48668;
+      text-decoration: none;
+      }
+    </mj-style>
+  </mj-head>
+  <mj-body background-color="#FAFAFA">
+    <mj-wrapper border-radius="8px" padding="15px">
+      <mj-section background-color="#F48668" border-radius="8px 8px 0 0">
+      </mj-section>
+      <mj-section background-color="#FFFFFF" border-radius="0 08px 8px">
+        <mj-column width='100%'>
+          <mj-text font-family="Trebuchet MS" color="#173940" font-size="22px" font-weight="600" align="center">
+            User Contact Notification
+          </mj-text>
+          <mj-spacer></mj-spacer>
+          <mj-table>
+            <tr style="text-align:center;padding:25px 0;font-size:medium">
+                <td style="padding: 0 15px 0 0;">
+									First Name: {{firstName}}
+								</td>
+                <td style="padding: 0 15px;">
+									Last Name: {{lastName}}
+								</td>
+            </tr>
+        	</mj-table>
+					<mj-text font-family="Trebuchet MS" color="#173940" font-size="16px" align="center">
+            Phone Number: {{phoneNumber}}
+          </mj-text>
+					<mj-text font-family="Trebuchet MS" color="#173940" font-size="16px" align="center">
+            Email: {{email}}
+          </mj-text>
+					<mj-spacer></mj-spacer>
+          <mj-text font-family="Trebuchet MS" color="#173940" font-size="14px" align="center">
+            {{message}}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+    <mj-wrapper border-radius="8px" padding="15px">
+      <mj-section background-color="#FFFFFF" border-radius="8px">
+        <mj-column>
+          <mj-text font-family="Trebuchet MS" color="#173940" font-size="16px" align="center">
+            Spam emailer? Block Sneder: <a href="mailto:contact@jamesfrenchphotography.com"><b>{{blockLink}}</b></a>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+  </mj-body>
+</mjml>

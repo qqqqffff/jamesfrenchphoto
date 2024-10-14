@@ -1,4 +1,9 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
+import { getPaymentIntent } from '../functions/get-payment-intent/resource';
+import { postConfirmation } from '../auth/post-confirmation/resource';
+import { getAuthUsers } from '../auth/get-auth-users/resource';
+import { addCreateUserQueue } from '../functions/add-create-user-queue/resource';
+import { verifyContactChallenge } from '../functions/verify-contact-challenge/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -6,20 +11,160 @@ adding a new "isDone" field as a boolean. The authorization rule below
 specifies that any unauthenticated user can "create", "read", "update", 
 and "delete" any "Todo" records.
 =========================================================================*/
+
 const schema = a.schema({
-  Todo: a
+  Events: a
     .model({
-      content: a.string(),
+      id: a.id().required(),
+      name: a.string(),
+      subCategories: a.hasMany('SubCategory', 'id')
+    }).identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  SubCategory: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      headers: a.string().array(),
+      fields: a.hasMany('SubCategoryFields', 'id'),
+      collection: a.hasOne('PhotoCollection', 'id'),
+      type: a.string().required(),
+      eventId: a.id().required(),
+      event: a.belongsTo('Events', 'id')
     })
-    .authorization((allow) => [allow.guest()]),
-});
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  PhotoCollection: a
+    .model({
+      id: a.id().required(),
+      coverPath: a.string(),
+      imagePaths: a.hasMany('PhotoPaths', 'id'),
+      subCategoryId: a.id().required(),
+      subCategory: a.belongsTo('SubCategory', 'id'),
+      tagId: a.id(),
+      tag: a.hasOne('UserTag', 'id')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('subCategoryId'), index('tagId')])
+    .authorization((allow) => [allow.authenticated()]),
+  PhotoPaths: a
+    .model({
+      id: a.id().required(),
+      path: a.string().required(),
+      displayHeight: a.integer(),
+      displayWidth: a.integer(),
+      order: a.integer().required(),
+      collectionId: a.id().required(),
+      collection: a.belongsTo('PhotoCollection', 'id')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('collectionId')])
+    .authorization((allow) => [allow.authenticated()]),
+  SubCategoryFields: a
+    .model({
+      id: a.id().required(),
+      subCategoryId: a.id().required(),
+      subCategory: a.belongsTo('SubCategory', 'id'),
+      row: a.integer().required(),
+      key: a.string().required(),
+      value: a.string().required(),
+      enum: a.customType({
+        options: a.string().array(),
+        color: a.string().array()
+      })
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('subCategoryId')])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  UserTag: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      color: a.string(),
+      collectionId: a.id(),
+      collection: a.belongsTo('PhotoCollection', 'id'),
+      timeslots: a.hasMany('Timeslot', 'tagId'),
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.authenticated('userPools')]),
+  Timeslot: a
+    .model({
+      id: a.id(),
+      capacity: a.integer().required(),
+      registers: a.string().array(),
+      start: a.datetime().required(),
+      end: a.datetime().required(),
+      tagId: a.id(),
+      tag: a.belongsTo('UserTag', 'tagId'),
+    })
+    .authorization((allow) => [allow.authenticated('userPools')]),
+  UserProfile: a
+    .model({
+      email: a.string().required(),
+      userTags: a.string().array(),
+      preferredName: a.string(),
+      timeslot: a.id(),
+    })
+    .identifier(['email'])
+    .authorization((allow) => [allow.authenticated('userPools')]),
+  GetAuthUsers: a
+    .query()
+    .authorization((allow) => [allow.group('ADMINS')])
+    .handler(a.handler.function(getAuthUsers))
+    .returns(a.json()),
+  VerifyContactChallenge: a
+    .query()
+    .arguments({
+      token: a.string().required(),
+      contact: a.string()
+    })
+    .authorization((allow) => [allow.guest(), allow.authenticated('userPools')])
+    .handler(a.handler.function(verifyContactChallenge))
+    .returns(a.json()),
+  AddCreateUserQueue: a
+    .query()
+    .arguments({
+      email: a.string().required(),
+    })
+    .authorization((allow) => [allow.group('ADMINS')])
+    .handler(a.handler.function(addCreateUserQueue))
+    .returns(a.json()),
+  TemporaryCreateUsersTokens: a
+    .model({
+      id: a.id().required(),
+      expires: a.datetime().required(),
+      email: a.string().required(),
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  Pricing: a
+    .model({
+      object: a.string(),
+      price: a.integer(),
+    })
+    .authorization((allow) => [allow.authenticated()]),
+  PaymentIntent: a
+    .customType({
+      objects: a.string().array(),
+      total: a.integer(),
+      currency: a.string(),
+    }),
+  GetPaymentIntent: a
+    .query()
+    .arguments({
+      objects: a.string().array(),
+    })
+    .returns(a.ref('PaymentIntent'))
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(getPaymentIntent)),
+})
+.authorization((allow) => [allow.resource(postConfirmation), allow.resource(addCreateUserQueue)]);
 
 export type Schema = ClientSchema<typeof schema>;
 
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: 'iam',
+    defaultAuthorizationMode: 'userPool',
   },
 });
 
