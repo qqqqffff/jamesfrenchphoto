@@ -5,6 +5,7 @@ import { HiOutlineCalendar, HiOutlineChat, HiOutlineClipboardList, HiOutlineDocu
 import { UserStorage } from "../../types";
 // import EventManager from "./EventManager";
 import UserManagement from "./UserManagement";
+import { Timeslot } from "../timeslot/Timeslot";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
@@ -42,6 +43,8 @@ export const Dashboard = () => {
 
     function activeConsoleComponent(){
         switch(activeConsole){
+            case 'scheduler': 
+                return (<Timeslot />)
             case 'eventManager':
                 // return (<EventManager />)
             case 'userManagement':

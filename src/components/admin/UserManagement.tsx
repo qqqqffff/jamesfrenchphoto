@@ -133,9 +133,9 @@ export default function UserManagement(){
                 <>
                     {options.map((option, index) => {
                         return (
-                            <div key={index} className="flex flex-row items-center ms-4 my-1 hover:bg-gray-100 ps-2 py-1 rounded-3xl cursor-pointer" onClick={() => {option.fn()}}>
+                            <button key={index} className="flex flex-row items-center ms-4 my-1 hover:bg-gray-100 ps-2 py-1 rounded-3xl cursor-pointer" onClick={() => {option.fn()}}>
                                 <div className="me-1 mt-1">{option.icon}</div>{option.title}
-                            </div>
+                            </button>
                         )
                     })}
                 </>

@@ -1,6 +1,6 @@
 import { FC, FormEvent, useEffect, useState } from "react";
 import { ModalProps } from ".";
-import { Button, Label, Modal, ModalBody, ModalHeader, TextInput } from "flowbite-react";
+import { Button, Label, Modal, TextInput } from "flowbite-react";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { PhotoCollection, Subcategory, Timeslot } from "../../types";
@@ -57,8 +57,8 @@ export const CreateTagModal: FC<ModalProps> = ({open, onClose}) => {
 
     return (
         <Modal show={open} onClose={() => onClose()}>
-            <ModalHeader>Create a New Tag</ModalHeader>
-            <ModalBody>
+            <Modal.Header>Create a New Tag</Modal.Header>
+            <Modal.Body>
                 <form onSubmit={createTag} className="flex flex-col gap-2">
                     <Label className="ms-2 font-medium text-lg" htmlFor="name">Name:</Label>
                     <TextInput sizing='md' className="w-[60%]" placeholder="Tag Name" type="text" id="name" name="name"/>
@@ -66,7 +66,7 @@ export const CreateTagModal: FC<ModalProps> = ({open, onClose}) => {
                     //TODO: date picker with filters for timeslots
                     <Button className="w-[100px]" type="submit">Create</Button>
                 </form>
-            </ModalBody>
+            </Modal.Body>
         </Modal>
     )
 }
