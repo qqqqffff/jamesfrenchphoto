@@ -36,7 +36,7 @@ export type Subcategory = {
 
 export type Timeslot = {
     id: string,
-    tagId: string,
+    tagId?: string,
     capacity: number;
     registers: string[];
     start: Date;

@@ -3,6 +3,7 @@ import { ModalProps } from ".";
 import { Button, Dropdown, Label, Modal, TextInput } from "flowbite-react";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
+import { formatTime } from "../../utils";
 
 const client = generateClient<Schema>()
 
@@ -53,11 +54,6 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
         onClose()
     }
 
-    function formatTime(time: Date | string){
-        if(typeof time == 'string') return time
-        const timeString = time.toLocaleTimeString().toLowerCase().split(':')
-        return timeString[0] + ':' + timeString[1] + ' ' + timeString[2].substring(3)
-    }
     return (
         <Modal show={open} onClose={() => onClose()}>
             <Modal.Header>Create a New Timeslot</Modal.Header>
