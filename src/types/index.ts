@@ -42,3 +42,10 @@ export type Timeslot = {
     start: Date;
     end: Date;
 }
+
+export type UserTag = {
+    id: string,
+    name: string,
+    color?: string,
+    collectionId?: string,
+}

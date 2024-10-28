@@ -82,9 +82,17 @@ const schema = a.schema({
       color: a.string(),
       collectionId: a.id(),
       collection: a.belongsTo('PhotoCollection', 'id'),
-      timeslots: a.hasMany('Timeslot', 'tagId'),
+      timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
     })
     .identifier(['id'])
+    .authorization((allow) => [allow.authenticated('userPools')]),
+  TimeslotTag: a
+    .model({
+      tagId: a.id().required(),
+      tag: a.belongsTo('UserTag', 'tagId'),
+      timeslotId: a.id().required(),
+      timeslot: a.belongsTo('Timeslot', 'timeslotId')
+    })
     .authorization((allow) => [allow.authenticated('userPools')]),
   Timeslot: a
     .model({
@@ -93,8 +101,7 @@ const schema = a.schema({
       registers: a.string().array(),
       start: a.datetime().required(),
       end: a.datetime().required(),
-      tagId: a.id(),
-      tag: a.belongsTo('UserTag', 'tagId'),
+      timeslotTag: a.hasMany('TimeslotTag', 'timeslotId'),
     })
     .authorization((allow) => [allow.authenticated('userPools')]),
   UserProfile: a

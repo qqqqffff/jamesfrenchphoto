@@ -1,11 +1,12 @@
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
-import { Button } from "flowbite-react"
+import { Label } from "flowbite-react"
 import { useEffect, useState } from "react"
 import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineMinusCircle, HiOutlinePlusCircle } from "react-icons/hi"
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand"
 import { CreateUserModal } from "../modals"
 import { CreateTagModal } from "../modals/CreateTag"
+import { UserTag } from "../../types"
 
 const client = generateClient<Schema>()
 
@@ -26,6 +27,8 @@ export default function UserManagement(){
     const [createTagModalVisible, setCreateTagModalVisible] = useState(false)
     const [userData, setUserData] = useState<UserData[] | undefined>()
     const [sideBarToggles, setSideBarToggles] = useState<boolean>(true)
+    const [userTags, setUserTags] = useState<UserTag[]>()
+    const [existingTag, setExistingTag] = useState<UserTag | undefined>()
 
     function parseAttribute(attribute: string){
         switch(attribute){
@@ -72,8 +75,15 @@ export default function UserManagement(){
             } as UserData
         })
 
+        const userTags: UserTag[] = (await client.models.UserTag.list()).data.map((tag) => ({
+            ...tag,
+            color: tag.color ? tag.color : undefined,
+            collectionId: tag.collectionId ? tag.collectionId : undefined
+        }))
+
         console.log(parsedUsers)
         setUserData(parsedUsers)
+        setUserTags(userTags)
         return parsedUsers
     }
     useEffect(() => {
@@ -158,8 +168,7 @@ export default function UserManagement(){
     return (
         <>
             <CreateUserModal open={createUserModalVisible} onClose={() => setCreateUserModalVisible(false)} />
-            <CreateTagModal open={createTagModalVisible} onClose={() => setCreateTagModalVisible(false)} />
-            <Button onClick={async () => console.log(window.localStorage.getItem('user'))}></Button>
+            <CreateTagModal open={createTagModalVisible} onClose={() => setCreateTagModalVisible(false)} existingTag={existingTag}/>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
                     <div className="flex flex-row">
@@ -196,7 +205,7 @@ export default function UserManagement(){
                                                 if(!isNaN(tempDate.getTime()) && tempDate.getTime() > 1){
                                                     formatted = tempDate.toLocaleString()
                                                 }
-                                                else if(k.toUpperCase() !== 'USERID'){
+                                                else if(k.toUpperCase() !== 'USERID' || k.toUpperCase() !== 'EMAIL'){
                                                     formatted = [...String(v)][0].toUpperCase() + String(v).substring(1).toLowerCase()
                                                 }
                                                 else {
@@ -220,8 +229,20 @@ export default function UserManagement(){
                         : (<></>)}
                     </div>
                 </div>
-                <div className="border border-red-400">
-                    1
+                <div className="flex flex-col border border-gray-400 rounded-lg p-2 me-4">
+                    <div className="mb-2">
+                        <span className="text-xl ms-4 mb-1">User Tags</span>
+                    </div>
+                    {userTags && userTags.length > 0 ? (userTags.map((tag) => {
+                        const color = tag.color ? tag.color : 'black'
+
+                        return (
+                            <span key={tag.id} className={`text-${color} ms-6 cursor-pointer hover:underline underline-offset-2`} onClick={() => {
+                                setExistingTag(tag)
+                                setCreateTagModalVisible(true)
+                            }}>{tag.name}</span>
+                        )
+                    })) : (<Label className="text-lg italic text-gray-500">No Tags</Label>)}
                 </div>
             </div>
         </>
