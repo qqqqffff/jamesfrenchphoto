@@ -44,7 +44,7 @@ export const Dashboard = () => {
     function activeConsoleComponent(){
         switch(activeConsole){
             case 'scheduler': 
-                return (<TimeslotComponent />)
+                return (<TimeslotComponent admin/>)
             case 'eventManager':
                 // return (<EventManager />)
             case 'userManagement':

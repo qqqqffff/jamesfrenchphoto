@@ -8,6 +8,7 @@ import { Home } from "./Home";
 import { badgeColorThemeMap } from "../../utils";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
+import { TimeslotComponent } from "../timeslot/Timeslot";
 
 const client = generateClient<Schema>()
 
@@ -140,8 +141,8 @@ export function Dashboard() {
         switch(activeConsole){
             case 'home':
                 return (<Home user={user!}/>)
-            case 'userManagement':
-                // return (<UserManagement />)
+            case 'scheduler':
+                return (<TimeslotComponent userEmail={userProfile?.email} userTags={userProfileTags}/>)
             default:
                 return (<></>)
         }
@@ -151,7 +152,6 @@ export function Dashboard() {
             <div className="flex flex-col items-center justify-center font-main">
                 <p className="font-semibold text-3xl mb-4">Welcome {structureFullname()}</p>
                 <div className="flex flex-row gap-2 items-center mb-4">
-                    {/* TODO: replace me with dynamically piped information*/}
                     {
                         userProfileTags.map((tag, index) => {
                             return (<Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 text-md">{tag.name}</Badge>)
@@ -162,19 +162,19 @@ export function Dashboard() {
                 <p className="font-medium text-xl mb-1">Quick Actions:</p>
                 <Button.Group outline>
                     <Button color='gray' onClick={() => setActiveConsole('home')} className={activeConsoleClassName('home')}>
-                        <HiOutlineHome className="mt-1 me-1"/> Home
+                        <HiOutlineHome className="mt-1 me-1"/>Home
                     </Button>
-                    <Button color='gray' onClick={() => setActiveConsole('schedule')} className={activeConsoleClassName('schedule')}>
-                        <HiOutlineCalendar className="mt-1 me-1"/> Schedule
+                    <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
+                        <HiOutlineCalendar className="mt-1 me-1"/>Scheduler
                     </Button>
                     <Button color='gray' onClick={() => setActiveConsole('checklist')} className={activeConsoleClassName('checklist')}>
-                        <HiOutlineClipboardList className="mt-1 me-1"/> Checklist
+                        <HiOutlineClipboardList className="mt-1 me-1"/>Checklist
                     </Button>
                     <Button color='gray' onClick={() => setActiveConsole('notifications')} className={activeConsoleClassName('notifications')}>
-                        <HiOutlineChat className="mt-1 me-1"/> Notifications
+                        <HiOutlineChat className="mt-1 me-1"/>Notifications
                     </Button>
                     <Button color='gray' onClick={() => setActiveConsole('packageInfo')} className={activeConsoleClassName('packageInfo')}>
-                        <HiOutlineDocumentText className="mt-1 me-1"/> Package Info
+                        <HiOutlineDocumentText className="mt-1 me-1"/>Package Info
                     </Button>
                     
                     {returnToAdminConsoleComponent(adminView, navigate)}

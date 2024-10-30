@@ -1,6 +1,6 @@
 import { FC, useEffect, useState } from "react";
 import { Timeslot, UserTag } from "../../types";
-import { Dropdown } from "flowbite-react";
+import { Dropdown, Tooltip } from "flowbite-react";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { formatTime, GetColorComponent } from "../../utils";
@@ -10,13 +10,14 @@ const client = generateClient<Schema>()
 export interface SlotProps {
     timeslot: Timeslot
     showTags?: boolean
+    displayCapacity?: boolean
 }
 
 function createTimeString(timeslot: Timeslot){
     return timeslot.start.toLocaleTimeString() + " - " + timeslot.end.toLocaleTimeString()
 }
 
-export const SlotComponent: FC<SlotProps> = ({ timeslot, showTags = true }) => {
+export const SlotComponent: FC<SlotProps> = ({ timeslot, showTags = true, displayCapacity }) => {
     const [apiCall, setApiCall] = useState(false)
     const [tags, setTags] = useState<UserTag[]>([])
     
@@ -41,10 +42,26 @@ export const SlotComponent: FC<SlotProps> = ({ timeslot, showTags = true }) => {
     function createCapacityString(){
         return 'Capacity: ' + (timeslot.registers ? timeslot.registers.length : 0) + " / " + timeslot.capacity
     }
+    const tempRegisters = [
+        '1apollo.rowe@gmail.com',
+        '2apollo.rowe@gmail.com',
+        '3apollo.rowe@gmail.com'
+    ]
     return (
         <div className="flex flex-col border border-black justify-center items-center rounded-lg py-2">
             <span>{"Time: " + createTimeString(timeslot)}</span>
-            <span>{createCapacityString()}</span>
+            {
+                displayCapacity ? 
+                    (<Tooltip
+                        content={(
+                            <div className="flex flex-col text-center gap-1">
+                                {timeslot.registers.map((email) => (<span>{email}</span>))}
+                            </div>
+                            )}>
+                        <span>{createCapacityString()}</span>
+                    </Tooltip>) 
+                    : (<span>{createCapacityString()}</span>)
+            }
             {showTags ? 
             (<Dropdown label="Tags:" inline>
                 {tags.length > 0 ? (tags.map((tag, index) => {

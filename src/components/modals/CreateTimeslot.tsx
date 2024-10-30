@@ -24,6 +24,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
     const [endTime, setEndTime] = useState<string | Date>('Select End Time')
     const times = [
         new Date(day.getTime() + DAY_OFFSET * (8/24)),
+        new Date(day.getTime() + DAY_OFFSET * (17/48)),
         new Date(day.getTime() + DAY_OFFSET * (9/24)),
         new Date(day.getTime() + DAY_OFFSET * (10/24)),
         new Date(day.getTime() + DAY_OFFSET * (11/24)),
@@ -76,7 +77,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                                     <Dropdown placement="bottom-end" label={formatTime(startTime)} color="light" id="name" name="name" className="overflow-auto max-h-[250px]">
                                         {times.map((time, index) => { 
                                                 return (
-                                                    <Dropdown.Item key={index} onClick={() => setStartTime(time)}>{formatTime(time)}</Dropdown.Item>
+                                                    <Dropdown.Item key={index} onClick={() => setStartTime(time)}>{time.toLocaleTimeString()}</Dropdown.Item>
                                                 )
                                             })}
                                     </Dropdown>
@@ -88,7 +89,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                                     <Dropdown placement="bottom-end" label={formatTime(endTime)} color="light" id="name" name="name" disabled={typeof startTime == 'string'} className="overflow-auto max-h-[250px]">
                                         {times.map((time, index) => { 
                                                 return (
-                                                    <Dropdown.Item key={index} className='disabled:text-gray-400 disabled:cursor-not-allowed' disabled={time <= startTime} onClick={() => setEndTime(time)}>{formatTime(time)}</Dropdown.Item>
+                                                    <Dropdown.Item key={index} className='disabled:text-gray-400 disabled:cursor-not-allowed' disabled={time <= startTime} onClick={() => setEndTime(time)}>{time.toLocaleTimeString()}</Dropdown.Item>
                                                 )
                                             })}
                                     </Dropdown>
