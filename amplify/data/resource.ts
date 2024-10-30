@@ -109,7 +109,6 @@ const schema = a.schema({
       email: a.string().required(),
       userTags: a.string().array(),
       preferredName: a.string(),
-      timeslot: a.id(),
     })
     .identifier(['email'])
     .authorization((allow) => [allow.authenticated('userPools')]),

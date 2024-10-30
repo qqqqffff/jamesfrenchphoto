@@ -2,24 +2,23 @@ import { FC, useEffect, useState } from "react";
 import { PhotoCollection, UserStorage } from "../../types";
 import { Schema } from "../../../amplify/data/resource";
 import { generateClient } from "aws-amplify/api";
-import { Button } from "flowbite-react";
 const client = generateClient<Schema>()
 
 interface ClientHomeProps {
     user: UserStorage
 }
 
+//TODO: pass an open state variable 
 export const Home: FC<ClientHomeProps> = ({ user }) => {
     const [collections, setCollections] = useState<PhotoCollection[]>([])
-    const [fetchComplete, setFetchComplete] = useState(false)
+    const [apiCall, setApiCall] = useState(false)
     useEffect(() => {
-        async function fetchCollection(){
-            let temp: PhotoCollection[] | undefined
+        async function api(){
+            let temp: PhotoCollection[] = []
             const userProfile = (await client.models.UserProfile.get({ email: '1apollo.rowe@gmail.com' })).data
             console.log(userProfile)
             if(userProfile?.userTags){
                 temp = []
-                setCollections(temp)
                 console.log(user)
                 // collections = await Promise.all(userProfile.userTags.filter((tag) => tag !== null).map(async (tag) => 
                 //     (await client.models.PhotoCollection.listPhotoCollectionByTagId({ tagId: tag })).data[0]
@@ -31,17 +30,18 @@ export const Home: FC<ClientHomeProps> = ({ user }) => {
                 //     }
                 // }))
             }
-            setFetchComplete(true)
+            setCollections(temp)
+            setApiCall(true)
         }
-        if(!fetchComplete){
-            fetchCollection()
+        if(!apiCall){
+            api()
         }
     })
     
     return (
         <div className="grid grid-cols-6 mt-8 font-main">
             <div className="flex flex-col items-center justify-center col-start-2 col-span-4 border-black border rounded-xl">
-                <Button
+                {/* <Button
                 onClick={async () => {
                     // const response = await client.models.UserProfile.list()
                     // const response = await client.models.UserProfile.create({email: user.attributes.email!})
@@ -61,13 +61,20 @@ export const Home: FC<ClientHomeProps> = ({ user }) => {
                     const response = await client.models.SubCategory.list()
                     console.log(response)
                 }}
-                >this does something</Button>
+                >this does something</Button> */}
                 <span className="text-3xl">Your Collections:</span>
-                {collections?.filter((collection) => collection.name).map((collection) => {
-                    return (
-                        <a href={`/photo-collection/${collection.id}`}>{collection.name}</a>
+                {collections?.filter((collection) => collection.name).length > 0 ? 
+                    collections?.filter((collection) => collection.name).map((collection) => {
+                        return (
+                            <a href={`/photo-collection/${collection.id}`}>{collection.name}</a>
+                        )
+                    }) :
+                    (<div className="text-xl text-gray-400 italic flex flex-col text-center mt-4 mb-4">
+                        <span>Sorry, there are no viewable collections for you right now.</span>
+                        <span>You will receive a notification when your collection is ready!</span>
+                    </div>
                     )
-                })}
+                }
             </div>
         </div>
     )

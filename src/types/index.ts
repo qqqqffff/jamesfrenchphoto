@@ -8,6 +8,24 @@ export interface UserStorage {
     profile: any
 } 
 
+export interface UserData {
+    email: string;
+    verified: boolean;
+    last: string;
+    first: string;
+    userId: string;
+    status: string;
+    created?: Date;
+    updated?: Date;
+    enabled?: boolean;
+}
+
+export interface UserProfile {
+    email: string,
+    userTags: string[],
+    preferredName?: string,
+}
+
 export type PicturePath = {
     id: string;
     url: string;

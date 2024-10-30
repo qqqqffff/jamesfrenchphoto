@@ -47,8 +47,8 @@ export const SlotComponent: FC<SlotProps> = ({ timeslot, showTags = true }) => {
             <span>{createCapacityString()}</span>
             {showTags ? 
             (<Dropdown label="Tags:" inline>
-                {tags.length > 0 ? (tags.map((tag) => {
-                    return (<Dropdown.Item><GetColorComponent activeColor={tag.color}/></Dropdown.Item>)
+                {tags.length > 0 ? (tags.map((tag, index) => {
+                    return (<Dropdown.Item key={index}><GetColorComponent activeColor={tag.color} customText={tag.name}/></Dropdown.Item>)
                 })) : (<Dropdown.Item>None</Dropdown.Item>)}
             </Dropdown>) : (<></>)}
         </div>)

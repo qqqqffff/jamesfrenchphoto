@@ -30,56 +30,80 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
     const [apiCall, setApiCall] = useState(false)
     const [activeCollection, setActiveCollection] = useState<Subcategory | undefined>()
     const [activeTimeslots, setActiveTimeslots] = useState<Timeslot[]>([])
-    const [activeColor, setActiveColor] = useState<string | undefined>(existingTag?.color)
+    const [activeColor, setActiveColor] = useState<string | undefined>()
 
     useEffect(() => {
-        async function fetch(){
-            setCollections((await client.models.SubCategory.list()).data.map((sc) => {
+        async function api(){
+            console.log('api call')
+
+            const collections = (await client.models.SubCategory.list()).data.map((sc) => {
                 return {
                     ...sc
                 } as Subcategory
-            }).filter((sc) => sc.type === 'photoCollection'))
+            }).filter((sc) => sc.type === 'photoCollection')
 
-            setTimeslots((await client.models.Timeslot.list({
+            const timeslots = (await client.models.Timeslot.list({
                 filter: {
                     start: {
                         contains: new Date(currentDate.getTime() + DAY_OFFSET).toISOString().substring(0, new Date(currentDate.getTime() + DAY_OFFSET).toISOString().indexOf('T'))
                     }
+                }}))
+                .data.map((timeslot) => {
+                    return {
+                        id: timeslot.id,
+                        capacity: timeslot.capacity,
+                        registers: timeslot.registers ? timeslot.registers : [],
+                        start: new Date(timeslot.start),
+                        end: new Date(timeslot.end),
+                    } as Timeslot
                 }
-            })).data.map((timeslot) => {
-                return {
-                    id: timeslot.id,
-                    capacity: timeslot.capacity,
-                    registers: timeslot.registers ? timeslot.registers : [],
-                    start: new Date(timeslot.start),
-                    end: new Date(timeslot.end),
-                } as Timeslot
-            }))
+            )
+            
+            let activeTimeslots: Timeslot[] = []
+            let activeCollection: Subcategory | undefined = undefined
+            let activeColor: string | undefined = undefined
 
             if(existingTag){
                 if(existingTag.collectionId){
-                    const collection = (await client.models.SubCategory.get({ id: existingTag.collectionId })).data
-                    if(collection) setActiveCollection({
-                        ...collection,
-                        headers: collection.headers ? collection.headers as string[]: undefined
-                    })
+                    const collectionData = (await client.models.SubCategory.get({ id: existingTag.collectionId })).data
+                    
+                    if(collectionData) {
+                        activeCollection = {
+                            ...collectionData,
+                            headers: collectionData.headers ? collectionData.headers as string[]: undefined
+                        }
+                    }
                 }
-                const timeslots = (await Promise.all((await (await client.models.UserTag.get({id: existingTag.id})).data!.timeslotTags()).data.map(async (timeslotTags) => {
-                    const timeslot = (await timeslotTags.timeslot()).data
-                    if(!timeslot) return
-                    return {
-                        ...timeslot,
-                        start: new Date(timeslot!.start),
-                        end: new Date(timeslot!.end)
-                    } as Timeslot
-                }))).filter((timeslot) => timeslot !== undefined)
-
-                setActiveTimeslots(timeslots)
+                if(existingTag.color){
+                    activeColor = existingTag.color
+                }
+                const userTags = (await client.models.UserTag.get({id: existingTag.id}))
+                console.log(userTags)
+                const timeslotTags = await userTags.data?.timeslotTags()
+                console.log(timeslotTags)
+                if(timeslotTags){
+                    activeTimeslots = (await Promise.all(timeslotTags.data.map(async (timeslotTags) => {
+                        const timeslot = (await timeslotTags.timeslot()).data
+                        if(!timeslot) return
+                        return {
+                            ...timeslot,
+                            start: new Date(timeslot.start),
+                            end: new Date(timeslot.end)
+                        } as Timeslot
+                    }))).filter((timeslot) => timeslot !== undefined)
+                    console.log(activeTimeslots)
+                }
+                
             }
+            setActiveColor(activeColor)
+            setActiveTimeslots(activeTimeslots)
+            setActiveCollection(activeCollection)
+            setCollections(collections)
+            setTimeslots(timeslots)
             setApiCall(true)
         }
-        if(!apiCall){
-            fetch()
+        if(!apiCall && open){
+            api()
         }
     })
 
@@ -130,10 +154,10 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
     function clearStates() {
         setCollections([])
         setTimeslots([])
-        setApiCall(false)
         setActiveCollection(undefined)
         setActiveTimeslots([])
         setActiveColor(undefined)
+        setApiCall(false)
     }
 
     return (
@@ -165,7 +189,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                     <div className="flex flex-col items-center justify-center gap-2 border-b border-gray-500 pb-4">
                         <div className="flex flex-row items-center justify-center gap-4">
                             <Label className="ms-2 font-medium text-lg" htmlFor="name">Timeslots for:</Label>
-                            <Datepicker defaultValue={new Date(currentDate.getTime() + DAY_OFFSET)} onChange={async (date) => {
+                            <Datepicker minDate={currentDate} defaultValue={new Date(currentDate.getTime() + DAY_OFFSET)} onChange={async (date) => {
                                 if(!date) return
                                 setTimeslots((await client.models.Timeslot.list({filter: {
                                     start: {
@@ -183,11 +207,11 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                             }}/>
                         </div>
                         <div className="grid grid-cols-2 gap-2 w-full border-gray-500 border rounded-lg px-2 py-4 max-h-[250px] overflow-auto">
-                            {timeslots.length > 0 ? timeslots.map((timeslot) => {
+                            {timeslots.length > 0 ? timeslots.map((timeslot, index) => {
                                 const selected = activeTimeslots.filter((ts) => ts.id === timeslot.id).length > 0
                                 const selectedBg = selected ? 'bg-gray-200' : ''
                                 return (
-                                    <button className={`hover:bg-gray-200 rounded-lg ${selectedBg}`} type='button' onClick={() => {
+                                    <button key={index} className={`hover:bg-gray-200 rounded-lg ${selectedBg}`} type='button' onClick={() => {
                                         console.log(selected)
                                         if(!selected){
                                             setActiveTimeslots([...activeTimeslots, timeslot])

@@ -60,7 +60,7 @@ export const Dashboard = () => {
             <div className="flex flex-col items-center justify-center font-main">
                 <p className="font-semibold text-3xl mb-4">Welcome {structureFullname()}</p>
                 <p className="font-medium text-xl mb-1">Management Consoles:</p>
-                <Button.Group>
+                <Button.Group outline>
                     <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
                         <HiOutlineCalendar className="mt-1 me-1"/> Scheduler
                     </Button>

@@ -6,52 +6,44 @@ import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp,
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand"
 import { CreateUserModal } from "../modals"
 import { CreateTagModal } from "../modals/CreateTag"
-import { UserTag } from "../../types"
+import { UserData, UserTag } from "../../types"
+import { UserProfileModal } from "../modals/UserProfile"
 
 const client = generateClient<Schema>()
-
-interface UserData {
-    email: string;
-    emailVerified: boolean;
-    last: string;
-    first: string;
-    userId: string;
-    status: string;
-    created?: Date;
-    updated?: Date;
-    enabled?: boolean;
-}
 
 export default function UserManagement(){
     const [createUserModalVisible, setCreateUserModalVisible] = useState(false)
     const [createTagModalVisible, setCreateTagModalVisible] = useState(false)
-    const [userData, setUserData] = useState<UserData[] | undefined>()
+    const [userProfileModalVisible, setUserProfileModalVisible] = useState(false)
+    const [userData, setUserData] = useState<UserData[]>([])
     const [sideBarToggles, setSideBarToggles] = useState<boolean>(true)
     const [userTags, setUserTags] = useState<UserTag[]>()
     const [existingTag, setExistingTag] = useState<UserTag | undefined>()
+    const [selectedUser, setSelectedUser] = useState<UserData | undefined>()
+    const [apiCall, setApiCall] = useState(false)
 
     function parseAttribute(attribute: string){
         switch(attribute){
             case 'email':
-                return 'Email'
+                return 'email'
             case 'email_verified':
-                return 'Verified'
+                return 'verified'
             case 'family_name':
-                return 'Last'
+                return 'last'
             case 'given_name':
-                return 'First'
+                return 'first'
             case 'sub':
-                return 'UserID'
+                return 'userId'
             default:
-                return 'Attribute'
+                return 'attribute'
         }
     }
+
     async function getUsers() {
         console.log('api call')
         const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
         
         const users = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput
-        console.log(users)
         if(!users || !users.Users) return
         const parsedUsers = users.Users.map((user) => {
             let attributes = new Map<string, string>()
@@ -81,13 +73,13 @@ export default function UserManagement(){
             collectionId: tag.collectionId ? tag.collectionId : undefined
         }))
 
-        console.log(parsedUsers)
         setUserData(parsedUsers)
         setUserTags(userTags)
+        setApiCall(true)
         return parsedUsers
     }
     useEffect(() => {
-        if(!userData){
+        if(!apiCall){
             getUsers()
         }
     }, [])
@@ -169,6 +161,7 @@ export default function UserManagement(){
         <>
             <CreateUserModal open={createUserModalVisible} onClose={() => setCreateUserModalVisible(false)} />
             <CreateTagModal open={createTagModalVisible} onClose={() => setCreateTagModalVisible(false)} existingTag={existingTag}/>
+            <UserProfileModal open={userProfileModalVisible} onClose={() => setUserProfileModalVisible(false)} user={selectedUser}/>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
                     <div className="flex flex-row">
@@ -205,7 +198,7 @@ export default function UserManagement(){
                                                 if(!isNaN(tempDate.getTime()) && tempDate.getTime() > 1){
                                                     formatted = tempDate.toLocaleString()
                                                 }
-                                                else if(k.toUpperCase() !== 'USERID' || k.toUpperCase() !== 'EMAIL'){
+                                                else if(k.toUpperCase() !== 'USERID' && k.toUpperCase() !== 'EMAIL'){
                                                     formatted = [...String(v)][0].toUpperCase() + String(v).substring(1).toLowerCase()
                                                 }
                                                 else {
@@ -217,7 +210,15 @@ export default function UserManagement(){
                                                 }
 
                                                 return (
-                                                    <td className={`text-ellipsis px-6 py-4 ${currentUserBolding}`} key={j}>{formatted}</td>
+                                                    <td className={`text-ellipsis px-6 py-4 ${currentUserBolding}`} key={j}>
+                                                        {k.toUpperCase() !== 'EMAIL' ? 
+                                                            (<span>{formatted}</span>) :
+                                                            (<button className="hover:text-black hover:underline underline-offset-2" onClick={() => {
+                                                                setSelectedUser(field)
+                                                                setUserProfileModalVisible(true)
+                                                            }}>{formatted}</button>)
+                                                        }
+                                                    </td>
                                                 )
                                             })}
                                         </tr>
