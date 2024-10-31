@@ -85,7 +85,7 @@ const schema = a.schema({
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.authenticated('userPools')]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   TimeslotTag: a
     .model({
       tagId: a.id().required(),
@@ -93,25 +93,33 @@ const schema = a.schema({
       timeslotId: a.id().required(),
       timeslot: a.belongsTo('Timeslot', 'timeslotId')
     })
-    .authorization((allow) => [allow.authenticated('userPools')]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   Timeslot: a
     .model({
       id: a.id(),
-      capacity: a.integer().required(),
-      registers: a.string().array(),
+      register: a.string(),
+      user: a.belongsTo('UserProfile', 'register'),
       start: a.datetime().required(),
       end: a.datetime().required(),
       timeslotTag: a.hasMany('TimeslotTag', 'timeslotId'),
     })
-    .authorization((allow) => [allow.authenticated('userPools')]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list', 'update'])]),
   UserProfile: a
     .model({
+      sittingNumber: a.integer().required(),
       email: a.string().required(),
       userTags: a.string().array(),
-      preferredName: a.string(),
+      timeslot: a.hasOne('Timeslot', 'register'),
+      participantFirstName: a.string().required(),
+      participantLastName: a.string().required(),
+      participantMiddleName: a.string(),
+      participantPreferredName: a.string(),
+      preferredContact: a.enum(['EMAIL', 'PHONE']),
+      parentContact: a.boolean().default(true),
+      parentEmail: a.string().required()
     })
     .identifier(['email'])
-    .authorization((allow) => [allow.authenticated('userPools')]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update'])]),
   GetAuthUsers: a
     .query()
     .authorization((allow) => [allow.group('ADMINS')])
@@ -130,18 +138,19 @@ const schema = a.schema({
     .query()
     .arguments({
       email: a.string().required(),
+      sittingNumber: a.integer().required()
     })
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(addCreateUserQueue))
     .returns(a.json()),
   TemporaryCreateUsersTokens: a
     .model({
-      id: a.id().required(),
+      id: a.string().required(),
       expires: a.datetime().required(),
       email: a.string().required(),
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS')]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['get'])]),
   Pricing: a
     .model({
       object: a.string(),

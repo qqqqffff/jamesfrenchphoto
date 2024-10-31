@@ -1,4 +1,4 @@
-import { Badge, Button, Datepicker, Label, Tooltip } from "flowbite-react"
+import { Badge, Datepicker, Label, Tooltip } from "flowbite-react"
 import { FC, useEffect, useState } from "react"
 import { ControlComponent } from "../admin/ControlPannel"
 import { HiOutlinePlusCircle, HiOutlineMinusCircle } from "react-icons/hi2"
@@ -49,8 +49,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
             }})).data.map((timeslot) => {
                 return ({
                     id: timeslot.id,
-                    capacity: timeslot.capacity,
-                    registers: timeslot.registers,
+                    register: timeslot.register,
                     start: new Date(timeslot.start),
                     end: new Date(timeslot.end),
             } as Timeslot)}))
@@ -69,22 +68,27 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 denyText="Back"
                 confirmAction={async () => {
                     if(selectedTimeslot && userEmail) {
-                        const registers = selectedTimeslot.registers ? selectedTimeslot.registers : [];
-                        
+                        const timeslot = await client.models.Timeslot.get({id: selectedTimeslot.id})
+                        if(timeslot.data?.register){
+                            throw new Error('Timeslot has been filled')
+                        }
                         const response = await client.models.Timeslot.update({
                             id: selectedTimeslot.id,
-                            registers: [...registers, userEmail]
+                            register: userEmail
                         })
 
                         const timeslots = (await client.models.Timeslot.list({ filter: {
                             start: { contains: activeDate.toISOString().substring(0, activeDate.toISOString().indexOf('T')) }
-                        }})).data.map((timeslot) => ({
-                            id: timeslot.id,
-                            capacity: timeslot.capacity,
-                            registers: timeslot.registers,
-                            start: new Date(timeslot.start),
-                            end: new Date(timeslot.end),
-                        } as Timeslot))
+                        }})).data.map((timeslot) => {
+                            if(!timeslot.id) return
+                            const ts: Timeslot = {
+                                id: timeslot.id,
+                                register: timeslot.register ?? undefined,
+                                start: new Date(timeslot.start),
+                                end: new Date(timeslot.end),
+                            }
+                            return ts
+                        }).filter((timeslot) => timeslot !== undefined)
 
                         console.log(response, timeslots)
 
@@ -97,22 +101,23 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 denyText="Back"
                 confirmAction={async () => {
                     if(selectedTimeslot && userEmail) {
-                        const registers = selectedTimeslot.registers ? selectedTimeslot.registers : [];
-                        
                         const response = await client.models.Timeslot.update({
                             id: selectedTimeslot.id,
-                            registers: registers.filter((email) => email != userEmail)
+                            register: undefined
                         })
 
                         const timeslots = (await client.models.Timeslot.list({ filter: {
                             start: { contains: activeDate.toISOString().substring(0, activeDate.toISOString().indexOf('T')) }
-                        }})).data.map((timeslot) => ({
-                            id: timeslot.id,
-                            capacity: timeslot.capacity,
-                            registers: timeslot.registers,
-                            start: new Date(timeslot.start),
-                            end: new Date(timeslot.end),
-                        } as Timeslot))
+                        }})).data.map((timeslot) => {
+                            if(!timeslot.id) return
+                            const ts: Timeslot = {
+                                id: timeslot.id,
+                                register: timeslot.register ?? undefined,
+                                start: new Date(timeslot.start),
+                                end: new Date(timeslot.end),
+                            }
+                            return ts
+                        }).filter((timeslot) => timeslot !== undefined)
 
                         console.log(response, timeslots)
 
@@ -135,13 +140,16 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         if(date) {
                             const timeslots = (await client.models.Timeslot.list({ filter: {
                                     start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
-                                }})).data.map((timeslot) => ({
-                                    id: timeslot.id,
-                                    capacity: timeslot.capacity,
-                                    registers: timeslot.registers,
-                                    start: new Date(timeslot.start),
-                                    end: new Date(timeslot.end),
-                                } as Timeslot))
+                                }})).data.map((timeslot) => {
+                                    if(!timeslot.id) return
+                                    const ts: Timeslot = {
+                                        id: timeslot.id,
+                                        register: timeslot.register ?? undefined,
+                                        start: new Date(timeslot.start),
+                                        end: new Date(timeslot.end),
+                                    }
+                                    return ts
+                                }).filter((timeslot) => timeslot !== undefined)
                             setActiveDate(date)
                             setTimeslots(timeslots)
                         }
@@ -181,22 +189,19 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 <div className="col-span-4 border border-gray-400 rounded-lg py-4 px-2 h-[500px] overflow-auto">
                     <div className="grid gap-2 grid-cols-3">
                         {timeslots && timeslots.length > 0 ? timeslots.map((timeslot, index) => {
-                            const registers = timeslot.registers ? timeslot.registers : []
-                            const selected = userEmail && registers.includes(userEmail) ? 'bg-gray-200' : ''
+                            const selected = userEmail  && userEmail === timeslot.register ? 'bg-gray-200' : ''
 
                             return (
                                 <button key={index} onClick={() => {
-                                    const registers = timeslot.registers ? timeslot.registers : []
-                                    if(userEmail && !registers.includes(userEmail)) {
+                                    if(userEmail && userEmail === timeslot.register) {
                                         setRegisterConfirmationVisible(true)
                                         setSelectedTimeslot(timeslot)
                                     }
-                                    else if(userEmail && registers.includes(userEmail)){
+                                    else if(userEmail && userEmail === timeslot.register){
                                         setUnegisterConfirmationVisible(true)
                                         setSelectedTimeslot(timeslot)
                                     }
                                 }} disabled={admin} className={`${selected} rounded-lg enabled:hover:bg-gray-300`}>
-                                    {/* //TODO: show the registers when clicking the capacity for admin users */}
                                     <SlotComponent timeslot={timeslot} showTags={false} displayCapacity={admin} />
                                 </button>
                             )

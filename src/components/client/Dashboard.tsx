@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { UserProfile, UserStorage, UserTag } from "../../types";
+import { Timeslot, UserProfile, UserStorage, UserTag } from "../../types";
 import { Badge, Button } from "flowbite-react";
 import { HiOutlineCalendar, HiOutlineClipboardList, HiOutlineChat, HiOutlineDocumentText, HiOutlinePlusCircle } from "react-icons/hi";
 import { NavigateFunction, useNavigate } from "react-router-dom";
@@ -9,6 +9,7 @@ import { badgeColorThemeMap } from "../../utils";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { TimeslotComponent } from "../timeslot/Timeslot";
+import { JWT } from "aws-amplify/auth";
 
 const client = generateClient<Schema>()
 
@@ -37,11 +38,9 @@ export function Dashboard() {
     const [userProfile, setUserProfile] = useState<UserProfile | undefined>()
     const [userProfileTags, setUserProfileTags] = useState<UserTag[]>([])
     const [apiCall, setApiCall] = useState(false)
-
-    console.log(userProfile)
     const navigate = useNavigate()
+
     useEffect(() => {
-        // console.log(client.models.PhotoPaths.listPhotoPathsByCollectionId({collectionId: "e2606167-0002-4503-a001-dff283705f51"}))
         async function api(){
             let tempUser: UserStorage | undefined
             if(!user){
@@ -60,20 +59,34 @@ export function Dashboard() {
             }
 
             
-            const getProfileResponse = (await client.models.UserProfile.get({email: tempUser.attributes.email!})).data
-            let profile: UserProfile | null = getProfileResponse ? {
+            const resp = (await client.models.UserProfile.get({ email: tempUser.attributes.email! }))
+            const getProfileResponse = resp.data
+            console.log(resp)
+            if(!getProfileResponse){
+                // navigate('/logout', {
+                //     state: {
+                //         NoProfile: true
+                //     }
+                // })
+                setApiCall(true)
+                return
+            }
+            const getProfileTimeslot = (await getProfileResponse.timeslot()).data
+            const profileTimeslot: Timeslot | undefined = getProfileTimeslot ? {
+                id: getProfileTimeslot.id,
+                register: getProfileTimeslot.register ?? undefined,
+                start: new Date(getProfileTimeslot.start),
+                end: new Date(getProfileTimeslot.end),
+            } as Timeslot : undefined
+
+            let profile: UserProfile = {
                 ...getProfileResponse,
                 userTags: getProfileResponse.userTags ? getProfileResponse.userTags as string[] : [],
-                preferredName: getProfileResponse.preferredName ? getProfileResponse.preferredName : undefined
-            } : null
-            if(!profile){
-                const response = await client.models.UserProfile.create({
-                    email: tempUser.attributes.email!
-                })
-                profile = {
-                    email: response.data!.email,
-                    userTags: [],
-                }
+                timeslot: profileTimeslot,
+                participantMiddleName: getProfileResponse.participantMiddleName ?? undefined,
+                participantPreferredName: getProfileResponse.participantPreferredName ?? undefined,
+                preferredContact: getProfileResponse.preferredContact ?? 'EMAIL',
+                parentContact: getProfileResponse.parentContact ?? true
             }
 
             console.log(profile)
@@ -86,14 +99,37 @@ export function Dashboard() {
             //validating tags
             if(filteredUserTags.length < profile.userTags.length){
                 console.log(filteredUserTags, profile.userTags, userTagIds)
-                const response = await client.models.UserProfile.update({
+                const response = (await client.models.UserProfile.update({
                     email: profile.email,
                     userTags: filteredUserTags
-                })
+                })).data
+
+                if(!response){
+                    // navigate('/logout', {
+                    //     state: {
+                    //         NoProfile: true
+                    //     }
+                    // })
+                    setApiCall(true)
+                    return
+                }
+
+                const getResponseTimeslot = (await response.timeslot()).data
+                const responseTimeslot: Timeslot | undefined = getResponseTimeslot ? {
+                    id: getResponseTimeslot.id,
+                    register: getResponseTimeslot.register ?? undefined,
+                    start: new Date(getResponseTimeslot.start),
+                    end: new Date(getResponseTimeslot.end),
+                } as Timeslot : undefined
+
                 profile = {
-                    email: response.data!.email,
-                    userTags: response.data!.userTags ? response.data!.userTags as string[] : [],
-                    preferredName: response.data!.preferredName ? response.data!.preferredName : undefined
+                    ...response,
+                    userTags: response.userTags ? response.userTags as string[] : [],
+                    timeslot: responseTimeslot,
+                    participantMiddleName: response.participantMiddleName ?? undefined,
+                    participantPreferredName: response.participantPreferredName ?? undefined,
+                    preferredContact: response.preferredContact ?? 'EMAIL',
+                    parentContact: response.parentContact ?? true
                 }
                 console.log(response, profile)
             }

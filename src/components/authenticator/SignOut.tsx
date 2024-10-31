@@ -3,6 +3,7 @@ import { signOut } from "aws-amplify/auth";
 import { useNavigate } from "react-router-dom";
 
 export default function SignOut() {
+    //TODO: handle no profile error!
     const navigate = useNavigate()
     useEffect(() => {
         async function Logout() {

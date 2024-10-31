@@ -9,7 +9,7 @@ import { TimeslotComponent } from "../timeslot/Timeslot";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
-    const [activeConsole, setActiveConsole] = useState('scheduler')
+    const [activeConsole, setActiveConsole] = useState('UserManagement')
     const navigate = useNavigate()
     useEffect(() => {
         if(!user){
@@ -44,7 +44,7 @@ export const Dashboard = () => {
     function activeConsoleComponent(){
         switch(activeConsole){
             case 'scheduler': 
-                return (<TimeslotComponent admin/>)
+                // return (<TimeslotComponent admin/>)
             case 'eventManager':
                 // return (<EventManager />)
             case 'userManagement':

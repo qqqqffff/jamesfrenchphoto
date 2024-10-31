@@ -1,18 +1,23 @@
 import { generateClient } from "aws-amplify/api"
 import { confirmSignUp, signUp } from "aws-amplify/auth"
-import { Button, Label, Modal, TextInput } from "flowbite-react"
+import { Button, Checkbox, Label, Modal, TextInput } from "flowbite-react"
 import { FormEvent, useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Schema } from "../../../amplify/data/resource"
+import { UserProfile } from "../../types"
 
 const client = generateClient<Schema>()
 
 interface SignUpFormElements extends HTMLFormControlsCollection {
+    parentEmail: HTMLInputElement
     email: HTMLInputElement
     password: HTMLInputElement
     confirmPassword: HTMLInputElement
     firstName: HTMLInputElement
     lastName: HTMLInputElement
+    participantFirstName: HTMLInputElement
+    participantLastName: HTMLInputElement
+    participantPreferredName: HTMLInputElement
     phoneNumber: HTMLInputElement
 }
 
@@ -38,10 +43,12 @@ export default function SignUp(){
     const [username, setUsername] = useState('');
     const [serachParams] = useSearchParams()
     const [signupPrefilledElements, setSignupPrefilledElements] = useState<PrefilledElements | undefined>()
+    const [apiCall, setApiCall] = useState(false)
+    const [parentContact, setParentContact] = useState(true)
     const navigate = useNavigate()
 
     useEffect(() => {
-        async function verify() {
+        async function api() {
             if([...serachParams].length <= 0){
                 console.log('no params')
             }
@@ -51,10 +58,13 @@ export default function SignUp(){
                 if(!formPrereqs.email || !formPrereqs.uid){
                     console.log('bad request')
                 }
-                else{
+                else {
                     // const response = await client.models.TemporaryCreateUsersTokens.get({ id: formPrereqs.auth })
-                    const response = await client.models.TemporaryCreateUsersTokens.list()
-
+                    const response = await client.models.TemporaryCreateUsersTokens.get(
+                        {id: formPrereqs.uid},
+                        {authMode: 'iam'}
+                    )
+                    
                     console.log(response)
 
                     // if(response.data && response.data.id == formPrereqs.auth){
@@ -70,10 +80,13 @@ export default function SignUp(){
                     
                     console.log('good request')
                     setSignupPrefilledElements(formPrereqs)
+                    setApiCall(true)
                 }
             }
         }
-        verify()
+        if(!apiCall){
+            api()
+        }
     }, [])
     
 
@@ -83,6 +96,8 @@ export default function SignUp(){
 
         //TODO: preform validation
         try{
+            // const profileAttributes: UserProfile
+
             const response = await signUp({
                 username: form.elements.email.value,
                 password: form.elements.password.value,
@@ -149,29 +164,48 @@ export default function SignUp(){
                     </form>
                 </Modal.Body>
             </Modal>
-            <form className='flex flex-col items-center justify-center font-main mt-12' onSubmit={handleSubmit}>
+            <form className='flex flex-col items-center justify-center font-main mt-12 mb-12' onSubmit={handleSubmit}>
                 <div className="flex flex-col items-center justify-center w-[50%] max-w-[48rem] border-2 border-gray-500 ">
                     <p className="font-bold text-4xl mb-8 mt-2">Create an account</p>
                     <div className="flex flex-col gap-1 w-[60%] max-w-[32rem] ">
                         <div className="flex justify-between mb-4">
                             <div className="flex flex-col gap-1 w-[45%]">
-                                <Label className="ms-2 font-medium text-lg" htmlFor="firstName">First Name<sup className="italic text-red-600">*</sup>:</Label>
+                                <Label className="ms-2 font-medium text-lg" htmlFor="firstName">Parent First Name<sup className="italic text-red-600">*</sup>:</Label>
                                 <TextInput sizing='md' placeholder="First Name" type="text" id="firstName" name="firstName"/>
                             </div>
                             <div className="flex flex-col gap-1 w-[45%]">
-                                <Label className="ms-2 font-medium text-lg" htmlFor="lastName">Last Name<sup className="italic text-red-600">*</sup>:</Label>
+                                <Label className="ms-2 font-medium text-lg" htmlFor="lastName">Parent Last Name<sup className="italic text-red-600">*</sup>:</Label>
                                 <TextInput sizing='md' placeholder="Last Name" type="text" id="lastName" name="lastName"/>
                             </div>
                         </div>
-                        <Label className="ms-2 font-medium text-lg" htmlFor="phoneNumber">Phone Number:</Label>
+                        <Label className="ms-2 font-medium text-lg" htmlFor="phoneNumber">Parent Phone Number:</Label>
                         <TextInput sizing='md' className="mb-4" placeholder="Phone Number" type="tel" id="phoneNumber" name="phoneNumber"/>
-                        <Label className="ms-2 font-medium text-lg" htmlFor="email">Email<sup className="italic text-red-600">*</sup>:</Label>
-                        <TextInput sizing='md' className="mb-4" placeholder="Email" type="email" id="email" name="email" defaultValue={signupPrefilledElements?.email} />
+                        <Label className="ms-2 font-medium text-lg" htmlFor="parentEmail">Participant Email<sup className="text-gray-400">1</sup><sup className="italic text-red-600">*</sup>:</Label>
+                        <TextInput sizing='md' className="mb-4" placeholder="Email" type="email" id="parentEmail" name="parentEmail" defaultValue={signupPrefilledElements?.email} disabled/>
+                        <Label className="ms-2 font-medium text-lg" htmlFor="email">Participant Email<sup className="text-gray-400">1</sup><sup className="italic text-red-600">*</sup>:</Label>
+                        <TextInput sizing='md' className="mb-4" placeholder="Participant's Email" type="email" id="email" name="email" />
+                        <div className="flex justify-between mb-4">
+                            <div className="flex flex-col gap-1 w-[45%]">
+                                <Label className="ms-2 font-medium text-lg" htmlFor="firstName">Participant First Name<sup className="italic text-red-600">*</sup>:</Label>
+                                <TextInput sizing='md' placeholder="First Name" type="text" id="firstName" name="firstName"/>
+                            </div>
+                            <div className="flex flex-col gap-1 w-[45%]">
+                                <Label className="ms-2 font-medium text-lg" htmlFor="lastName">Participant Last Name<sup className="italic text-red-600">*</sup>:</Label>
+                                <TextInput sizing='md' placeholder="Last Name" type="text" id="lastName" name="lastName"/>
+                            </div>
+                        </div>
                         <Label className="ms-2 font-medium text-lg" htmlFor="password">Password<sup className="italic text-red-600">*</sup>:</Label>
                         <TextInput sizing='md' className="mb-4" placeholder="Password" type="password" id="password" name="password" />
                         <Label className="ms-2 font-medium text-lg" htmlFor="confirmPassword">Confirm Password<sup className="italic text-red-600">*</sup>:</Label>
                         <TextInput sizing='md'  placeholder="Password" type="password" id="confirmPassword" name="confirmPassword" />
-                        <p className="italic text-sm mb-4"><sup className="italic text-red-600">*</sup> Indicates required fields</p>
+                        <p className="italic text-sm"><sup className="italic text-red-600">*</sup> Indicates required fields</p>
+                        <p className="italic text-sm mb-4"><sup className="text-gray-400">1</sup> Participant's email is used for account login, since parents may have multiple participants!</p>
+                        <button className="flex flex-row gap-2 items-center" onClick={() => setParentContact(!parentContact)} type="button">
+                            <Checkbox checked={parentContact} /><span>Agree to have notifications sent to both emails</span>
+                        </button>
+                        <button className="flex flex-row gap-2 items-center" onClick={() => setParentContact(!parentContact)} type="button">
+                            <Checkbox checked={parentContact} /><span>Prefer</span>
+                        </button>
                         <div className="flex justify-between">
                             <a href='login' className="text-blue-500 hover:underline">Already have an Account? Login here!</a>
                             <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" >Register</Button>

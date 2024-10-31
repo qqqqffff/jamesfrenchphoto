@@ -21,9 +21,18 @@ export interface UserData {
 }
 
 export interface UserProfile {
+    sittingNumber: number,
     email: string,
     userTags: string[],
     preferredName?: string,
+    timeslot?: Timeslot,
+    participantFirstName: string,
+    participantLastName: string,
+    participantMiddleName?: string,
+    participantPreferredName?: string,
+    preferredContact: "EMAIL" | "PHONE",
+    parentContact: boolean,
+    parentEmail: string,
 }
 
 export type PicturePath = {
@@ -55,8 +64,7 @@ export type Subcategory = {
 export type Timeslot = {
     id: string,
     tagId?: string,
-    capacity: number;
-    registers: string[];
+    register?: string,
     start: Date;
     end: Date;
 }

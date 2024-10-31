@@ -9,13 +9,13 @@ const sqsClient = new SQSClient()
 const dynamoClient = new DynamoDBClient()
 
 export const handler: Schema['AddCreateUserQueue']['functionHandler'] = async (event) => {
-    let { email } = event.arguments
+    let { email, sittingNumber } = event.arguments
 
     if(!email) {
         return JSON.stringify('no email - failed')
     }
 
-    const uid = v4()
+    const uid = String(sittingNumber)
     const expires = new Date(new Date().getTime() + 24 * 60 * 60 * 1000).getTime().toString()
 
     const dynamoResponse = await dynamoClient.send(new PutItemCommand({
