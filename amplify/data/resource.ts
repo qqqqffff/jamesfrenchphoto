@@ -115,11 +115,11 @@ const schema = a.schema({
       participantMiddleName: a.string(),
       participantPreferredName: a.string(),
       preferredContact: a.enum(['EMAIL', 'PHONE']),
-      parentContact: a.boolean().default(true),
+      participantContact: a.boolean().default(false),
       parentEmail: a.string().required()
     })
     .identifier(['email'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create'])]),
   GetAuthUsers: a
     .query()
     .authorization((allow) => [allow.group('ADMINS')])
@@ -148,6 +148,7 @@ const schema = a.schema({
       id: a.string().required(),
       expires: a.datetime().required(),
       email: a.string().required(),
+      tags: a.string().array(),
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['get'])]),

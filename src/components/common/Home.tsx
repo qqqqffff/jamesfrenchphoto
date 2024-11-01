@@ -25,7 +25,7 @@ export default function () {
             if(history.state.usr.logoutSuccess){
                 components.push(notificationComponent('Successfully logged out!', 'green'))
             }
-            setNotification((<>{components.map((element, index) => <div key={index}>{element}</div>)}</>))
+            setNotification((<div className="mt-2">{components.map((element, index) => <div key={index}>{element}</div>)}</div>))
         }
     }, [])
     setTimeout(() => {
@@ -48,16 +48,16 @@ export default function () {
         <div className="flex-col">
             {notification}
             <div className="flex justify-center items-center">
-                <div className="h-[750px] w-[100%] min-h-[600px]">
+                <div className="lg:h-[650px] w-full px-4 mt-2">
                     <Carousel
                         slideInterval={5000}
                         leftControl={
-                            <div className="border p-2 rounded-full border-black">
+                            <div className="border p-2 rounded-full border-black bg-gray-300">
                                 <HiOutlineArrowLeft className="text-xl"/>
                             </div>
                         }
                         rightControl={
-                            <div className="border p-2 rounded-full border-black">
+                            <div className="border p-2 rounded-full border-black bg-gray-300">
                                 <HiOutlineArrowRight className="text-xl"/>
                             </div>
                         }

@@ -9,7 +9,6 @@ import { badgeColorThemeMap } from "../../utils";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { TimeslotComponent } from "../timeslot/Timeslot";
-import { JWT } from "aws-amplify/auth";
 
 const client = generateClient<Schema>()
 
@@ -86,7 +85,7 @@ export function Dashboard() {
                 participantMiddleName: getProfileResponse.participantMiddleName ?? undefined,
                 participantPreferredName: getProfileResponse.participantPreferredName ?? undefined,
                 preferredContact: getProfileResponse.preferredContact ?? 'EMAIL',
-                parentContact: getProfileResponse.parentContact ?? true
+                participantContact: getProfileResponse.participantContact ?? true
             }
 
             console.log(profile)
@@ -129,7 +128,7 @@ export function Dashboard() {
                     participantMiddleName: response.participantMiddleName ?? undefined,
                     participantPreferredName: response.participantPreferredName ?? undefined,
                     preferredContact: response.preferredContact ?? 'EMAIL',
-                    parentContact: response.parentContact ?? true
+                    participantContact: response.participantContact ?? true
                 }
                 console.log(response, profile)
             }

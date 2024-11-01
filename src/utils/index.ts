@@ -82,5 +82,15 @@ export const badgeColorThemeMap: CustomFlowbiteTheme['badge'] = {
     }
 }
 
+export const textInputTheme: CustomFlowbiteTheme['textInput'] = {
+    field: {
+        input: {
+            sizes: {
+                'lg': 'px-3.5 py-1.5 text-lg'
+            }
+        }
+    }
+}
+
 
 export const GetColorComponent = getColorComponent

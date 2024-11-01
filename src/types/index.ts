@@ -31,7 +31,7 @@ export interface UserProfile {
     participantMiddleName?: string,
     participantPreferredName?: string,
     preferredContact: "EMAIL" | "PHONE",
-    parentContact: boolean,
+    participantContact: boolean,
     parentEmail: string,
 }
 
