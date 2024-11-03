@@ -19,14 +19,14 @@ export const ConfirmationModal: FC<ConfirmationModalProps> = ({onClose, open, ti
             <Modal.Header>{title}</Modal.Header>
             <Modal.Body>
                 <div className="text-center w-full flex flex-col">
-                    {body.split('\n').map((line) => {
+                    {body.split('\n').map((line, index) => {
                         let trimmedLine = line
                         const bold = trimmedLine.includes('<b>')
                         if(bold){
                             trimmedLine = trimmedLine.substring(trimmedLine.indexOf('>') + 1)
                             trimmedLine = trimmedLine.substring(0, trimmedLine.indexOf('<'))
                         }
-                        return (<span>{bold ? (<b>{trimmedLine}</b>) : (trimmedLine)}</span>)
+                        return (<span key={index}>{bold ? (<b>{trimmedLine}</b>) : (trimmedLine)}</span>)
                     })}
                 </div>
             </Modal.Body>

@@ -4,7 +4,7 @@ import { Button, Datepicker, Dropdown, Label, Modal, TextInput } from "flowbite-
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { Subcategory, Timeslot, UserTag } from "../../types";
-import { currentDate, DAY_OFFSET, defaultColors, GetColorComponent } from "../../utils";
+import { currentDate, DAY_OFFSET, defaultColors, GetColorComponent, textInputTheme } from "../../utils";
 import { BiSolidSquareRounded } from "react-icons/bi";
 import { CompactSlotComponent, SlotComponent } from "../timeslot/Slot";
 
@@ -49,15 +49,16 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                     }
                 }}))
                 .data.map((timeslot) => {
-                    return {
+                    if(!timeslot.id) return
+                    const ts: Timeslot = {
                         id: timeslot.id,
-                        capacity: timeslot.capacity,
-                        registers: timeslot.registers ? timeslot.registers : [],
+                        register: timeslot.register ?? undefined,
                         start: new Date(timeslot.start),
                         end: new Date(timeslot.end),
-                    } as Timeslot
+                    }
+                    return ts
                 }
-            )
+            ).filter((timeslot) => timeslot !== undefined)
             
             let activeTimeslots: Timeslot[] = []
             let activeCollection: Subcategory | undefined = undefined
@@ -171,7 +172,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                     <div className="grid grid-cols-2 gap-8 mb-4">
                         <div className="flex flex-col gap-2">
                             <Label className="ms-2 font-medium text-lg" htmlFor="name">Name:</Label>
-                            <TextInput sizing='md' className="" placeholder="Tag Name" type="text" id="name" name="name" defaultValue={existingTag?.name}/>
+                            <TextInput sizing='md' theme={textInputTheme} color={activeColor} placeholder="Tag Name" type="text" id="name" name="name" defaultValue={existingTag?.name}/>
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label className="ms-2 font-medium text-lg" htmlFor="name">Collection: {activeCollection ? activeCollection.name : 'None'}</Label>
@@ -191,19 +192,26 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                             <Label className="ms-2 font-medium text-lg" htmlFor="name">Timeslots for:</Label>
                             <Datepicker minDate={currentDate} defaultValue={new Date(currentDate.getTime() + DAY_OFFSET)} onChange={async (date) => {
                                 if(!date) return
-                                setTimeslots((await client.models.Timeslot.list({filter: {
-                                    start: {
-                                        contains: date.toISOString().substring(0, date.toISOString().indexOf('T'))
+
+                                const timeslots = (await client.models.Timeslot.list({
+                                    filter: {
+                                        start: {
+                                            contains: date.toISOString().substring(0, date.toISOString().indexOf('T'))
+                                        }
+                                    }}))
+                                    .data.map((timeslot) => {
+                                        if(!timeslot.id) return
+                                        const ts: Timeslot = {
+                                            id: timeslot.id,
+                                            register: timeslot.register ?? undefined,
+                                            start: new Date(timeslot.start),
+                                            end: new Date(timeslot.end),
+                                        }
+                                        return ts
                                     }
-                                }})).data.map((timeslot) => {
-                                    return {
-                                        id: timeslot.id ?? '',
-                                        capacity: timeslot.capacity,
-                                        registers: timeslot.registers ? timeslot.registers as string[] : [],
-                                        start: new Date(timeslot.start),
-                                        end: new Date(timeslot.end)
-                                    }
-                                }))
+                                ).filter((timeslot) => timeslot !== undefined)
+
+                                setTimeslots(timeslots)
                             }}/>
                         </div>
                         <div className="grid grid-cols-2 gap-2 w-full border-gray-500 border rounded-lg px-2 py-4 max-h-[250px] overflow-auto">
@@ -238,7 +246,8 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                         <Label className="text-lg" htmlFor="name">Color: <GetColorComponent activeColor={activeColor} /></Label>
                         <div className="grid grid-cols-7 gap-2">
                             {defaultColors.map((color, index) => {
-                                return (<BiSolidSquareRounded key={index} size={48} className={`fill-${color} cursor-pointer`} onClick={() => setActiveColor(color)}/>)
+                                const className = 'fill-' + color + ' cursor-pointer'
+                                return (<BiSolidSquareRounded key={index} size={48} className={className} onClick={() => setActiveColor(color)}/>)
                             })}
                         </div>
                         <Button className="mt-2" type='button' onClick={() => setActiveColor(undefined)} color="light">Clear</Button>

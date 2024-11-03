@@ -97,18 +97,18 @@ const schema = a.schema({
   Timeslot: a
     .model({
       id: a.id(),
-      register: a.string(),
+      register: a.string().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['update'])]),
       user: a.belongsTo('UserProfile', 'register'),
       start: a.datetime().required(),
       end: a.datetime().required(),
       timeslotTag: a.hasMany('TimeslotTag', 'timeslotId'),
     })
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list', 'update'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
     .model({
       sittingNumber: a.integer().required(),
       email: a.string().required(),
-      userTags: a.string().array(),
+      userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read'])]),
       timeslot: a.hasOne('Timeslot', 'register'),
       participantFirstName: a.string().required(),
       participantLastName: a.string().required(),

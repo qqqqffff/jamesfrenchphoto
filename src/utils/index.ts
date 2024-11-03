@@ -1,6 +1,5 @@
 import { CustomFlowbiteTheme } from "flowbite-react"
 import { getColorComponent } from "./getColorComponent"
-import { Timeslot } from "../types"
 
 export function formatTime(time: Date | string | undefined, params?: {timeString: boolean}): string {
     if(!time) return 'N/A'
@@ -87,6 +86,22 @@ export const textInputTheme: CustomFlowbiteTheme['textInput'] = {
         input: {
             sizes: {
                 'lg': 'px-3.5 py-1.5 text-lg'
+            },
+            colors: {
+                'pink-400': "text-pink-400",
+                'rose-500': "text-rose-500",
+                'red-600': "text-red-600",
+                'fuchsia-600': "text-fuchsia-600",
+                'purple-600': "text-purple-600",
+                'blue-500': "text-blue-500",
+                'sky-400': "text-sky-400",
+                'cyan-400': "text-cyan-400",
+                'emerald-500': "text-emerald-500",
+                'green-500': "text-green-500",
+                'lime-400': "text-lime-400",
+                'yellow-300': "text-yellow-300",
+                'orange-400': "text-orange-400",
+                'amber-600': "text-amber-600",
             }
         }
     }
