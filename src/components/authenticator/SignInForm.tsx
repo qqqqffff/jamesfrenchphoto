@@ -67,8 +67,8 @@ export default function SignIn() {
                         <TextInput sizing='lg' className="mb-4" placeholder="Email" type="email" id="email" name="email" />
                         <Label className="ms-2 font-semibold text-xl" htmlFor="password">Password:</Label>
                         <TextInput sizing='lg' className="mb-4" placeholder="Password" type="password" id="password" name="password" />
-                        <div className="flex justify-between">
-                            <a href='contact-form' className="text-blue-500 hover:underline">No Account? Purchase a package first!</a>
+                        <div className="flex justify-end">
+                            {/* <a href='contact-form' className="text-blue-500 hover:underline">No Account? Purchase a package first!</a> */}
                             <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" >Login</Button>
                         </div>
                     </div>

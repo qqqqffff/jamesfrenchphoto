@@ -21,7 +21,13 @@ export default function Header() {
                 userState = true;
             }
         }
-        const dashboardUrl = '/' +  (adminState ? 'admin' : 'client') + '/dashboard'
+        
+        let dashboardUrl = '/' +  (adminState ? 'admin' : 'client') + '/dashboard'
+        let profileUrl = ''
+        if(user){
+            profileUrl = '/' + (adminState ? 'admin' : 'client') + '/profile/' + user.attributes.email
+        }
+        console.log(profileUrl)
         setLoginRender(((!userState && !adminState) ? (<Link to='login'>Login</Link>) : 
             (<Dropdown
                 arrowIcon={false}
@@ -29,7 +35,11 @@ export default function Header() {
                 label={'Profile'}
                 trigger='hover'
             >
-                <Dropdown.Item>Profile</Dropdown.Item>
+                <Dropdown.Item>
+                    <a href={profileUrl}>
+                        Profile
+                    </a>
+                </Dropdown.Item>
                 <Dropdown.Item>
                     <a href={dashboardUrl}>Dashboard</a>
                 </Dropdown.Item>
@@ -48,8 +58,8 @@ export default function Header() {
     const borders = dev ? 'border border-black' : ''
     return (
         <>
-            <div className={'grid grid-cols-3 px-8 py-4 font-main border-b-2 border-gray-300' + borders}>
-                <div className={'flex flex-row justify-between items-center px-12 text-xl ' + borders}>
+            <div className={'flex flex-row px-8 py-4 font-main border-b-2 border-gray-300' + borders}>
+                {/* <div className={'flex flex-row justify-between items-center px-12 text-xl ' + borders}>
                     <Dropdown
                         arrowIcon={false}
                         inline
@@ -81,23 +91,23 @@ export default function Header() {
                     <a href='#'>
                         <p>What To Expect</p>
                     </a>
-                </div>
-                <div className={'flex col-start-2 justify-center items-center ' + borders}>
+                </div> */}
+                <div className={'flex justify-center items-center' + borders}>
                     <a className='' href="/">
-                        <img className='ml-3 mt-3' src={bannerIcon} alt='James French Photography Banner' width={250} height={200} />
+                        <img className='ml-3 mt-3' src={bannerIcon} alt='James French Photography Banner' width={150} height={100} />
                     </a>
                 </div>
-                <div className={'flex flex-row justify-between items-center px-12 text-xl' + borders}>
-                    <Dropdown
+                <div className={'flex flex-row items-center px-12 text-xl w-full justify-end gap-10' + borders}>
+                    {/* <Dropdown
                         arrowIcon={false}
                         inline
                         label={'Promotions'}
                         trigger='hover'
                     >
                         <Dropdown.Item>Senior Portraits</Dropdown.Item>
-                    </Dropdown>
+                    </Dropdown> */}
                     <Link to="contact-form">Contact Us</Link>
-                    <Link to="online-forms">Online Forms</Link>
+                    {/* <Link to="online-forms">Online Forms</Link> */}
                     {loginRender}
                 </div>
             </div>

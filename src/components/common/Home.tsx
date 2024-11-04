@@ -25,7 +25,7 @@ export default function () {
             if(history.state.usr.logoutSuccess){
                 components.push(notificationComponent('Successfully logged out!', 'green'))
             }
-            setNotification((<>{components.map((element, index) => <div key={index}>{element}</div>)}</>))
+            setNotification((<div className="mt-2">{components.map((element, index) => <div key={index}>{element}</div>)}</div>))
         }
     }, [])
     setTimeout(() => {
@@ -48,35 +48,35 @@ export default function () {
         <div className="flex-col">
             {notification}
             <div className="flex justify-center items-center">
-                <div className="h-[750px] w-[100%] min-h-[600px]">
+                <div className="lg:h-[650px] w-full px-4 mt-2">
                     <Carousel
                         slideInterval={5000}
                         leftControl={
-                            <div className="border p-2 rounded-full border-black">
+                            <div className="border p-2 rounded-full border-black bg-gray-300">
                                 <HiOutlineArrowLeft className="text-xl"/>
                             </div>
                         }
                         rightControl={
-                            <div className="border p-2 rounded-full border-black">
+                            <div className="border p-2 rounded-full border-black bg-gray-300">
                                 <HiOutlineArrowRight className="text-xl"/>
                             </div>
                         }
                         className="border-2 border-black rounded-lg"
                     >
-                        <div className="flex h-full items-center justify-center bg-gray-400">
-                            <img src={carousel1} className="h-full"/>
-                            <img src={carousel2} className="h-full"/>
-                            <img src={carousel3} className="h-full"/>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel1} className="h-full w-full"/>
+                            <img src={carousel2} className="h-full w-full"/>
+                            <img src={carousel3} className="h-full w-full"/>
                         </div>
-                        <div className="flex h-full items-center justify-center bg-gray-400">
-                            <img src={carousel4} className="h-full"/>
-                            <img src={carousel5} className="h-full"/>
-                            <img src={carousel6} className="h-full"/>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel4} className="h-full w-full"/>
+                            <img src={carousel5} className="h-full w-full"/>
+                            <img src={carousel6} className="h-full w-full"/>
                         </div>
-                        <div className="flex h-full items-center justify-center bg-gray-400">
-                            <img src={carousel7} className="h-full"/>
-                            <img src={carousel8} className="h-full"/>
-                            <img src={carousel9} className="h-full"/>
+                        <div className="flex h-full items-center justify-center bg-transparent ">
+                            <img src={carousel7} className="h-full w-full"/>
+                            <img src={carousel8} className="h-full w-full"/>
+                            <img src={carousel9} className="h-full w-full"/>
                         </div>
                         {/* <div className="flex h-full items-center justify-center bg-gray-400">2</div>
                         <div className="flex h-full items-center justify-center bg-gray-400">3</div> */}

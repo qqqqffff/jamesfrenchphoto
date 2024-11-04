@@ -1,54 +1,49 @@
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
-import { Button } from "flowbite-react"
+import { Label } from "flowbite-react"
 import { useEffect, useState } from "react"
 import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineMinusCircle, HiOutlinePlusCircle } from "react-icons/hi"
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand"
 import { CreateUserModal } from "../modals"
 import { CreateTagModal } from "../modals/CreateTag"
+import { UserData, UserTag } from "../../types"
+import { UserProfileModal } from "../modals/UserProfile"
 
 const client = generateClient<Schema>()
-
-interface UserData {
-    email: string;
-    emailVerified: boolean;
-    last: string;
-    first: string;
-    userId: string;
-    status: string;
-    created?: Date;
-    updated?: Date;
-    enabled?: boolean;
-}
 
 export default function UserManagement(){
     const [createUserModalVisible, setCreateUserModalVisible] = useState(false)
     const [createTagModalVisible, setCreateTagModalVisible] = useState(false)
-    const [userData, setUserData] = useState<UserData[] | undefined>()
+    const [userProfileModalVisible, setUserProfileModalVisible] = useState(false)
+    const [userData, setUserData] = useState<UserData[]>([])
     const [sideBarToggles, setSideBarToggles] = useState<boolean>(true)
+    const [userTags, setUserTags] = useState<UserTag[]>()
+    const [existingTag, setExistingTag] = useState<UserTag | undefined>()
+    const [selectedUser, setSelectedUser] = useState<UserData | undefined>()
+    const [apiCall, setApiCall] = useState(false)
 
     function parseAttribute(attribute: string){
         switch(attribute){
             case 'email':
-                return 'Email'
+                return 'email'
             case 'email_verified':
-                return 'Verified'
+                return 'verified'
             case 'family_name':
-                return 'Last'
+                return 'last'
             case 'given_name':
-                return 'First'
+                return 'first'
             case 'sub':
-                return 'UserID'
+                return 'userId'
             default:
-                return 'Attribute'
+                return 'attribute'
         }
     }
+
     async function getUsers() {
         console.log('api call')
         const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
         
         const users = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput
-        console.log(users)
         if(!users || !users.Users) return
         const parsedUsers = users.Users.map((user) => {
             let attributes = new Map<string, string>()
@@ -72,12 +67,19 @@ export default function UserManagement(){
             } as UserData
         })
 
-        console.log(parsedUsers)
+        const userTags: UserTag[] = (await client.models.UserTag.list()).data.map((tag) => ({
+            ...tag,
+            color: tag.color ? tag.color : undefined,
+            collectionId: tag.collectionId ? tag.collectionId : undefined
+        }))
+
         setUserData(parsedUsers)
+        setUserTags(userTags)
+        setApiCall(true)
         return parsedUsers
     }
     useEffect(() => {
-        if(!userData){
+        if(!apiCall){
             getUsers()
         }
     }, [])
@@ -133,9 +135,9 @@ export default function UserManagement(){
                 <>
                     {options.map((option, index) => {
                         return (
-                            <div key={index} className="flex flex-row items-center ms-4 my-1 hover:bg-gray-100 ps-2 py-1 rounded-3xl cursor-pointer" onClick={() => {option.fn()}}>
+                            <button key={index} className="flex flex-row items-center ms-4 my-1 hover:bg-gray-100 ps-2 py-1 rounded-3xl cursor-pointer" onClick={() => {option.fn()}}>
                                 <div className="me-1 mt-1">{option.icon}</div>{option.title}
-                            </div>
+                            </button>
                         )
                     })}
                 </>
@@ -158,8 +160,8 @@ export default function UserManagement(){
     return (
         <>
             <CreateUserModal open={createUserModalVisible} onClose={() => setCreateUserModalVisible(false)} />
-            <CreateTagModal open={createTagModalVisible} onClose={() => setCreateTagModalVisible(false)} />
-            <Button onClick={async () => console.log(window.localStorage.getItem('user'))}></Button>
+            <CreateTagModal open={createTagModalVisible} onClose={() => setCreateTagModalVisible(false)} existingTag={existingTag}/>
+            <UserProfileModal open={userProfileModalVisible} onClose={() => setUserProfileModalVisible(false)} user={selectedUser}/>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
                     <div className="flex flex-row">
@@ -196,7 +198,7 @@ export default function UserManagement(){
                                                 if(!isNaN(tempDate.getTime()) && tempDate.getTime() > 1){
                                                     formatted = tempDate.toLocaleString()
                                                 }
-                                                else if(k.toUpperCase() !== 'USERID'){
+                                                else if(k.toUpperCase() !== 'USERID' && k.toUpperCase() !== 'EMAIL'){
                                                     formatted = [...String(v)][0].toUpperCase() + String(v).substring(1).toLowerCase()
                                                 }
                                                 else {
@@ -208,7 +210,15 @@ export default function UserManagement(){
                                                 }
 
                                                 return (
-                                                    <td className={`text-ellipsis px-6 py-4 ${currentUserBolding}`} key={j}>{formatted}</td>
+                                                    <td className={`text-ellipsis px-6 py-4 ${currentUserBolding}`} key={j}>
+                                                        {k.toUpperCase() !== 'EMAIL' ? 
+                                                            (<span>{formatted}</span>) :
+                                                            (<button className="hover:text-black hover:underline underline-offset-2" onClick={() => {
+                                                                setSelectedUser(field)
+                                                                setUserProfileModalVisible(true)
+                                                            }}>{formatted}</button>)
+                                                        }
+                                                    </td>
                                                 )
                                             })}
                                         </tr>
@@ -220,8 +230,20 @@ export default function UserManagement(){
                         : (<></>)}
                     </div>
                 </div>
-                <div className="border border-red-400">
-                    1
+                <div className="flex flex-col border border-gray-400 rounded-lg p-2 me-4">
+                    <div className="mb-2">
+                        <span className="text-xl ms-4 mb-1">User Tags</span>
+                    </div>
+                    {userTags && userTags.length > 0 ? (userTags.map((tag) => {
+                        const color = tag.color ? tag.color : 'black'
+
+                        return (
+                            <span key={tag.id} className={`text-${color} ms-6 cursor-pointer hover:underline underline-offset-2`} onClick={() => {
+                                setExistingTag(tag)
+                                setCreateTagModalVisible(true)
+                            }}>{tag.name}</span>
+                        )
+                    })) : (<Label className="text-lg italic text-gray-500">No Tags</Label>)}
                 </div>
             </div>
         </>

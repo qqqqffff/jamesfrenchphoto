@@ -8,6 +8,33 @@ export interface UserStorage {
     profile: any
 } 
 
+export interface UserData {
+    email: string;
+    verified: boolean;
+    last: string;
+    first: string;
+    userId: string;
+    status: string;
+    created?: Date;
+    updated?: Date;
+    enabled?: boolean;
+}
+
+export interface UserProfile {
+    sittingNumber: number,
+    email: string,
+    userTags: string[],
+    preferredName?: string,
+    timeslot?: Timeslot[],
+    participantFirstName: string,
+    participantLastName: string,
+    participantMiddleName?: string,
+    participantPreferredName?: string,
+    preferredContact: "EMAIL" | "PHONE",
+    participantContact: boolean,
+    parentEmail: string,
+}
+
 export type PicturePath = {
     id: string;
     url: string;
@@ -36,9 +63,15 @@ export type Subcategory = {
 
 export type Timeslot = {
     id: string,
-    tagId: string,
-    capacity: number;
-    registers: string[];
+    tagId?: string,
+    register?: string,
     start: Date;
     end: Date;
+}
+
+export type UserTag = {
+    id: string,
+    name: string,
+    color?: string,
+    collectionId?: string,
 }

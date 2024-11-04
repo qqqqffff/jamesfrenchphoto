@@ -1,6 +1,6 @@
 import { fetchAuthSession, fetchUserAttributes, getCurrentUser } from "aws-amplify/auth"
 import { useEffect } from "react"
-import { Outlet, useNavigate } from "react-router-dom"
+import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Amplify } from "aws-amplify";
 import outputs from '../../../amplify_outputs.json'
 import { Schema } from "../../../amplify/data/resource";
@@ -12,6 +12,7 @@ const client = generateClient<Schema>()
 
 export const Base = () => {
     const navigate = useNavigate()
+    const location = useLocation()
     useEffect(() => {
         async function verifyUser(){
             let group = ''
@@ -49,10 +50,11 @@ export const Base = () => {
             }
 
             if(group === 'ADMIN'){
-                navigate('/admin/dashboard')
+                navigate(location.pathname)
             }
             else if(group === 'USERS'){
-                navigate('/client/dashboard')
+                const path = location.pathname.includes('admin') ? location.pathname.replace('admin', 'client') : location.pathname
+                navigate(path)
             }
             
         }
@@ -60,10 +62,11 @@ export const Base = () => {
         if(window.localStorage.getItem('user')){
             const tempUser: UserStorage = JSON.parse(window.localStorage.getItem('user')!)
             if(tempUser.groups.includes('ADMINS')){
-                navigate('/admin/dashboard')
+                navigate(location.pathname)
             }
             else if(tempUser.groups.includes('USERS')){
-                navigate('/client/dashboard')
+                const path = location.pathname.includes('admin') ? location.pathname.replace('admin', 'client') : location.pathname
+                navigate(path)
             }
             else{
                 navigate('/login', {

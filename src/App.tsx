@@ -17,8 +17,9 @@ import SignOut from './components/authenticator/SignOut'
 import { generateClient } from 'aws-amplify/api'
 import { Schema } from '../amplify/data/resource'
 import { CollectionViewer } from './components/client/CollectionViewer'
-import { PicturePath } from './types'
+import { PicturePath, Timeslot, UserProfile } from './types'
 import { getUrl } from 'aws-amplify/storage'
+import { ClientProfile } from './components/client/Profile'
 
 Amplify.configure(outputs)
 const client = generateClient<Schema>()
@@ -42,7 +43,32 @@ const router = createBrowserRouter(
           //todo: add fetching from amplify in here
           return null
         }}/>
-        
+        <Route path='profile/:email' element={<ClientProfile />} loader={async ({ params }) => {
+          console.log(params)
+          if(!params || !params.email) return null
+          const response = (await client.models.UserProfile.get({ email: params.email })).data
+          if(!response) return null
+          const timeslots = (await response.timeslot()).data
+          const responseTimeslot: Timeslot[] | undefined = timeslots ? timeslots.map((timeslot) => {
+              if(!timeslot.id) return
+              return {
+                  id: timeslot.id as string,
+                  register: timeslot.register ?? undefined,
+                  start: new Date(timeslot.start),
+                  end: new Date(timeslot.end),
+              }
+          }).filter((timeslot) => timeslot !== undefined) : undefined
+          const profile: UserProfile = {
+            ...response,
+            userTags: response.userTags ? response.userTags as string[] : [],
+            timeslot: responseTimeslot,
+            participantMiddleName: response.participantMiddleName ?? undefined,
+            participantPreferredName: response.participantPreferredName ?? undefined,
+            preferredContact: response.preferredContact ?? 'EMAIL',
+            participantContact: response.participantContact ?? true
+          }
+          return profile
+        }} />
       </Route>
       <Route path='contact-form' element={<ContactForm />} />
       {/* <Route path='photo-collection' element={<PhotoCollectionComponent />} /> */}

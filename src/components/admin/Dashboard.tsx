@@ -5,10 +5,11 @@ import { HiOutlineCalendar, HiOutlineChat, HiOutlineClipboardList, HiOutlineDocu
 import { UserStorage } from "../../types";
 // import EventManager from "./EventManager";
 import UserManagement from "./UserManagement";
+import { TimeslotComponent } from "../timeslot/Timeslot";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
-    const [activeConsole, setActiveConsole] = useState('userManagement')
+    const [activeConsole, setActiveConsole] = useState('UserManagement')
     const navigate = useNavigate()
     useEffect(() => {
         if(!user){
@@ -42,6 +43,8 @@ export const Dashboard = () => {
 
     function activeConsoleComponent(){
         switch(activeConsole){
+            case 'scheduler': 
+                return (<TimeslotComponent admin/>)
             case 'eventManager':
                 // return (<EventManager />)
             case 'userManagement':
@@ -57,7 +60,7 @@ export const Dashboard = () => {
             <div className="flex flex-col items-center justify-center font-main">
                 <p className="font-semibold text-3xl mb-4">Welcome {structureFullname()}</p>
                 <p className="font-medium text-xl mb-1">Management Consoles:</p>
-                <Button.Group outline={true}>
+                <Button.Group outline>
                     <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
                         <HiOutlineCalendar className="mt-1 me-1"/> Scheduler
                     </Button>
