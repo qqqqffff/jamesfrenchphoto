@@ -1,10 +1,10 @@
 import { Button, Carousel, Dropdown, Label, Radio, TextInput } from "flowbite-react";
 import { FC, FormEvent, useState, type MouseEvent } from "react";
 import { HiOutlineArrowRight, HiOutlineArrowLeft } from "react-icons/hi";
-import TRFAttendantPackage from '../../assets/tyler-rose-festival/2024/formatted-Attendant-packages.png'
-import TRFDebutantePackage1 from '../../assets/tyler-rose-festival/2024/formatted-Debutante-packages-1.png'
-import TRFDebutantePackage2 from '../../assets/tyler-rose-festival/2024/formatted-Debutante-packages-2.png'
-import TRFEscortPackage from '../../assets/tyler-rose-festival/2024/formatted-Escort-packages.png'
+// import TRFAttendantPackage from '../../assets/tyler-rose-festival/2024/formatted-Attendant-packages.png'
+// import TRFDebutantePackage1 from '../../assets/tyler-rose-festival/2024/formatted-Debutante-packages-1.png'
+// import TRFDebutantePackage2 from '../../assets/tyler-rose-festival/2024/formatted-Debutante-packages-2.png'
+// import TRFEscortPackage from '../../assets/tyler-rose-festival/2024/formatted-Escort-packages.png'
 // import { useNavigate } from "react-router-dom";
 import { generateClient } from "aws-amplify/api";
 import type { Schema } from '../../../amplify/data/resource'
@@ -187,16 +187,16 @@ const ServiceForm: FC<Props> = ({ event, pack }) => {
                                 indicators={false}
                             >
                                 <div className="flex h-full items-center justify-center">
-                                    <img src={TRFAttendantPackage} alt="Tyler Rose Festival Attendant Packages"/>
+                                    {/* <img src={TRFAttendantPackage} alt="Tyler Rose Festival Attendant Packages"/> */}
                                 </div>
                                 <div className="flex h-full items-center justify-center">
-                                    <img src={TRFDebutantePackage1} alt="Tyler Rose Festival Debutante Packages"/>
+                                    {/* <img src={TRFDebutantePackage1} alt="Tyler Rose Festival Debutante Packages"/> */}
                                 </div>
                                 <div className="flex h-full items-center justify-center">
-                                    <img src={TRFDebutantePackage2} alt="Tyler Rose Festival Debutante Package Perks"/>
+                                    {/* <img src={TRFDebutantePackage2} alt="Tyler Rose Festival Debutante Package Perks"/> */}
                                 </div>
                                 <div className="flex h-full items-center justify-center">
-                                    <img src={TRFEscortPackage} alt="Tyler Rose Festival Escort Packages"/> 
+                                    {/* <img src={TRFEscortPackage} alt="Tyler Rose Festival Escort Packages"/>  */}
                                 </div>
                             </Carousel>
                         </div>
