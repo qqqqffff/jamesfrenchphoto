@@ -207,9 +207,9 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 .sort((a, b) => a.start.getTime() - b.start.getTime())
                 .map((timeslot, index) => {
                     const selected = userEmail && userEmail === timeslot.register ? 'bg-gray-200' : ''
-                    let disabled = admin || timeslot.register !== undefined || 
-                        new Date() > activeDate || 
-                        profileTimeslots[tagId].find((timeslot) => timeslot.register && timeslot.register === userEmail) !== undefined
+                    let disabled = admin || timeslot.register !== undefined || new Date() > activeDate || (
+                        profileTimeslots[tagId] && profileTimeslots[tagId].length > 0
+                    )
                     if(profileTimeslots[tagId] && profileTimeslots[tagId][0].id === timeslot.id) disabled = false
                     const disabledText = disabled ? 'line-through cursor-not-allowed' : ''
 
