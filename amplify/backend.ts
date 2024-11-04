@@ -14,34 +14,33 @@ const backend = defineBackend({
   auth,
   data,
   storage,
-  addCreateUserQueue
-  
+  // addCreateUserQueue
   // getPaymentIntent,
 });
 
 
 
-const addCreateUserQueueLambda = backend.addCreateUserQueue.resources.lambda
+// const addCreateUserQueueLambda = backend.addCreateUserQueue.resources.lambda
 
-const tempTokensDbAccess = new PolicyStatement({
-  sid: 'AllowTokensReadWrite',
-  actions: ['dynamodb:PutItem'],
-  resources: [stackConstants.tempTokensArn]
-})
+// const tempTokensDbAccess = new PolicyStatement({
+//   sid: 'AllowTokensReadWrite',
+//   actions: ['dynamodb:PutItem'],
+//   resources: [stackConstants.tempTokensArn]
+// })
 
-addCreateUserQueueLambda.addToRolePolicy(tempTokensDbAccess)
+// addCreateUserQueueLambda.addToRolePolicy(tempTokensDbAccess)
 
-const customEmailerStepFunction = new EmailStepFunction(
-  backend.createStack('EmailStepFunction'),
-  'EmailStepFunction',
-  {
-    addCreateUserQueue: addCreateUserQueueLambda
-  }
-)
+// const customEmailerStepFunction = new EmailStepFunction(
+//   backend.createStack('EmailStepFunction'),
+//   'EmailStepFunction',
+//   {
+//     addCreateUserQueue: addCreateUserQueueLambda
+//   }
+// )
 
-backend.addOutput({
-  custom: {
-    emailQueueArn: customEmailerStepFunction.emailQueue.queueArn,
-    emailQueueName: customEmailerStepFunction.emailQueue.queueName,
-  }
-})
+// backend.addOutput({
+//   custom: {
+//     emailQueueArn: customEmailerStepFunction.emailQueue.queueArn,
+//     emailQueueName: customEmailerStepFunction.emailQueue.queueName,
+//   }
+// })

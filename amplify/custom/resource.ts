@@ -47,7 +47,7 @@ export class EmailStepFunction extends Construct {
             entry: url.fileURLToPath(new URL('receiveMessage/handler.ts', import.meta.url)),
             runtime: Runtime.NODEJS_18_X,
             environment: {
-                STATEMACHINE_ARN: stackConstants.stateMachineArn
+                // STATEMACHINE_ARN: stackConstants.stateMachineArn
             }
         })
         this.emailQueue.grantConsumeMessages(receiveMeessageLambda)

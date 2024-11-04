@@ -15,49 +15,49 @@ export const handler: Schema['AddCreateUserQueue']['functionHandler'] = async (e
         return JSON.stringify('no email - failed')
     }
 
-    const uid = String(sittingNumber)
-    const expires = new Date(new Date().getTime() + 24 * 60 * 60 * 1000).getTime().toString()
+    // const uid = String(sittingNumber)
+    // const expires = new Date(new Date().getTime() + 24 * 60 * 60 * 1000).getTime().toString()
 
-    const dynamoResponse = await dynamoClient.send(new PutItemCommand({
-        TableName: stackConstants.tempTokensDbName,
-        Item: {
-            'email': { S: email },
-            'uid': { S: uid },
-            'expires': { S: expires },
-        }
-    }))
+    // const dynamoResponse = await dynamoClient.send(new PutItemCommand({
+    //     TableName: stackConstants.tempTokensDbName,
+    //     Item: {
+    //         'email': { S: email },
+    //         'uid': { S: uid },
+    //         'expires': { S: expires },
+    //     }
+    // }))
 
-    const urlResponse = (await sqsClient.send(new GetQueueUrlCommand({
-        QueueName: stackConstants.emailQueueName
-    })))
+    // const urlResponse = (await sqsClient.send(new GetQueueUrlCommand({
+    //     QueueName: stackConstants.emailQueueName
+    // })))
 
-    if(!urlResponse.QueueUrl){
-        return JSON.stringify(['No url found', urlResponse])
-    }
-    const sendEmailMessage: SendMessageCommandInput = {
-        QueueUrl: urlResponse.QueueUrl,
-        MessageBody: `${v4()}-send-email-message`,
-        MessageAttributes: {
-            'email': {
-                DataType: 'String',
-                StringValue: email
-            },
-            'uid':  {
-                DataType: 'String',
-                StringValue: uid
-            },
-            'expires': {
-                DataType: 'String',
-                StringValue: expires
-            },
-            'emailType': {
-                DataType: 'String',
-                StringValue: String(EmailType.CreateUserEmail)
-            }
-        }
-    }
+    // if(!urlResponse.QueueUrl){
+    //     return JSON.stringify(['No url found', urlResponse])
+    // }
+    // const sendEmailMessage: SendMessageCommandInput = {
+    //     QueueUrl: urlResponse.QueueUrl,
+    //     MessageBody: `${v4()}-send-email-message`,
+    //     MessageAttributes: {
+    //         'email': {
+    //             DataType: 'String',
+    //             StringValue: email
+    //         },
+    //         'uid':  {
+    //             DataType: 'String',
+    //             StringValue: uid
+    //         },
+    //         'expires': {
+    //             DataType: 'String',
+    //             StringValue: expires
+    //         },
+    //         'emailType': {
+    //             DataType: 'String',
+    //             StringValue: String(EmailType.CreateUserEmail)
+    //         }
+    //     }
+    // }
     // const queueMessageResponse = await sqsClient.send(new SendMessageCommand(sendEmailMessage))
     
     // return JSON.stringify([queueMessageResponse, dynamoResponse])
-    return JSON.stringify([dynamoResponse])
+    return JSON.stringify([])
 }
