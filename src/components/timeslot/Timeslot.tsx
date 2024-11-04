@@ -49,9 +49,10 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 timeslots = (await client.models.Timeslot.list({ filter: {
                         start: { contains: currentDate.toISOString().substring(0, new Date().toISOString().indexOf('T')) },
                     }})).data.map((timeslot) => {
-                        if(!timeslot.id) return
+                        if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
                         const ts: Timeslot = {
-                            id: timeslot.id,
+                            id: timeslot.id as string,
+                            register: timeslot.register ?? undefined,
                             start: new Date(timeslot.start),
                             end: new Date(timeslot.end),
                         }
@@ -62,9 +63,9 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 const profileResponse = (await client.models.UserProfile.get({ email: userEmail})).data
                 if(profileResponse){
                     profileTimeslots = (await Promise.all((await profileResponse.timeslot()).data.map((timeslot) => {
-                        if(!timeslot || !timeslot.id) return undefined
+                        if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
                         const ts: Timeslot = {
-                            id: timeslot.id,
+                            id: timeslot.id as string,
                             register: timeslot.register ?? undefined,
                             start: new Date(timeslot.start),
                             end: new Date(timeslot.end),
@@ -93,10 +94,10 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         
                         const timeslots = (await Promise.all(timeslotTags.map(async (timeslotTag) => {
                                 const timeslotResponse = (await timeslotTag.timeslot()).data
-                                if(!timeslotResponse || !timeslotResponse.id) return
+                                if(timeslotResponse === null || timeslotResponse.id === null || timeslotResponse.start === undefined || timeslotResponse.end === undefined) return
                                 
                                 const timeslot: Timeslot = {
-                                    id: timeslotResponse.id,
+                                    id: timeslotResponse.id as string,
                                     start: new Date(timeslotResponse.start),
                                     end: new Date(timeslotResponse.end),
                                     tagId: timeslotTag.tagId ?? undefined,
@@ -137,9 +138,9 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
         
         if(profileResponse){
             profileTimeslots = (await Promise.all((await profileResponse.timeslot()).data.map((timeslot) => {
-                if(!timeslot || !timeslot.id || timeslot.start || timeslot.end) return undefined
+                if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
                 const ts: Timeslot = {
-                    id: timeslot.id,
+                    id: timeslot.id as string,
                     register: timeslot.register ?? undefined,
                     start: new Date(timeslot.start),
                     end: new Date(timeslot.end),
@@ -168,10 +169,10 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
             
             const timeslots = (await Promise.all(timeslotTags.map(async (timeslotTag) => {
                 const timeslotResponse = (await timeslotTag.timeslot()).data
-                if(!timeslotResponse || !timeslotResponse.id || !timeslotResponse.start || !timeslotResponse.end) return
+                if(timeslotResponse === null || timeslotResponse.id === undefined || timeslotResponse.start === undefined || timeslotResponse.end === undefined) return 
                 
                 const timeslot: Timeslot = {
-                    id: timeslotResponse.id,
+                    id: timeslotResponse.id as string,
                     start: new Date(timeslotResponse.start),
                     end: new Date(timeslotResponse.end),
                     tagId: timeslotTag.tagId ?? undefined,
@@ -186,7 +187,6 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
             return timeslot !== undefined
         })
         .filter((timeslot) => {
-            console.log(timeslot)
             if(timeslot.length == 0) return false
             return true
         })
@@ -235,13 +235,13 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
     }
 
     function formatRegisteredTimeslots(){
-        return Object.entries(profileTimeslots).map(([tagId, timeslot]) => {
+        return Object.entries(profileTimeslots).map(([tagId, timeslot], index) => {
             const tag = userTags!.find((tag) => tag.id === tagId)
             const color = tag && tag.color ? tag.color : 'black'
-            if(!timeslot || timeslot.length < 0 || !timeslot[0].start || !timeslot[0].end) return
+            if(!timeslot || timeslot.length < 0 || timeslot[0] === undefined || timeslot[0].id === undefined || timeslot[0].start === undefined || timeslot[0].end === undefined) return undefined
             
             return (
-                <div className={`flex flex-col text-${color} text-sm`}>
+                <div className={`flex flex-col text-${color} text-sm`} key={index}>
                     <span className="underline underline-offset-2">
                         {tag ? tag.name : 'Undefined'}
                     </span>
@@ -262,9 +262,9 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 const timeslots = (await client.models.Timeslot.list({ filter: {
                     start: { contains: activeDate.toISOString().substring(0, activeDate.toISOString().indexOf('T')) }
                 }})).data.map((timeslot) => {
-                    if(!timeslot.id || !timeslot.start || !timeslot.end) return
+                    if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
                     const ts: Timeslot = {
-                        id: timeslot.id,
+                        id: timeslot.id as string,
                         register: timeslot.register ?? undefined,
                         start: new Date(timeslot.start),
                         end: new Date(timeslot.end),
@@ -282,7 +282,6 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 confirmAction={async () => {
                     if(selectedTimeslot && userEmail && userTags) {
                         const timeslot = await client.models.Timeslot.get({id: selectedTimeslot.id})
-                        console.log(timeslot)
                         if(timeslot.data?.register){
                             throw new Error('Timeslot has been filled')
                         }
@@ -291,7 +290,6 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                             register: userEmail
                         }, { authMode: 'userPool'})
 
-                        console.log(response)
 
                         await userFetchTimeslots(userTags, userEmail)
                     }
@@ -306,7 +304,6 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                             id: selectedTimeslot.id,
                             register: null
                         }, { authMode: 'userPool'})
-                        console.log(response)
 
                         await userFetchTimeslots(userTags, userEmail)
                     }
@@ -330,9 +327,9 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                 timeslots = (await client.models.Timeslot.list({ filter: {
                                     start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
                                 }})).data.map((timeslot) => {
-                                    if(!timeslot.id || !timeslot.start || !timeslot.end) return
+                                    if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
                                     const ts: Timeslot = {
-                                        id: timeslot.id,
+                                        id: timeslot.id as string,
                                         register: timeslot.register ?? undefined,
                                         start: new Date(timeslot.start),
                                         end: new Date(timeslot.end),
