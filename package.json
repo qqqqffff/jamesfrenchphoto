@@ -25,6 +25,9 @@
     "react-router-dom": "^6.26.2",
     "stripe": "^17.1.0"
   },
+  "overrides": {
+    "@parcel/watcher": "2.1.0"
+  },
   "devDependencies": {
     "@aws-amplify/backend": "^1.1.1",
     "@aws-amplify/backend-cli": "^1.2.3",
