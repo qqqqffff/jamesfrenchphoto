@@ -287,9 +287,10 @@ export default function SignUp(){
                             <TextInput color={invalidCode ? 'failure' : undefined} className='' sizing='md' placeholder="Verification Code" type="number" id="authCode" name="authCode" onChange={(event) => {
                                 setInvalidCode(false)
                                 setAuthCode(event.target.valueAsNumber)
+                                console.log(authCode)
                             }} helperText={ invalidCode ? (
                                 <div className="-mt-2 mb-4 ms-2 text-sm">
-                                    <span> </span>
+                                    <span>Invalid Code</span>
                                 </div>) : (<></>)}/>
                         </div>
                         <div className="flex flex-row justify-end gap-4 mt-4">
@@ -298,7 +299,7 @@ export default function SignUp(){
                                     username: participantEmail!
                                 })
                             }}>Resend</Button>
-                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" disabled={String(authCode).length < 6 || String(authCode).length > 6 } onClick={() => setCodeSubmitting(true)} isProcessing={codeSubmitting}>Submit</Button>
+                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" onClick={() => setCodeSubmitting(true)} isProcessing={codeSubmitting}>Submit</Button>
                         </div>
                     </form>
                 </Modal.Body>
