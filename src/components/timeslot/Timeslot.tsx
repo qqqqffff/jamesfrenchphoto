@@ -1,4 +1,4 @@
-import { Badge, Datepicker, Label, Tooltip } from "flowbite-react"
+import { Badge, Datepicker, Dropdown, Label, Tooltip } from "flowbite-react"
 import { FC, useEffect, useState } from "react"
 import { ControlComponent } from "../admin/ControlPannel"
 import { HiOutlinePlusCircle, HiOutlineMinusCircle } from "react-icons/hi2"
@@ -272,7 +272,6 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                     return ts
                 }).filter((timeslot) => timeslot !== undefined)
 
-
                 setCreateTimeslotVisible(false)
                 setTimeslots(timeslots)
             }} day={activeDate} update={updatingTimeslot} />
@@ -290,6 +289,8 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                             register: userEmail
                         }, { authMode: 'userPool'})
 
+                        console.log(response)
+
 
                         await userFetchTimeslots(userTags, userEmail)
                     }
@@ -304,6 +305,8 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                             id: selectedTimeslot.id,
                             register: null
                         }, { authMode: 'userPool'})
+
+                        console.log(response)
 
                         await userFetchTimeslots(userTags, userEmail)
                     }
@@ -320,37 +323,64 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                 <Badge color="light" icon={HiOutlineInformationCircle} className="text-2xl text-gray-600 bg-transparent" theme={badgeColorThemeMap} size="" />
                             </Tooltip>)}
                     </div>
-                    <Datepicker minDate={minDate} className='mt-2' onChange={async (date) => {
-                        if(date) {
-                            let timeslots: Timeslot[] = []
-                            if(admin){
-                                timeslots = (await client.models.Timeslot.list({ filter: {
-                                    start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
-                                }})).data.map((timeslot) => {
-                                    if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
-                                    const ts: Timeslot = {
-                                        id: timeslot.id as string,
-                                        register: timeslot.register ?? undefined,
-                                        start: new Date(timeslot.start),
-                                        end: new Date(timeslot.end),
+                    {
+                        admin ? 
+                            (<Datepicker minDate={minDate} className='mt-2' onChange={async (date) => {
+                                if(date) {
+                                    let timeslots: Timeslot[] = []
+                                    if(admin){
+                                        timeslots = (await client.models.Timeslot.list({ filter: {
+                                            start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
+                                        }})).data.map((timeslot) => {
+                                            if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
+                                            const ts: Timeslot = {
+                                                id: timeslot.id as string,
+                                                register: timeslot.register ?? undefined,
+                                                start: new Date(timeslot.start),
+                                                end: new Date(timeslot.end),
+                                            }
+                                            return ts
+                                        }).filter((timeslot) => timeslot !== undefined)
                                     }
-                                    return ts
-                                }).filter((timeslot) => timeslot !== undefined)
-                            }
-                            else if(!admin && userTags){
-                                timeslots = Object.values(tagTimeslots)
-                                    .filter((timeslot) => timeslot !== undefined)
-                                    .filter((timeslot) => {
-                                        if(timeslot.length == 0) return false
-                                        return date.toISOString().includes(timeslot[0].start.toISOString().substring(0, timeslot[0].start.toISOString().indexOf('T')))
-                                    })
-                                    .reduce((prev, cur) => [...prev, ...cur], [])
-                            }
-                            
-                            setActiveDate(date)
-                            setTimeslots(timeslots)
-                        }
-                    }}/>
+                                    else if(!admin && userTags){
+                                        timeslots = Object.values(tagTimeslots)
+                                            .filter((timeslot) => timeslot !== undefined)
+                                            .filter((timeslot) => {
+                                                if(timeslot.length == 0) return false
+                                                return date.toISOString().includes(timeslot[0].start.toISOString().substring(0, timeslot[0].start.toISOString().indexOf('T')))
+                                            })
+                                            .reduce((prev, cur) => [...prev, ...cur], [])
+                                    }
+                                    
+                                    setActiveDate(date)
+                                    setTimeslots(timeslots)
+                                }
+                            }}/>) : 
+                            (
+                                <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString()}>
+                                    {
+                                        tagTimeslots && Object.entries(tagTimeslots).length > 0 ? Object.entries(tagTimeslots).map(([tagId, timeslots]) => {
+                                            const color = userTags!.find((tag) => tag.id === tagId)!.color ?? 'black'
+                                            const dates = timeslots
+                                                .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                                .reduce((prev, cur) => {
+                                                    if(!prev.includes(cur)) {
+                                                        prev.push(cur)
+                                                    }
+                                                    return prev
+                                                }, [] as number[])
+                                            const objects = dates.map((date) => {
+                                                return (
+                                                    <Dropdown.Item className={`text-${color}`} onClick={() => setActiveDate(new Date(date))}>{new Date(date).toLocaleDateString()}</Dropdown.Item>
+                                                )
+                                            })
+                                            return objects
+                                        }) : (<Dropdown.Item>No Dates available</Dropdown.Item>)
+                                    }
+                                </Dropdown>
+                                
+                            )
+                    }
                     {
                         admin ? (
                             <>

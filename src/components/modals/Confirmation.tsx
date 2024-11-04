@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useState } from "react";
 import { ModalProps } from ".";
 import { Button, Modal } from "flowbite-react";
 
@@ -11,7 +11,12 @@ interface ConfirmationModalProps extends ModalProps {
 }
 
 export const ConfirmationModal: FC<ConfirmationModalProps> = ({onClose, open, title, body, denyText, confirmText, confirmAction}) => {
-    // console.log(body.split('\n'))
+    const [submitting, setSubmitting] = useState(false)
+    async function submit() {
+        await confirmAction()
+        setSubmitting(false)
+        onClose()
+    }
     return (
         <Modal show={open} onClose={() => {
             onClose()
@@ -32,9 +37,9 @@ export const ConfirmationModal: FC<ConfirmationModalProps> = ({onClose, open, ti
             </Modal.Body>
             <Modal.Footer className="justify-end flex-row gap-4">
                 <Button onClick={() => onClose()}>{denyText}</Button>
-                <Button onClick={() => {
-                    confirmAction()
-                    onClose()
+                <Button isProcessing={submitting} onClick={async () => {
+                    setSubmitting(true)
+                    await submit()
                 }}>{confirmText}</Button>
             </Modal.Footer>
         </Modal>
