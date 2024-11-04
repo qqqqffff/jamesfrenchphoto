@@ -371,9 +371,9 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                                 }, [] as number[])
                                                 .sort((a, b) => a - b)
                                                 .map((time) => new Date(time))
-                                            const objects = dates.map((date) => {
+                                            const objects = dates.map((date, index) => {
                                                 return (
-                                                    <Dropdown.Item className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString()}</Dropdown.Item>
+                                                    <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString()}</Dropdown.Item>
                                                 )
                                             })
                                             return objects

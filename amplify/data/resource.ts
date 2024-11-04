@@ -116,7 +116,7 @@ const schema = a.schema({
       participantPreferredName: a.string(),
       preferredContact: a.enum(['EMAIL', 'PHONE']),
       participantContact: a.boolean().default(false),
-      parentEmail: a.string().required(),
+      participantEmail: a.string().required(),
     })
     .identifier(['email'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create'])]),

@@ -10,7 +10,7 @@ import { TermsAndConditionsModal } from "../modals/TermsAndConditions"
 const client = generateClient<Schema>()
 
 interface SignUpFormElements extends HTMLFormControlsCollection {
-    parentEmail: HTMLInputElement
+    participantEmail: HTMLInputElement
     email: HTMLInputElement
     password: HTMLInputElement
     confirmPassword: HTMLInputElement
@@ -138,7 +138,7 @@ export default function SignUp(){
         const parentEmail = signupPrefilledElements.email
         const sittingNumber = signupPrefilledElements.uid
 
-        if(!parentEmail || parentEmail !== form.elements.parentEmail.value) {
+        if(!parentEmail || parentEmail !== form.elements.email.value) {
             setFormErrors(['Parent email missmatch or missing, try reloading!'])
             setFormSubmitting(false)
             return
@@ -159,8 +159,8 @@ export default function SignUp(){
         try {
             const profileCreateResponse = await client.models.UserProfile.create({
                 sittingNumber: Number.parseInt(sittingNumber),
-                email: participantEmail!,
-                parentEmail: parentEmail,
+                email: parentEmail,
+                participantEmail: participantEmail!,
                 userTags: participantTags,
                 participantFirstName: participantFirstName!,
                 participantLastName: participantLastName!,
@@ -179,11 +179,11 @@ export default function SignUp(){
             }
 
             const response = await signUp({
-                username: participantEmail!,
+                username: parentEmail,
                 password: password!,
                 options: {
                     userAttributes: {
-                        email: participantEmail!,
+                        email: parentEmail!,
                         phone_number: `+1${form.elements.phoneNumber.value}`,
                         given_name: parentFirstName,
                         family_name: parentLastName,
@@ -225,7 +225,7 @@ export default function SignUp(){
 
         try{
             const response = await confirmSignUp({
-                username: participantEmail!,
+                username: signupPrefilledElements!.email!,
                 confirmationCode: form.elements.authCode.value,
             })
 
@@ -296,7 +296,7 @@ export default function SignUp(){
                         <div className="flex flex-row justify-end gap-4 mt-4">
                             <Button className="text-xl w-[40%] max-w-[8rem] mb-6" onClick={() => {
                                 resendSignUpCode({
-                                    username: participantEmail!
+                                    username: signupPrefilledElements!.email!
                                 })
                             }}>Resend</Button>
                             <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" onClick={() => setCodeSubmitting(true)} isProcessing={codeSubmitting}>Submit</Button>
@@ -320,11 +320,11 @@ export default function SignUp(){
                             </div>
                         </div>
                         <Label className="ms-2 font-medium text-lg" htmlFor="phoneNumber">Parent Phone Number<sup className="text-gray-400">1</sup>:</Label>
-                        <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem] text-xl" placeholder="Phone Number" type="tel" id="phoneNumber" name="phoneNumber"/>
-                        <Label className="ms-2 font-medium text-lg" htmlFor="parentEmail">Parent Email<sup className="italic text-red-600">*</sup>:</Label>
-                        <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Email" type="email" id="parentEmail" name="parentEmail" defaultValue={signupPrefilledElements?.email} disabled/>
-                        <Label className="ms-2 font-medium text-lg" htmlFor="email">Participant Email<sup className="text-gray-400">2</sup><sup className="italic text-red-600">*</sup>:</Label>
-                        <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Participant's Email" type="email" id="email" name="email" onChange={(event) => setParticipantEmail(event.target.value)}/>
+                        <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem] text-xl" placeholder="10-Digit Phone Number of format 1234567890" type="tel" id="phoneNumber" name="phoneNumber"/>
+                        <Label className="ms-2 font-medium text-lg" htmlFor="email">Parent Email<sup className="text-gray-400">2</sup><sup className="italic text-red-600">*</sup>:</Label>
+                        <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Email" type="email" id="email" name="email" defaultValue={signupPrefilledElements?.email} disabled/>
+                        <Label className="ms-2 font-medium text-lg" htmlFor="participantEmail">Participant Email<sup className="italic text-red-600">*</sup>:</Label>
+                        <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Participant's Email" type="email" id="participantEmail" name="participantEmail" onChange={(event) => setParticipantEmail(event.target.value)}/>
                         <div className="flex justify-between mb-4">
                             <div className="flex flex-col gap-1 w-[45%]">
                                 <Label className="ms-2 font-medium text-lg" htmlFor="participantFirstName">Participant First Name<sup className="italic text-red-600">*</sup>:</Label>
@@ -380,8 +380,9 @@ export default function SignUp(){
                                 setPasswordMatch(password === confirmPassword)
                             }}/>
                         <p className="italic text-sm"><sup className="italic text-red-600">*</sup> Indicates required fields.</p>
-                        <p className="italic text-sm"><sup className="text-gray-400">1</sup> US Phone numbers only, without country code.</p>
-                        <p className="italic text-sm mb-4"><sup className="text-gray-400">2</sup> Participant's email is used for account login, as parents may have multiple participants.</p>
+                        <p className="italic text-sm"><sup className="text-gray-400">1</sup> US Phone numbers only, without country code. No special formatting needed.</p>
+                        <p className="italic text-sm"><sup className="text-gray-400">2</sup> For security purposes, parent email fields are uneditable as accounts are secure and unique!</p>
+                        <p className="italic text-sm mb-4">Note: Parent's email is used for account <strong>login and verification. A code will be sent to the parents email</strong> as a part of the next account verification step.</p>
                         <div className="flex flex-row items-center gap-2">
                             <button className="flex flex-row gap-2 items-center" onClick={() => setTermsAndConditions(!termsAndConditions)} type="button">
                                 <Checkbox className="mt-1" checked={termsAndConditions} readOnly />

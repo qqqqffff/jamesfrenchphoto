@@ -32,7 +32,7 @@ export interface UserProfile {
     participantPreferredName?: string,
     preferredContact: "EMAIL" | "PHONE",
     participantContact: boolean,
-    parentEmail: string,
+    participantEmail: string,
 }
 
 export type PicturePath = {

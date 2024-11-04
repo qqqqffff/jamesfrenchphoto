@@ -1,11 +1,11 @@
 import { FC, useEffect, useState } from "react";
-import { PhotoCollection, UserStorage } from "../../types";
+import { PhotoCollection, UserProfile } from "../../types";
 import { Schema } from "../../../amplify/data/resource";
 import { generateClient } from "aws-amplify/api";
 const client = generateClient<Schema>()
 
 interface ClientHomeProps {
-    user: UserStorage
+    user?: UserProfile
 }
 
 //TODO: pass an open state variable 
@@ -15,21 +15,24 @@ export const Home: FC<ClientHomeProps> = ({ user }) => {
     useEffect(() => {
         async function api(){
             let temp: PhotoCollection[] = []
-            const userProfile = (await client.models.UserProfile.get({ email: '1apollo.rowe@gmail.com' })).data
-            console.log(userProfile)
-            if(userProfile?.userTags){
-                temp = []
-                console.log(user)
-                // collections = await Promise.all(userProfile.userTags.filter((tag) => tag !== null).map(async (tag) => 
-                //     (await client.models.PhotoCollection.listPhotoCollectionByTagId({ tagId: tag })).data[0]
-                // ))
-                // collections = await Promise.all(collections.filter((collection) => collection.subcategoryId).map(async (collection) => {
-                //     return {
-                //         ...collection,
-                //         name: (await client.models.SubCategory.get({ id: collection.subcategoryId! })).data?.name
-                //     }
-                // }))
+            if(user){
+                const userProfile = (await client.models.UserProfile.get({ email: user?.email })).data
+                console.log(userProfile)
+                if(userProfile && userProfile.userTags && userProfile.userTags.length > 0){
+                    temp = []
+                    console.log(user)
+                    // collections = await Promise.all(userProfile.userTags.filter((tag) => tag !== null).map(async (tag) => 
+                    //     (await client.models.PhotoCollection.listPhotoCollectionByTagId({ tagId: tag })).data[0]
+                    // ))
+                    // collections = await Promise.all(collections.filter((collection) => collection.subcategoryId).map(async (collection) => {
+                    //     return {
+                    //         ...collection,
+                    //         name: (await client.models.SubCategory.get({ id: collection.subcategoryId! })).data?.name
+                    //     }
+                    // }))
+                }
             }
+            
             setCollections(temp)
             setApiCall(true)
         }
