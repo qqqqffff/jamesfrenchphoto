@@ -169,8 +169,8 @@ export function Dashboard() {
     }, [])
 
     function structureFullname(){
-        if(user)
-            return  user.attributes.given_name + ' ' + user.attributes.family_name
+        if(userProfile)
+            return  (userProfile.participantPreferredName ? userProfile.participantPreferredName : userProfile.participantFirstName) + ' ' + userProfile.participantLastName
         else{
             return 'Loading...'
         }
