@@ -63,20 +63,20 @@ export default function () {
                         }
                         className="border-2 border-black rounded-lg"
                     >
-                        <div className="flex h-full items-center justify-center bg-gray-400">
-                            <img src={carousel1} className="h-full"/>
-                            <img src={carousel2} className="h-full"/>
-                            <img src={carousel3} className="h-full"/>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel1} className="h-full w-full"/>
+                            <img src={carousel2} className="h-full w-full"/>
+                            <img src={carousel3} className="h-full w-full"/>
                         </div>
-                        <div className="flex h-full items-center justify-center bg-gray-400">
-                            <img src={carousel4} className="h-full"/>
-                            <img src={carousel5} className="h-full"/>
-                            <img src={carousel6} className="h-full"/>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel4} className="h-full w-full"/>
+                            <img src={carousel5} className="h-full w-full"/>
+                            <img src={carousel6} className="h-full w-full"/>
                         </div>
-                        <div className="flex h-full items-center justify-center bg-gray-400">
-                            <img src={carousel7} className="h-full"/>
-                            <img src={carousel8} className="h-full"/>
-                            <img src={carousel9} className="h-full"/>
+                        <div className="flex h-full items-center justify-center bg-transparent ">
+                            <img src={carousel7} className="h-full w-full"/>
+                            <img src={carousel8} className="h-full w-full"/>
+                            <img src={carousel9} className="h-full w-full"/>
                         </div>
                         {/* <div className="flex h-full items-center justify-center bg-gray-400">2</div>
                         <div className="flex h-full items-center justify-center bg-gray-400">3</div> */}

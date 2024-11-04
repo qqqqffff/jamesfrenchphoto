@@ -21,7 +21,13 @@ export default function Header() {
                 userState = true;
             }
         }
-        const dashboardUrl = '/' +  (adminState ? 'admin' : 'client') + '/dashboard'
+        
+        let dashboardUrl = '/' +  (adminState ? 'admin' : 'client') + '/dashboard'
+        let profileUrl = ''
+        if(user){
+            profileUrl = '/' + (adminState ? 'admin' : 'client') + '/profile/' + user.attributes.email
+        }
+        console.log(profileUrl)
         setLoginRender(((!userState && !adminState) ? (<Link to='login'>Login</Link>) : 
             (<Dropdown
                 arrowIcon={false}
@@ -29,7 +35,11 @@ export default function Header() {
                 label={'Profile'}
                 trigger='hover'
             >
-                <Dropdown.Item>Profile</Dropdown.Item>
+                <Dropdown.Item>
+                    <a href={profileUrl}>
+                        Profile
+                    </a>
+                </Dropdown.Item>
                 <Dropdown.Item>
                     <a href={dashboardUrl}>Dashboard</a>
                 </Dropdown.Item>

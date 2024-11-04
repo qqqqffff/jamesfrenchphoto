@@ -1,4 +1,4 @@
-import { Button, Label, Textarea, TextInput } from "flowbite-react"
+import { Alert, Button, Label, Textarea, TextInput } from "flowbite-react"
 import { createRef, FC, FormEvent } from "react"
 // import { useNavigate } from "react-router-dom"
 import ReCAPTCHA from "react-google-recaptcha";
@@ -44,6 +44,7 @@ const ContactForm: FC<Props> = ({}) => {
 
     return (
         <>
+            <Alert color="red">Contact form is currently disabled! Please reach out to <a className="hover:underline" href="mailto:contact@jamesfrenchphotography">contact@jamesfrenchphotography</a> for technical support</Alert>
             <form className='flex flex-col items-center justify-center font-main ' onSubmit={handleSubmit}>
                 <div className="flex flex-col items-center justify-center w-[60%] max-w-[48rem] border-4 border-gray-500 rounded-lg">
                     <p className="font-bold text-4xl mt-2 mb-8">Contact Us</p>
@@ -70,10 +71,10 @@ const ContactForm: FC<Props> = ({}) => {
                         <Textarea className="min-h-24 mb-4" placeholder="Message of desired service or intent" id="message" name="message"/>
                         <p className="italic text-sm"><sup>*</sup> Indicates required fields</p>
                         <div className="flex justify-center mt-6">
-                            <ReCAPTCHA sitekey={import.meta.env.VITE_GOOGLE_RECAPTCHA_SECRET_KEY} ref={recaptchaRef}/>
+                            {/* <ReCAPTCHA sitekey={import.meta.env.VITE_GOOGLE_RECAPTCHA_SECRET_KEY} ref={recaptchaRef}/> */}
                         </div>
                         <div className="flex justify-end mt-4">
-                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit">Submit</Button>
+                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" disabled>Submit</Button>
                         </div>
                     </div>
                 </div>

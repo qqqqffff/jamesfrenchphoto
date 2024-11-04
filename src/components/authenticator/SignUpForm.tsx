@@ -95,8 +95,6 @@ export default function SignUp(){
                         {authMode: 'iam'}
                     )
 
-
-                    
                     console.log(response)
                     if(!response.data){
                         console.log('bad request')
@@ -114,18 +112,6 @@ export default function SignUp(){
                         setApiCall(true)
                         return
                     }
-
-                    // setParticipantTags((await Promise.all(responseTags.map(async (tag) => {
-                    //     const response = (await client.models.UserTag.get({ id: tag })).data
-                    //     if(!response) return
-
-                    //     const userTag: UserTag = {
-                    //         ...response,
-                    //         color: response.color ? response.color : undefined,
-                    //         collectionId: response.collectionId ? response.collectionId : undefined
-                    //     }
-                    //     return userTag
-                    // }))).filter((tag) => tag !== undefined))
 
                     setSignupPrefilledElements(formPrereqs)
                     setParticipantTags(responseTags)
@@ -243,13 +229,13 @@ export default function SignUp(){
                 confirmationCode: form.elements.authCode.value,
             })
 
-            // if(response.isSignUpComplete){
-            //     navigate('/login', {
-            //         state: {
-            //             createAccountSuccess: true
-            //         }
-            //     })
-            // }
+            if(response.isSignUpComplete){
+                navigate('/login', {
+                    state: {
+                        createAccountSuccess: true
+                    }
+                })
+            }
         }catch(err){
             //todo error handling
             const error = err as Error

@@ -1,7 +1,7 @@
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { ModalProps } from ".";
-import { UserData, UserProfile, UserTag } from "../../types";
+import { Timeslot, UserData, UserProfile, UserTag } from "../../types";
 import { FC, useEffect, useState } from "react";
 import { Badge, Dropdown, Modal } from "flowbite-react";
 import { badgeColorThemeMap_hoverable, GetColorComponent } from "../../utils";
@@ -32,19 +32,32 @@ export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, 
 
             //get user profile
             const getProfileResponse = (await client.models.UserProfile.get({email: user.email})).data
-            let profile: UserProfile | null = getProfileResponse ? {
+            if(!getProfileResponse) {
+                setApiCall(true)
+                return
+            }
+            const profileTimeslot = (await getProfileResponse.timeslot()).data
+            const timeslot: Timeslot[] | undefined = profileTimeslot ? profileTimeslot.map((timeslot) => {
+                if(!timeslot.id)
+                return {
+                    id: timeslot.id as string,
+                    register: timeslot.register ?? undefined,
+                    start: new Date(timeslot.start),
+                    end: new Date(timeslot.end),
+                }
+            }).filter((timeslot) => timeslot !== undefined) : undefined
+            let profile: UserProfile | undefined = getProfileResponse ? {
                 ...getProfileResponse,
                 userTags: getProfileResponse.userTags ? getProfileResponse.userTags as string[] : [],
-                preferredName: getProfileResponse.preferredName ? getProfileResponse.preferredName : undefined
-            } : null
-            if(!profile){
-                const response = await client.models.UserProfile.create({
-                    email: user.email
-                })
-                profile = {
-                    email: response.data!.email,
-                    userTags: [],
-                }
+                timeslot: timeslot,
+                participantMiddleName: getProfileResponse.participantMiddleName ?? undefined,
+                participantPreferredName: getProfileResponse.participantPreferredName ?? undefined,
+                preferredContact: getProfileResponse.preferredContact ? 'PHONE' : 'EMAIL',
+                participantContact: getProfileResponse.participantContact ?? false
+            } : undefined
+            if(!profile) {
+                setApiCall(true)
+                return
             }
 
             console.log(profile)
@@ -60,10 +73,27 @@ export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, 
                     email: profile.email,
                     userTags: filteredUserTags
                 })
-                profile = {
-                    email: response.data!.email,
-                    userTags: response.data!.userTags ? response.data!.userTags as string[] : [],
-                    preferredName: response.data!.preferredName ? response.data!.preferredName : undefined
+                if(response && response.data) {
+                    const profileResponse = response.data
+                    const profileTimeslot = (await profileResponse.timeslot()).data
+                    const timeslot: Timeslot[] | undefined = profileTimeslot ? profileTimeslot.map((timeslot) => {
+                        if(!timeslot.id)
+                        return {
+                            id: timeslot.id as string,
+                            register: timeslot.register ?? undefined,
+                            start: new Date(timeslot.start),
+                            end: new Date(timeslot.end),
+                        }
+                    }).filter((timeslot) => timeslot !== undefined) : undefined
+                    profile = {
+                        ...profileResponse,
+                        userTags: profileResponse.userTags ? profileResponse.userTags as string[] : [],
+                        timeslot: timeslot,
+                        participantMiddleName: profileResponse.participantMiddleName ?? undefined,
+                        participantPreferredName: profileResponse.participantPreferredName ?? undefined,
+                        preferredContact: profileResponse.preferredContact ? 'PHONE' : 'EMAIL',
+                        participantContact: profileResponse.participantContact ?? false
+                    }
                 }
                 console.log(response, profile)
             }
@@ -122,10 +152,26 @@ export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, 
                                             userTags: userProfileTags.filter((t) => tag.id != t.id).map((t) => t.id)
                                         })
                                         console.log(response)
+                                        if(!response || !response.data) return
+                                        const profileResponse = response.data
+                                        const profileTimeslot = (await profileResponse.timeslot()).data
+                                        const timeslot: Timeslot[] | undefined = profileTimeslot ? profileTimeslot.map((timeslot) => {
+                                            if(!timeslot.id)
+                                            return {
+                                                id: timeslot.id as string,
+                                                register: timeslot.register ?? undefined,
+                                                start: new Date(timeslot.start),
+                                                end: new Date(timeslot.end),
+                                            }
+                                        }).filter((timeslot) => timeslot !== undefined) : undefined
                                         const profile: UserProfile = {
-                                            email: response.data!.email,
-                                            userTags: response.data!.userTags ? response.data!.userTags as string[] : [],
-                                            preferredName: response.data!.preferredName ? response.data!.preferredName : undefined
+                                            ...profileResponse,
+                                            userTags: profileResponse.userTags ? profileResponse.userTags as string[] : [],
+                                            timeslot: timeslot,
+                                            participantMiddleName: profileResponse.participantMiddleName ?? undefined,
+                                            participantPreferredName: profileResponse.participantPreferredName ?? undefined,
+                                            preferredContact: profileResponse.preferredContact ? 'PHONE' : 'EMAIL',
+                                            participantContact: profileResponse.participantContact ?? false
                                         }
                                         setUserProfile(profile)
                                         setUserProfileTags(await Promise.all(profile.userTags.map(async (tag) => {
@@ -152,10 +198,26 @@ export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, 
                                                         userTags: [tag.id],
                                                     })
                                                     console.log(response)
+                                                    if(!response || !response.data) return
+                                                    const profileResponse = response.data
+                                                    const profileTimeslot = (await profileResponse.timeslot()).data
+                                                    const timeslot: Timeslot[] | undefined = profileTimeslot ? profileTimeslot.map((timeslot) => {
+                                                        if(!timeslot.id)
+                                                        return {
+                                                            id: timeslot.id as string,
+                                                            register: timeslot.register ?? undefined,
+                                                            start: new Date(timeslot.start),
+                                                            end: new Date(timeslot.end),
+                                                        }
+                                                    }).filter((timeslot) => timeslot !== undefined) : undefined
                                                     const profile: UserProfile = {
-                                                        email: response.data!.email,
-                                                        userTags: response.data!.userTags ? response.data!.userTags as string[] : [],
-                                                        preferredName: response.data!.preferredName ? response.data!.preferredName : undefined
+                                                        ...profileResponse,
+                                                        userTags: profileResponse.userTags ? profileResponse.userTags as string[] : [],
+                                                        timeslot: timeslot,
+                                                        participantMiddleName: profileResponse.participantMiddleName ?? undefined,
+                                                        participantPreferredName: profileResponse.participantPreferredName ?? undefined,
+                                                        preferredContact: profileResponse.preferredContact ? 'PHONE' : 'EMAIL',
+                                                        participantContact: profileResponse.participantContact ?? false
                                                     }
                                                     setUserProfile(profile)
                                                     setUserProfileTags(await Promise.all(profile.userTags.map(async (tag) => {
@@ -184,10 +246,26 @@ export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, 
                                                     userTags: [tag.id],
                                                 })
                                                 console.log(response)
+                                                if(!response || !response.data) return
+                                                const profileResponse = response.data
+                                                const profileTimeslot = (await profileResponse.timeslot()).data
+                                                const timeslot: Timeslot[] | undefined = profileTimeslot ? profileTimeslot.map((timeslot) => {
+                                                    if(!timeslot.id)
+                                                    return {
+                                                        id: timeslot.id as string,
+                                                        register: timeslot.register ?? undefined,
+                                                        start: new Date(timeslot.start),
+                                                        end: new Date(timeslot.end),
+                                                    }
+                                                }).filter((timeslot) => timeslot !== undefined) : undefined
                                                 const profile: UserProfile = {
-                                                    email: response.data!.email,
-                                                    userTags: response.data!.userTags ? response.data!.userTags as string[] : [],
-                                                    preferredName: response.data!.preferredName ? response.data!.preferredName : undefined
+                                                    ...profileResponse,
+                                                    userTags: profileResponse.userTags ? profileResponse.userTags as string[] : [],
+                                                    timeslot: timeslot,
+                                                    participantMiddleName: profileResponse.participantMiddleName ?? undefined,
+                                                    participantPreferredName: profileResponse.participantPreferredName ?? undefined,
+                                                    preferredContact: profileResponse.preferredContact ? 'PHONE' : 'EMAIL',
+                                                    participantContact: profileResponse.participantContact ?? false
                                                 }
                                                 setUserProfile(profile)
                                                 setUserProfileTags(await Promise.all(profile.userTags.map(async (tag) => {

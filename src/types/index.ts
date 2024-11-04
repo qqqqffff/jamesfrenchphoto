@@ -25,7 +25,7 @@ export interface UserProfile {
     email: string,
     userTags: string[],
     preferredName?: string,
-    timeslot?: Timeslot,
+    timeslot?: Timeslot[],
     participantFirstName: string,
     participantLastName: string,
     participantMiddleName?: string,

@@ -97,7 +97,7 @@ const schema = a.schema({
   Timeslot: a
     .model({
       id: a.id(),
-      register: a.string().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['update'])]),
+      register: a.string().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]),
       user: a.belongsTo('UserProfile', 'register'),
       start: a.datetime().required(),
       end: a.datetime().required(),
@@ -109,14 +109,14 @@ const schema = a.schema({
       sittingNumber: a.integer().required(),
       email: a.string().required(),
       userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read'])]),
-      timeslot: a.hasOne('Timeslot', 'register'),
+      timeslot: a.hasMany('Timeslot', 'register'),
       participantFirstName: a.string().required(),
       participantLastName: a.string().required(),
       participantMiddleName: a.string(),
       participantPreferredName: a.string(),
       preferredContact: a.enum(['EMAIL', 'PHONE']),
       participantContact: a.boolean().default(false),
-      parentEmail: a.string().required()
+      parentEmail: a.string().required(),
     })
     .identifier(['email'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create'])]),

@@ -228,7 +228,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                                             const timeslots = activeTimeslots.filter((ts) => ts.id !== timeslot.id)
                                             setActiveTimeslots(timeslots)
                                         }
-                                    }}><SlotComponent timeslot={timeslot} showTags={false} /></button>)
+                                    }}><SlotComponent timeslot={timeslot} showTags={false} displayRegister/></button>)
                             }) : <Label className="text-lg italic text-gray-500">No timeslots for this date</Label>}
                         </div>
                         <div className="grid grid-cols-2 gap-2 w-full border-gray-500 rounded-lg px-2 py-2 max-h-[250px] overflow-auto">
@@ -237,7 +237,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                                     <button className="hover:bg-red-300 rounded-lg" type='button' onClick={() => {
                                         const timeslots = activeTimeslots.filter((ts) => ts.id !== timeslot.id)
                                         setActiveTimeslots(timeslots)
-                                    }}><CompactSlotComponent timeslot={timeslot} /></button>
+                                    }}><CompactSlotComponent timeslot={timeslot} displayRegister/></button>
                                 )
                             }) : <Label className="text-lg italic text-gray-500">No selected timeslots</Label>}
                         </div>

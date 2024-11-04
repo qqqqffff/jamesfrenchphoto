@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { Timeslot, UserProfile, UserStorage, UserTag } from "../../types";
 import { Badge, Button } from "flowbite-react";
-import { HiOutlineCalendar, HiOutlineClipboardList, HiOutlineChat, HiOutlineDocumentText, HiOutlinePlusCircle } from "react-icons/hi";
+import { 
+    HiOutlineCalendar, 
+    // HiOutlineClipboardList, 
+    // HiOutlineChat, 
+    // HiOutlineDocumentText, 
+    HiOutlinePlusCircle 
+} from "react-icons/hi";
 import { NavigateFunction, useNavigate } from "react-router-dom";
 import { HiArrowUturnLeft, HiOutlineHome } from "react-icons/hi2";
 import { Home } from "./Home";
@@ -71,12 +77,15 @@ export function Dashboard() {
                 return
             }
             const getProfileTimeslot = (await getProfileResponse.timeslot()).data
-            const profileTimeslot: Timeslot | undefined = getProfileTimeslot ? {
-                id: getProfileTimeslot.id,
-                register: getProfileTimeslot.register ?? undefined,
-                start: new Date(getProfileTimeslot.start),
-                end: new Date(getProfileTimeslot.end),
-            } as Timeslot : undefined
+            const profileTimeslot: Timeslot[] | undefined = getProfileTimeslot ? getProfileTimeslot.map((timeslot) => {
+                if(!timeslot.id)
+                return {
+                    id: timeslot.id as string,
+                    register: timeslot.register ?? undefined,
+                    start: new Date(timeslot.start),
+                    end: new Date(timeslot.end),
+                }
+            }).filter((timeslot) => timeslot !== undefined) : undefined
 
             let profile: UserProfile = {
                 ...getProfileResponse,
@@ -114,12 +123,15 @@ export function Dashboard() {
                 }
 
                 const getResponseTimeslot = (await response.timeslot()).data
-                const responseTimeslot: Timeslot | undefined = getResponseTimeslot ? {
-                    id: getResponseTimeslot.id,
-                    register: getResponseTimeslot.register ?? undefined,
-                    start: new Date(getResponseTimeslot.start),
-                    end: new Date(getResponseTimeslot.end),
-                } as Timeslot : undefined
+                const responseTimeslot: Timeslot[] | undefined = getResponseTimeslot ? getResponseTimeslot.map((timeslot) => {
+                    if(!timeslot.id) return
+                    return {
+                        id: timeslot.id as string,
+                        register: timeslot.register ?? undefined,
+                        start: new Date(timeslot.start),
+                        end: new Date(timeslot.end),
+                    }
+                }).filter((timeslot) => timeslot !== undefined) : undefined
 
                 profile = {
                     ...response,
@@ -202,7 +214,7 @@ export function Dashboard() {
                     <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
                         <HiOutlineCalendar className="mt-1 me-1"/>Scheduler
                     </Button>
-                    <Button color='gray' onClick={() => setActiveConsole('checklist')} className={activeConsoleClassName('checklist')}>
+                    {/* <Button color='gray' onClick={() => setActiveConsole('checklist')} className={activeConsoleClassName('checklist')}>
                         <HiOutlineClipboardList className="mt-1 me-1"/>Checklist
                     </Button>
                     <Button color='gray' onClick={() => setActiveConsole('notifications')} className={activeConsoleClassName('notifications')}>
@@ -210,7 +222,7 @@ export function Dashboard() {
                     </Button>
                     <Button color='gray' onClick={() => setActiveConsole('packageInfo')} className={activeConsoleClassName('packageInfo')}>
                         <HiOutlineDocumentText className="mt-1 me-1"/>Package Info
-                    </Button>
+                    </Button> */}
                     
                     {returnToAdminConsoleComponent(adminView, navigate)}
                 </Button.Group>
