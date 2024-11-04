@@ -112,7 +112,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                     })
                     .filter((timeslot) => {
                         if(timeslot.length == 0) return false
-                        return new Date().toISOString().includes(timeslot[0].start.toISOString().substring(0, timeslot[0].start.toISOString().indexOf('T')))
+                        return currentDate.toISOString().includes(timeslot[0].start.toISOString().substring(0, timeslot[0].start.toISOString().indexOf('T')))
                     })
                     .reduce((prev, cur) => [...prev, ...cur], [])
             }
@@ -137,7 +137,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
         
         if(profileResponse){
             profileTimeslots = (await Promise.all((await profileResponse.timeslot()).data.map((timeslot) => {
-                if(!timeslot || !timeslot.id) return undefined
+                if(!timeslot || !timeslot.id || timeslot.start || timeslot.end) return undefined
                 const ts: Timeslot = {
                     id: timeslot.id,
                     register: timeslot.register ?? undefined,
@@ -168,7 +168,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
             
             const timeslots = (await Promise.all(timeslotTags.map(async (timeslotTag) => {
                 const timeslotResponse = (await timeslotTag.timeslot()).data
-                if(!timeslotResponse || !timeslotResponse.id) return
+                if(!timeslotResponse || !timeslotResponse.id || !timeslotResponse.start || !timeslotResponse.end) return
                 
                 const timeslot: Timeslot = {
                     id: timeslotResponse.id,
@@ -236,7 +236,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
         return Object.entries(profileTimeslots).map(([tagId, timeslot]) => {
             const tag = userTags!.find((tag) => tag.id === tagId)
             const color = tag && tag.color ? tag.color : 'black'
-            if(!timeslot || timeslot.length < 0) return
+            if(!timeslot || timeslot.length < 0 || !timeslot[0].start || !timeslot[0].end) return
             
             return (
                 <div className={`flex flex-col text-${color} text-sm`}>
@@ -260,7 +260,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 const timeslots = (await client.models.Timeslot.list({ filter: {
                     start: { contains: activeDate.toISOString().substring(0, activeDate.toISOString().indexOf('T')) }
                 }})).data.map((timeslot) => {
-                    if(!timeslot.id) return
+                    if(!timeslot.id || !timeslot.start || !timeslot.end) return
                     const ts: Timeslot = {
                         id: timeslot.id,
                         register: timeslot.register ?? undefined,
@@ -328,7 +328,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                 timeslots = (await client.models.Timeslot.list({ filter: {
                                     start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
                                 }})).data.map((timeslot) => {
-                                    if(!timeslot.id) return
+                                    if(!timeslot.id || !timeslot.start || !timeslot.end) return
                                     const ts: Timeslot = {
                                         id: timeslot.id,
                                         register: timeslot.register ?? undefined,
@@ -365,20 +365,22 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                     tagTimeslots && Object.entries(tagTimeslots).length > 0 ? 
                                     (
                                         <div className="flex flex-col">
-                                            {Object.entries(tagTimeslots).map(([tagId, timeslots], index) => {
-                                                const tag: UserTag = userTags!.find((tag) => tag.id == tagId)!
-                                                const sortedTimeslots = timeslots.sort((a, b) => a.start.getTime() - b.start.getTime())
-                                                
-                                                const formattedDateString = sortedTimeslots[0].start.toLocaleDateString() + ' - ' + sortedTimeslots[sortedTimeslots.length - 1].start.toLocaleDateString()
+                                            {Object.entries(tagTimeslots)
+                                                .filter(([tag, timeslots]) => tag && timeslots && timeslots.length > 0)
+                                                .map(([tagId, timeslots], index) => {
+                                                    const tag: UserTag = userTags!.find((tag) => tag.id == tagId)!
+                                                    const sortedTimeslots = timeslots.sort((a, b) => a.start.getTime() - b.start.getTime())
+                                                    
+                                                    const formattedDateString = sortedTimeslots[0].start.toLocaleDateString() + ' - ' + sortedTimeslots[sortedTimeslots.length - 1].start.toLocaleDateString()
 
-                                                return (
-                                                    <div key={index} className="flex flex-col items-center justify-center">
-                                                        <span>Dates for:</span>
-                                                        <Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 text-md">{tag.name}</Badge>
-                                                        <GetColorComponent activeColor={tag.color} customText={formattedDateString} />
-                                                        {/* <GetColorComponent activeColor={tag.color} customText={} */}
-                                                    </div>
-                                                )
+                                                    return (
+                                                        <div key={index} className="flex flex-col items-center justify-center">
+                                                            <span>Dates for:</span>
+                                                            <Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 text-md">{tag.name}</Badge>
+                                                            <GetColorComponent activeColor={tag.color} customText={formattedDateString} />
+                                                            {/* <GetColorComponent activeColor={tag.color} customText={} */}
+                                                        </div>
+                                                    )
                                             })}
                                         </div>
                                         
@@ -396,23 +398,26 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                             (formatTimeslot().length > 0 ? 
                                 formatTimeslot() : 
                                 (<Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>)) :
-                            (admin && timeslots && timeslots.length > 0 ? timeslots.sort((a, b) => a.start.getTime() - b.start.getTime()).map((timeslot, index) => {
-                                const selected = userEmail && userEmail === timeslot.register ? 'bg-gray-200' : ''
+                            (admin && timeslots && timeslots.length > 0 ? timeslots
+                                .sort((a, b) => a.start.getTime() - b.start.getTime())
+                                .filter((timeslot) => timeslot !== undefined && timeslot.id !== undefined && timeslot.start !== undefined && timeslot.end !== undefined)
+                                .map((timeslot, index) => {
+                                    const selected = userEmail && userEmail === timeslot.register ? 'bg-gray-200' : ''
 
-                                return (
-                                    <button key={index} onClick={() => {
-                                        if(userEmail && userEmail === timeslot.register) {
-                                            setRegisterConfirmationVisible(true)
-                                            setSelectedTimeslot(timeslot)
-                                        }
-                                        else if(userEmail && userEmail === timeslot.register){
-                                            setUnegisterConfirmationVisible(true)
-                                            setSelectedTimeslot(timeslot)
-                                        }
-                                    }} disabled={admin || timeslot.register !== undefined} className={`${selected} rounded-lg enabled:hover:bg-gray-300`}>
-                                        <SlotComponent timeslot={timeslot} showTags={false} displayRegister={admin ?? false} />
-                                    </button>
-                                )
+                                    return (
+                                        <button key={index} onClick={() => {
+                                            if(userEmail && userEmail === timeslot.register) {
+                                                setRegisterConfirmationVisible(true)
+                                                setSelectedTimeslot(timeslot)
+                                            }
+                                            else if(userEmail && userEmail === timeslot.register){
+                                                setUnegisterConfirmationVisible(true)
+                                                setSelectedTimeslot(timeslot)
+                                            }
+                                        }} disabled={admin || timeslot.register !== undefined} className={`${selected} rounded-lg enabled:hover:bg-gray-300`}>
+                                            <SlotComponent timeslot={timeslot} showTags={false} displayRegister={admin ?? false} />
+                                        </button>
+                                    )
                             }) : (<Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>))}
                     </div>
                 </div>
