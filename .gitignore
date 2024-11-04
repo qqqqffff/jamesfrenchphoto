@@ -30,6 +30,11 @@ node_modules
 amplify_outputs*
 amplifyconfiguration*
 
+.env
+secrets/
+src/assets/temp-collection/
+src/assets/tyler-rose-festival/
+
 src/assets/tyler-rose-festival
 src/assets/temp-collection
 secrets
