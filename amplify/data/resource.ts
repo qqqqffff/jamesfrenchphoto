@@ -108,7 +108,7 @@ const schema = a.schema({
     .model({
       sittingNumber: a.integer().required(),
       email: a.string().required(),
-      userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read'])]),
+      userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read']), allow.guest().to(['create'])]),
       timeslot: a.hasMany('Timeslot', 'register'),
       participantFirstName: a.string().required(),
       participantLastName: a.string().required(),
