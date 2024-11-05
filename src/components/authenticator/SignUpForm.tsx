@@ -83,6 +83,11 @@ export default function SignUp(){
                 setApiCall(true)
             }
             else{
+                if(window.localStorage.getItem('user')){
+                    setFormErrors(['You are already logged in! If you want to create a new account please sign out of your current account first.'])
+                    setApiCall(true)
+                    return
+                }
                 const formPrereqs: PrefilledElements = Object.fromEntries([...serachParams]) as PrefilledElements
                 console.log(formPrereqs)
                 if(!formPrereqs.email || !formPrereqs.uid){
