@@ -246,7 +246,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         {tag ? tag.name : 'Undefined'}
                     </span>
                     <span>
-                        {`${timeslot[0].start.toLocaleDateString()}: ${timeslot[0].start.toLocaleTimeString()} - ${timeslot[0].start.toLocaleTimeString()}`}
+                        {`${timeslot[0].start.toLocaleDateString()}: ${timeslot[0].start.toLocaleTimeString()} - ${timeslot[0].end.toLocaleTimeString()}`}
                     </span>
                 </div>
                 
