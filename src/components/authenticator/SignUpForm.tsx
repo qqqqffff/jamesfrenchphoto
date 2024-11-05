@@ -280,7 +280,7 @@ export default function SignUp(){
                 <Modal.Header>Verification Code</Modal.Header>
                 <Modal.Body className="flex flex-col gap-3 font-main">
                     <form onSubmit={handleCodeSubmit}>
-                        <p>Please enter in the verification code sent to the participant's email.</p>
+                        <p>Please enter in the verification code sent to the parent's email.</p>
                         <p><b>Do not close this window until account has been confirmed.</b></p>
                         <div className="flex items-center gap-4 mt-4">
                             <Label className="font-medium text-lg" htmlFor="authCode">Verification Code:</Label>
