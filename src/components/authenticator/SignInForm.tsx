@@ -22,9 +22,6 @@ export default function SignIn() {
     const [formErrors, setFormErrors] = useState<string[]>([])
     const [submitting, setSubmitting] = useState(false)
 
-    const [email, setEmail] = useState<string>()
-    const [password, setPassword] = useState<string>()
-
     async function handlesubmit(event: FormEvent<SignInForm>) {
         event.preventDefault()
         const form = event.currentTarget;
@@ -88,9 +85,9 @@ export default function SignIn() {
                     <p className="font-bold text-4xl mb-8 mt-2">Welcome Back</p>
                     <div className="flex flex-col gap-3 w-[60%] max-w-[32rem] ">
                         <Label className="ms-2 font-semibold text-xl" htmlFor="email">Email:</Label>
-                        <TextInput sizing='lg' className="mb-4" placeholder="Email" type="email" id="email" name="email" onChange={(event) => setEmail(event.target.value)} />
+                        <TextInput sizing='lg' className="mb-4" placeholder="Email" type="email" id="email" name="email" />
                         <Label className="ms-2 font-semibold text-xl" htmlFor="password">Password:</Label>
-                        <TextInput sizing='lg' className="mb-4" placeholder="Password" type="password" id="password" name="password" onChange={(event) => setPassword(event.target.value)}/>
+                        <TextInput sizing='lg' className="mb-4" placeholder="Password" type="password" id="password" name="password" />
                         <div className="flex justify-end">
                             {/* <a href='contact-form' className="text-blue-500 hover:underline">No Account? Purchase a package first!</a> */}
                             <Button isProcessing={submitting} className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit">Login</Button>
