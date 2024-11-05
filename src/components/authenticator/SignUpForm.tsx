@@ -184,7 +184,7 @@ export default function SignUp(){
                 options: {
                     userAttributes: {
                         email: parentEmail!,
-                        phone_number: `+1${form.elements.phoneNumber.value}`,
+                        phone_number: form.elements.phoneNumber.value ? `+1${form.elements.phoneNumber.value}` : undefined,
                         given_name: parentFirstName,
                         family_name: parentLastName,
                     }
