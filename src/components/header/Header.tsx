@@ -3,11 +3,13 @@ import bannerIcon from '../../assets/headerPhoto.png'
 import { Dropdown } from 'flowbite-react'
 import { useEffect, useState } from 'react'
 import { UserStorage } from '../../types'
+import { HiOutlineMenu } from "react-icons/hi";
+import useWindowDimensions from '../../hooks/windowDimensions'
 
 export default function Header() {
-    // const [userState, setUserState] = useState(false)
-    // const [adminState, setAdminState] = useState(false)
-    const [loginRender, setLoginRender] = useState((<></>))
+    const [adminState, setAdminState] = useState<boolean>()
+    const { width } = useWindowDimensions()
+    const [user, setUser] = useState<UserStorage>()
     async function readUserStorage(){
         let userState = false;
         let adminState = false;
@@ -21,38 +23,64 @@ export default function Header() {
                 userState = true;
             }
         }
-        
-        let dashboardUrl = '/' +  (adminState ? 'admin' : 'client') + '/dashboard'
-        let profileUrl = ''
-        if(user){
-            profileUrl = '/' + (adminState ? 'admin' : 'client') + '/profile/' + user.attributes.email
-        }
-        console.log(profileUrl)
-        setLoginRender(((!userState && !adminState) ? (<Link to='login'>Login</Link>) : 
-            (<Dropdown
-                arrowIcon={false}
-                inline
-                label={'Profile'}
-                trigger='hover'
-            >
-                <Dropdown.Item>
-                    <a href={profileUrl}>
-                        Profile
-                    </a>
-                </Dropdown.Item>
-                <Dropdown.Item>
-                    <a href={dashboardUrl}>Dashboard</a>
-                </Dropdown.Item>
-                <Dropdown.Item>
-                    <a href='/logout'>Logout</a>
-                </Dropdown.Item>
-            </Dropdown>)))
+
+        setUser(user)
+        setAdminState(userState || adminState ? adminState : undefined)
     }
     useEffect(() => {
         readUserStorage()
         window.addEventListener('storage', readUserStorage)
         return () => window.removeEventListener('storage', readUserStorage)
     }, [])
+
+    function renderHeaderItems(){
+        let dashboardUrl = '/' +  (adminState !== undefined && adminState ? 'admin' : 'client') + '/dashboard'
+        let profileUrl = ''
+        if(user){
+            profileUrl = '/' + (adminState !== undefined && adminState ? 'admin' : 'client') + '/profile/' + user.attributes.email
+        }
+
+        
+        return (user === undefined) ? (width > 800 ? (
+            <Link to='login'>Login</Link>
+        ) : (
+            <Dropdown.Item><Link to='login'>Login</Link></Dropdown.Item>
+        )) : (
+            width > 800 ? ( 
+                (<Dropdown
+                    arrowIcon={false}
+                    inline
+                    label={'Profile'}
+                    trigger='hover'
+                >
+                    <Dropdown.Item>
+                        <a href={profileUrl}>
+                            Profile
+                        </a>
+                    </Dropdown.Item>
+                    <Dropdown.Item>
+                        <a href={dashboardUrl}>Dashboard</a>
+                    </Dropdown.Item>
+                    <Dropdown.Item>
+                        <a href='/logout'>Logout</a>
+                    </Dropdown.Item>
+                </Dropdown>)
+            ) : (
+                <>
+                    <Dropdown.Item>
+                        <a href={profileUrl}>
+                            Profile
+                        </a>
+                    </Dropdown.Item>
+                        <Dropdown.Item>
+                        <a href={dashboardUrl}>Dashboard</a>
+                    </Dropdown.Item>
+                    <Dropdown.Item>
+                        <a href='/logout'>Logout</a>
+                    </Dropdown.Item>
+                </>
+            ))
+    }
     
     const dev = false
     const borders = dev ? 'border border-black' : ''
@@ -97,18 +125,22 @@ export default function Header() {
                         <img className='ml-3 mt-3' src={bannerIcon} alt='James French Photography Banner' width={150} height={100} />
                     </a>
                 </div>
-                <div className={'flex flex-row items-center px-12 text-xl w-full justify-end gap-10' + borders}>
-                    {/* <Dropdown
-                        arrowIcon={false}
-                        inline
-                        label={'Promotions'}
-                        trigger='hover'
-                    >
-                        <Dropdown.Item>Senior Portraits</Dropdown.Item>
-                    </Dropdown> */}
-                    <Link to="contact-form">Contact Us</Link>
-                    {/* <Link to="online-forms">Online Forms</Link> */}
-                    {loginRender}
+                <div className={'flex flex-row items-center lg:px-12 text-xl w-full justify-end gap-10' + borders}>
+                {
+                    width > 800 ? 
+                    (
+                        <>
+                            <Link to="contact-form">Contact Us</Link>
+                            {renderHeaderItems()}
+                        </>
+                    ) : (
+                        <Dropdown label={(<HiOutlineMenu className='text-xl' />)} color='light' arrowIcon={false} trigger='hover'>
+                            <Dropdown.Item><Link to="contact-form">Contact Us</Link></Dropdown.Item>
+                            <Dropdown.Divider className='bg-gray-300'/>
+                            {renderHeaderItems()}
+                        </Dropdown>
+                    )
+                }
                 </div>
             </div>
             <Outlet />

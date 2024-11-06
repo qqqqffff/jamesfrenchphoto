@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import { Schema } from "../../../amplify/data/resource"
 import { textInputTheme } from "../../utils"
 import { TermsAndConditionsModal } from "../modals/TermsAndConditions"
+import useWindowDimensions from "../../hooks/windowDimensions"
 
 const client = generateClient<Schema>()
 
@@ -75,6 +76,7 @@ export default function SignUp(){
     const [codeSubmitting, setCodeSubmitting] = useState(false)
 
     const navigate = useNavigate()
+    const { width } = useWindowDimensions()
 
     useEffect(() => {
         async function api() {
@@ -310,16 +312,16 @@ export default function SignUp(){
                 </Modal.Body>
             </Modal>
             <TermsAndConditionsModal open={termsAndConditionsVisible} onClose={() => setTermsAndConditionsVisible(false)} />
-            <form className='flex flex-col items-center justify-center font-main mt-12 mb-12' onSubmit={handleSubmit}>
-                <div className="flex flex-col items-center justify-center w-[60%] max-w-[48rem] border-2 border-gray-500 ">
-                    <p className="font-bold text-4xl mb-8 mt-2">Create an account</p>
-                    <div className="flex flex-col gap-1 w-[75%] max-w-[40rem]">
-                        <div className="flex justify-between mb-4">
-                            <div className="flex flex-col gap-1 w-[45%]">
+            <form className={`flex flex-col items-center justify-center font-main my-12 w-full ${width > 500 ? 'px-4' : 'px-0'}`} onSubmit={handleSubmit}>
+                <div className={`flex flex-col items-center justify-center ${width > 500 ? 'w-[60%]' : 'w-full'} max-w-[48rem] border-2 px-4 py-4 border-gray-500`}>
+                    <p className="font-bold text-4xl mb-8 text-center">Create an account</p>
+                    <div className="flex flex-col gap-1 w-[80%] max-w-[40rem]">
+                        <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
+                            <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
                                 <Label className="ms-2 font-medium text-lg" htmlFor="firstName">Parent First Name<sup className="italic text-red-600">*</sup>:</Label>
                                 <TextInput theme={textInputTheme} sizing='lg' placeholder="First Name" type="text" id="firstName" name="firstName" onChange={(event) => setParentFirstName(event.target.value)}/>
                             </div>
-                            <div className="flex flex-col gap-1 w-[45%]">
+                            <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
                                 <Label className="ms-2 font-medium text-lg" htmlFor="lastName">Parent Last Name<sup className="italic text-red-600">*</sup>:</Label>
                                 <TextInput theme={textInputTheme} sizing='lg' placeholder="Last Name" type="text" id="lastName" name="lastName" onChange={(event) => setParentLastName(event.target.value)}/>
                             </div>
@@ -330,22 +332,22 @@ export default function SignUp(){
                         <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Email" type="email" id="email" name="email" defaultValue={signupPrefilledElements?.email} disabled/>
                         <Label className="ms-2 font-medium text-lg" htmlFor="participantEmail">Participant Email<sup className="italic text-red-600">*</sup>:</Label>
                         <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Participant's Email" type="email" id="participantEmail" name="participantEmail" onChange={(event) => setParticipantEmail(event.target.value)}/>
-                        <div className="flex justify-between mb-4">
-                            <div className="flex flex-col gap-1 w-[45%]">
+                        <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
+                            <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
                                 <Label className="ms-2 font-medium text-lg" htmlFor="participantFirstName">Participant First Name<sup className="italic text-red-600">*</sup>:</Label>
                                 <TextInput theme={textInputTheme} sizing='lg' placeholder="First Name" type="text" id="participantFirstName" name="participantFirstName" onChange={(event) => setParticipantFirstName(event.target.value)}/>
                             </div>
-                            <div className="flex flex-col gap-1 w-[45%]">
+                            <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
                                 <Label className="ms-2 font-medium text-lg" htmlFor="participantLastName">Participant Last Name<sup className="italic text-red-600">*</sup>:</Label>
                                 <TextInput theme={textInputTheme} sizing='lg' placeholder="Last Name" type="text" id="participantLastName" name="participantLastName" onChange={(event) => setParticipantLastName(event.target.value)}/>
                             </div>
                         </div>
-                        <div className="flex justify-between mb-4">
-                            <div className="flex flex-col gap-1 w-[45%]">
+                        <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
+                            <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
                                 <Label className="ms-2 font-medium text-lg" htmlFor="participantMiddleName">Participant Middle Name:</Label>
                                 <TextInput theme={textInputTheme} sizing='lg' placeholder="First Name" type="text" id="participantMiddleName" name="participantMiddleName"/>
                             </div>
-                            <div className="flex flex-col gap-1 w-[45%]">
+                            <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
                                 <Label className="ms-2 font-medium text-lg" htmlFor="participantPreferredName">Participant Preferred Name:</Label>
                                 <TextInput theme={textInputTheme} sizing='lg' placeholder="Last Name" type="text" id="participantPreferredName" name="participantPreferredName"/>
                             </div>
@@ -388,23 +390,22 @@ export default function SignUp(){
                         <p className="italic text-sm"><sup className="text-gray-400">1</sup> US Phone numbers only, without country code. No special formatting needed.</p>
                         <p className="italic text-sm"><sup className="text-gray-400">2</sup> For security purposes, parent email fields are uneditable as accounts are secure and unique!</p>
                         <p className="italic text-sm mb-4">Note: Parent's email is used for account <strong>login and verification. A code will be sent to the parents email</strong> as a part of the next account verification step.</p>
-                        <div className="flex flex-row items-center gap-2">
-                            <button className="flex flex-row gap-2 items-center" onClick={() => setTermsAndConditions(!termsAndConditions)} type="button">
+                        <div className="flex flex-row text-left items-center gap-2">
+                            <button className="flex flex-row gap-2 text-left items-center" onClick={() => setTermsAndConditions(!termsAndConditions)} type="button">
                                 <Checkbox className="mt-1" checked={termsAndConditions} readOnly />
-                                <span>Agree to </span>
+                                <span>Agree to <span className="hover:underline underline-offset-2 hover:cursor-pointer text-blue-500 hover:text-blue-700" onClick={() => setTermsAndConditionsVisible(true)}>terms and conditions</span></span>
                             </button>
-                            <span className="hover:underline underline-offset-2 hover:cursor-pointer text-blue-500 hover:text-blue-700" onClick={() => setTermsAndConditionsVisible(true)}>terms and conditions</span>
                         </div>
                         
-                        <button className="flex flex-row gap-2 items-center" onClick={() => setParticipantContact(!participantContact)} type="button">
+                        <button className="flex flex-row gap-2 text-left items-center" onClick={() => setParticipantContact(!participantContact)} type="button">
                             <Checkbox className="mt-1" checked={participantContact} readOnly />
                             <span>Have notifications sent to participant's email</span>
                         </button>
-                        <button className="flex flex-row gap-2 items-center mb-2" onClick={() => setPreferredContact(!preferredContact)} type="button">
+                        <button className="flex flex-row gap-2 text-left items-center mb-2" onClick={() => setPreferredContact(!preferredContact)} type="button">
                             <Checkbox className="mt-1" checked={preferredContact} readOnly />
                             <span>Prefer to be contacted by phone</span>
                         </button>
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between text-left items-center mb-4">
                             <a href='login' className="text-blue-500 hover:underline mb-2">Already have an Account? Login here!</a>
                             <Button className="text-xl w-[40%] max-w-[8rem]" type="submit" disabled={validate()} onClick={() => setFormSubmitting(true)} isProcessing={formSubmitting}>Register</Button>
                         </div>
