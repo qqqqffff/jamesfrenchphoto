@@ -491,7 +491,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         </button>
                     </div>
                     
-                    <div className="grid border-gray-500 border rounded-lg px-4 py-2 w-full mt-4 items-center justify-center gap-4">
+                    <div className={`grid ${width > 600 ? 'grid-cols-2' : 'grid-cols-1'} border-gray-500 border rounded-lg px-4 py-2 w-full my-4 items-center justify-center gap-4`}>
                         {(formatTimeslot().length > 0 ? 
                             (
                                 formatTimeslot()
@@ -508,8 +508,22 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
 
         function myTimeslotsConsole() {
             return (
-                <>
-                </>
+                <div className="grid w-full px-4">
+                    <div className={`grid ${width > 600 && formatRegisteredTimeslots().length > 0 ? 'grid-cols-2' : 'grid-cols-1'} border-gray-500 border rounded-lg px-4 py-2 w-full my-4 items-center justify-center gap-4`}>
+                        {formatRegisteredTimeslots().length > 0 ? (
+                            formatRegisteredTimeslots().map((element) => {
+                                return (
+                                    <div className="border border-gray-300 rounded-lg px-4 py-2">
+                                        {element}
+                                    </div>
+                                )
+                            })
+                        ) : (
+                            <Label className="font-medium text-lg italic text-gray-500">You will see your timeslot here after you register!</Label>
+                        )}
+                    </div>
+                </div>
+                
             )
         }
 
@@ -592,7 +606,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 }}
                 title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} />
             {
-                width > 800 ? (
+                width > 1200 ? (
                     fullSizeDisplay()
                 ) : (smallDisplay())
             }

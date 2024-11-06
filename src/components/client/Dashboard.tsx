@@ -15,6 +15,7 @@ import { badgeColorThemeMap } from "../../utils";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { TimeslotComponent } from "../timeslot/Timeslot";
+import useWindowDimensions from "../../hooks/windowDimensions";
 
 const client = generateClient<Schema>()
 
@@ -197,7 +198,7 @@ export function Dashboard() {
     return (
         <>
             <div className="flex flex-col items-center justify-center font-main">
-                <p className="font-semibold text-3xl mb-4">Welcome {structureFullname()}</p>
+                <p className="font-semibold text-3xl mb-4 text-center">Welcome {structureFullname()}</p>
                 <div className="flex flex-row gap-2 items-center mb-4">
                     {
                         userProfileTags.map((tag, index) => {

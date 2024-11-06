@@ -17,6 +17,9 @@ export default {
         ...colors
       }
     },
+    screens: {
+      'xs': '400px'
+    }
   },
   plugins: [
     flowbite.plugin(),

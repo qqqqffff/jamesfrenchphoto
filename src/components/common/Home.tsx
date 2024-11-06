@@ -10,11 +10,13 @@ import carousel6 from '../../assets/home-carousel/carousel-6.jpg'
 import carousel7 from '../../assets/home-carousel/carousel-7.jpg'
 import carousel8 from '../../assets/home-carousel/carousel-8.jpg'
 import carousel9 from '../../assets/home-carousel/carousel-9.jpg'
+import useWindowDimensions from "../../hooks/windowDimensions";
 
 
 
 export default function () {
     const [notification, setNotification] = useState((<></>))
+    const { width } = useWindowDimensions()
     
     useEffect(() => {
         if(history.state && history.state.usr){
@@ -44,7 +46,9 @@ export default function () {
         )
     }
 
-    return (
+
+    return width > 800 ?
+    (
         <div className="flex-col">
             {notification}
             <div className="flex justify-center items-center">
@@ -84,6 +88,59 @@ export default function () {
                 </div>
             </div>
         </div>
-        
+    ) : (
+        <div className="flex-col">
+            {notification}
+            <div className="flex justify-center items-center">
+                <div className={`max-h-[500px] h-full w-full px-4 mt-2`}>
+                    <Carousel
+                        slideInterval={5000}
+                        leftControl={
+                            <div className="border p-2 rounded-full border-black bg-gray-300">
+                                <HiOutlineArrowLeft className="text-xl"/>
+                            </div>
+                        }
+                        rightControl={
+                            <div className="border p-2 rounded-full border-black bg-gray-300">
+                                <HiOutlineArrowRight className="text-xl"/>
+                            </div>
+                        }
+                        className={`border-2 border-black rounded-lg h-[500px]`}
+                    >
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel1} className="h-full w-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel2} className="h-full w-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel3} className="h-full w-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel4} className="h-full w-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel5} className="h-full w-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel6} className="h-full w-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel7} className="h-full w-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel8} className="h-full w-full"/>
+                        </div>
+                        <div className="flex h-full items-center justify-center bg-transparent">
+                            <img src={carousel9} className="h-full w-full"/>
+                        </div>
+                        
+                        
+                        {/* <div className="flex h-full items-center justify-center bg-gray-400">2</div>
+                        <div className="flex h-full items-center justify-center bg-gray-400">3</div> */}
+                    </Carousel>
+                </div>
+            </div>
+        </div>
     )
 }

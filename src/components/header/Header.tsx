@@ -7,10 +7,9 @@ import { HiOutlineMenu } from "react-icons/hi";
 import useWindowDimensions from '../../hooks/windowDimensions'
 
 export default function Header() {
-    // const [userState, setUserState] = useState(false)
-    // const [adminState, setAdminState] = useState(false)
-    const [loginRender, setLoginRender] = useState((<></>))
+    const [adminState, setAdminState] = useState<boolean>()
     const { width } = useWindowDimensions()
+    const [user, setUser] = useState<UserStorage>()
     async function readUserStorage(){
         let userState = false;
         let adminState = false;
@@ -24,57 +23,58 @@ export default function Header() {
                 userState = true;
             }
         }
-        
-        let dashboardUrl = '/' +  (adminState ? 'admin' : 'client') + '/dashboard'
-        let profileUrl = ''
-        if(user){
-            profileUrl = '/' + (adminState ? 'admin' : 'client') + '/profile/' + user.attributes.email
-        }
-        console.log(profileUrl)
-        function loginRenderItems(){
-            return (!userState && !adminState) ? (<Link to='login'>Login</Link>) : 
-                width > 800 ? ( 
-                    (<Dropdown
-                        arrowIcon={false}
-                        inline
-                        label={'Profile'}
-                        trigger='hover'
-                    >
-                        <Dropdown.Item>
-                            <a href={profileUrl}>
-                                Profile
-                            </a>
-                        </Dropdown.Item>
-                        <Dropdown.Item>
-                            <a href={dashboardUrl}>Dashboard</a>
-                        </Dropdown.Item>
-                        <Dropdown.Item>
-                            <a href='/logout'>Logout</a>
-                        </Dropdown.Item>
-                    </Dropdown>)
-                ) : (
-                    <>
-                        <Dropdown.Item>
-                            <a href={profileUrl}>
-                                Profile
-                            </a>
-                        </Dropdown.Item>
-                            <Dropdown.Item>
-                            <a href={dashboardUrl}>Dashboard</a>
-                        </Dropdown.Item>
-                        <Dropdown.Item>
-                            <a href='/logout'>Logout</a>
-                        </Dropdown.Item>
-                    </>
-                )
-        }
-        setLoginRender(loginRenderItems)
+
+        setUser(user)
+        setAdminState(userState || adminState ? adminState : undefined)
     }
     useEffect(() => {
         readUserStorage()
         window.addEventListener('storage', readUserStorage)
         return () => window.removeEventListener('storage', readUserStorage)
     }, [])
+
+    function renderHeaderItems(){
+        let dashboardUrl = '/' +  (adminState !== undefined && adminState ? 'admin' : 'client') + '/dashboard'
+        let profileUrl = ''
+        if(user){
+            profileUrl = '/' + (adminState !== undefined && adminState ? 'admin' : 'client') + '/profile/' + user.attributes.email
+        }
+        return (user === undefined) ? (<Link to='login'>Login</Link>) : 
+            width > 800 ? ( 
+                (<Dropdown
+                    arrowIcon={false}
+                    inline
+                    label={'Profile'}
+                    trigger='hover'
+                >
+                    <Dropdown.Item>
+                        <a href={profileUrl}>
+                            Profile
+                        </a>
+                    </Dropdown.Item>
+                    <Dropdown.Item>
+                        <a href={dashboardUrl}>Dashboard</a>
+                    </Dropdown.Item>
+                    <Dropdown.Item>
+                        <a href='/logout'>Logout</a>
+                    </Dropdown.Item>
+                </Dropdown>)
+            ) : (
+                <>
+                    <Dropdown.Item>
+                        <a href={profileUrl}>
+                            Profile
+                        </a>
+                    </Dropdown.Item>
+                        <Dropdown.Item>
+                        <a href={dashboardUrl}>Dashboard</a>
+                    </Dropdown.Item>
+                    <Dropdown.Item>
+                        <a href='/logout'>Logout</a>
+                    </Dropdown.Item>
+                </>
+            )
+    }
     
     const dev = false
     const borders = dev ? 'border border-black' : ''
@@ -125,12 +125,13 @@ export default function Header() {
                     (
                         <>
                             <Link to="contact-form">Contact Us</Link>
-                            {loginRender}
+                            {renderHeaderItems()}
                         </>
                     ) : (
                         <Dropdown label={(<HiOutlineMenu className='text-xl' />)} color='light' arrowIcon={false} trigger='hover'>
                             <Dropdown.Item><Link to="contact-form">Contact Us</Link></Dropdown.Item>
-                            {loginRender}
+                            <Dropdown.Divider className='bg-gray-300'/>
+                            {renderHeaderItems()}
                         </Dropdown>
                     )
                 }
