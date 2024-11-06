@@ -15,7 +15,6 @@ import { badgeColorThemeMap } from "../../utils";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { TimeslotComponent } from "../timeslot/Timeslot";
-import useWindowDimensions from "../../hooks/windowDimensions";
 
 const client = generateClient<Schema>()
 

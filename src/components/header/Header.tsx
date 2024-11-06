@@ -39,7 +39,13 @@ export default function Header() {
         if(user){
             profileUrl = '/' + (adminState !== undefined && adminState ? 'admin' : 'client') + '/profile/' + user.attributes.email
         }
-        return (user === undefined) ? (<Link to='login'>Login</Link>) : 
+
+        
+        return (user === undefined) ? (width > 800 ? (
+            <Link to='login'>Login</Link>
+        ) : (
+            <Dropdown.Item><Link to='login'>Login</Link></Dropdown.Item>
+        )) : (
             width > 800 ? ( 
                 (<Dropdown
                     arrowIcon={false}
@@ -73,7 +79,7 @@ export default function Header() {
                         <a href='/logout'>Logout</a>
                     </Dropdown.Item>
                 </>
-            )
+            ))
     }
     
     const dev = false
@@ -119,7 +125,7 @@ export default function Header() {
                         <img className='ml-3 mt-3' src={bannerIcon} alt='James French Photography Banner' width={150} height={100} />
                     </a>
                 </div>
-                <div className={'flex flex-row items-center sm:px-0 lg:px-12 text-xl w-full justify-end gap-10' + borders}>
+                <div className={'flex flex-row items-center lg:px-12 text-xl w-full justify-end gap-10' + borders}>
                 {
                     width > 800 ? 
                     (

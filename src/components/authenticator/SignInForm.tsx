@@ -4,6 +4,7 @@ import { Alert, Button, Label, TextInput } from "flowbite-react";
 import { useNavigate } from "react-router-dom";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
+import useWindowDimensions from "../../hooks/windowDimensions";
 
 const client = generateClient<Schema>()
 
@@ -20,6 +21,7 @@ export default function SignIn() {
     const navigate = useNavigate()
     const [formErrors, setFormErrors] = useState<string[]>([])
     const [submitting, setSubmitting] = useState(false)
+    const { width } = useWindowDimensions()
 
     async function handlesubmit(event: FormEvent<SignInForm>) {
         event.preventDefault()
@@ -80,13 +82,13 @@ export default function SignIn() {
                 handlesubmit(event)
                 setSubmitting(true)
             }}>
-                <div className="flex flex-col items-center justify-center w-[50%] max-w-[48rem] border-4 border-gray-500 rounded-lg">
-                    <p className="font-bold text-4xl mb-8 mt-2">Welcome Back</p>
-                    <div className="flex flex-col gap-3 w-[60%] max-w-[32rem] ">
+                <div className={`flex flex-col items-center justify-center ${width > 500 ? 'w-[50%]' : 'w-full px-6'} max-w-[48rem] border-4 border-gray-500 rounded-lg`}>
+                    <p className="font-bold text-4xl mb-8 mt-2 text-center">Welcome Back</p>
+                    <div className={`flex flex-col gap-3 ${width > 500 ? 'w-[60%]' : 'w-full px-6'}  max-w-[32rem]`}>
                         <Label className="ms-2 font-semibold text-xl" htmlFor="email">Email:</Label>
-                        <TextInput sizing='lg' className="mb-4" placeholder="Email" type="email" id="email" name="email" />
+                        <TextInput sizing='lg' className="mb-4 w-full" placeholder="Email" type="email" id="email" name="email" />
                         <Label className="ms-2 font-semibold text-xl" htmlFor="password">Password:</Label>
-                        <TextInput sizing='lg' className="mb-4" placeholder="Password" type="password" id="password" name="password" />
+                        <TextInput sizing='lg' className="mb-4 w-full" placeholder="Password" type="password" id="password" name="password" />
                         <div className="flex justify-end">
                             {/* <a href='contact-form' className="text-blue-500 hover:underline">No Account? Purchase a package first!</a> */}
                             <Button isProcessing={submitting} className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit">Login</Button>
