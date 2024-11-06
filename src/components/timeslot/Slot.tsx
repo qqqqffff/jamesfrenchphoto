@@ -39,7 +39,7 @@ export const SlotComponent: FC<SlotProps> = ({ timeslot, showTags = true, displa
     })
 
     return (
-        <div className="flex flex-col border border-black justify-center items-center rounded-lg py-2">
+        <div className="flex flex-col border border-black justify-center items-center rounded-lg py-2 px-4">
             <span>{"Time: " + createTimeString(timeslot)}</span>
             {
                 displayRegister ? 

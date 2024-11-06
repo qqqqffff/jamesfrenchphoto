@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 
-//todo: split into different classes
 const client = generateClient<Schema>()
 
 interface SignInFormElements extends HTMLFormControlsCollection {

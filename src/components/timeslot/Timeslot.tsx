@@ -1,7 +1,7 @@
-import { Badge, Datepicker, Dropdown, Label, Tooltip } from "flowbite-react"
+import { Badge, Button, ButtonGroup, Datepicker, Dropdown, Label, Tooltip } from "flowbite-react"
 import { FC, useEffect, useState } from "react"
 import { ControlComponent } from "../admin/ControlPannel"
-import { HiOutlinePlusCircle, HiOutlineMinusCircle } from "react-icons/hi2"
+import { HiOutlinePlusCircle, HiOutlineMinusCircle, HiOutlineArrowRight, HiOutlineArrowLeft } from "react-icons/hi2"
 import { CreateTimeslotModal } from "../modals/CreateTimeslot"
 import { Timeslot, UserTag } from "../../types"
 import { generateClient } from "aws-amplify/api"
@@ -10,6 +10,7 @@ import { SlotComponent } from "./Slot"
 import { badgeColorThemeMap, currentDate, DAY_OFFSET, formatTime, GetColorComponent } from "../../utils"
 import { ConfirmationModal } from "../modals/Confirmation"
 import { HiOutlineInformationCircle } from "react-icons/hi"
+import useWindowDimensions from "../../hooks/windowDimensions"
 
 const client = generateClient<Schema>()
 
@@ -32,6 +33,8 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
     const [selectedTimeslot, setSelectedTimeslot] = useState<Timeslot | undefined>()
     const [tagTimeslots, setTagTimeslots] = useState<TagTimeslots>({})
     const [updatingTimeslot, setUpdatingTimeslot] = useState(false)
+    const { width } = useWindowDimensions()
+    const [activeConsole, setActiveConsole] = useState<string>('myTimeslots')
     const [apiCall, setApiCall] = useState(false)
 
     useEffect(() => {
@@ -118,10 +121,16 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                     .reduce((prev, cur) => [...prev, ...cur], [])
             }
 
+            const presetDay = Object.values(tagTimeslots)
+                .map((timeslots) => timeslots.filter((timeslot) => timeslot.start > new Date()))
+                .reduce((prev, cur) => [...prev, ...cur], [])
+                .sort((a, b) => a.start.getTime() - b.start.getTime())
+
             setUpdatingTimeslot(timeslots.length > 0)
             setTimeslots(timeslots)
             setTagTimeslots(tagTimeslots)
             setProfileTimeslots(tagProfileTimeslots)
+            setActiveDate(presetDay && presetDay.length > 0 ? new Date(presetDay[0].start.getFullYear(), presetDay[0].start.getMonth(), presetDay[0].start.getDate()) : currentDate)
         }
         if(!apiCall){
             api()
@@ -255,63 +264,8 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
         .filter((elements) => elements !== undefined)
     }
 
-
-    return (
-        <>
-            <CreateTimeslotModal open={createTimeslotVisible} onClose={async () => {
-                const timeslots = (await client.models.Timeslot.list({ filter: {
-                    start: { contains: activeDate.toISOString().substring(0, activeDate.toISOString().indexOf('T')) }
-                }})).data.map((timeslot) => {
-                    if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
-                    const ts: Timeslot = {
-                        id: timeslot.id as string,
-                        register: timeslot.register ?? undefined,
-                        start: new Date(timeslot.start),
-                        end: new Date(timeslot.end),
-                    }
-                    return ts
-                }).filter((timeslot) => timeslot !== undefined)
-
-                setCreateTimeslotVisible(false)
-                setTimeslots(timeslots)
-            }} day={activeDate} update={updatingTimeslot} />
-            <ConfirmationModal open={registerConfirmationVisible} onClose={() => setRegisterConfirmationVisible(false)} 
-                confirmText="Schedule"
-                denyText="Back"
-                confirmAction={async () => {
-                    if(selectedTimeslot && userEmail && userTags) {
-                        const timeslot = await client.models.Timeslot.get({id: selectedTimeslot.id})
-                        if(timeslot.data?.register){
-                            throw new Error('Timeslot has been filled')
-                        }
-                        const response = await client.models.Timeslot.update({
-                            id: selectedTimeslot.id,
-                            register: userEmail
-                        }, { authMode: 'userPool'})
-
-                        console.log(response)
-
-
-                        await userFetchTimeslots(userTags, userEmail)
-                    }
-                }}
-                title="Confirm Timeslot Selection" body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}/>
-            <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
-                confirmText="Confirm"
-                denyText="Back"
-                confirmAction={async () => {
-                    if(selectedTimeslot && userEmail && userTags) {
-                        const response = await client.models.Timeslot.update({
-                            id: selectedTimeslot.id,
-                            register: null
-                        }, { authMode: 'userPool'})
-
-                        console.log(response)
-
-                        await userFetchTimeslots(userTags, userEmail)
-                    }
-                }}
-                title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} />
+    function fullSizeDisplay(){
+        return (
             <div className="grid grid-cols-6 gap-4 font-main mt-6">
                 <div className="flex flex-col ms-4 border border-gray-400 rounded-lg px-6 py-2 gap-2">
                     <div className="flex flex-row gap-1 w-full justify-between">
@@ -462,6 +416,186 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                     )
                 }
             </div>
+        )
+    }
+    function smallDisplay(){
+        function activeControlClass(control: string) {
+            if(control == activeConsole) return 'border border-black'
+            return undefined
+        }
+
+        function timeslotsConsole() {
+            return (
+                <div className="flex flex-col px-4 w-full justify-center items-center">
+                    <div className="flex flex-row gap-4">
+                        <button className="border p-2 rounded-full border-black bg-white hover:bg-gray-300" onClick={() => {
+                            const timeslots = Object.values(tagTimeslots)
+                                .reduce((prev, cur) => [...prev, ...cur], [])
+                                .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                .reduce((prev, cur) => {
+                                    if(!prev.includes(cur)){
+                                        prev.push(cur)
+                                    }
+                                    return prev
+                                }, [] as number[])
+                                .map((time) => new Date(time))
+
+                            const currentTimeslotIndex = timeslots.findIndex((date) => date.getTime() === activeDate.getTime())
+                            const currentDate = currentTimeslotIndex - 1 < 0 ? timeslots[timeslots.length - 1] : timeslots[currentTimeslotIndex - 1]
+                            
+                            setActiveDate(currentDate)
+                        }} disabled={!(tagTimeslots && Object.entries(tagTimeslots).length > 0)}>
+                            <HiOutlineArrowLeft className="text-xl"/>
+                        </button>
+                        <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString()}>
+                        {
+                            tagTimeslots && Object.entries(tagTimeslots).length > 0 ? Object.entries(tagTimeslots).map(([tagId, timeslots]) => {
+                                const color = userTags!.find((tag) => tag.id === tagId)!.color ?? 'black'
+                                const dates = timeslots
+                                    .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                    .reduce((prev, cur) => {
+                                        if(!prev.includes(cur)) {
+                                            prev.push(cur)
+                                        }
+                                        return prev
+                                    }, [] as number[])
+                                    .sort((a, b) => a - b)
+                                    .map((time) => new Date(time))
+                                const objects = dates.map((date, index) => {
+                                    return (
+                                        <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString()}</Dropdown.Item>
+                                    )
+                                })
+                                return objects
+                            }) : (<Dropdown.Item>No Dates available</Dropdown.Item>)
+                        }
+                        </Dropdown>
+                        <button className="border p-2 rounded-full border-black bg-white hover:bg-gray-300" onClick={() => {
+                            const timeslots = Object.values(tagTimeslots)
+                                .reduce((prev, cur) => [...prev, ...cur], [])
+                                .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                .reduce((prev, cur) => {
+                                    if(!prev.includes(cur)){
+                                        prev.push(cur)
+                                    }
+                                    return prev
+                                }, [] as number[])
+                                .map((time) => new Date(time))
+
+                            const currentTimeslotIndex = timeslots.findIndex((date) => date.getTime() === activeDate.getTime())
+                            const currentDate = currentTimeslotIndex + 1 >= timeslots.length ? timeslots[0] : timeslots[currentTimeslotIndex + 1]
+                            
+                            setActiveDate(currentDate)
+                        }} disabled={!(tagTimeslots && Object.entries(tagTimeslots).length > 0)}>
+                            <HiOutlineArrowRight className="text-xl"/>
+                        </button>
+                    </div>
+                    
+                    <div className="grid border-gray-500 border rounded-lg px-4 py-2 w-full mt-4 items-center justify-center gap-4">
+                        {(formatTimeslot().length > 0 ? 
+                            (
+                                formatTimeslot()
+                            ) : 
+                            (
+                                <Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>
+                            )
+                        )}
+                    </div>
+                </div>
+                
+            )
+        }
+
+        function myTimeslotsConsole() {
+            return (
+                <>
+                </>
+            )
+        }
+
+        return (
+            <>
+                <div className="flex flex-col border-t border-gray-500 mt-4 font-main justify-center items-center">
+                    <div className="flex flex-row gap-4 my-4">
+                        <ButtonGroup outline>
+                            <Button color="light" className={activeControlClass('myTimeslots')} onClick={() => setActiveConsole('myTimeslots')}>My Timeslots</Button>
+                            <Button color="light" className={activeControlClass('timeslots')} onClick={() => setActiveConsole('timeslots')}>View Timeslots</Button>
+                        </ButtonGroup>
+                    </div>
+                    {activeConsole == 'timeslots' ? 
+                        (
+                            timeslotsConsole()
+                        ) : (
+                            myTimeslotsConsole()
+                        )
+                    }
+                </div>
+            </>
+        )
+    }
+
+
+    return (
+        <>
+            <CreateTimeslotModal open={createTimeslotVisible} onClose={async () => {
+                const timeslots = (await client.models.Timeslot.list({ filter: {
+                    start: { contains: activeDate.toISOString().substring(0, activeDate.toISOString().indexOf('T')) }
+                }})).data.map((timeslot) => {
+                    if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
+                    const ts: Timeslot = {
+                        id: timeslot.id as string,
+                        register: timeslot.register ?? undefined,
+                        start: new Date(timeslot.start),
+                        end: new Date(timeslot.end),
+                    }
+                    return ts
+                }).filter((timeslot) => timeslot !== undefined)
+
+                setCreateTimeslotVisible(false)
+                setTimeslots(timeslots)
+            }} day={activeDate} update={updatingTimeslot} />
+            <ConfirmationModal open={registerConfirmationVisible} onClose={() => setRegisterConfirmationVisible(false)} 
+                confirmText="Schedule"
+                denyText="Back"
+                confirmAction={async () => {
+                    if(selectedTimeslot && userEmail && userTags) {
+                        const timeslot = await client.models.Timeslot.get({id: selectedTimeslot.id})
+                        if(timeslot.data?.register){
+                            throw new Error('Timeslot has been filled')
+                        }
+                        const response = await client.models.Timeslot.update({
+                            id: selectedTimeslot.id,
+                            register: userEmail
+                        }, { authMode: 'userPool'})
+
+                        console.log(response)
+
+
+                        await userFetchTimeslots(userTags, userEmail)
+                    }
+                }}
+                title="Confirm Timeslot Selection" body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}/>
+            <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
+                confirmText="Confirm"
+                denyText="Back"
+                confirmAction={async () => {
+                    if(selectedTimeslot && userEmail && userTags) {
+                        const response = await client.models.Timeslot.update({
+                            id: selectedTimeslot.id,
+                            register: null
+                        }, { authMode: 'userPool'})
+
+                        console.log(response)
+
+                        await userFetchTimeslots(userTags, userEmail)
+                    }
+                }}
+                title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} />
+            {
+                width > 800 ? (
+                    fullSizeDisplay()
+                ) : (smallDisplay())
+            }
         </>
     )
 }
