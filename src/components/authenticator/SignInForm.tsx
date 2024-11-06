@@ -1,10 +1,11 @@
 import { FormEvent, useState } from "react";
-import { fetchAuthSession, fetchUserAttributes, getCurrentUser, signIn } from "aws-amplify/auth";
-import { Alert, Button, Label, TextInput } from "flowbite-react";
+import { confirmSignIn, fetchAuthSession, fetchUserAttributes, getCurrentUser, signIn } from "aws-amplify/auth";
+import { Alert, Button, Label, Modal, TextInput } from "flowbite-react";
 import { useNavigate } from "react-router-dom";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import useWindowDimensions from "../../hooks/windowDimensions";
+import { textInputTheme } from "../../utils";
 
 const client = generateClient<Schema>()
 
@@ -22,6 +23,13 @@ export default function SignIn() {
     const [formErrors, setFormErrors] = useState<string[]>([])
     const [submitting, setSubmitting] = useState(false)
     const { width } = useWindowDimensions()
+    const [passwordResetVisible, setPasswordResetVisible] = useState(false)
+    const [password, setPassword] = useState<string>()
+    const [passwordNumber, setPasswordNumber] = useState(false)
+    const [passwordSpecialCharacter, setPasswordSpecialCharacter] = useState(false)
+    const [passwordMinCharacters, setPasswordMinCharacters] = useState(false)
+    const [passwordUpperCharacter, setPasswordUpperCharacter] = useState(false)
+    const [passwordLowerCharacter, setPasswordLowerCharacter] = useState(false)
 
     async function handlesubmit(event: FormEvent<SignInForm>) {
         event.preventDefault()
@@ -32,6 +40,12 @@ export default function SignIn() {
                 username: form.elements.email.value,
                 password: form.elements.password.value,
             })
+
+            if(response.nextStep.signInStep == 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED'){
+                setSubmitting(false)
+                setPasswordResetVisible(true)
+                return
+            }
             console.log(response)
 
             const user = await getCurrentUser();
@@ -65,8 +79,88 @@ export default function SignIn() {
         }
     }
 
+    async function confirmSignInWithNewPassword(){
+        try{
+            const response = await confirmSignIn({
+                challengeResponse: password!
+            })
+            console.log(response)
+
+            const user = await getCurrentUser();
+            const session = await fetchAuthSession()
+            const attributes = await fetchUserAttributes()
+            const groups = JSON.stringify(session.tokens?.accessToken.payload['cognito:groups'])
+            const profile = await client.models.UserProfile.get({email: user.userId}, {authToken: session.tokens?.accessToken.toString()})
+            console.log(profile)
+
+            window.localStorage.setItem('user', JSON.stringify({
+                user: user, 
+                session: session,
+                attributes: attributes, 
+                groups: groups, 
+                profile: profile
+            }))
+            console.log(groups)
+            
+            setSubmitting(false)
+            if(groups.includes('ADMINS')){
+                navigate('/admin/dashboard')
+            }
+            else if(groups.includes('USERS')){
+                navigate('/client/dashboard')
+            }
+        }catch(err){
+            const error = err as Error
+            console.log(error.message)
+            setFormErrors([error.message])
+            setSubmitting(false)
+        }
+        
+        setSubmitting(false)
+    }
+
     return (
         <>
+            <Modal show={passwordResetVisible} onClose={() => setPasswordResetVisible(true)}>
+                <Modal.Header>Reset Temporary Password</Modal.Header>
+                <Modal.Body className="flex flex-col gap-2">
+                    <Label className="ms-2 font-medium text-lg" htmlFor="password">New Password<sup className="italic text-red-600">*</sup>:</Label>
+                    <TextInput theme={textInputTheme} sizing='lg' className="" placeholder="Password" type="password" id="password" name="password" 
+                        onChange={(event) => {
+                            const password = event.target.value
+                            
+                            setPassword(password)
+                            setPasswordNumber(/\d/.test(password))
+                            setPasswordSpecialCharacter(/[!@#$%^&*(),.?":{}|<>]/.test(password))
+                            setPasswordUpperCharacter(/[A-Z]/.test(password))
+                            setPasswordLowerCharacter(/[a-z]/.test(password))
+                            setPasswordMinCharacters(password.length >= 8)
+                        }}
+                        helperText={
+                            (<div className="-mt-2 mb-4 ms-2 text-sm">
+                                <span>
+                                    Your password must include: a 
+                                    <span className={`${passwordNumber ? 'text-green-500' : 'text-red-600'}`}> number</span>, 
+                                    <span className={`${passwordSpecialCharacter ? 'text-green-500' : 'text-red-600'}`}> special character</span>, 
+                                    <span className={`${passwordUpperCharacter ? 'text-green-500' : 'text-red-600'}`}> upper</span> and 
+                                    <span className={`${passwordLowerCharacter ? 'text-green-500' : 'text-red-600'}`}> lower</span> case characters, and 
+                                    <span className={`${passwordMinCharacters ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>.</span>
+                            </div>)
+                        }
+                    />
+                </Modal.Body>
+                <Modal.Footer className="flex flex-row justify-end">
+                    <Button isProcessing={submitting} onClick={async () => {
+                        confirmSignInWithNewPassword()
+                        setSubmitting(true)
+                    }} disabled={!(
+                        passwordNumber &&
+                        passwordSpecialCharacter &&
+                        passwordUpperCharacter &&
+                        passwordLowerCharacter && 
+                        passwordMinCharacters)}>Submit</Button>
+                </Modal.Footer>
+            </Modal>
             <div className="mt-4">
                 {formErrors.length > 0 ? formErrors.map((error, index) => {
                     return (

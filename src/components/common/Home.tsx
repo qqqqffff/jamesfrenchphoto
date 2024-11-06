@@ -52,7 +52,7 @@ export default function () {
         <div className="flex-col">
             {notification}
             <div className="flex justify-center items-center">
-                <div className="lg:h-[650px] w-full px-4 mt-2">
+                <div className="h-[650px] w-full px-4 mt-2">
                     <Carousel
                         slideInterval={5000}
                         leftControl={
