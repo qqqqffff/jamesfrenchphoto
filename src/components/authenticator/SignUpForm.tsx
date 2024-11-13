@@ -37,15 +37,15 @@ interface AuthCodeForm extends HTMLFormElement{
     readonly elements: AuthFormElements
 }
 
-// type PrefilledElements = {
-//     hash?: string;
-// }
+type PrefilledElements = {
+    hash?: string;
+}
 
 export default function SignUp(){
     const [openModal, setOpenModal] = useState(false);
     const [termsAndConditionsVisible, setTermsAndConditionsVisible] = useState(false)
     const [serachParams] = useSearchParams()
-    // const [signupPrefilledElements, setSignupPrefilledElements] = useState<PrefilledElements | undefined>()
+    const [signupPrefilledElements, setSignupPrefilledElements] = useState<PrefilledElements | undefined>()
     const [apiCall, setApiCall] = useState(false)
     const [participantContact, setParticipantContact] = useState(false)
     const [preferredContact, setPreferredContact] = useState(false)
@@ -91,15 +91,15 @@ export default function SignUp(){
                     return
                 }
 
-                // const formPrereqs: PrefilledElements = Object.fromEntries([...serachParams]) as PrefilledElements
+                const formPrereqs: PrefilledElements = Object.fromEntries([...serachParams]) as PrefilledElements
 
-                // if(!formPrereqs.hash){
-                //     setFormErrors(['No Event Code. If you think this is an error, request a new link from us at contact@jamesfrenchphotography.com'])
-                //     setApiCall(true)
-                //     return
-                // }
+                if(!formPrereqs.hash){
+                    setFormErrors(['No Event Code. If you think this is an error, request a new link from us at contact@jamesfrenchphotography.com'])
+                    setApiCall(true)
+                    return
+                }
 
-                // setSignupPrefilledElements(formPrereqs)
+                setSignupPrefilledElements(formPrereqs)
                 setApiCall(true)
             }
         }
@@ -125,15 +125,16 @@ export default function SignUp(){
             return
         }
 
-        const response = await client.models.TemporaryCreateUsersTokens.get(
-            { email: form.elements.email.value },
-            { authMode: 'iam' }
-        )
+        const response = signupPrefilledElements && signupPrefilledElements.hash ? 
+            await client.models.TemporaryCreateUsersTokens.get(
+                { id : signupPrefilledElements.hash },
+                { authMode: 'iam' }
+            ) : undefined
         
         console.log(response)
 
-        const responseTags: string[] = response.data && response.data.tags ? response.data.tags as string[] : []
-        const sittingNumber = response.data ? response.data.id : ((Math.random() * 1_000_000_000_000) + 1).toFixed(0)
+        const responseTags: string[] = response && response.data && response.data.tags ? response.data.tags as string[] : []
+        const sittingNumber = (250_000 + (Math.random() * 99_998) + 1).toFixed(0)
         const parentEmail = form.elements.email.value
 
         try {
@@ -173,7 +174,7 @@ export default function SignUp(){
             })
 
             console.log(response)
-            if(response.nextStep) {
+            if(response.nextStep.signUpStep !== 'DONE') {
                 setOpenModal(true);
                 setFormSubmitting(false);
                 setParentEmail(form.elements.email.value)

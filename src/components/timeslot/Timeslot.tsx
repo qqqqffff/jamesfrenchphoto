@@ -585,8 +585,19 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 denyText="Back"
                 confirmAction={async () => {
                     if(selectedTimeslot && userEmail && userTags) {
+                        const timeslot = await client.models.Timeslot.get({id: selectedTimeslot.id})
+                        if(timeslot.data?.register){
+                            throw new Error('Timeslot has been filled')
+                        }
+                        const response = await client.models.Timeslot.update({
+                            id: selectedTimeslot.id,
+                            register: userEmail
+                        }, { authMode: 'userPool'})
+
+                        console.log(response)
+
                         if(notify) {
-                            const response = await client.queries.SendTimeslotConfirmation({
+                            const response = client.queries.SendTimeslotConfirmation({
                                 email: userEmail,
                                 start: selectedTimeslot.start.toISOString(),
                                 end: selectedTimeslot.end.toISOString()
@@ -596,6 +607,8 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
 
                             console.log(response)
                         }
+
+                        await userFetchTimeslots(userTags, userEmail)
                     }
                 }}
                 children={notificationComponent()}

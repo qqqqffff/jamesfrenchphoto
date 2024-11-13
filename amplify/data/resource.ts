@@ -147,10 +147,9 @@ const schema = a.schema({
   TemporaryCreateUsersTokens: a
     .model({
       id: a.string().required(),
-      email: a.string().required(),
       tags: a.string().array(),
     })
-    .identifier(['email'])
+    .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['get'])]),
   Pricing: a
     .model({

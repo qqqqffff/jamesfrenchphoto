@@ -40,7 +40,7 @@ export default function SignIn() {
 
             if(history.state && history.state.usr){
                 if(history.state.usr.createAccountSuccess){
-                    components.push('Successfully created user!')
+                    components.push('Successfully created user! Login with the parent\'s email and password you just set!')
                 }
             }
             setNotifications(components)
@@ -51,7 +51,7 @@ export default function SignIn() {
             api()
         }
     }, [])
-    
+
     async function handlesubmit(event: FormEvent<SignInForm>) {
         event.preventDefault()
         const form = event.currentTarget;
@@ -147,7 +147,7 @@ export default function SignIn() {
                     notifications.map((element, index) => {
                         return (
                             <div key={index} className="flex justify-center items-center font-main mb-4">
-                                <Alert color='red' className="text-lg w-[90%]" onDismiss={() => {setNotifications(notifications.filter((e) => e != element))}}>
+                                <Alert color='green' className="text-lg w-[90%]" onDismiss={() => {setNotifications(notifications.filter((e) => e != element))}}>
                                     <p>{element}</p>
                                 </Alert>
                             </div>
