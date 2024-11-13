@@ -8,6 +8,7 @@ import { textInputTheme } from "../../utils"
 import { TermsAndConditionsModal } from "../modals/TermsAndConditions"
 import useWindowDimensions from "../../hooks/windowDimensions"
 
+
 const client = generateClient<Schema>()
 
 interface SignUpFormElements extends HTMLFormControlsCollection {
@@ -37,8 +38,7 @@ interface AuthCodeForm extends HTMLFormElement{
 }
 
 type PrefilledElements = {
-    email?: string;
-    uid?: string;
+    hash?: string;
 }
 
 export default function SignUp(){
@@ -50,7 +50,6 @@ export default function SignUp(){
     const [participantContact, setParticipantContact] = useState(false)
     const [preferredContact, setPreferredContact] = useState(false)
     const [termsAndConditions, setTermsAndConditions] = useState(false)
-    const [participantTags, setParticipantTags] = useState<string[]>([])
 
     const [password, setPassword] = useState<string>()
     const [confirmPassword, setConfirmPassword] = useState<string>()
@@ -64,6 +63,7 @@ export default function SignUp(){
     
     const [parentFirstName, setParentFirstName] = useState<string>()
     const [parentLastName, setParentLastName] = useState<string>()
+    const [parentEmail, setParentEmail] = useState<string>()
     const [participantEmail, setParticipantEmail] = useState<string>()
     const [participantFirstName, setParticipantFirstName] = useState<string>()
     const [participantLastName, setParticipantLastName] = useState<string>()
@@ -90,40 +90,17 @@ export default function SignUp(){
                     setApiCall(true)
                     return
                 }
+
                 const formPrereqs: PrefilledElements = Object.fromEntries([...serachParams]) as PrefilledElements
-                console.log(formPrereqs)
-                if(!formPrereqs.email || !formPrereqs.uid){
-                    console.log('bad request')
+
+                if(!formPrereqs.hash){
+                    setFormErrors(['No Event Code. If you think this is an error, request a new link from us at contact@jamesfrenchphotography.com'])
                     setApiCall(true)
+                    return
                 }
-                else {
-                    const response = await client.models.TemporaryCreateUsersTokens.get(
-                        {id: formPrereqs.uid},
-                        {authMode: 'iam'}
-                    )
 
-                    console.log(response)
-                    if(!response.data){
-                        console.log('bad request')
-                        setFormErrors(['Failed to receive your token. Try again later or if you are still having trouble contact us.'])
-                        setApiCall(true)
-                        return
-                    }
-
-                    const responseTags: string[] = response.data.tags ? response.data.tags as string[] : []
-                    
-                    console.log('good request')
-
-                    if(new Date(response.data.expires) < new Date()) {
-                        setFormErrors(['This link has expired, please contact us to send you a new link!'])
-                        setApiCall(true)
-                        return
-                    }
-
-                    setSignupPrefilledElements(formPrereqs)
-                    setParticipantTags(responseTags)
-                    setApiCall(true)
-                }
+                setSignupPrefilledElements(formPrereqs)
+                setApiCall(true)
             }
         }
         if(!apiCall){
@@ -136,23 +113,8 @@ export default function SignUp(){
         event.preventDefault()
         const form = event.currentTarget;
 
-        if(!signupPrefilledElements) {
-            setFormErrors(['Prefilled email missing, contact us for a new signup link!'])
-            setFormSubmitting(false)
-            return
-        }
-
-        const parentEmail = signupPrefilledElements.email
-        const sittingNumber = signupPrefilledElements.uid
-
-        if(!parentEmail || parentEmail !== form.elements.email.value) {
+        if(!form.elements.email.value) {
             setFormErrors(['Parent email missmatch or missing, try reloading!'])
-            setFormSubmitting(false)
-            return
-        }
-        
-        if(!sittingNumber){
-            setFormErrors(['Sitting number missing, contact us for a new signup link!'])
             setFormSubmitting(false)
             return
         }
@@ -163,12 +125,24 @@ export default function SignUp(){
             return
         }
 
+        const response = signupPrefilledElements && signupPrefilledElements.hash ? 
+            await client.models.TemporaryCreateUsersTokens.get(
+                { id : signupPrefilledElements.hash },
+                { authMode: 'iam' }
+            ) : undefined
+        
+        console.log(response)
+
+        const responseTags: string[] = response && response.data && response.data.tags ? response.data.tags as string[] : []
+        const sittingNumber = (250_000 + (Math.random() * 99_998) + 1).toFixed(0)
+        const parentEmail = form.elements.email.value
+
         try {
             const profileCreateResponse = await client.models.UserProfile.create({
                 sittingNumber: Number.parseInt(sittingNumber),
                 email: parentEmail,
                 participantEmail: participantEmail!,
-                userTags: participantTags,
+                userTags: responseTags,
                 participantFirstName: participantFirstName!,
                 participantLastName: participantLastName!,
                 participantMiddleName: form.elements.participantMiddleName.value ? form.elements.participantMiddleName.value : undefined,
@@ -194,12 +168,24 @@ export default function SignUp(){
                         phone_number: form.elements.phoneNumber.value ? `+1${form.elements.phoneNumber.value}` : undefined,
                         given_name: parentFirstName,
                         family_name: parentLastName,
+                        'custom:verified': 'true'
                     }
                 }
             })
-            if(response.nextStep) {
+
+            console.log(response)
+            if(response.nextStep.signUpStep !== 'DONE') {
                 setOpenModal(true);
+                setFormSubmitting(false);
+                setParentEmail(form.elements.email.value)
+            }
+            else{
                 setFormSubmitting(false)
+                navigate('/login', {
+                    state: {
+                        createAccountSuccess: true
+                    }
+                })
             }
 
         } catch(err: any) {
@@ -232,7 +218,7 @@ export default function SignUp(){
 
         try{
             const response = await confirmSignUp({
-                username: signupPrefilledElements!.email!,
+                username: parentEmail!,
                 confirmationCode: form.elements.authCode.value,
             })
 
@@ -257,7 +243,8 @@ export default function SignUp(){
             parentLastName === undefined ||
             participantEmail === undefined || 
             participantFirstName === undefined ||
-            participantLastName === undefined) ||
+            participantLastName === undefined ||
+            parentEmail === undefined) ||
             !(passwordMatch &&
             passwordNumber &&
             passwordSpecialCharacter &&
@@ -303,7 +290,7 @@ export default function SignUp(){
                         <div className="flex flex-row justify-end gap-4 mt-4">
                             <Button className="text-xl w-[40%] max-w-[8rem] mb-6" onClick={() => {
                                 resendSignUpCode({
-                                    username: signupPrefilledElements!.email!
+                                    username: parentEmail!
                                 })
                             }}>Resend</Button>
                             <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" onClick={() => setCodeSubmitting(true)} isProcessing={codeSubmitting}>Submit</Button>
@@ -329,7 +316,7 @@ export default function SignUp(){
                         <Label className="ms-2 font-medium text-lg" htmlFor="phoneNumber">Parent Phone Number<sup className="text-gray-400">1</sup>:</Label>
                         <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem] text-xl" placeholder="10-Digit Phone Number of format 1234567890" type="tel" id="phoneNumber" name="phoneNumber"/>
                         <Label className="ms-2 font-medium text-lg" htmlFor="email">Parent Email<sup className="text-gray-400">2</sup><sup className="italic text-red-600">*</sup>:</Label>
-                        <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Email" type="email" id="email" name="email" defaultValue={signupPrefilledElements?.email} disabled/>
+                        <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Email" type="email" id="email" name="email" onChange={(event) => setParentEmail(event.target.value)}/>
                         <Label className="ms-2 font-medium text-lg" htmlFor="participantEmail">Participant Email<sup className="italic text-red-600">*</sup>:</Label>
                         <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Participant's Email" type="email" id="participantEmail" name="participantEmail" onChange={(event) => setParticipantEmail(event.target.value)}/>
                         <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
@@ -345,11 +332,11 @@ export default function SignUp(){
                         <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
                             <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
                                 <Label className="ms-2 font-medium text-lg" htmlFor="participantMiddleName">Participant Middle Name:</Label>
-                                <TextInput theme={textInputTheme} sizing='lg' placeholder="First Name" type="text" id="participantMiddleName" name="participantMiddleName"/>
+                                <TextInput theme={textInputTheme} sizing='lg' placeholder="Middle Name" type="text" id="participantMiddleName" name="participantMiddleName"/>
                             </div>
                             <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
                                 <Label className="ms-2 font-medium text-lg" htmlFor="participantPreferredName">Participant Preferred Name:</Label>
-                                <TextInput theme={textInputTheme} sizing='lg' placeholder="Last Name" type="text" id="participantPreferredName" name="participantPreferredName"/>
+                                <TextInput theme={textInputTheme} sizing='lg' placeholder="Preferred Name" type="text" id="participantPreferredName" name="participantPreferredName"/>
                             </div>
                         </div>
                         <Label className="ms-2 font-medium text-lg" htmlFor="password">Password<sup className="italic text-red-600">*</sup>:</Label>

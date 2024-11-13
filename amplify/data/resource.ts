@@ -4,6 +4,7 @@ import { postConfirmation } from '../auth/post-confirmation/resource';
 import { getAuthUsers } from '../auth/get-auth-users/resource';
 import { addCreateUserQueue } from '../functions/add-create-user-queue/resource';
 import { verifyContactChallenge } from '../functions/verify-contact-challenge/resource';
+import { sendTimeslotConfirmation } from '../functions/send-timeslot-confirmation/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -146,8 +147,6 @@ const schema = a.schema({
   TemporaryCreateUsersTokens: a
     .model({
       id: a.string().required(),
-      expires: a.datetime().required(),
-      email: a.string().required(),
       tags: a.string().array(),
     })
     .identifier(['id'])
@@ -172,6 +171,16 @@ const schema = a.schema({
     .returns(a.ref('PaymentIntent'))
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(getPaymentIntent)),
+  SendTimeslotConfirmation: a
+    .query()
+    .arguments({
+      email: a.string().required(),
+      start: a.datetime().required(),
+      end: a.datetime().required(),
+    })
+    .handler(a.handler.function(sendTimeslotConfirmation))
+    .authorization((allow) => [allow.authenticated()])
+    .returns(a.json()),
 })
 .authorization((allow) => [allow.resource(postConfirmation), allow.resource(addCreateUserQueue)]);
 
