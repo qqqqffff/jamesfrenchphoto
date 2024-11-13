@@ -1,4 +1,4 @@
-import { Badge, Button, ButtonGroup, Datepicker, Dropdown, Label, Tooltip } from "flowbite-react"
+import { Badge, Button, ButtonGroup, Checkbox, Datepicker, Dropdown, Label, Tooltip } from "flowbite-react"
 import { FC, useEffect, useState } from "react"
 import { ControlComponent } from "../admin/ControlPannel"
 import { HiOutlinePlusCircle, HiOutlineMinusCircle, HiOutlineArrowRight, HiOutlineArrowLeft } from "react-icons/hi2"
@@ -36,6 +36,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
     const { width } = useWindowDimensions()
     const [activeConsole, setActiveConsole] = useState<string>('myTimeslots')
     const [apiCall, setApiCall] = useState(false)
+    const [notify, setNotify] = useState(false)
 
     useEffect(() => {
         async function api(){
@@ -204,6 +205,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
         setTagTimeslots(tagTimeslots)
         setProfileTimeslots(tagProfileTimeslots)
         setTimeslots(timeslots)
+        setNotify(false)
     }
 
     function formatTimeslot() {
@@ -418,6 +420,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
             </div>
         )
     }
+
     function smallDisplay(){
         function activeControlClass(control: string) {
             if(control == activeConsole) return 'border border-black'
@@ -548,6 +551,15 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
         )
     }
 
+    function notificationComponent(){
+        return (
+            <button className="flex flex-row gap-2 text-left items-center mt-4 ms-2" onClick={() => setNotify(!notify)} type="button">
+                <Checkbox className="mt-1" checked={notify} readOnly />
+                <span>Send an email confirmation to you</span>
+            </button>
+        )
+    }
+
 
     return (
         <>
@@ -573,21 +585,20 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 denyText="Back"
                 confirmAction={async () => {
                     if(selectedTimeslot && userEmail && userTags) {
-                        const timeslot = await client.models.Timeslot.get({id: selectedTimeslot.id})
-                        if(timeslot.data?.register){
-                            throw new Error('Timeslot has been filled')
+                        if(notify) {
+                            const response = await client.queries.SendTimeslotConfirmation({
+                                email: userEmail,
+                                start: selectedTimeslot.start.toISOString(),
+                                end: selectedTimeslot.end.toISOString()
+                            }, {
+                                authMode: 'userPool'
+                            })
+
+                            console.log(response)
                         }
-                        const response = await client.models.Timeslot.update({
-                            id: selectedTimeslot.id,
-                            register: userEmail
-                        }, { authMode: 'userPool'})
-
-                        console.log(response)
-
-
-                        await userFetchTimeslots(userTags, userEmail)
                     }
                 }}
+                children={notificationComponent()}
                 title="Confirm Timeslot Selection" body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}/>
             <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
                 confirmText="Confirm"

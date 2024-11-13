@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { confirmSignIn, fetchAuthSession, fetchUserAttributes, getCurrentUser, signIn } from "aws-amplify/auth";
 import { Alert, Button, Label, Modal, TextInput } from "flowbite-react";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,7 @@ interface SignInForm extends HTMLFormElement{
 
 export default function SignIn() {
     const navigate = useNavigate()
+    const [notifications, setNotifications] = useState<string[]>([])
     const [formErrors, setFormErrors] = useState<string[]>([])
     const [submitting, setSubmitting] = useState(false)
     const { width } = useWindowDimensions()
@@ -31,6 +32,26 @@ export default function SignIn() {
     const [passwordUpperCharacter, setPasswordUpperCharacter] = useState(false)
     const [passwordLowerCharacter, setPasswordLowerCharacter] = useState(false)
 
+    const [apiCall, setApiCall] = useState(false)
+
+    useEffect(() => {
+        async function api(){
+            let components: string[] = []
+
+            if(history.state && history.state.usr){
+                if(history.state.usr.createAccountSuccess){
+                    components.push('Successfully created user!')
+                }
+            }
+            setNotifications(components)
+            setApiCall(true)
+        }
+        
+        if(!apiCall){
+            api()
+        }
+    }, [])
+    
     async function handlesubmit(event: FormEvent<SignInForm>) {
         event.preventDefault()
         const form = event.currentTarget;
@@ -121,6 +142,22 @@ export default function SignIn() {
 
     return (
         <>
+            <div className='flex flex-col'>
+                {notifications.length > 0 ? (
+                    notifications.map((element, index) => {
+                        return (
+                            <div key={index} className="flex justify-center items-center font-main mb-4">
+                                <Alert color='red' className="text-lg w-[90%]" onDismiss={() => {setNotifications(notifications.filter((e) => e != element))}}>
+                                    <p>{element}</p>
+                                </Alert>
+                            </div>
+                        )
+                    })
+                ) : (
+                    <></>
+                )}
+            </div>
+            
             <Modal show={passwordResetVisible} onClose={() => setPasswordResetVisible(true)}>
                 <Modal.Header>Reset Temporary Password</Modal.Header>
                 <Modal.Body className="flex flex-col gap-2">
