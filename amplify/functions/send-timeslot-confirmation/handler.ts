@@ -16,6 +16,8 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
         title: 'LAF Photoshoot',
         description: 'Photoshoot for your participant',
         url: 'https://www.jamesfrenchphotography.com',
+        geo: { lat: 32.813040, lon: -96.803810 },
+        location: '3624 Oak Lawn Ave # 222, Dallas, TX 75219',
         status: 'CONFIRMED',
         categories: ['James French Photography', 'Photoshoot', 'La Fiesta'],
         busyStatus: 'BUSY',
@@ -41,7 +43,7 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
         subject: 'James French Photography Timeslot Confirmation',
         html: `
             <p>
-                Your photoshoot timeslot has been confirmed to be on<strong>${' ' + start.toLocaleDateString() + ' '}</strong>from<strong>${' ' + start.toLocaleTimeString() + " - " + end.toLocaleTimeString()}</strong>. If you wish to unregister from this timeslot please login and unregister by finding and clicking on the same timeslot. Please feel free to change your registration up until one day before your date.
+                Your photoshoot timeslot has been confirmed to be on<strong>${' ' + start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' }) + ' '}</strong>from<strong>${' ' + start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' }) + " - " + end.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</strong>. If you wish to unregister from this timeslot please login and unregister by finding and clicking on the same timeslot. Please feel free to change your registration up until one day before your date.
             </p>`,
         attachments: calendarInvite ? [
             {
