@@ -1,6 +1,6 @@
 import { fetchAuthSession, fetchUserAttributes, getCurrentUser } from "aws-amplify/auth"
 import { useEffect } from "react"
-import { Outlet, useLocation, useNavigate } from "react-router-dom"
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Amplify } from "aws-amplify";
 import outputs from '../../../amplify_outputs.json'
 import { Schema } from "../../../amplify/data/resource";
@@ -78,8 +78,17 @@ export const Base = () => {
         }
         verifyUser()
     }, [])
+    console.log(location.pathname)
     return (
         <>
+            {location.pathname === '/client' ? (
+                <div className="w-full flex flex-col items-center justify-center">
+                    <p>If you are seeing this page, that means you are not logged in.</p>
+                    <Link to='/login' className="hover:underline text-blue-500">Click here to login</Link>
+                </div>
+            ) : (
+                <></>
+            )}
             <Outlet />
         </>
     )
