@@ -187,7 +187,7 @@ export function Dashboard() {
     function activeConsoleComponent(){
         switch(activeConsole){
             case 'home':
-                return (<Home user={userProfile}/>)
+                return (<Home user={userProfile} tags={userProfileTags} />)
             case 'scheduler':
                 return (<TimeslotComponent userEmail={userProfile?.email} userTags={userProfileTags}/>)
             default:
