@@ -1,6 +1,6 @@
 import { FC, FormEvent, useEffect, useState } from "react";
 import { ModalProps } from ".";
-import { Button, Datepicker, Dropdown, Label, Modal, TextInput } from "flowbite-react";
+import { Button, Checkbox, Datepicker, Dropdown, Label, Modal, TextInput } from "flowbite-react";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { Subcategory, Timeslot, UserTag } from "../../types";
@@ -28,7 +28,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
     const [collections, setCollections] = useState<Subcategory[]>([])
     const [timeslots, setTimeslots] = useState<Timeslot[]>([])
     const [apiCall, setApiCall] = useState(false)
-    const [activeCollection, setActiveCollection] = useState<Subcategory | undefined>()
+    const [activeCollections, setActiveCollections] = useState<Subcategory[]>([])
     const [activeTimeslots, setActiveTimeslots] = useState<Timeslot[]>([])
     const [activeColor, setActiveColor] = useState<string | undefined>()
 
@@ -61,18 +61,25 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
             ).filter((timeslot) => timeslot !== undefined)
             
             let activeTimeslots: Timeslot[] = []
-            let activeCollection: Subcategory | undefined = undefined
+            let activeCollections: Subcategory[] = []
             let activeColor: string | undefined = undefined
 
             if(existingTag){
-                if(existingTag.collectionId){
-                    const collectionData = (await client.models.SubCategory.get({ id: existingTag.collectionId })).data
+                if(existingTag.collections){
+                    const collectionData = (await Promise.all(existingTag.collections.map(async (collection) => {
+                        if(!collection.subcategoryId) return
+                        return (await client.models.SubCategory.get({ id: collection.subcategoryId })).data
+                    }))).filter((item) => item != undefined)
+                        
                     
                     if(collectionData) {
-                        activeCollection = {
-                            ...collectionData,
-                            headers: collectionData.headers ? collectionData.headers as string[]: undefined
-                        }
+                        activeCollections = collectionData.map((collection) => {
+                            const sc: Subcategory = {
+                                ...collection,
+                                headers: collection.headers ? collection.headers as string[] : []
+                            }
+                            return sc
+                        })
                     }
                 }
                 if(existingTag.color){
@@ -98,7 +105,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
             }
             setActiveColor(activeColor)
             setActiveTimeslots(activeTimeslots)
-            setActiveCollection(activeCollection)
+            setActiveCollections(activeCollections)
             setCollections(collections)
             setTimeslots(timeslots)
             setApiCall(true)
@@ -122,13 +129,13 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
 
             const timeslotTags = (await response.data!.timeslotTags()).data
             const linkedTimeslotsIds = timeslotTags.map((timeslot) => {
-                return timeslot.id
+                return timeslot.timeslotId
             })
             const activeTimeslotsIds = activeTimeslots.map((timeslot) => timeslot.id);
             const adjustedTimeslots = activeTimeslots.filter((timeslot) => !linkedTimeslotsIds.includes(timeslot.id))
             const removedTimeslots = linkedTimeslotsIds.filter((id) => !activeTimeslotsIds.includes(id)).map((id) => {
-                return timeslotTags.filter((timeslotTag) => timeslotTag.id === id)[0]
-            })
+                return timeslotTags.find((timeslotTag) => timeslotTag.timeslotId === id)
+            }).filter((item) => item !== undefined)
 
             const taggingResponse = await Promise.all(adjustedTimeslots.map(async (timeslot) => {
                 const response = await client.models.TimeslotTag.create({
@@ -140,7 +147,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
 
             const removedTagsResponse = await Promise.all(removedTimeslots.map(async (timeslotTag) => {
                 const response = await client.models.TimeslotTag.delete({
-                    id: timeslotTag.id
+                    timeslotId: timeslotTag.timeslotId
                 })
                 return response.data
             }))
@@ -148,6 +155,28 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
             console.log(taggingResponse)
             console.log(removedTagsResponse)
         }
+
+        else {
+            const response = await client.models.UserTag.create({
+                name: form.elements.name.value,
+                color: activeColor,
+            })
+            console.log(response)
+
+            if(response !== null && response.data !== null){
+                const taggingResponse = await Promise.all(activeTimeslots.map(async (timeslot) => {
+                    const rsp = await client.models.TimeslotTag.create({
+                        tagId: response.data!.id,
+                        timeslotId: timeslot.id,
+                    })
+                    return rsp
+                }))
+
+                console.log(taggingResponse)
+            }
+        }
+
+
         clearStates()
         onClose()
     }
@@ -155,7 +184,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
     function clearStates() {
         setCollections([])
         setTimeslots([])
-        setActiveCollection(undefined)
+        setActiveCollections([])
         setActiveTimeslots([])
         setActiveColor(undefined)
         setApiCall(false)
@@ -175,12 +204,32 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                             <TextInput sizing='md' theme={textInputTheme} color={activeColor} placeholder="Tag Name" type="text" id="name" name="name" defaultValue={existingTag?.name}/>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Label className="ms-2 font-medium text-lg" htmlFor="name">Collection: {activeCollection ? activeCollection.name : 'None'}</Label>
-                            <Dropdown color={'light'} label='Collection' placement="bottom-start">
-                                <Dropdown.Item onClick={() => setActiveCollection(undefined)}>None</Dropdown.Item>
+                            <Label className="ms-2 font-medium text-lg" htmlFor="name">Collection: {
+                                activeCollections.length > 0 ? activeCollections.reduce((prev, cur) => (prev === '' ? '' : prev + ', ') + cur.name, '') : 'None'
+                            }</Label>
+                            <Dropdown color={'light'} label='Collection' placement="bottom-start" dismissOnClick={false}>
                                 {
                                     collections.map((collection, index) => {
-                                        return (<Dropdown.Item key={index} onClick={() => setActiveCollection(collection)}>{collection.name}</Dropdown.Item>)
+                                        const tempMap = activeCollections.map((collection) => collection.id)
+                                        return (
+                                            <Dropdown.Item key={index}>
+                                                <button className="flex flex-row gap-2 text-left items-center" onClick={() => {
+                                                    let temp = [...activeCollections]
+                                                    
+                                                    if(tempMap.includes(collection.id)){
+                                                        temp = temp.filter((t) => t.id !== collection.id)
+                                                    }
+                                                    else{
+                                                        temp.push(collection)
+                                                    }
+                                                    
+                                                    setActiveCollections(temp)
+                                                }} type="button">
+                                                    <Checkbox className="mt-1" checked={tempMap.includes(collection.id)} readOnly />
+                                                    <span>{collection.name}</span>
+                                                </button>
+                                            </Dropdown.Item>
+                                        )
                                     })
                                 }
                             </Dropdown>
@@ -220,7 +269,6 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                                 const selectedBg = selected ? 'bg-gray-200' : ''
                                 return (
                                     <button key={index} className={`hover:bg-gray-200 rounded-lg ${selectedBg}`} type='button' onClick={() => {
-                                        console.log(selected)
                                         if(!selected){
                                             setActiveTimeslots([...activeTimeslots, timeslot])
                                         }

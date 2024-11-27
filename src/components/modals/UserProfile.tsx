@@ -16,6 +16,7 @@ interface FilledProfileModalProps extends ModalProps {
     user: UserData
 }
 
+//TODO: add collections back
 export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, user}) => {
     const [userProfile, setUserProfile] = useState<UserProfile | undefined>()
     const [userTags, setUserTags] = useState<UserTag[]>([])
@@ -102,14 +103,12 @@ export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, 
             setUserTags(userTags.map((tag) => ({
                 ...tag,
                 color: tag.color ? tag.color : undefined,
-                collectionId: tag.collectionId ? tag.collectionId : undefined,
             })))
             setUserProfileTags(await Promise.all(profile.userTags.map(async (tag) => {
                 const response = (await client.models.UserTag.get({id: tag})).data!
                 return {
                     ...response,
                     color: response.color ? response.color : undefined,
-                    collectionId: response.collectionId ? response.collectionId : undefined
                 }
             })))
             setApiCall(true)
@@ -179,7 +178,6 @@ export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, 
                                             return {
                                                 ...response,
                                                 color: response.color ? response.color : undefined,
-                                                collectionId: response.collectionId ? response.collectionId : undefined
                                             }
                                         })))
                                     }}>
@@ -225,7 +223,6 @@ export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, 
                                                         return {
                                                             ...response,
                                                             color: response.color ? response.color : undefined,
-                                                            collectionId: response.collectionId ? response.collectionId : undefined
                                                         }
                                                     })))
                                                 }}>
@@ -273,7 +270,6 @@ export const FilledProfileModal: FC<FilledProfileModalProps> = ({open, onClose, 
                                                     return {
                                                         ...response,
                                                         color: response.color ? response.color : undefined,
-                                                        collectionId: response.collectionId ? response.collectionId : undefined
                                                     }
                                                 })))
                                             }}>

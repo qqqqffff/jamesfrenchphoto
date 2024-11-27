@@ -1,6 +1,5 @@
 import { FC, useEffect, useState } from "react";
 import { Timeslot, UserTag } from "../../types";
-import { Dropdown } from "flowbite-react";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { formatTime, GetColorComponent } from "../../utils";
@@ -13,22 +12,41 @@ export interface SlotProps {
     displayRegister: boolean
 }
 
-function createTimeString(timeslot: Timeslot){
-    return timeslot.start.toLocaleTimeString() + " - " + timeslot.end.toLocaleTimeString()
+export function createTimeString(timeslot: Timeslot){
+    return timeslot.start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' }) + " - " + timeslot.end.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })
 }
 
 export const SlotComponent: FC<SlotProps> = ({ timeslot, showTags = true, displayRegister }) => {
     const [apiCall, setApiCall] = useState(false)
-    const [tags, setTags] = useState<UserTag[]>([])
+    const [tag, setTag] = useState<UserTag>()
     
     useEffect(() => {
         async function api(){
             if(showTags){
-                const response = await Promise.all((await (await client.models.Timeslot.get({id: timeslot.id})).data!.timeslotTag()).data.map(async (timeslottags) => {
-                    return (await timeslottags.tag()).data as UserTag
-                }))
+                const timeslots = (await client.models.Timeslot.get({id: timeslot.id})).data
+                if(!timeslots){
+                    setTag(undefined)
+                    setApiCall(true)
+                    return
+                }
+                const tsTag = (await timeslots.timeslotTag()).data
+                if(!tsTag){
+                    setTag(undefined)
+                    setApiCall(true)
+                    return
+                }
+                const tag = (await tsTag.tag()).data
+                if(!tag){
+                    setTag(undefined)
+                    setApiCall(true)
+                    return
+                }
+                const response: UserTag = {
+                    ...tag,
+                    color: tag.color ?? undefined
+                }
                 console.log(response)
-                setTags(response)
+                setTag(response)
             }
             setApiCall(true)
         }
@@ -43,15 +61,14 @@ export const SlotComponent: FC<SlotProps> = ({ timeslot, showTags = true, displa
             <span>{"Time: " + createTimeString(timeslot)}</span>
             {
                 displayRegister ? 
-                    (timeslot.register !== undefined ? (<span>{timeslot.register}</span>) : (<span>No Registers Yet</span>))
+                    (timeslot.register !== undefined ? (<span>{timeslot.register}</span>) : (<span>No Signup Yet</span>))
                     : (<></>)
             }
             {showTags ? 
-            (<Dropdown label="Tags:" inline>
-                {tags.length > 0 ? (tags.map((tag, index) => {
-                    return (<Dropdown.Item key={index}><GetColorComponent activeColor={tag.color} customText={tag.name}/></Dropdown.Item>)
-                })) : (<Dropdown.Item>None</Dropdown.Item>)}
-            </Dropdown>) : (<></>)}
+            (tag ? (<GetColorComponent activeColor={tag.color} customText={tag.name}/>) : (<>No Tag</>)
+            ) : (
+                <></>
+            )}
         </div>)
 }
 

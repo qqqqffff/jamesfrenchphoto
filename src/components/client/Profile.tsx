@@ -37,11 +37,12 @@ export const ClientProfile: FC = () => {
             if(user) {
                 userProfileTags = await Promise.all(user.userTags.map(async (tag) => {
                     const response = (await client.models.UserTag.get({id: tag})).data!
-                    return {
+                    const ut: UserTag = {
                         ...response,
                         color: response.color ? response.color : undefined,
-                        collectionId: response.collectionId ? response.collectionId : undefined
+                        //TODO: perform collection fetch
                     }
+                    return ut
                 }))
             }
             console.log(userProfileTags)

@@ -46,7 +46,7 @@ export type PicturePath = {
 
 export type PhotoCollection = {
     name?: string;
-    coverPath: string | null;
+    coverPath?: string;
     createdAt: string;
     id: string;
     updatedAt: string;
@@ -73,5 +73,22 @@ export type UserTag = {
     id: string,
     name: string,
     color?: string,
-    collectionId?: string,
+    collections?: PhotoCollection[],
+}
+
+export interface UserColumnDisplay {
+    id: string,
+    heading: string,
+    color?: ColumnColor[],
+    textColor?: string,
+    display: boolean,
+    tag: string,
+    sort?: 'ASC' | 'DSC'
+}
+
+export type ColumnColor = {
+    id: string,
+    value: string
+    bgColor?: string
+    textColor?: string
 }
