@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Timeslot, UserProfile, UserStorage, UserTag } from "../../types";
+import { PhotoCollection, Timeslot, UserProfile, UserStorage, UserTag } from "../../types";
 import { Badge, Button } from "flowbite-react";
 import { 
     HiOutlineCalendar, 
@@ -150,8 +150,18 @@ export function Dashboard() {
                 const response = (await client.models.UserTag.get({id: tag})).data!
                 return {
                     ...response,
-                    color: response.color ? response.color : undefined,
-                    collectionId: response.collectionId ? response.collectionId : undefined
+                    color: response.color ?? undefined,
+                    collectionId: (await Promise.all((await response.collectionTags()).data.map(async (item) => {
+                        if(item === undefined) return
+                        const collectionData = (await item.collection()).data
+                        if(collectionData === null) return
+                        const collection: PhotoCollection = {
+                            ...collectionData,
+                            name: (await collectionData.subCategory()).data?.name,
+                            coverPath: collectionData.coverPath ?? undefined,
+                        }
+                        return collection
+                    }))).filter((item) => item !== undefined)
                 }
             }))
             console.log(userProfileTags)
@@ -207,7 +217,7 @@ export function Dashboard() {
                     {addClassComponent(adminView)}
                 </div>
                 <p className="font-medium text-xl mb-1">Quick Actions:</p>
-                <Button.Group outline>
+                <Button.Group>
                     <Button color='gray' onClick={() => setActiveConsole('home')} className={activeConsoleClassName('home')}>
                         <HiOutlineHome className="mt-1 me-1"/>Home
                     </Button>

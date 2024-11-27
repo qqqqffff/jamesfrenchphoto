@@ -1,25 +1,33 @@
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
-import { Label } from "flowbite-react"
+import { Checkbox, Dropdown, Label, Radio } from "flowbite-react"
 import { useEffect, useState } from "react"
 import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineMinusCircle, HiOutlinePlusCircle } from "react-icons/hi"
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand"
 import { CreateUserModal } from "../modals"
 import { CreateTagModal } from "../modals/CreateTag"
-import { UserData, UserTag } from "../../types"
-import { UserProfileModal } from "../modals/UserProfile"
+import { ColumnColor, PhotoCollection, Timeslot, UserColumnDisplay, UserData, UserProfile, UserTag } from "../../types"
+import { createTimeString } from "../timeslot/Slot"
+import { UserColumnModal } from "../modals/UserColumn"
 
 const client = generateClient<Schema>()
+
+interface UserTableData extends UserProfile { 
+    parentFirstName: string,
+    parentLastName: string,
+}
 
 export default function UserManagement(){
     const [createUserModalVisible, setCreateUserModalVisible] = useState(false)
     const [createTagModalVisible, setCreateTagModalVisible] = useState(false)
-    const [userProfileModalVisible, setUserProfileModalVisible] = useState(false)
-    const [userData, setUserData] = useState<UserData[]>([])
+    const [userColumnModalVisible, setUserColumnModalVisible] = useState(false)
+    const [userData, setUserData] = useState<UserTableData[] | undefined>()
+    const [userColumnDisplay, setUserColumnDisplay] = useState<UserColumnDisplay[]>([])
     const [sideBarToggles, setSideBarToggles] = useState<boolean>(true)
-    const [userTags, setUserTags] = useState<UserTag[]>()
-    const [existingTag, setExistingTag] = useState<UserTag | undefined>()
-    const [selectedUser, setSelectedUser] = useState<UserData | undefined>()
+    const [userTags, setUserTags] = useState<UserTag[]>([])
+    const [existingTag, setExistingTag] = useState<UserTag>()
+    const [selectedColumn, setSelectedColumn] = useState<string>('')
+    const [selectedTag, setSelectedTag] = useState<string>('')
     const [apiCall, setApiCall] = useState(false)
 
     function parseAttribute(attribute: string){
@@ -39,13 +47,13 @@ export default function UserManagement(){
         }
     }
 
-    async function getUsers() {
+    async function getUsers(tag?: string) {
         console.log('api call')
         const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
         
         const users = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput
         if(!users || !users.Users) return
-        const parsedUsers = users.Users.map((user) => {
+        const parsedUsersData = users.Users.map((user) => {
             let attributes = new Map<string, string>()
             if(user.Attributes){
                 user.Attributes.filter((attribute) => attribute.Name && attribute.Value).forEach((attribute) => {
@@ -67,16 +75,85 @@ export default function UserManagement(){
             } as UserData
         })
 
-        const userTags: UserTag[] = (await client.models.UserTag.list()).data.map((tag) => ({
-            ...tag,
-            color: tag.color ? tag.color : undefined,
-            collectionId: tag.collectionId ? tag.collectionId : undefined
+        const userTags: UserTag[] = await Promise.all((await client.models.UserTag.list()).data.map(async (tag) => {
+            const userTag: UserTag = {
+                ...tag,
+                color: tag.color ?? undefined,
+                collections: (await Promise.all((await tag.collectionTags()).data.map(async (item) => {
+                    if(item === undefined) return
+                    const collectionData = (await item.collection()).data
+                    if(collectionData === null) return
+                    const collection: PhotoCollection = {
+                        ...collectionData,
+                        name: (await collectionData.subCategory()).data?.name,
+                        coverPath: collectionData.coverPath ?? undefined,
+                    }
+                    return collection
+                }))).filter((item) => item !== undefined)
+            }
+            return userTag
         }))
 
-        setUserData(parsedUsers)
+        const userTableData: UserTableData[] = (await Promise.all(parsedUsersData.map(async (user) => {
+            const profile = (await client.models.UserProfile.get({ email: user.email })).data
+            if(!profile) return
+            const timeslot = (await profile.timeslot()).data
+            const tableData: UserTableData = {
+                ...profile,
+                userTags: profile.userTags ? (profile.userTags as string[]).map((tag) => {
+                    return userTags.find((userTag) => userTag.id === tag)?.name
+                }).filter((tag) => tag !== undefined) : [],
+                timeslot: (await Promise.all(timeslot.map(async (timeslot) => {
+                    if(!timeslot || !timeslot.id) return
+                    const ts: Timeslot = {
+                        ...timeslot,
+                        id: timeslot.id!,
+                        register: timeslot.register ?? undefined,
+                        tagId: (await timeslot.timeslotTag()).data?.tagId,
+                        start: new Date(timeslot.start),
+                        end: new Date(timeslot.end),
+                    }
+                    return ts
+                }))).filter((item) => item !== undefined),
+                participantMiddleName: profile.participantMiddleName ?? undefined,
+                participantPreferredName: profile.participantPreferredName ?? undefined,
+                parentFirstName: user.first,
+                parentLastName: user.last,
+                preferredContact: profile.preferredContact ?? 'EMAIL',
+                participantContact: profile.participantContact ?? false
+            }
+            return tableData;
+        }))).filter((item) => item !== undefined)
+            .filter((item) => !tag || item.userTags.find((t) => t === tag) !== undefined)
+
+        const userColumnDisplay: UserColumnDisplay[] = []
+        const response = await client.models.UserColumnDisplay.listUserColumnDisplayByTag({tag: 'all-users'})
+
+        if(response !== null && response.data.find((item) => item !== null)){
+            userColumnDisplay.push(...(await Promise.all(response.data.map(async (item) => {
+                if(!item) return
+                const color: ColumnColor[] = (await item.color()).data.map((color) => {
+                    if(!color) return
+                    return {
+                        ...color,
+                        bgColor: color.bgColor ?? undefined,
+                        textColor: color.textColor ?? undefined,
+                    }
+                }).filter((item) => item !== undefined)
+                const col: UserColumnDisplay = {
+                    ...item,
+                    color: color,
+                    display: item.display ?? true,
+                }
+                return col
+            }))).filter((item) => item !== undefined))
+        }
+
+
+        setUserColumnDisplay(userColumnDisplay)
+        setUserData(userTableData)
         setUserTags(userTags)
         setApiCall(true)
-        return parsedUsers
     }
     useEffect(() => {
         if(!apiCall){
@@ -94,6 +171,7 @@ export default function UserManagement(){
     const deleteUser = () => {}
     const promoteUser = () => {}
     const demoteUser = () => {}
+    const deleteTag = () => {}
 
 
     function managementOptions(){
@@ -119,6 +197,11 @@ export default function UserManagement(){
                 icon: (<HiOutlineMinusCircle />)
             },
             {
+                title: 'Delete Tag',
+                fn: deleteTag,
+                icon: (<HiOutlineMinusCircle />)
+            },
+            {
                 title: 'Promote User',
                 fn: promoteUser,
                 icon: (<HiOutlineChevronDoubleUp />)
@@ -127,7 +210,8 @@ export default function UserManagement(){
                 title: 'Demote User',
                 fn: demoteUser,
                 icon: (<HiOutlineChevronDoubleDown />)
-            }
+            },
+            
         ]
 
         if(sideBarToggles){
@@ -153,15 +237,146 @@ export default function UserManagement(){
         return (<HiOutlineChevronLeft className="me-3" />)
     }
 
-    function displayKeys(key: string): boolean{
+    function displayKeys(key: string): boolean {
         return key != 'userId'
+    }
+
+    function headingMap(key: string | undefined, update?: {original: UserTableData, val: string}): string | undefined{
+        if(key === undefined) return
+        switch(key.toLowerCase()){
+            case 'sittingnumber':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.sittingNumber = Number.parseInt(update.val)
+                    updateRow(temp)
+                }
+                return 'Sitting Number'
+            case 'email':
+                return 'Email'
+            case 'usertags':
+                return 'User Tags'
+            case 'participantfirstname':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.participantFirstName = update.val
+                    updateRow(temp)
+                }
+                return 'Participant First Name'
+            case 'participantlastname':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.participantLastName = update.val
+                    updateRow(temp)
+                }
+                return 'Participant Last Name'
+            case 'participantmiddlename':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.participantMiddleName = update.val
+                    updateRow(temp)
+                }
+                return 'Participant Middle Name'
+            case 'participantpreferredname':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.participantPreferredName = update.val
+                    updateRow(temp)
+                }
+                return 'Participant Preferred Name'
+            case 'participantcontact':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.participantContact = update.val.toLowerCase() === 'true' ? true : false
+                    updateRow(temp)
+                }
+                return 'Participant Contact'
+            case 'preferredcontact':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.preferredContact = update.val === 'PHONE' ? 'PHONE' : 'EMAIL'
+                    updateRow(temp)
+                }
+                return 'Preferred Contact'
+            case 'participantemail':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.participantEmail = update.val
+                    updateRow(temp)
+                }
+                return 'Participant Email'
+            case 'createdat':
+                return 'Created At'
+            case 'updatedat':
+                return 'Updated At'
+            case 'timeslot':
+                return 'Timeslot'
+            case 'parentfirstname':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.parentFirstName = update.val
+                    updateRow(temp)
+                }
+                return 'Parent First Name'
+            case 'parentlastname':
+                if(update) {
+                    const temp = {...update.original}
+                    temp.parentLastName = update.val
+                    updateRow(temp)
+                }
+                return 'Parent Last Name'
+        }
+    }
+
+    async function updateRow(newItem: UserTableData) {
+        const updateProfileResponse = await client.models.UserProfile.update({
+            email: newItem.email,
+            sittingNumber: newItem.sittingNumber,
+            userTags: userTags.filter((item) => newItem.userTags.includes(item.name)).map((item) => item.id),
+            participantFirstName: newItem.participantFirstName,
+            participantLastName: newItem.participantLastName,
+            participantMiddleName: newItem.participantMiddleName,
+            participantPreferredName: newItem.participantMiddleName,
+            preferredContact: newItem.preferredContact,
+            participantContact: newItem.participantContact,
+            participantEmail: newItem.participantEmail,
+        })
+        console.log(updateProfileResponse)
+
+        if(userData && updateProfileResponse){
+            const temp = [...userData].map((item) => {
+                if(item.email !== newItem.email) return item
+                return newItem
+            })
+            setUserData(temp)
+        }
     }
 
     return (
         <>
+
             <CreateUserModal open={createUserModalVisible} onClose={() => setCreateUserModalVisible(false)} />
-            <CreateTagModal open={createTagModalVisible} onClose={() => setCreateTagModalVisible(false)} existingTag={existingTag}/>
-            <UserProfileModal open={userProfileModalVisible} onClose={() => setUserProfileModalVisible(false)} user={selectedUser}/>
+            <CreateTagModal open={createTagModalVisible} onClose={async () => {
+                setApiCall(false)
+                setCreateTagModalVisible(false)
+                await getUsers(selectedTag)
+            }} existingTag={existingTag}/>
+            <UserColumnModal 
+                open={userColumnModalVisible} 
+                onClose={() => setUserColumnModalVisible(false)} 
+                columnData={{
+                    heading: headingMap(selectedColumn!)!, 
+                    data: userData ? userData.map((item) => {
+                        const value = Object.entries(item)
+                            .find((item) => (item[0].toLowerCase() === selectedColumn.toLowerCase()))
+                        if(!value?.[1]) return
+                        return ({ 
+                            value: value[1],
+                            id: item.email
+                        })
+                    }).filter((item) => item !== undefined) : [],
+                    tag: selectedTag
+                }}
+            />
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
                     <div className="flex flex-row">
@@ -172,78 +387,164 @@ export default function UserManagement(){
                     </div>
                    {managementOptions()}
                 </div>
-                <div className="flex col-span-4 justify-center border border-gray-400 rounded-lg">
+                <div className="flex col-span-4 justify-center border border-gray-400 rounded-lg px-1">
                     <div className="relative overflow-x-auto overflow-y-auto max-h-[100rem] shadow-md sm:rounded-lg">
-                        {userData && userData.length > 0 ? 
-                            (
-                            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                    <tr>
-                                        {Object.keys(userData[0]).filter((key) => displayKeys(key)).map((heading, i) => (
-                                            <th scope='col' className='px-6 py-3 border-x border-x-gray-300 border-b border-b-gray-300' key={i}>
-                                                {heading}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                {userData.map((field, i) => {
-                                    return (
-                                        <tr key={i} className="bg-white border-b ">
-                                            {Object.entries(field).filter((entry) => entry[0] != 'userId').map(([k, v], j) => {
-                                                // console.log(k, v)
-                                                let formatted: String = ''
-                                                let tempDate = new Date(v)
-                                                let currentUserBolding = ''
-                                                if(!isNaN(tempDate.getTime()) && tempDate.getTime() > 1){
-                                                    formatted = tempDate.toLocaleString()
-                                                }
-                                                else if(k.toUpperCase() !== 'USERID' && k.toUpperCase() !== 'EMAIL'){
-                                                    formatted = [...String(v)][0].toUpperCase() + String(v).substring(1).toLowerCase()
-                                                }
-                                                else {
-                                                    formatted = v
-                                                }
-                                                const currentUser = window.localStorage.getItem('user');
-                                                if(currentUser && JSON.parse(currentUser).user.userId === field.userId){
-                                                    currentUserBolding = 'font-bold'
-                                                }
-
-                                                return (
-                                                    <td className={`text-ellipsis px-6 py-4 ${currentUserBolding}`} key={j}>
-                                                        {k.toUpperCase() !== 'EMAIL' ? 
-                                                            (<span>{formatted}</span>) :
-                                                            (<button className="hover:text-black hover:underline underline-offset-2" onClick={() => {
-                                                                setSelectedUser(field)
-                                                                setUserProfileModalVisible(true)
-                                                            }}>{formatted}</button>)
-                                                        }
-                                                    </td>
-                                                )
-                                            })}
+                        {userData ? 
+                            userData.length > 0 ? (
+                                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                        <tr>
+                                            {Object.keys(userData[0]).filter((key) => displayKeys(key)).map((heading, i) => (
+                                                <th scope='col' className='px-6 py-3 border-x border-x-gray-300 border-b border-b-gray-300 min-w-[150px] max-w-[150px] whitespace-normal overflow-hidden break-words text-center' key={i}>
+                                                    <button className="hover:underline underline-offset-2" onClick={() => {
+                                                        setSelectedColumn(heading)
+                                                        setUserColumnModalVisible(true)
+                                                    }}>{headingMap(heading)}</button>
+                                                </th>
+                                            ))}
                                         </tr>
-                                    )    
-                                })}
-                            </tbody>
-                            </table>
-                        )
-                        : (<></>)}
+                                    </thead>
+                                    <tbody>
+                                        {userData.map((field, i) => {
+                                            return (
+                                                <tr key={i} className="bg-white border-b ">
+                                                    {Object.entries(field).map(([k, v], j) => {
+                                                        if(k === undefined) return (<></>)
+                                                        let display = v
+                                                        let styling = ''
+                                                        const columnDisplay = userColumnDisplay.find((item) => {
+                                                            return item.heading.replace(new RegExp(/\s/, 'g'), '').toLowerCase() == k.toLowerCase()
+                                                        })
+                                                        if(columnDisplay){
+                                                            const color = columnDisplay.color?.find((color) => color.value == v)
+                                                            const textColor = color?.textColor ? `text-${color.textColor}` : ''
+                                                            const bgColor = color?.bgColor ? `bg-${color.bgColor}` : ''
+                                                            styling = textColor + ' ' + bgColor
+                                                        }
+                                                        let children: JSX.Element[] | undefined
+                                                        if(k.toLowerCase() == 'usertags'){
+                                                            const tagString = (v as string[])
+                                                            const displayTags = tagString
+                                                                .map((tag) => {
+                                                                    const userTag = userTags.find((ut) => ut.name == tag)
+                                                                    if(!userTag) return
+                                                                    return (
+                                                                        <p className={`${userTag.color ? `text-${userTag.color}` : ''}`}>{userTag.name}</p>
+                                                                    )
+                                                                })
+                                                                .filter((item) => item !== undefined)
+                                                            children = [(
+                                                                <Dropdown 
+                                                                    className="max-h-10 overflow-hidden over"
+                                                                    label={displayTags.length > 0 ? displayTags : 'None'} key={field.email + '-' + 'tags'} color='light' dismissOnClick={false}>
+                                                                    {userTags.map((tag, index) => {
+                                                                        return (
+                                                                            <Dropdown.Item key={index}>
+                                                                                <button className="flex flex-row gap-2 text-left items-center" onClick={() => {
+                                                                                    const temp = {...field}
+                                                                                    if(tagString.includes(tag.name)){
+                                                                                        temp.userTags = temp.userTags.filter((t) => t !== tag.name)
+                                                                                    }
+                                                                                    else{
+                                                                                        temp.userTags.push(tag.name)
+                                                                                    }
+
+                                                                                    console.log(temp)
+                                                                                    
+                                                                                    updateRow(temp)
+                                                                                }} type="button">
+                                                                                    <Checkbox className="mt-1" checked={tagString.includes(tag.name)} readOnly />
+                                                                                    <span className={`${tag.color ? `text-${tag.color}` : ''}`}>{tag.name}</span>
+                                                                                </button>
+                                                                            </Dropdown.Item>
+                                                                        )
+                                                                    })}
+                                                                </Dropdown>
+                                                            )]
+                                                        }
+                                                        if(k.toLowerCase() == 'participantcontact' || k.toLowerCase() == 'preferredcontact'){
+                                                            display = String(v)[0].toUpperCase() + String(v).substring(1).toLowerCase()
+                                                        }
+                                                        if(k.toLocaleLowerCase() == 'createdat' || k.toLocaleLowerCase() == 'updatedat'){
+                                                            display = new Date(v).toLocaleString("en-us", { timeZone: 'America/Chicago' })
+                                                        }
+                                                        if(k.toLocaleLowerCase() == 'timeslot'){
+                                                            const timeslots = v as Timeslot[]
+                                                            children = userData[i].userTags.map((tag) => {
+                                                                const userTag = userTags?.find((ut) => ut.name == tag)
+                                                                if(!userTag) return
+                                                                const timeslot = timeslots.find((timeslot) => timeslot.tagId === userTag.id)
+                                                                return (
+                                                                    <p className={`${userTag.color !== undefined ? `text-${userTag.color}` : ''}`}>{
+                                                                        timeslot ? timeslot.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' }) + ": " + createTimeString(timeslot) :
+                                                                        'Not Registered'    
+                                                                    }</p>
+                                                                )
+                                                            })
+                                                            .filter((item) => item !== undefined)
+                                                            children = children.length == 0 ? undefined : children
+                                                            display = 'No Timeslots'
+                                                        }
+
+                                                        return (
+                                                            <td className={`text-ellipsis px-6 py-4 ${styling} border`} key={j}>
+                                                                {children ? children : (
+                                                                    <input 
+                                                                        disabled={k.toLowerCase() == 'email' || k.toLowerCase() == 'createdat' || k.toLowerCase() == 'updatedat'} 
+                                                                        className={`focus:outline-none focus:border-b focus:border-black disabled:bg-transparent disabled:cursor-not-allowed ${styling}`} 
+                                                                        defaultValue={display} onBlur={(event) => {
+                                                                            headingMap(k, {original: field, val: event.target.value})
+                                                                        }}/>
+                                                                )}
+                                                            </td>
+                                                        )
+                                                    })}
+                                                </tr>
+                                            )    
+                                        })}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <>No Users in this group</>
+                            )
+                        : (<>Loading...</>)}
                     </div>
                 </div>
                 <div className="flex flex-col border border-gray-400 rounded-lg p-2 me-4">
                     <div className="mb-2">
                         <span className="text-xl ms-4 mb-1">User Tags</span>
                     </div>
-                    {userTags && userTags.length > 0 ? (userTags.map((tag) => {
-                        const color = tag.color ? tag.color : 'black'
+                    {apiCall ? (
+                        <>
+                            <div className="flex flex-row items-center">
+                                <Radio checked={selectedTag === ''} onChange={async () => {
+                                    setSelectedTag('')
+                                    setUserData(undefined)
+                                    await getUsers('')
+                                }}/>
+                                <span className={`ms-4`}>All Users</span>
+                            </div>
+                            {userTags.map((tag) => {
+                                const color = tag.color ? tag.color : 'black'
 
-                        return (
-                            <span key={tag.id} className={`text-${color} ms-6 cursor-pointer hover:underline underline-offset-2`} onClick={() => {
-                                setExistingTag(tag)
-                                setCreateTagModalVisible(true)
-                            }}>{tag.name}</span>
-                        )
-                    })) : (<Label className="text-lg italic text-gray-500">No Tags</Label>)}
+                                return (
+                                    <div className="flex flex-row items-center">
+                                        <Radio checked={selectedTag === tag.id} onChange={async () => {
+                                            setSelectedTag(tag.id)
+                                            setUserData(undefined)
+                                            await getUsers(tag.id)
+                                        }}/>
+                                        <span key={tag.id} className={`text-${color} ms-4 cursor-pointer hover:underline underline-offset-2`} onClick={() => {
+                                            setExistingTag(tag)
+                                            setCreateTagModalVisible(true)
+                                        }}>{tag.name}</span>
+                                    </div>
+                                    
+                                )
+                            })}
+                        </>
+                        
+                    ) : (<Label className="text-lg italic text-gray-500">Loading...</Label>)}
                 </div>
             </div>
         </>

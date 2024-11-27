@@ -41,11 +41,10 @@ const schema = a.schema({
       imagePaths: a.hasMany('PhotoPaths', 'id'),
       subCategoryId: a.id().required(),
       subCategory: a.belongsTo('SubCategory', 'id'),
-      tagId: a.id(),
-      tag: a.hasOne('UserTag', 'id')
+      tags: a.hasMany('CollectionTag', 'collectionId')
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('subCategoryId'), index('tagId')])
+    .secondaryIndexes((index) => [index('subCategoryId')])
     .authorization((allow) => [allow.authenticated()]),
   PhotoPaths: a
     .model({
@@ -81,11 +80,19 @@ const schema = a.schema({
       id: a.id().required(),
       name: a.string().required(),
       color: a.string(),
-      collectionId: a.id(),
-      collection: a.belongsTo('PhotoCollection', 'id'),
+      collectionTags: a.hasMany('CollectionTag', 'tagId'),
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
     })
     .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  CollectionTag: a
+    .model({
+      collectionId: a.id().required(),
+      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      tagId: a.id().required(),
+      tag: a.belongsTo('UserTag', 'tagId')
+    })
+    .secondaryIndexes((index) => [index('tagId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   TimeslotTag: a
     .model({
@@ -94,7 +101,30 @@ const schema = a.schema({
       timeslotId: a.id().required(),
       timeslot: a.belongsTo('Timeslot', 'timeslotId')
     })
+    .identifier(['timeslotId'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  UserColumnDisplay: a
+    .model({
+      id: a.string().required(),
+      heading: a.string().required(),
+      color: a.hasMany('ColumnColorMapping', 'columnId'),
+      display: a.boolean().default(true),
+      tag: a.string().required(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('tag'), index('heading')])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  ColumnColorMapping: a
+    .model({
+      id: a.id().required(),
+      columnId: a.id().required(),
+      column: a.belongsTo('UserColumnDisplay', 'columnId'),
+      value: a.string().required(),
+      bgColor: a.string(),
+      textColor: a.string()
+    })
+    .secondaryIndexes((index) => [index('columnId')])
+    .authorization((allow) => [allow.group('ADMINS')]),
   Timeslot: a
     .model({
       id: a.id(),
@@ -102,7 +132,7 @@ const schema = a.schema({
       user: a.belongsTo('UserProfile', 'register'),
       start: a.datetime().required(),
       end: a.datetime().required(),
-      timeslotTag: a.hasMany('TimeslotTag', 'timeslotId'),
+      timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),
     })
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
