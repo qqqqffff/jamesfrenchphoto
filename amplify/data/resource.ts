@@ -148,9 +148,25 @@ const schema = a.schema({
       preferredContact: a.enum(['EMAIL', 'PHONE']),
       participantContact: a.boolean().default(false),
       participantEmail: a.string().required(),
+      participant: a.hasMany('Participant', 'userEmail')
     })
     .identifier(['email'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create'])]),
+  Participant: a.
+    model({
+      id: a.id().required(),
+      userEmail: a.string().required(),
+      user: a.belongsTo('UserProfile', 'userEmail'),
+      firstName: a.string().required(),
+      lastName: a.string().required(),
+      middleName: a.string(),
+      preferredName: a.string(),
+      contact: a.boolean().default(false),
+      email: a.string(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('userEmail')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update']), allow.guest().to(['create'])]),
   GetAuthUsers: a
     .query()
     .authorization((allow) => [allow.group('ADMINS')])

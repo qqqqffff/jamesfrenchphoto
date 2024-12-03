@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@atlaskit/drag-and-drop": "^0.16.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.667.0",
     "@aws-sdk/client-dynamodb": "^3.666.0",
     "@aws-sdk/client-ses": "^3.667.0",

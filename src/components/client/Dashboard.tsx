@@ -8,8 +8,8 @@ import {
     // HiOutlineDocumentText, 
     HiOutlinePlusCircle 
 } from "react-icons/hi";
-import { NavigateFunction, useNavigate } from "react-router-dom";
-import { HiArrowUturnLeft, HiOutlineHome } from "react-icons/hi2";
+import { useNavigate } from "react-router-dom";
+import { HiOutlineHome } from "react-icons/hi2";
 import { Home } from "./Home";
 import { badgeColorThemeMap } from "../../utils";
 import { generateClient } from "aws-amplify/api";
@@ -18,16 +18,16 @@ import { TimeslotComponent } from "../timeslot/Timeslot";
 
 const client = generateClient<Schema>()
 
-function returnToAdminConsoleComponent(adminView: boolean, navigate: NavigateFunction){
-    if(adminView){
-        return (
-            <Button color='gray' onClick={() => navigate('/admin/dashboard')}>
-                <HiArrowUturnLeft className="mt-1 me-1"/> Return to Admin View
-            </Button>
-        )
-    }
-    return (<></>)
-}
+// function returnToAdminConsoleComponent(adminView: boolean, navigate: NavigateFunction){
+//     if(adminView){
+//         return (
+//             <Button color='gray' onClick={() => navigate('/admin/dashboard')}>
+//                 <HiArrowUturnLeft className="mt-1 me-1"/> Return to Admin View
+//             </Button>
+//         )
+//     }
+//     return (<></>)
+// }
 
 function addClassComponent(adminView: boolean){
     if(adminView){
@@ -42,6 +42,7 @@ export function Dashboard() {
     const [activeConsole, setActiveConsole] = useState('home')
     const [userProfile, setUserProfile] = useState<UserProfile | undefined>()
     const [userProfileTags, setUserProfileTags] = useState<UserTag[]>([])
+    const [schedulerEnabled, setSchedulerEnabled] = useState(false)
     const [apiCall, setApiCall] = useState(false)
     const navigate = useNavigate()
 
@@ -103,6 +104,7 @@ export function Dashboard() {
             const userTags = (await client.models.UserTag.list()).data
             const userTagIds = userTags.map((tag) => tag.id)
             const filteredUserTags = profile.userTags.filter((tag) => userTagIds.includes(tag))
+            
 
             //validating tags
             if(filteredUserTags.length < profile.userTags.length){
@@ -145,9 +147,12 @@ export function Dashboard() {
                 console.log(response, profile)
             }
 
+            let schedulerEnabled = false 
+
             //secondary indexing
             const userProfileTags = await Promise.all(profile.userTags.map(async (tag) => {
                 const response = (await client.models.UserTag.get({id: tag})).data!
+                schedulerEnabled = (await response.timeslotTags()).data.filter((item) => item !== null || item !== undefined).length > 0
                 return {
                     ...response,
                     color: response.color ?? undefined,
@@ -168,6 +173,7 @@ export function Dashboard() {
 
             setUserProfileTags(userProfileTags)
             setUserProfile(profile)
+            setSchedulerEnabled(schedulerEnabled)
             setUser(tempUser)
             setAdminView(tempUser.groups.includes('ADMINS'))
             setApiCall(true)
@@ -221,9 +227,9 @@ export function Dashboard() {
                     <Button color='gray' onClick={() => setActiveConsole('home')} className={activeConsoleClassName('home')}>
                         <HiOutlineHome className="mt-1 me-1"/>Home
                     </Button>
-                    <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
+                    {schedulerEnabled ? (<Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
                         <HiOutlineCalendar className="mt-1 me-1"/>Scheduler
-                    </Button>
+                    </Button>) : (<></>)}
                     {/* <Button color='gray' onClick={() => setActiveConsole('checklist')} className={activeConsoleClassName('checklist')}>
                         <HiOutlineClipboardList className="mt-1 me-1"/>Checklist
                     </Button>
@@ -234,7 +240,7 @@ export function Dashboard() {
                         <HiOutlineDocumentText className="mt-1 me-1"/>Package Info
                     </Button> */}
                     
-                    {returnToAdminConsoleComponent(adminView, navigate)}
+                    {/* {adminView ? returnToAdminConsoleComponent(adminView, navigate) : undefined} */}
                 </Button.Group>
             </div>
             {activeConsoleComponent()}

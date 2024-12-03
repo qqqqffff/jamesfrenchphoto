@@ -80,7 +80,6 @@ export interface UserColumnDisplay {
     id: string,
     heading: string,
     color?: ColumnColor[],
-    textColor?: string,
     display: boolean,
     tag: string,
     sort?: 'ASC' | 'DSC'

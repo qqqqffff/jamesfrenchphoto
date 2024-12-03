@@ -1,6 +1,6 @@
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
-import { Checkbox, Dropdown, Label, Radio } from "flowbite-react"
+import { Checkbox, Dropdown, Label, Radio, Tooltip } from "flowbite-react"
 import { useEffect, useState } from "react"
 import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineMinusCircle, HiOutlinePlusCircle } from "react-icons/hi"
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand"
@@ -9,25 +9,33 @@ import { CreateTagModal } from "../modals/CreateTag"
 import { ColumnColor, PhotoCollection, Timeslot, UserColumnDisplay, UserData, UserProfile, UserTag } from "../../types"
 import { createTimeString } from "../timeslot/Slot"
 import { UserColumnModal } from "../modals/UserColumn"
+import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
 
 const client = generateClient<Schema>()
 
 interface UserTableData extends UserProfile { 
     parentFirstName: string,
     parentLastName: string,
+    createdAt: string,
+    updatedAt: string,
 }
 
 export default function UserManagement(){
     const [createUserModalVisible, setCreateUserModalVisible] = useState(false)
     const [createTagModalVisible, setCreateTagModalVisible] = useState(false)
     const [userColumnModalVisible, setUserColumnModalVisible] = useState(false)
+
     const [userData, setUserData] = useState<UserTableData[] | undefined>()
     const [userColumnDisplay, setUserColumnDisplay] = useState<UserColumnDisplay[]>([])
     const [sideBarToggles, setSideBarToggles] = useState<boolean>(true)
+
     const [userTags, setUserTags] = useState<UserTag[]>([])
     const [existingTag, setExistingTag] = useState<UserTag>()
+
     const [selectedColumn, setSelectedColumn] = useState<string>('')
     const [selectedTag, setSelectedTag] = useState<string>('')
+    const [selectedHeader, setSelectedHeader] = useState<{header: string, sort: 'ASC' | 'DSC' | undefined}>()
+
     const [apiCall, setApiCall] = useState(false)
 
     function parseAttribute(attribute: string){
@@ -238,90 +246,257 @@ export default function UserManagement(){
     }
 
     function displayKeys(key: string): boolean {
-        return key != 'userId'
+        return key != 'userId' && key != 'participant'
     }
 
-    function headingMap(key: string | undefined, update?: {original: UserTableData, val: string}): string | undefined{
+    function headingMap(key: string | undefined, update?: {original: UserTableData, val: string, noCommit?: boolean}, sort?: "ASC" | 'DSC' ): string | undefined | UserTableData[] | UserTableData {
         if(key === undefined) return
         switch(key.toLowerCase()){
             case 'sittingnumber':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    const sorted = sort == 'ASC' ? (
+                        tempData.sort((a, b) => a.sittingNumber - b.sittingNumber)
+                    ) : (
+                        tempData.sort((a, b) => b.sittingNumber - a.sittingNumber)
+                    )
+                    return sorted
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.sittingNumber = Number.parseInt(update.val)
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
+                    return temp
                 }
                 return 'Sitting Number'
             case 'email':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => a.email.localeCompare(b.email))
+                    ) : (
+                        tempData.sort((a, b) => b.email.localeCompare(a.email))
+                    )
+                }
                 return 'Email'
             case 'usertags':
                 return 'User Tags'
             case 'participantfirstname':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => a.participantFirstName.localeCompare(b.participantFirstName))
+                    ) : (
+                        tempData.sort((a, b) => b.participantFirstName.localeCompare(a.participantFirstName))
+                    )
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.participantFirstName = update.val
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
+                    return temp
                 }
                 return 'Participant First Name'
             case 'participantlastname':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => a.participantLastName.localeCompare(b.participantLastName))
+                    ) : (
+                        tempData.sort((a, b) => b.participantLastName.localeCompare(a.participantLastName))
+                    )
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.participantLastName = update.val
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
+                    return temp
                 }
                 return 'Participant Last Name'
             case 'participantmiddlename':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => {
+                            if (a.participantMiddleName === undefined) return 1; 
+                            if (b.participantMiddleName === undefined) return -1;
+                            return a.participantMiddleName.localeCompare(b.participantMiddleName)
+                        })
+                    ) : (
+                        tempData.sort((a, b) => {
+                            if (b.participantMiddleName === undefined) return 1; 
+                            if (a.participantMiddleName === undefined) return -1;
+                            return b.email.localeCompare(a.email)
+                        })
+                    )
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.participantMiddleName = update.val
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
+                    return temp
                 }
                 return 'Participant Middle Name'
             case 'participantpreferredname':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => {
+                            if (a.participantPreferredName === undefined) return 1; 
+                            if (b.participantPreferredName === undefined) return -1;
+                            return a.participantPreferredName.localeCompare(b.participantPreferredName)
+                        })
+                    ) : (
+                        tempData.sort((a, b) => {
+                            if (b.participantPreferredName === undefined) return 1; 
+                            if (a.participantPreferredName === undefined) return -1;
+                            return b.participantPreferredName.localeCompare(a.participantPreferredName)
+                        })
+                    )
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.participantPreferredName = update.val
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
+                    return temp
                 }
                 return 'Participant Preferred Name'
             case 'participantcontact':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => {
+                            const x = a.participantContact ? 1 : 0
+                            const y = b.participantContact ? 1 : 0
+                            return x - y
+                        })
+                    ) : (
+                        tempData.sort((a, b) => {
+                            const x = a.participantContact ? 1 : 0
+                            const y = b.participantContact ? 1 : 0
+                            return y - x
+                        })
+                    )
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.participantContact = update.val.toLowerCase() === 'true' ? true : false
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
+                    return temp
                 }
                 return 'Participant Contact'
             case 'preferredcontact':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => {
+                            const x = a.preferredContact == 'EMAIL' ? 1 : 0
+                            const y = b.preferredContact == 'EMAIL' ? 1 : 0
+                            return x - y
+                        })
+                    ) : (
+                        tempData.sort((a, b) => {
+                            const x = a.preferredContact == 'EMAIL' ? 1 : 0
+                            const y = b.preferredContact == 'EMAIL' ? 1 : 0
+                            return y - x
+                        })
+                    )
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.preferredContact = update.val === 'PHONE' ? 'PHONE' : 'EMAIL'
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
+                    return temp
                 }
                 return 'Preferred Contact'
             case 'participantemail':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => {
+                            return a.participantEmail.localeCompare(b.participantEmail)
+                        })
+                    ) : (
+                        tempData.sort((a, b) => {
+                            return b.participantEmail.localeCompare(a.participantEmail)
+                        })
+                    )
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.participantEmail = update.val
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
                 }
                 return 'Participant Email'
             case 'createdat':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => {
+                            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                        })
+                    ) : (
+                        tempData.sort((a, b) => {
+                            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                        })
+                    )
+                }
                 return 'Created At'
             case 'updatedat':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => {
+                            return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
+                        })
+                    ) : (
+                        tempData.sort((a, b) => {
+                            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+                        })
+                    )
+                }
                 return 'Updated At'
             case 'timeslot':
+                //TODO: special sorting
                 return 'Timeslot'
             case 'parentfirstname':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => {
+                            return a.parentFirstName.localeCompare(b.parentFirstName)
+                        })
+                    ) : (
+                        tempData.sort((a, b) => {
+                            return b.parentFirstName.localeCompare(a.parentFirstName)
+                        })
+                    )
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.parentFirstName = update.val
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
+                    return temp
                 }
                 return 'Parent First Name'
             case 'parentlastname':
+                if(sort && userData){
+                    const tempData = [...userData]
+                    return sort == 'ASC' ? (
+                        tempData.sort((a, b) => {
+                            return a.parentLastName.localeCompare(b.parentLastName)
+                        })
+                    ) : (
+                        tempData.sort((a, b) => {
+                            return b.parentLastName.localeCompare(a.parentLastName)
+                        })
+                    )
+                }
                 if(update) {
                     const temp = {...update.original}
                     temp.parentLastName = update.val
-                    updateRow(temp)
+                    if(update.noCommit) updateRow(temp)
+                    return temp
                 }
                 return 'Parent Last Name'
         }
@@ -335,7 +510,7 @@ export default function UserManagement(){
             participantFirstName: newItem.participantFirstName,
             participantLastName: newItem.participantLastName,
             participantMiddleName: newItem.participantMiddleName,
-            participantPreferredName: newItem.participantMiddleName,
+            participantPreferredName: newItem.participantPreferredName,
             preferredContact: newItem.preferredContact,
             participantContact: newItem.participantContact,
             participantEmail: newItem.participantEmail,
@@ -364,7 +539,7 @@ export default function UserManagement(){
                 open={userColumnModalVisible} 
                 onClose={() => setUserColumnModalVisible(false)} 
                 columnData={{
-                    heading: headingMap(selectedColumn!)!, 
+                    heading: headingMap(selectedColumn!)! as string, 
                     data: userData ? userData.map((item) => {
                         const value = Object.entries(item)
                             .find((item) => (item[0].toLowerCase() === selectedColumn.toLowerCase()))
@@ -392,24 +567,47 @@ export default function UserManagement(){
                         {userData ? 
                             userData.length > 0 ? (
                                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky">
                                         <tr>
-                                            {Object.keys(userData[0]).filter((key) => displayKeys(key)).map((heading, i) => (
-                                                <th scope='col' className='px-6 py-3 border-x border-x-gray-300 border-b border-b-gray-300 min-w-[150px] max-w-[150px] whitespace-normal overflow-hidden break-words text-center' key={i}>
-                                                    <button className="hover:underline underline-offset-2" onClick={() => {
-                                                        setSelectedColumn(heading)
-                                                        setUserColumnModalVisible(true)
-                                                    }}>{headingMap(heading)}</button>
-                                                </th>
-                                            ))}
+                                            {Object.keys(userData[0]).filter((key) => displayKeys(key)).map((heading, i) => {
+                                                return (
+                                                    <th onMouseEnter={() => {
+                                                            if(heading !== 'userTags' && heading !== 'timeslot' && (!selectedHeader || selectedHeader.header !== heading)) {
+                                                                setSelectedHeader({header: heading, sort: undefined})
+                                                            }
+                                                        }} 
+                                                        onDrag={(event) => console.log(event)} scope='col' 
+                                                        className='relative px-6 py-3 border-x border-x-gray-300 border-b border-b-gray-300 min-w-[150px] max-w-[150px] whitespace-normal overflow-hidden break-words text-center items-center' key={i}>
+                                                        <button className="hover:underline underline-offset-2 max-w-[140px]" onClick={() => {
+                                                            setSelectedColumn(heading)
+                                                            setUserColumnModalVisible(true)
+                                                        }}>{headingMap(heading) as string}</button>
+                                                        {selectedHeader && selectedHeader.header == heading ? (
+                                                            <button className="absolute me-1 mt-1 inset-y-0 right-0" onClick={() => {
+                                                                const temp = { ...selectedHeader }
+                                                                temp.sort = temp.sort == 'ASC' ? 'DSC' : 'ASC'
+                                                                const temp2 = headingMap(heading, undefined, temp.sort) as UserTableData[]
+                                                                setSelectedHeader(temp)
+                                                                setUserData(temp2)
+                                                            }}>{
+                                                                selectedHeader.sort == 'ASC' ? (
+                                                                    <GoTriangleUp className="text-lg"/>
+                                                                ) : (
+                                                                    <GoTriangleDown className="text-lg"/>
+                                                            )}</button>
+                                                        ) : (<></>)}
+                                                    </th>
+                                                )
+                                            })}
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {userData.map((field, i) => {
                                             return (
-                                                <tr key={i} className="bg-white border-b ">
+                                                <tr key={i} className="bg-white border-b">
                                                     {Object.entries(field).map(([k, v], j) => {
                                                         if(k === undefined) return (<></>)
+                                                        if(!displayKeys(k)) return undefined
                                                         let display = v
                                                         let styling = ''
                                                         const columnDisplay = userColumnDisplay.find((item) => {
@@ -425,17 +623,16 @@ export default function UserManagement(){
                                                         if(k.toLowerCase() == 'usertags'){
                                                             const tagString = (v as string[])
                                                             const displayTags = tagString
-                                                                .map((tag) => {
+                                                                .map((tag, index) => {
                                                                     const userTag = userTags.find((ut) => ut.name == tag)
                                                                     if(!userTag) return
                                                                     return (
-                                                                        <p className={`${userTag.color ? `text-${userTag.color}` : ''}`}>{userTag.name}</p>
+                                                                        <p className={`${userTag.color ? `text-${userTag.color}` : ''}`}>{userTag.name + (tagString.length - 1 != index ? ', ' : '')}</p>
                                                                     )
                                                                 })
                                                                 .filter((item) => item !== undefined)
                                                             children = [(
-                                                                <Dropdown 
-                                                                    className="max-h-10 overflow-hidden over"
+                                                                <Dropdown
                                                                     label={displayTags.length > 0 ? displayTags : 'None'} key={field.email + '-' + 'tags'} color='light' dismissOnClick={false}>
                                                                     {userTags.map((tag, index) => {
                                                                         return (
@@ -448,8 +645,6 @@ export default function UserManagement(){
                                                                                     else{
                                                                                         temp.userTags.push(tag.name)
                                                                                     }
-
-                                                                                    console.log(temp)
                                                                                     
                                                                                     updateRow(temp)
                                                                                 }} type="button">
@@ -457,7 +652,7 @@ export default function UserManagement(){
                                                                                     <span className={`${tag.color ? `text-${tag.color}` : ''}`}>{tag.name}</span>
                                                                                 </button>
                                                                             </Dropdown.Item>
-                                                                        )
+                                                                         )
                                                                     })}
                                                                 </Dropdown>
                                                             )]
@@ -492,9 +687,13 @@ export default function UserManagement(){
                                                                     <input 
                                                                         disabled={k.toLowerCase() == 'email' || k.toLowerCase() == 'createdat' || k.toLowerCase() == 'updatedat'} 
                                                                         className={`focus:outline-none focus:border-b focus:border-black disabled:bg-transparent disabled:cursor-not-allowed ${styling}`} 
-                                                                        defaultValue={display} onBlur={(event) => {
+                                                                        defaultValue={display} 
+                                                                        onBlur={(event) => {
                                                                             headingMap(k, {original: field, val: event.target.value})
-                                                                        }}/>
+                                                                        }}
+                                                                        onChange={() => {}}
+                                                                        value={display}
+                                                                    />
                                                                 )}
                                                             </td>
                                                         )
@@ -502,6 +701,54 @@ export default function UserManagement(){
                                                 </tr>
                                             )    
                                         })}
+                                        <tr className="bg-white">
+                                            {Object.keys(userData[0]).map((item, i) => {
+                                                const found = userColumnDisplay.find((col) => headingMap(item) == col.heading)
+                                                if(item.toLowerCase() == 'timeslot'){
+                                                    const aggregate = userData
+                                                        .map((item) => item.timeslot)
+                                                        .reduce((prev, cur) => cur !== undefined && cur.length > 0 ? prev = prev + 1 : prev, 0)
+                                                    return (
+                                                        <td key={i} className="text-ellipsis px-6 py-4 border">
+                                                            {aggregate + "/" + userData.length} Registered
+                                                        </td>
+                                                    )
+                                                }
+                                                if(found && found.color && found.color.length > 0){
+                                                    let leftover = userData.length
+                                                    return (
+                                                        <td key={i} className="text-ellipsis px-6 py-4 border">
+                                                            <div className="flex flex-row">
+                                                                {found.color?.map((color) => {
+                                                                    const aggregate = userData
+                                                                        .map((row) => {
+                                                                            return Object.entries(row).find((entry) => entry[0] === item)?.[1]
+                                                                        })
+                                                                        .reduce((prev, cur) => cur !== undefined && cur == color.value ? prev = prev + 1 : prev, 0)
+                                                                    leftover -= aggregate
+                                                                    return (
+                                                                        <Tooltip content={aggregate + '/' + userData.length + ` ${((aggregate/userData.length) * 100).toPrecision(4)}%`}>
+                                                                            <div className={`text-${color.textColor} bg-${color.bgColor} p-2`}>
+                                                                                {color.value[0]}
+                                                                            </div>
+                                                                        </Tooltip>
+                                                                        
+                                                                    )
+                                                                })}
+                                                                <Tooltip content={leftover + '/' + userData.length + ` ${((leftover/userData.length) * 100).toPrecision(4)}%`}>
+                                                                    <div className={`text-black bg-gray-300 p-2`}>
+                                                                        N/A
+                                                                    </div>
+                                                                </Tooltip>
+                                                            </div>
+                                                        </td>
+                                                    )
+                                                }
+                                                return (
+                                                    <td></td>
+                                                )
+                                            })}
+                                        </tr>
                                     </tbody>
                                 </table>
                             ) : (
@@ -522,7 +769,7 @@ export default function UserManagement(){
                                     setUserData(undefined)
                                     await getUsers('')
                                 }}/>
-                                <span className={`ms-4`}>All Users</span>
+                                <span className={`ms-4 mb-1`}>All Users</span>
                             </div>
                             {userTags.map((tag) => {
                                 const color = tag.color ? tag.color : 'black'
@@ -534,7 +781,7 @@ export default function UserManagement(){
                                             setUserData(undefined)
                                             await getUsers(tag.id)
                                         }}/>
-                                        <span key={tag.id} className={`text-${color} ms-4 cursor-pointer hover:underline underline-offset-2`} onClick={() => {
+                                        <span key={tag.id} className={`text-${color} ms-4 mb-1 cursor-pointer hover:underline underline-offset-2`} onClick={() => {
                                             setExistingTag(tag)
                                             setCreateTagModalVisible(true)
                                         }}>{tag.name}</span>

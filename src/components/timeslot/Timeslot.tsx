@@ -313,29 +313,69 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                 }
                             }}/>) : 
                             (
-                                <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString()}>
-                                    {
-                                        tagTimeslots && Object.entries(tagTimeslots).length > 0 ? Object.entries(tagTimeslots).map(([tagId, timeslots]) => {
-                                            const color = userTags!.find((tag) => tag.id === tagId)!.color ?? 'black'
-                                            const dates = timeslots
-                                                .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
-                                                .reduce((prev, cur) => {
-                                                    if(!prev.includes(cur)) {
-                                                        prev.push(cur)
-                                                    }
-                                                    return prev
-                                                }, [] as number[])
-                                                .sort((a, b) => a - b)
-                                                .map((time) => new Date(time))
-                                            const objects = dates.map((date, index) => {
-                                                return (
-                                                    <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString()}</Dropdown.Item>
-                                                )
-                                            })
-                                            return objects
-                                        }) : (<Dropdown.Item>No Dates available</Dropdown.Item>)
-                                    }
-                                </Dropdown>
+                                <div className="flex flex-row gap-2 items-center">
+                                    <button className="border p-1.5 rounded-full border-black bg-white hover:bg-gray-300" onClick={() => {
+                                        const timeslots = Object.values(tagTimeslots)
+                                            .reduce((prev, cur) => [...prev, ...cur], [])
+                                            .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                            .reduce((prev, cur) => {
+                                                if(!prev.includes(cur)){
+                                                    prev.push(cur)
+                                                }
+                                                return prev
+                                            }, [] as number[])
+                                            .map((time) => new Date(time))
+
+                                        const currentTimeslotIndex = timeslots.findIndex((date) => date.getTime() === activeDate.getTime())
+                                        const currentDate = currentTimeslotIndex - 1 < 0 ? timeslots[timeslots.length - 1] : timeslots[currentTimeslotIndex - 1]
+                                        
+                                        setActiveDate(currentDate)
+                                    }} disabled={!(tagTimeslots && Object.entries(tagTimeslots).length > 0)}>
+                                        <HiOutlineArrowLeft />
+                                    </button>
+                                    <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString()}>
+                                        {
+                                            tagTimeslots && Object.entries(tagTimeslots).length > 0 ? Object.entries(tagTimeslots).map(([tagId, timeslots]) => {
+                                                const color = userTags!.find((tag) => tag.id === tagId)!.color ?? 'black'
+                                                const dates = timeslots
+                                                    .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                                    .reduce((prev, cur) => {
+                                                        if(!prev.includes(cur)) {
+                                                            prev.push(cur)
+                                                        }
+                                                        return prev
+                                                    }, [] as number[])
+                                                    .sort((a, b) => a - b)
+                                                    .map((time) => new Date(time))
+                                                const objects = dates.map((date, index) => {
+                                                    return (
+                                                        <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString()}</Dropdown.Item>
+                                                    )
+                                                })
+                                                return objects
+                                            }) : (<Dropdown.Item>No Dates available</Dropdown.Item>)
+                                        }
+                                    </Dropdown>
+                                    <button className="border p-1.5 rounded-full border-black bg-white hover:bg-gray-300" onClick={() => {
+                                        const timeslots = Object.values(tagTimeslots)
+                                            .reduce((prev, cur) => [...prev, ...cur], [])
+                                            .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                            .reduce((prev, cur) => {
+                                                if(!prev.includes(cur)){
+                                                    prev.push(cur)
+                                                }
+                                                return prev
+                                            }, [] as number[])
+                                            .map((time) => new Date(time))
+
+                                        const currentTimeslotIndex = timeslots.findIndex((date) => date.getTime() === activeDate.getTime())
+                                        const currentDate = currentTimeslotIndex + 1 >= timeslots.length ? timeslots[0] : timeslots[currentTimeslotIndex + 1]
+                                        
+                                        setActiveDate(currentDate)
+                                    }} disabled={!(tagTimeslots && Object.entries(tagTimeslots).length > 0)}>
+                                        <HiOutlineArrowRight />
+                                    </button>
+                                </div>
                                 
                             )
                     }
