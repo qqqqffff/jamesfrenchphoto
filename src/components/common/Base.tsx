@@ -13,6 +13,7 @@ const client = generateClient<Schema>()
 export const Base = () => {
     const navigate = useNavigate()
     const location = useLocation()
+    
     useEffect(() => {
         async function verifyUser(){
             let group = ''
@@ -78,7 +79,7 @@ export const Base = () => {
         }
         verifyUser()
     }, [])
-    console.log(location.pathname)
+
     return (
         <>
             {location.pathname === '/client' ? (

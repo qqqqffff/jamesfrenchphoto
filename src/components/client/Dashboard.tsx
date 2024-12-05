@@ -90,12 +90,16 @@ export function Dashboard() {
 
             let profile: UserProfile = {
                 ...getProfileResponse,
+                participantFirstName: getProfileResponse.participantFirstName ?? undefined,
+                participantLastName: getProfileResponse.participantLastName ?? undefined,
+                participantEmail: getProfileResponse.participantEmail ?? undefined,
                 userTags: getProfileResponse.userTags ? getProfileResponse.userTags as string[] : [],
                 timeslot: profileTimeslot,
                 participantMiddleName: getProfileResponse.participantMiddleName ?? undefined,
                 participantPreferredName: getProfileResponse.participantPreferredName ?? undefined,
                 preferredContact: getProfileResponse.preferredContact ?? 'EMAIL',
-                participantContact: getProfileResponse.participantContact ?? true
+                participantContact: getProfileResponse.participantContact ?? true,
+                participant: []
             }
 
             console.log(profile)
@@ -137,12 +141,16 @@ export function Dashboard() {
 
                 profile = {
                     ...response,
+                    participantFirstName: response.participantFirstName ?? undefined,
+                    participantLastName: response.participantLastName ?? undefined,
+                    participantEmail: response.participantEmail ?? undefined,
                     userTags: response.userTags ? response.userTags as string[] : [],
                     timeslot: responseTimeslot,
                     participantMiddleName: response.participantMiddleName ?? undefined,
                     participantPreferredName: response.participantPreferredName ?? undefined,
                     preferredContact: response.preferredContact ?? 'EMAIL',
-                    participantContact: response.participantContact ?? true
+                    participantContact: response.participantContact ?? true,
+                    participant: []
                 }
                 console.log(response, profile)
             }

@@ -44,7 +44,6 @@ const router = createBrowserRouter(
           return null
         }}/>
         <Route path='profile/:email' element={<ClientProfile />} loader={async ({ params }) => {
-          console.log(params)
           if(!params || !params.email) return null
           const response = (await client.models.UserProfile.get({ email: params.email })).data
           if(!response) return null
@@ -60,12 +59,16 @@ const router = createBrowserRouter(
           }).filter((timeslot) => timeslot !== undefined) : undefined
           const profile: UserProfile = {
             ...response,
+            participantFirstName: response.participantFirstName ?? undefined,
+            participantLastName: response.participantLastName ?? undefined,
+            participantEmail: response.participantEmail ?? undefined,
             userTags: response.userTags ? response.userTags as string[] : [],
             timeslot: responseTimeslot,
             participantMiddleName: response.participantMiddleName ?? undefined,
             participantPreferredName: response.participantPreferredName ?? undefined,
             preferredContact: response.preferredContact ?? 'EMAIL',
-            participantContact: response.participantContact ?? true
+            participantContact: response.participantContact ?? false,
+            participant: []
           }
           return profile
         }} />

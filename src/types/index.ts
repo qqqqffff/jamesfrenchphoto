@@ -26,13 +26,25 @@ export interface UserProfile {
     userTags: string[],
     preferredName?: string,
     timeslot?: Timeslot[],
-    participantFirstName: string,
-    participantLastName: string,
+    participantFirstName?: string,
+    participantLastName?: string,
     participantMiddleName?: string,
     participantPreferredName?: string,
     preferredContact: "EMAIL" | "PHONE",
-    participantContact: boolean,
-    participantEmail: string,
+    participantContact?: boolean,
+    participantEmail?: string,
+    participant: Participant[]
+}
+
+export interface Participant {
+    id: string,
+    firstName: string,
+    lastName: string,
+    userTags: string[],
+    middleName?: string,
+    preferredName?: string,
+    email?: string,
+    contact: boolean,
 }
 
 export type PicturePath = {

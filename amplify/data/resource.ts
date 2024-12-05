@@ -5,6 +5,7 @@ import { getAuthUsers } from '../auth/get-auth-users/resource';
 import { addCreateUserQueue } from '../functions/add-create-user-queue/resource';
 import { verifyContactChallenge } from '../functions/verify-contact-challenge/resource';
 import { sendTimeslotConfirmation } from '../functions/send-timeslot-confirmation/resource';
+import { updateUserAttribute } from '../auth/update-user-attribute/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -141,14 +142,15 @@ const schema = a.schema({
       email: a.string().required(),
       userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read']), allow.guest().to(['create'])]),
       timeslot: a.hasMany('Timeslot', 'register'),
-      participantFirstName: a.string().required(),
-      participantLastName: a.string().required(),
+      participantFirstName: a.string(),
+      participantLastName: a.string(),
       participantMiddleName: a.string(),
       participantPreferredName: a.string(),
       preferredContact: a.enum(['EMAIL', 'PHONE']),
       participantContact: a.boolean().default(false),
-      participantEmail: a.string().required(),
-      participant: a.hasMany('Participant', 'userEmail')
+      participantEmail: a.string(),
+      participant: a.hasMany('Participant', 'userEmail'),
+      activeParticipant: a.id(),
     })
     .identifier(['email'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create'])]),
@@ -157,6 +159,7 @@ const schema = a.schema({
       id: a.id().required(),
       userEmail: a.string().required(),
       user: a.belongsTo('UserProfile', 'userEmail'),
+      userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read', 'create']), allow.guest().to(['create'])]),
       firstName: a.string().required(),
       lastName: a.string().required(),
       middleName: a.string(),
@@ -171,6 +174,15 @@ const schema = a.schema({
     .query()
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(getAuthUsers))
+    .returns(a.json()),
+  UpdateUserPhoneNumber: a
+    .query()
+    .arguments({
+      phoneNumber: a.string().required(),
+      accessToken: a.string().required(),
+    })
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(updateUserAttribute))
     .returns(a.json()),
   VerifyContactChallenge: a
     .query()

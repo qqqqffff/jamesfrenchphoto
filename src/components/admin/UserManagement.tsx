@@ -108,6 +108,9 @@ export default function UserManagement(){
             const timeslot = (await profile.timeslot()).data
             const tableData: UserTableData = {
                 ...profile,
+                participantFirstName: profile.participantFirstName ?? undefined,
+                participantLastName: profile.participantLastName ?? undefined,
+                participantEmail: profile.participantEmail ?? undefined,
                 userTags: profile.userTags ? (profile.userTags as string[]).map((tag) => {
                     return userTags.find((userTag) => userTag.id === tag)?.name
                 }).filter((tag) => tag !== undefined) : [],
@@ -128,7 +131,8 @@ export default function UserManagement(){
                 parentFirstName: user.first,
                 parentLastName: user.last,
                 preferredContact: profile.preferredContact ?? 'EMAIL',
-                participantContact: profile.participantContact ?? false
+                participantContact: profile.participantContact ?? false,
+                participant: []
             }
             return tableData;
         }))).filter((item) => item !== undefined)
@@ -246,7 +250,7 @@ export default function UserManagement(){
     }
 
     function displayKeys(key: string): boolean {
-        return key != 'userId' && key != 'participant'
+        return key != 'userId' && key != 'participant' && key != 'activeParticipant'
     }
 
     function headingMap(key: string | undefined, update?: {original: UserTableData, val: string, noCommit?: boolean}, sort?: "ASC" | 'DSC' ): string | undefined | UserTableData[] | UserTableData {
@@ -285,9 +289,17 @@ export default function UserManagement(){
                 if(sort && userData){
                     const tempData = [...userData]
                     return sort == 'ASC' ? (
-                        tempData.sort((a, b) => a.participantFirstName.localeCompare(b.participantFirstName))
+                        tempData.sort((a, b) => {
+                            if (a.participantFirstName === undefined) return 1; 
+                            if (b.participantFirstName === undefined) return -1;
+                            return a.participantFirstName.localeCompare(b.participantFirstName)
+                        })
                     ) : (
-                        tempData.sort((a, b) => b.participantFirstName.localeCompare(a.participantFirstName))
+                        tempData.sort((a, b) => {
+                            if (b.participantFirstName === undefined) return 1; 
+                            if (a.participantFirstName === undefined) return -1;
+                            return b.participantFirstName.localeCompare(a.participantFirstName)
+                        })
                     )
                 }
                 if(update) {
@@ -301,9 +313,17 @@ export default function UserManagement(){
                 if(sort && userData){
                     const tempData = [...userData]
                     return sort == 'ASC' ? (
-                        tempData.sort((a, b) => a.participantLastName.localeCompare(b.participantLastName))
+                        tempData.sort((a, b) => {
+                            if (a.participantLastName === undefined) return 1; 
+                            if (b.participantLastName === undefined) return -1;
+                            return a.participantLastName.localeCompare(b.participantLastName)
+                        })
                     ) : (
-                        tempData.sort((a, b) => b.participantLastName.localeCompare(a.participantLastName))
+                        tempData.sort((a, b) => {
+                            if (b.participantLastName === undefined) return 1; 
+                            if (a.participantLastName === undefined) return -1;
+                            return b.participantLastName.localeCompare(a.participantLastName)
+                        })
                     )
                 }
                 if(update) {
@@ -414,10 +434,14 @@ export default function UserManagement(){
                     const tempData = [...userData]
                     return sort == 'ASC' ? (
                         tempData.sort((a, b) => {
+                            if (a.participantEmail === undefined) return 1; 
+                            if (b.participantEmail === undefined) return -1;
                             return a.participantEmail.localeCompare(b.participantEmail)
                         })
                     ) : (
                         tempData.sort((a, b) => {
+                            if (b.participantEmail === undefined) return 1; 
+                            if (a.participantEmail === undefined) return -1;
                             return b.participantEmail.localeCompare(a.participantEmail)
                         })
                     )
