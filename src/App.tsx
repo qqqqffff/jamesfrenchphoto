@@ -17,7 +17,7 @@ import SignOut from './components/authenticator/SignOut'
 import { generateClient } from 'aws-amplify/api'
 import { Schema } from '../amplify/data/resource'
 import { CollectionViewer } from './components/client/CollectionViewer'
-import { PicturePath, Timeslot, UserProfile } from './types'
+import { Participant, PicturePath, UserProfile, UserStorage, UserTag } from './types'
 import { getUrl } from 'aws-amplify/storage'
 import { ClientProfile } from './components/client/Profile'
 
@@ -26,7 +26,109 @@ const client = generateClient<Schema>()
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route path='/' element={<Header />} >
+    <Route path='/' element={<Header />} loader={async () => {
+      const userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined
+      let userProfile: UserProfile | undefined
+      if(userStorage){
+        const getProfileResponse = await client.models.UserProfile.get({ email: userStorage.attributes.email! })
+        if(getProfileResponse && getProfileResponse.data !== null){
+          //TODO: safe delete -> api proof of concept retain only participant data
+          // const timeslotResponse = await getProfileResponse.data.timeslot()
+          // const timeslots: Timeslot[] | undefined = timeslotResponse ? timeslotResponse.data.map((timeslot) => {
+          //       if(!timeslot.id) return
+          //       return {
+          //           id: timeslot.id as string,
+          //           register: timeslot.register ?? undefined,
+          //           start: new Date(timeslot.start),
+          //           end: new Date(timeslot.end),
+          //       }
+          //   }).filter((timeslot) => timeslot !== undefined) : undefined
+          
+          const participantResponse = await getProfileResponse.data.participant()
+          const participants: Participant[] = participantResponse ? (await Promise.all(participantResponse.data.map(async (participant) => {
+            if(!participant.id) return
+            const part: Participant = {
+              ...participant,
+              userTags: participant.userTags ? (await Promise.all((participant.userTags as string[]).map(async (tag) => {
+                if(!tag) return
+                const tagResponse = await client.models.UserTag.get({ id: tag })
+                if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
+                const userTag: UserTag = {
+                  ...tagResponse.data,
+                  color: tagResponse.data.color ?? undefined,
+                }
+                return userTag
+              }))).filter((tag) => tag !== undefined) : [],
+              middleName: participant.middleName ?? undefined,
+              preferredName: participant.preferredName ?? undefined,
+              email: participant.email ?? undefined,
+              contact: participant.contact ?? false,
+            }
+            return part
+          }))).filter((participant) => participant !== undefined) : []
+
+          //try to create a participant from the details
+
+          if(participants.length == 0 && getProfileResponse.data.participantFirstName && getProfileResponse.data.participantLastName){
+            const createParticipantResponse = await client.models.Participant.create({
+              firstName: getProfileResponse.data.participantFirstName,
+              lastName: getProfileResponse.data.participantLastName,
+              preferredName: getProfileResponse.data.participantPreferredName,
+              middleName: getProfileResponse.data.participantMiddleName,
+              email: getProfileResponse.data.participantEmail,
+              contact: getProfileResponse.data.participantContact,
+              userEmail: getProfileResponse.data.email,
+              userTags: getProfileResponse.data.userTags ? getProfileResponse.data.userTags as string[] : []
+            })
+            console.log(createParticipantResponse)
+            if(createParticipantResponse && createParticipantResponse.data && createParticipantResponse.data.id){
+              participants.push({
+                ...createParticipantResponse.data,
+                userTags: getProfileResponse.data.userTags ? (await Promise.all((getProfileResponse.data.userTags as string[]).map(async (tag) => {
+                  if(!tag) return
+                  const tagResponse = await client.models.UserTag.get({ id: tag })
+                  if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
+                  const userTag: UserTag = {
+                    ...tagResponse.data,
+                    color: tagResponse.data.color ?? undefined,
+                  }
+                  return userTag
+                }))).filter((tag) => tag !== undefined) : [],
+                preferredName: getProfileResponse.data.participantPreferredName ?? undefined,
+                middleName: getProfileResponse.data.participantMiddleName ?? undefined,
+                email: getProfileResponse.data.participantEmail ?? undefined,
+                contact: getProfileResponse.data.participantContact ?? false,
+              })
+
+              const updateProfile = await client.models.UserProfile.update({
+                email: getProfileResponse.data.email,
+                activeParticipant: createParticipantResponse.data.id
+              })
+
+              console.log(updateProfile)
+            }
+          }
+
+          userProfile = {
+            ...getProfileResponse.data,
+            participant: participants,
+            activeParticipant: getProfileResponse.data.activeParticipant ?? participants.length > 0 ? participants[0] : undefined,
+            userTags: [],
+            timeslot: [],
+            participantFirstName: undefined,
+            participantLastName: undefined,
+            participantMiddleName: undefined,
+            participantPreferredName: undefined,
+            preferredContact: getProfileResponse.data.preferredContact ?? 'EMAIL',
+            participantContact: undefined,
+            participantEmail: undefined,
+          }
+        }
+      }
+
+      console.log(userProfile)
+      return userProfile
+    }}>
       <Route index element={<Home />} />
       <Route path='login' element={<SignIn />} />
       <Route path='register' element={<SignUp />} />
@@ -40,36 +142,90 @@ const router = createBrowserRouter(
         //todo: replace me with the logic inside of the base
       }}>
         <Route path='dashboard' element={<ClientDashboard />} loader={async ({}) => {
-          //todo: add fetching from amplify in here
+          //TODO: add fetching from amplify in here
           return null
         }}/>
         <Route path='profile/:email' element={<ClientProfile />} loader={async ({ params }) => {
           if(!params || !params.email) return null
           const response = (await client.models.UserProfile.get({ email: params.email })).data
           if(!response) return null
-          const timeslots = (await response.timeslot()).data
-          const responseTimeslot: Timeslot[] | undefined = timeslots ? timeslots.map((timeslot) => {
-              if(!timeslot.id) return
-              return {
-                  id: timeslot.id as string,
-                  register: timeslot.register ?? undefined,
-                  start: new Date(timeslot.start),
-                  end: new Date(timeslot.end),
+
+          const responseParticipants = (await response.participant()).data
+
+          let participants: Participant[] = []
+          
+          if(responseParticipants.length <= 0 && response.participantFirstName && response.participantLastName){
+            const createParticipantResponse = await client.models.Participant.create({
+              firstName: response.participantFirstName,
+              lastName: response.participantLastName,
+              preferredName: response.participantPreferredName,
+              middleName: response.participantMiddleName,
+              email: response.participantEmail,
+              contact: response.participantContact,
+              userEmail: response.email,
+              userTags: response.userTags ? response.userTags as string[] : []
+            })
+            console.log(createParticipantResponse)
+            if(createParticipantResponse && createParticipantResponse.data && createParticipantResponse.data.id){
+              participants.push({
+                ...createParticipantResponse.data,
+                userTags: createParticipantResponse.data.userTags ? (await Promise.all((createParticipantResponse.data.userTags as string[]).map(async (tag) => {
+                  if(!tag) return
+                  const tagResponse = await client.models.UserTag.get({ id: tag })
+                  if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
+                  const userTag: UserTag = {
+                    ...tagResponse.data,
+                    color: tagResponse.data.color ?? undefined,
+                  }
+                  return userTag
+                }))).filter((tag) => tag !== undefined) : [],
+                preferredName: response.participantPreferredName ?? undefined,
+                middleName: response.participantMiddleName ?? undefined,
+                email: response.participantEmail ?? undefined,
+                contact: response.participantContact ?? false,
+              })
+            }
+          }
+          else if(responseParticipants.length > 0){
+            participants = await Promise.all(responseParticipants.map(async (participant) => {
+              const part: Participant = {
+                ...participant,
+                userTags: participant.userTags ? (await Promise.all((participant.userTags as string[]).map(async (tag) => {
+                  if(!tag) return
+                  const tagResponse = await client.models.UserTag.get({ id: tag })
+                  if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
+                  const userTag: UserTag = {
+                    ...tagResponse.data,
+                    color: tagResponse.data.color ?? undefined,
+                  }
+                  return userTag
+                }))).filter((tag) => tag !== undefined) : [],
+                middleName: participant.middleName ?? undefined,
+                preferredName: participant.preferredName ?? undefined,
+                email: participant.email ?? undefined,
+                contact: participant.contact ?? false,
               }
-          }).filter((timeslot) => timeslot !== undefined) : undefined
+              return part
+            }))
+          }
+
           const profile: UserProfile = {
             ...response,
-            participantFirstName: response.participantFirstName ?? undefined,
-            participantLastName: response.participantLastName ?? undefined,
-            participantEmail: response.participantEmail ?? undefined,
-            userTags: response.userTags ? response.userTags as string[] : [],
-            timeslot: responseTimeslot,
-            participantMiddleName: response.participantMiddleName ?? undefined,
-            participantPreferredName: response.participantPreferredName ?? undefined,
             preferredContact: response.preferredContact ?? 'EMAIL',
-            participantContact: response.participantContact ?? false,
-            participant: []
+            participant: participants,
+            // not necessary for profile -> cleanup of old profile version
+            timeslot: [],
+            activeParticipant: undefined,
+            participantFirstName: undefined,
+            participantLastName: undefined,
+            participantEmail: undefined,
+            userTags: [],
+            participantMiddleName: undefined,
+            participantPreferredName: undefined,
+            participantContact: false,
           }
+
+          console.log(profile)
           return profile
         }} />
       </Route>

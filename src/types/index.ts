@@ -33,18 +33,20 @@ export interface UserProfile {
     preferredContact: "EMAIL" | "PHONE",
     participantContact?: boolean,
     participantEmail?: string,
-    participant: Participant[]
+    participant: Participant[],
+    activeParticipant?: Participant,
 }
 
 export interface Participant {
     id: string,
     firstName: string,
     lastName: string,
-    userTags: string[],
+    userTags: UserTag[],
     middleName?: string,
     preferredName?: string,
     email?: string,
     contact: boolean,
+    timeslot?: Timeslot[],
 }
 
 export type PicturePath = {

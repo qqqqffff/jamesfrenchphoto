@@ -16,6 +16,12 @@ export const DAY_OFFSET = 24 * 3600 * 1000;
 
 export const currentDate = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
 
+export type RemoveIndexSignature<T> = {
+    [K in keyof T as string extends K ? never : K]: T[K];
+};
+export type DynamicStringEnum<T> = T | (string & {});
+export type DynamicStringEnumKeysOf<T extends object> = DynamicStringEnum<keyof RemoveIndexSignature<T>>;
+
 //TODO: de-duplication
 export const defaultColors = [
     'pink-400',

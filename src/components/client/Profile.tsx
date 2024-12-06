@@ -1,162 +1,141 @@
-import { FC, useEffect, useRef, useState } from "react";
-import { Participant, UserProfile, UserStorage, UserTag } from "../../types";
-import { useLoaderData } from "react-router-dom";
-import { Alert, Badge, Button, Checkbox, Dropdown, Label, TextInput } from "flowbite-react";
-import { badgeColorThemeMap } from "../../utils";
+import { FC, useState } from "react";
+import { Participant, UserProfile, UserStorage } from "../../types";
+import { useLoaderData, useRevalidator } from "react-router-dom";
+import { Alert, Badge, Button, Checkbox, Dropdown, FlowbiteColors, Label, TextInput } from "flowbite-react";
+import { badgeColorThemeMap, DynamicStringEnumKeysOf } from "../../utils";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import useWindowDimensions from "../../hooks/windowDimensions";
 import { fetchAuthSession, updateUserAttributes } from "aws-amplify/auth";
-import { IoMdRefresh } from "react-icons/io";
+import { ParticipantCreator, PrefilledParticipantFormElements } from "./Participant";
 
 
 const client = generateClient<Schema>()
 
 //TODO: custom handling for notifications
 
+interface ProfileNotification {
+    message: string,
+    color: DynamicStringEnumKeysOf<FlowbiteColors>,
+}
+
 export const ClientProfile: FC = () => {
     const [user, setUser] = useState(useLoaderData() as UserProfile | null)
-    const apiCall = useRef(false)
-
     const [userStorage, setUserStorage] = useState(window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) as UserStorage : undefined)
-
-    const [participants, setParticipants] = useState<Participant[]>([])
+    const revalidator = useRevalidator()
 
     const [activeParticipant, setActiveParticipant] = useState<Participant>()
+    const [participantPrefilledElements, setParticipantPrefilledElements] = useState<PrefilledParticipantFormElements>()
 
     const [createParticipantFormVisible, setCreateParticipantFormVisible] = useState(false)
+    
 
     const { width } = useWindowDimensions()
 
-    const [userSelectorSubmitting, setUserSelectorSubmitting] = useState(false)
-    const [notification, setNotification] = useState<string[]>([])
-    const [userSelectorEnabled, setUserSelectorEnabled] = useState(false)
-    
-    useEffect(() => {
-        async function api(){
-            console.log('api call')
-            let participants: Participant[] = []
-            let notification: string[] = []
-            let userSelectorEnabled = false
-            if(user) {
-                //fetch participants
-                const participantResponse = await client.models.Participant.listParticipantByUserEmail({ userEmail: user.email })
-                console.log(participantResponse)
+    const [notification, setNotification] = useState<ProfileNotification[]>([])
 
-                if(participantResponse.data && participantResponse.data.length > 0){
-                    participants = await Promise.all(participantResponse.data.map((participant) => {
-                        const person: Participant = {
-                            ...participant,
-                            userTags: participant.userTags ? participant.userTags as string[] : [],
-                            middleName: participant.middleName ?? undefined,
-                            preferredName: participant.preferredName ?? undefined,
-                            email: participant.email ?? undefined,
-                            contact: participant.contact ?? false,
-                        }
-                        return person
-                    }))
-                }
-                else if(participantResponse.data && participantResponse.data.length == 0 && (
-                    user.participantFirstName && user.participantLastName
-                )){
-                    notification = ['Participant data found, click refresh button next to user selector to create']
-                    userSelectorEnabled = true
-                }
-            }
-            setParticipants(participants)
-            setNotification(notification)
-            setUserSelectorEnabled(userSelectorEnabled)
-            apiCall.current = true
-        }
-        if(!apiCall.current){
-            api()
-        }
-    })
-
-    const dropdownText = activeParticipant ? `Participant: ${activeParticipant.firstName}, ${activeParticipant.lastName}` : 
+    const dropdownText = activeParticipant ? `Participant: ${activeParticipant.preferredName ?? activeParticipant.firstName}, ${activeParticipant.lastName}` : 
         createParticipantFormVisible ?  'Add Participant' : 
         userStorage ? `Parent: ${userStorage.attributes.given_name}, ${userStorage.attributes.family_name}` : 'N/A'
+
+    function ContentRenderer(){
+        if(user) {
+            if(createParticipantFormVisible){
+                return (
+                    <div className={`flex flex-col gap-2 text-center border-gray-500 border rounded-lg px-6 py-2 md:w-[60%] ${width < 768 ? 'mx-4' : ''}`}>
+                        <ParticipantCreator width={width} userEmail={user.email} taggingCode={{visible: true, editable: true}} displayRequired
+                            prefilledElements={participantPrefilledElements}
+                            submit={(noti: string, participant?: Participant, errorReturn?: PrefilledParticipantFormElements) => {
+                                if(participant){
+                                    const tempUserProfile = {
+                                        ...user,
+                                    }
+                                    tempUserProfile.participant = [...tempUserProfile.participant, participant]
+
+                                    setUser(tempUserProfile)
+                                    setNotification([{message: noti, color: 'green'}])
+                                    setActiveParticipant(participant)
+                                    setCreateParticipantFormVisible(false)
+                                    revalidator.revalidate()
+                                } else if(errorReturn){
+                                    setNotification([{message: noti, color: 'red'}])
+                                    setParticipantPrefilledElements(errorReturn)
+                                }
+                            }}
+                        />
+                    </div>
+                )
+            } else if(activeParticipant){
+                return (
+                    <ParticipantProfileForm width={width} participant={activeParticipant} 
+                        submit={(noti: string, participant: Participant) => {
+                            const tempUserProfile = {
+                                ...user,
+                            }
+                            tempUserProfile.participant = tempUserProfile.participant.map((part) => {
+                                if(part.id == participant.id){
+                                    return participant
+                                }
+                                return part
+                            })
+
+                            setUser(tempUserProfile)
+                            setNotification([{message: noti, color: 'green'}])
+                            setActiveParticipant(participant)
+                            revalidator.revalidate()
+                        }} 
+                    />
+                )
+            } else if(userStorage) {
+                return (
+                    <ParentProfileForm width={width} user={userStorage} submit={(noti: string, user: UserStorage, profile: UserProfile) => {
+                        setNotification([{message: noti, color: 'green'}])
+                        setUser(profile)
+                        setUserStorage(user)
+                        window.localStorage.setItem('user', JSON.stringify(user))
+                        revalidator.revalidate()
+                    }} userProfile={user}/>
+                )
+            }
+        }
+        return (
+            <span>Failed to recieve user data</span>
+        )
+    }
 
     return (
         <>
             <div className="flex justify-center items-center font-main mb-4 mt-2">
                 {notification.length > 0 ? notification.map((noti, index) => {
                     return (
-                        <Alert color="light" className="text-lg w-[90%]" key={index} onDismiss={() => setNotification(notification.filter((not) => not !== noti))}>{noti}</Alert>
+                        <Alert color={noti.color} className="text-lg w-[90%]" key={index} onDismiss={() => setNotification(notification.filter((not) => not !== noti))}>{noti.message}</Alert>
                     )
                 }) : (<></>)}
             </div>
             <div className="flex flex-col my-4 w-full gap-4 justify-center items-center font-main">
                 <div className="flex flex-row gap-4 items-center">
                     <Dropdown color="light" className="" label={dropdownText}>
-                        <Dropdown.Item onClick={() => setActiveParticipant(undefined)}>{`Parent: ${userStorage?.attributes.given_name}, ${userStorage?.attributes.family_name}`}</Dropdown.Item>
-                        {participants.map((participant, index) => {
+                        <Dropdown.Item onClick={() => {
+                            setActiveParticipant(undefined)
+                            setCreateParticipantFormVisible(false)
+                        }}>
+                            {`Parent: ${userStorage?.attributes.given_name}, ${userStorage?.attributes.family_name}`}
+                        </Dropdown.Item>
+                        {user?.participant.map((participant, index) => {
                             return (
-                                <Dropdown.Item  key={index} onClick={() => setActiveParticipant(participant)}>{`Participant: ${participant.firstName}, ${participant.lastName}`}</Dropdown.Item>
+                                <Dropdown.Item  key={index} onClick={() => {
+                                    setActiveParticipant(participant)
+                                    setCreateParticipantFormVisible(false)
+                                }}>{`Participant: ${participant.preferredName ?? participant.firstName}, ${participant.lastName}`}</Dropdown.Item>
                             )
                         })}
-                        <Dropdown.Item className="border-t" onClick={() => setCreateParticipantFormVisible(true)}>Add Participant</Dropdown.Item>
+                        <Dropdown.Item className="border-t" onClick={() => {
+                            setActiveParticipant(undefined)
+                            setCreateParticipantFormVisible(true)
+                        }}>Add Participant</Dropdown.Item>
                     </Dropdown>
-                    {userSelectorEnabled && user !== null && user.participantFirstName !== undefined && user.participantLastName != undefined ? (
-                        <Button pill color="light" isProcessing={userSelectorSubmitting} onClick={async () => {
-                            setUserSelectorSubmitting(true)
-                            const response = await client.models.Participant.create({
-                                userEmail: user.email,
-                                userTags: user.userTags,
-                                firstName: user.participantFirstName!,
-                                lastName: user.participantLastName!,
-                                middleName: user.participantMiddleName,
-                                preferredName: user.participantPreferredName,
-                                contact: user.participantContact,
-                                email: user.participantEmail,
-                            })
-                            console.log(response)
-                            if(response && response.data && response.data.id){
-                                const participant: Participant = {
-                                    ...response.data,
-                                    userTags: response.data.userTags ? response.data.userTags as string[] : [],
-                                    middleName: response.data.middleName ?? undefined,
-                                    preferredName: response.data.preferredName ?? undefined,
-                                    email: response.data.email ?? undefined,
-                                    contact: response.data.contact ?? false,
-                                }
-                                setParticipants([...participants, participant])
-                                setNotification(['Successfully created participant'])
-                                setUserSelectorEnabled(false)
-                                setUserSelectorSubmitting(false)
-                            }
-                            else{
-                                setNotification(['Failed to create participant'])
-                                setUserSelectorSubmitting(false)
-                            }
-                        }}>
-                            <IoMdRefresh />
-                        </Button>) : (<></>)}
                 </div>
-                
-            {
-                user && !activeParticipant ? (!createParticipantFormVisible ? (
-                    userStorage ? (<ParentProfileForm width={width} user={userStorage} submit={(noti: string, user: UserStorage, profile: UserProfile) => {
-                        setNotification([noti])
-                        setUser(profile)
-                        setUserStorage(user)
-                        window.localStorage.setItem('user', JSON.stringify(user))
-                    }} userProfile={user}/>) : (<>Failed to read user</>)
-                ) : (
-                    <></>
-                )) : activeParticipant ? (
-                    <ParticipantProfileForm width={width} participant={activeParticipant} submit={(noti: string, participant: Participant) => {
-                        setNotification([noti])
-                        setActiveParticipant(participant)
-                        setParticipants(participants.map((part) => {
-                            if(part.id == participant.id) return participant
-                            return part
-                        }))
-                    }} />
-                ) :  (
-                    <span>Failed to recieve user data</span>
-                )
-            }
+                <ContentRenderer />
             </div>
         </>
         
@@ -172,9 +151,6 @@ interface ParticipantFormParams {
 }
 
 const ParticipantProfileForm: FC<ParticipantFormParams> = ({width, participant, submit}) => {
-    const [userTags, setUserTags] = useState<UserTag[]>([])
-    const apiCall = useRef(false)
-
     const [email, setEmail] = useState(participant.email)
     const [firstName, setFirstName] = useState(participant.firstName)
     const [lastName, setLastName] = useState(participant.lastName)
@@ -183,26 +159,6 @@ const ParticipantProfileForm: FC<ParticipantFormParams> = ({width, participant, 
     const [contact, setContact] = useState(participant.contact)
 
     const [submitting, setSubmitting] = useState(false)
-
-    useEffect(() => {
-        async function api(){
-            let userTags: UserTag[] = (await Promise.all(participant.userTags.map(async (tag) => {
-                const response = await client.models.UserTag.get({id: tag})
-                if(!response || response.data == null) return
-                const ut: UserTag = {
-                    ...response.data,
-                    color: response.data.color ?? undefined,
-                }
-                return ut
-            }))).filter((item) => item !== undefined)
-
-            setUserTags(userTags)
-            apiCall.current = true
-        }
-        if(!apiCall.current){
-            api()
-        }
-    })
 
     async function updateProfile(){
         let updated = false
@@ -256,10 +212,10 @@ const ParticipantProfileForm: FC<ParticipantFormParams> = ({width, participant, 
 
     return (
         <div className={`flex flex-col gap-2 text-center border-gray-500 border rounded-lg px-6 py-2 md:w-[60%] ${width < 768 ? 'mx-4' : ''}`}>
-            <span className="text-xl ">{`${participant.firstName} ${participant.lastName}'s Details:`}</span>
+            <span className="text-xl ">{`${participant.preferredName ?? participant.firstName} ${participant.lastName}'s Details:`}</span>
             <div className="flex flex-row gap-2 items-center mb-4 justify-center w-full">
             {
-                userTags.map((tag, index) => {
+                participant.userTags.map((tag, index) => {
                     return (<Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 text-md">{tag.name}</Badge>)
                 })
             }

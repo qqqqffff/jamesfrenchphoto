@@ -1,47 +1,32 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLoaderData, useRevalidator } from 'react-router-dom'
 import bannerIcon from '../../assets/headerPhoto.png'
 import { Dropdown } from 'flowbite-react'
-import { useEffect, useState } from 'react'
-import { UserStorage } from '../../types'
+import { UserProfile, UserStorage } from '../../types'
 import { HiOutlineMenu } from "react-icons/hi";
+import { HiOutlineCheckCircle } from "react-icons/hi2";
 import useWindowDimensions from '../../hooks/windowDimensions'
+import { generateClient } from 'aws-amplify/api';
+import { Schema } from '../../../amplify/data/resource';
+import { useState } from 'react';
+
+const client = generateClient<Schema>()
 
 export default function Header() {
-    const [adminState, setAdminState] = useState<boolean>()
+    const userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined;
+    const adminState = userStorage !== undefined && userStorage.groups !== undefined && userStorage.groups.includes('ADMINS')
+    const [userProfile, setUserProfile] = useState(useLoaderData() as UserProfile | undefined)
     const { width } = useWindowDimensions()
-    const [user, setUser] = useState<UserStorage>()
-    async function readUserStorage(){
-        let userState = false;
-        let adminState = false;
-        const userStorage = window.localStorage.getItem('user');
-        const user: UserStorage | undefined = userStorage ? JSON.parse(userStorage) : undefined
-        if(user && user.groups){
-            if(user.groups.includes('ADMINS')){
-                adminState = true;
-            }
-            else if(user.groups.includes('USERS')){
-                userState = true;
-            }
-        }
-
-        setUser(user)
-        setAdminState(userState || adminState ? adminState : undefined)
-    }
-    useEffect(() => {
-        readUserStorage()
-        window.addEventListener('storage', readUserStorage)
-        return () => window.removeEventListener('storage', readUserStorage)
-    }, [])
+    const revalidator = useRevalidator()
 
     function renderHeaderItems(){
         let dashboardUrl = '/' +  (adminState !== undefined && adminState ? 'admin' : 'client') + '/dashboard'
         let profileUrl = ''
-        if(user){
-            profileUrl = '/' + (adminState !== undefined && adminState ? 'admin' : 'client') + '/profile/' + user.attributes.email
+        if(userStorage){
+            profileUrl = '/' + (adminState !== undefined && adminState ? 'admin' : 'client') + '/profile/' + userStorage.attributes.email
         }
 
         
-        return (user === undefined) ? (width > 800 ? (
+        return (userStorage === undefined) ? (width > 800 ? (
             <Link to='login'>Login</Link>
         ) : (
             <Dropdown.Item><Link to='login'>Login</Link></Dropdown.Item>
@@ -60,6 +45,38 @@ export default function Header() {
                     </Dropdown.Item>
                     <Dropdown.Item>
                         <a href={dashboardUrl}>Dashboard</a>
+                    </Dropdown.Item>
+                    <Dropdown.Item>
+                        <Dropdown
+                            arrowIcon={false}
+                            inline
+                            label={'Participants'}
+                            trigger='hover'
+                            placement='left'
+                        >
+                            {userProfile?.participant.map((participant, index) => {
+                                return (
+                                    <Dropdown.Item key={index} onClick={async () => {
+                                        console.log(userProfile.activeParticipant?.id, participant.id)
+                                        if(userProfile.activeParticipant?.id !== participant.id){
+                                            const updateResponse = await client.models.UserProfile.update({
+                                                email: userProfile.email,
+                                                activeParticipant: participant.id
+                                            })
+                                            console.log(updateResponse)
+
+                                            const tempProfile = {...userProfile}
+                                            tempProfile.activeParticipant = participant
+                                            
+                                            revalidator.revalidate()
+                                            setUserProfile(tempProfile)
+                                        }
+                                    }}>{participant.id === userProfile.activeParticipant?.id ? (
+                                        <HiOutlineCheckCircle fontSize={'32'}/>
+                                    ) : (<></>)}{`${participant.preferredName ?? participant.firstName} ${participant.lastName}`}</Dropdown.Item>
+                                )
+                            })}
+                        </Dropdown>
                     </Dropdown.Item>
                     <Dropdown.Item>
                         <a href='/logout'>Logout</a>
