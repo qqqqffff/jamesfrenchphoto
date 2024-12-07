@@ -59,20 +59,11 @@ export type PicturePath = {
 }
 
 export type PhotoCollection = {
-    name?: string;
+    name: string;
     coverPath?: string;
     createdAt: string;
     id: string;
     updatedAt: string;
-    subcategoryId?: string
-}
-
-export type Subcategory = {
-    id: string,
-    name: string,
-    headers?: string[],
-    type: string,
-    eventId: string,
 }
 
 export type Timeslot = {

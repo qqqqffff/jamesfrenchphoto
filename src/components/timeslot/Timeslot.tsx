@@ -19,11 +19,12 @@ interface TimeslotComponentProps {
     userEmail?: string
     minDate?: Date
     userTags?: UserTag[]
+    participantId?: string
 }
 
 interface TagTimeslots extends Record<string, Timeslot[]> {}
 
-export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail, minDate, userTags }) => {
+export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail, participantId, minDate, userTags }) => {
     const [activeDate, setActiveDate] = useState<Date>(currentDate)
     const [timeslots, setTimeslots] = useState<Timeslot[]>([])
     const [profileTimeslots, setProfileTimeslots] = useState<TagTimeslots>({})
@@ -591,11 +592,11 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
         )
     }
 
-    function notificationComponent(){
+    function notificationComponent(email?: string){
         return (
             <button className="flex flex-row gap-2 text-left items-center mt-4 ms-2" onClick={() => setNotify(!notify)} type="button">
                 <Checkbox className="mt-1" checked={notify} readOnly />
-                <span>Send an email confirmation to you</span>
+                <span>Send a confirmation email to <span className="italic">{email}</span></span>
             </button>
         )
     }
@@ -624,19 +625,20 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 confirmText="Schedule"
                 denyText="Back"
                 confirmAction={async () => {
-                    if(selectedTimeslot && userEmail && userTags) {
+                    if(selectedTimeslot && userEmail && participantId && userTags) {
                         const timeslot = await client.models.Timeslot.get({id: selectedTimeslot.id})
                         if(timeslot.data?.register){
                             throw new Error('Timeslot has been filled')
                         }
                         const response = await client.models.Timeslot.update({
                             id: selectedTimeslot.id,
-                            register: userEmail
+                            register: userEmail,
+                            participantId: participantId
                         }, { authMode: 'userPool'})
 
                         console.log(response)
 
-                        if(notify) {
+                        if(notify && userEmail) {
                             const response = client.queries.SendTimeslotConfirmation({
                                 email: userEmail,
                                 start: selectedTimeslot.start.toISOString(),
@@ -651,7 +653,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         await userFetchTimeslots(userTags, userEmail)
                     }
                 }}
-                children={notificationComponent()}
+                children={notificationComponent(userEmail)}
                 title="Confirm Timeslot Selection" body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}/>
             <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
                 confirmText="Confirm"

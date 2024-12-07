@@ -89,6 +89,7 @@ export const ParticipantCreator: FC<ParticipantCreatorProps> = ({ width, userEma
                 if(response && response.data && response.data.id){
                     participant = {
                         ...response.data,
+                        timeslot: [],
                         userTags: validateTags,
                         preferredName: preferredName,
                         middleName: middleName,

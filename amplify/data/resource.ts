@@ -19,33 +19,21 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       name: a.string(),
-      subCategories: a.hasMany('SubCategory', 'id')
-    }).identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS')]),
-  SubCategory: a
-    .model({
-      id: a.id().required(),
-      name: a.string().required(),
-      headers: a.string().array(),
-      fields: a.hasMany('SubCategoryFields', 'id'),
-      collection: a.hasOne('PhotoCollection', 'id'),
-      type: a.string().required(),
-      eventId: a.id().required(),
-      event: a.belongsTo('Events', 'id')
+      collections: a.hasMany('PhotoCollection', 'eventId')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS')]),
   PhotoCollection: a
     .model({
       id: a.id().required(),
+      eventId: a.id().required(),
+      event: a.belongsTo('Events', 'eventId'),
       coverPath: a.string(),
-      imagePaths: a.hasMany('PhotoPaths', 'id'),
-      subCategoryId: a.id().required(),
-      subCategory: a.belongsTo('SubCategory', 'id'),
+      name: a.string().required(),
+      imagePaths: a.hasMany('PhotoPaths', 'collectionId'),
       tags: a.hasMany('CollectionTag', 'collectionId')
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('subCategoryId')])
     .authorization((allow) => [allow.authenticated()]),
   PhotoPaths: a
     .model({
@@ -55,27 +43,11 @@ const schema = a.schema({
       displayWidth: a.integer(),
       order: a.integer().required(),
       collectionId: a.id().required(),
-      collection: a.belongsTo('PhotoCollection', 'id')
+      collection: a.belongsTo('PhotoCollection', 'collectionId')
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('collectionId')])
     .authorization((allow) => [allow.authenticated()]),
-  SubCategoryFields: a
-    .model({
-      id: a.id().required(),
-      subCategoryId: a.id().required(),
-      subCategory: a.belongsTo('SubCategory', 'id'),
-      row: a.integer().required(),
-      key: a.string().required(),
-      value: a.string().required(),
-      enum: a.customType({
-        options: a.string().array(),
-        color: a.string().array()
-      })
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [index('subCategoryId')])
-    .authorization((allow) => [allow.group('ADMINS')]),
   UserTag: a
     .model({
       id: a.id().required(),
@@ -103,6 +75,7 @@ const schema = a.schema({
       timeslot: a.belongsTo('Timeslot', 'timeslotId')
     })
     .identifier(['timeslotId'])
+    .secondaryIndexes((index) => [index('tagId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserColumnDisplay: a
     .model({
@@ -134,6 +107,8 @@ const schema = a.schema({
       start: a.datetime().required(),
       end: a.datetime().required(),
       timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),
+      participant: a.belongsTo('Participant', 'participantId'),
+      participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]),
     })
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
@@ -160,6 +135,7 @@ const schema = a.schema({
       userEmail: a.string().required(),
       user: a.belongsTo('UserProfile', 'userEmail'),
       userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read', 'create']), allow.guest().to(['create'])]),
+      timeslot: a.hasMany('Timeslot', 'participantId'),
       firstName: a.string().required(),
       lastName: a.string().required(),
       middleName: a.string(),

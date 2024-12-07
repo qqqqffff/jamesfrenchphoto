@@ -22,14 +22,14 @@ export default function Header() {
         let dashboardUrl = '/' +  (adminState !== undefined && adminState ? 'admin' : 'client') + '/dashboard'
         let profileUrl = ''
         if(userStorage){
-            profileUrl = '/' + (adminState !== undefined && adminState ? 'admin' : 'client') + '/profile/' + userStorage.attributes.email
+            profileUrl = '/' + (adminState !== undefined && adminState ? 'admin' : 'client') + '/profile'
         }
 
         
         return (userStorage === undefined) ? (width > 800 ? (
             <Link to='login'>Login</Link>
         ) : (
-            <Dropdown.Item><Link to='login'>Login</Link></Dropdown.Item>
+            <Dropdown.Item href='/login'>Login</Dropdown.Item>
         )) : (
             width > 800 ? ( 
                 (<Dropdown
@@ -38,14 +38,8 @@ export default function Header() {
                     label={'Profile'}
                     trigger='hover'
                 >
-                    <Dropdown.Item>
-                        <a href={profileUrl}>
-                            Profile
-                        </a>
-                    </Dropdown.Item>
-                    <Dropdown.Item>
-                        <a href={dashboardUrl}>Dashboard</a>
-                    </Dropdown.Item>
+                    <Dropdown.Item href={profileUrl}>Profile</Dropdown.Item>
+                    <Dropdown.Item href={dashboardUrl}>Dashboard</Dropdown.Item>
                     <Dropdown.Item>
                         <Dropdown
                             arrowIcon={false}
@@ -78,23 +72,13 @@ export default function Header() {
                             })}
                         </Dropdown>
                     </Dropdown.Item>
-                    <Dropdown.Item>
-                        <a href='/logout'>Logout</a>
-                    </Dropdown.Item>
+                    <Dropdown.Item href='/logout'>Logout</Dropdown.Item>
                 </Dropdown>)
             ) : (
                 <>
-                    <Dropdown.Item>
-                        <a href={profileUrl}>
-                            Profile
-                        </a>
-                    </Dropdown.Item>
-                        <Dropdown.Item>
-                        <a href={dashboardUrl}>Dashboard</a>
-                    </Dropdown.Item>
-                    <Dropdown.Item>
-                        <a href='/logout'>Logout</a>
-                    </Dropdown.Item>
+                    <Dropdown.Item href={profileUrl}>Profile</Dropdown.Item>
+                    <Dropdown.Item href={dashboardUrl}>Dashboard</Dropdown.Item>
+                    <Dropdown.Item href='/logout'>Logout</Dropdown.Item>
                 </>
             ))
     }

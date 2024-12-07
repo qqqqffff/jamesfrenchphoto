@@ -1,6 +1,6 @@
 import { FC, useState } from "react";
 import { Participant, UserProfile, UserStorage } from "../../types";
-import { useLoaderData, useRevalidator } from "react-router-dom";
+import { useRevalidator, useRouteLoaderData } from "react-router-dom";
 import { Alert, Badge, Button, Checkbox, Dropdown, FlowbiteColors, Label, TextInput } from "flowbite-react";
 import { badgeColorThemeMap, DynamicStringEnumKeysOf } from "../../utils";
 import { generateClient } from "aws-amplify/api";
@@ -20,7 +20,7 @@ interface ProfileNotification {
 }
 
 export const ClientProfile: FC = () => {
-    const [user, setUser] = useState(useLoaderData() as UserProfile | null)
+    const [user, setUser] = useState(useRouteLoaderData('/') as UserProfile | null)
     const [userStorage, setUserStorage] = useState(window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) as UserStorage : undefined)
     const revalidator = useRevalidator()
 
