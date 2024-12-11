@@ -15,7 +15,7 @@ import { badgeColorThemeMap } from "../../utils";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { TimeslotComponent } from "../timeslot/Timeslot";
-import { createParticipantFromUserProfile } from "../../App";
+import { createParticipantFromUserProfile, fetchUserProfile } from "../../App";
 
 const client = generateClient<Schema>()
 
@@ -45,15 +45,10 @@ export function Dashboard() {
     const [apiCall, setApiCall] = useState(false)
     const navigate = useNavigate()
 
-    const user = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) as UserStorage : null
+    const user = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) as UserStorage : undefined
     const adminView = user?.groups.includes('ADMINS') ?? false
 
     useEffect(() => {
-        if(!user || !userProfile){
-            navigate('/client')
-            return 
-        }
-
         //set subscription
         const profileSubscription = client.models.UserProfile.onUpdate({
             filter: {
@@ -215,49 +210,59 @@ export function Dashboard() {
         })
 
         async function api(){
-            let schedulerEnabled = false 
-
+            let schedulerEnabled = false
+            let tempUserProfile = userProfile
+            let userProfileTags: UserTag[] = []
+            if(tempUserProfile === null){
+                tempUserProfile = await fetchUserProfile(user)
+            }
             
-            const userTags = userProfile?.activeParticipant?.userTags
+            if(tempUserProfile !== null){
+                const userTags = tempUserProfile.activeParticipant ? tempUserProfile.activeParticipant.userTags : tempUserProfile.userTags
 
-            if(userTags == undefined || userTags.length <= 0) return
-            const userProfileTags: UserTag[] = userProfile ? 
-                (userProfile.activeParticipant?.userTags && userProfile.activeParticipant.userTags.length > 0 ? 
-                    (await Promise.all(userProfile.activeParticipant.userTags.map(async (tag) => {
-                        //secondary indexing to enable scheduler
-                        const secondaryIndex = (await client.models.TimeslotTag.listTimeslotTagByTagId({tagId: tag.id})).data
-                        schedulerEnabled = schedulerEnabled ? schedulerEnabled : secondaryIndex.filter((item) => item !== null && item !== undefined).length > 0
-                        return tag
-                    }))) 
-                    :
-                    (await Promise.all(userProfile.userTags.map(async (tag) => {
-                        //secondary indexing to enable scheduler
-                        const secondaryIndex = (await client.models.TimeslotTag.listTimeslotTagByTagId({tagId: tag})).data
-                        schedulerEnabled = schedulerEnabled ? schedulerEnabled : secondaryIndex.filter((item) => item !== null && item !== undefined).length > 0
-                        
-                        const response = (await client.models.UserTag.get({id: tag})).data
-                        if(!response) return
-                        const userTag: UserTag = {
-                            ...response,
-                            color: response.color ?? undefined,
-                            collections: (await Promise.all((await response.collectionTags()).data.map(async (item) => {
-                                if(item === undefined) return
-                                const collectionData = (await item.collection()).data
-                                if(collectionData === null) return
-                                const collection: PhotoCollection = {
-                                    ...collectionData,
-                                    coverPath: collectionData.coverPath ?? undefined,
-                                }
-                                return collection
-                            }))).filter((item) => item !== undefined)
-                        }
-                        return userTag
-                    }))).filter((tag) => tag !== undefined)
-                ) : []
-            console.log(userProfileTags)
-
+                if(userTags == undefined || userTags.length <= 0) return
+                userProfileTags.push(...(tempUserProfile ? 
+                    (tempUserProfile.activeParticipant?.userTags && tempUserProfile.activeParticipant.userTags.length > 0 ? 
+                        (await Promise.all(tempUserProfile.activeParticipant.userTags.map(async (tag) => {
+                            //secondary indexing to enable scheduler
+                            const secondaryIndex = (await client.models.TimeslotTag.listTimeslotTagByTagId({tagId: tag.id})).data
+                            schedulerEnabled = schedulerEnabled ? schedulerEnabled : secondaryIndex.filter((item) => item !== null && item !== undefined).length > 0
+                            return tag
+                        }))) 
+                        :
+                        (await Promise.all(tempUserProfile.userTags.map(async (tag) => {
+                            //secondary indexing to enable scheduler
+                            const secondaryIndex = (await client.models.TimeslotTag.listTimeslotTagByTagId({tagId: tag})).data
+                            schedulerEnabled = schedulerEnabled ? schedulerEnabled : secondaryIndex.filter((item) => item !== null && item !== undefined).length > 0
+                            
+                            const response = (await client.models.UserTag.get({id: tag})).data
+                            if(!response) return
+                            const userTag: UserTag = {
+                                ...response,
+                                color: response.color ?? undefined,
+                                collections: (await Promise.all((await response.collectionTags()).data.map(async (item) => {
+                                    if(item === undefined) return
+                                    const collectionData = (await item.collection()).data
+                                    if(collectionData === null) return
+                                    const collection: PhotoCollection = {
+                                        ...collectionData,
+                                        coverPath: collectionData.coverPath ?? undefined,
+                                    }
+                                    return collection
+                                }))).filter((item) => item !== undefined)
+                            }
+                            return userTag
+                        }))).filter((tag) => tag !== undefined)
+                    ) : []))
+                console.log(userProfileTags)
+            }
+            else{
+                navigate('/client')
+                return
+            }
             setUserProfileTags(userProfileTags)
             setSchedulerEnabled(schedulerEnabled)
+            setUserProfile(tempUserProfile)
             setApiCall(true)
         }
 
@@ -269,8 +274,6 @@ export function Dashboard() {
             profileSubscription.unsubscribe()
         }
     }, [])
-
-    
 
     function structureFullname(){
         if(userProfile)

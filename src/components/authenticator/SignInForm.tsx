@@ -67,7 +67,6 @@ export default function SignIn() {
                 setPasswordResetVisible(true)
                 return
             }
-            console.log(response)
 
             const user = await getCurrentUser();
             const session = await fetchAuthSession()

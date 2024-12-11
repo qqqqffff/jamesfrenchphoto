@@ -91,149 +91,152 @@ export async function createParticipantFromUserProfile(userProfile: UserProfile,
   }
 }
 
+export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserProfile | null> {
+  if(userStorage){
+    let timeslot: Timeslot[] = []
+    const getProfileResponse = await client.models.UserProfile.get({ email: userStorage.attributes.email! })
+    if(getProfileResponse && getProfileResponse.data !== null){
+      const participantResponse = await getProfileResponse.data.participant()
+      const participants: Participant[] = []
+      
+      //try to create a participant from the details
+
+      if(participantResponse.data.length == 0 && getProfileResponse.data.participantFirstName && getProfileResponse.data.participantLastName){
+        //timeslots
+        const timeslotResponse = await getProfileResponse.data.timeslot()
+        timeslot = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
+          if(!timeslot.id) return
+          const ts: Timeslot = {
+            ...timeslot,
+            id: timeslot.id,
+            register: timeslot.register ?? undefined,
+            tagId: (await timeslot.timeslotTag()).data?.tagId,
+            start: new Date(timeslot.start),
+            end: new Date(timeslot.end),
+          }
+          return ts
+        }))).filter((timeslot) => timeslot !== undefined) : []
+        console.log(timeslot)
+
+        //create
+        const createdParticipant = await createParticipantFromUserProfile({
+          ...getProfileResponse.data,
+          participantFirstName: getProfileResponse.data.participantFirstName,
+          participantLastName: getProfileResponse.data.participantFirstName,
+          participantMiddleName: getProfileResponse.data.participantMiddleName ?? undefined,
+          participantPreferredName: getProfileResponse.data.participantPreferredName ?? undefined,
+          participantContact: getProfileResponse.data.participantContact ?? false,
+          participantEmail: getProfileResponse.data.participantEmail ?? undefined,
+          //unecessary fields
+          participant: [],
+          activeParticipant: undefined,
+          userTags: [],
+          timeslot: [],
+          preferredContact: getProfileResponse.data.preferredContact ?? 'EMAIL',
+        }, timeslot, true)
+
+        //on success
+        if(createdParticipant) {
+          participants.push(createdParticipant)
+          //update timeslots
+          const timeslotUpdateResponse = await Promise.all(timeslot.map((timeslot) => {
+            return client.models.Timeslot.update({
+              id: timeslot.id,
+              participantId: createdParticipant.id
+            })
+          }))
+          console.log(timeslotUpdateResponse)
+        }
+      }
+      else if(participantResponse.data.length > 0){
+        const parts: Participant[] = participantResponse ? (await Promise.all(participantResponse.data.map(async (participant) => {
+          if(!participant.id) return
+
+          //timeslots
+          const timeslotResponse = await participant.timeslot()
+          const timeslot: Timeslot[] = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
+            if(!timeslot.id) return
+            const ts: Timeslot = {
+              ...timeslot,
+              id: timeslot.id,
+              register: timeslot.register ?? undefined,
+              tagId: (await timeslot.timeslotTag()).data?.tagId,
+              start: new Date(timeslot.start),
+              end: new Date(timeslot.end),
+            }
+            return ts
+          }))).filter((timeslot) => timeslot !== undefined) : []
+
+          //tags
+          const userTags: UserTag[] = participant.userTags ? (await Promise.all((participant.userTags as string[]).map(async (tag) => {
+            if(!tag) return
+            const tagResponse = await client.models.UserTag.get({ id: tag })
+            if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
+
+            //collection
+            const collectionTagResponse = await tagResponse.data.collectionTags()
+            const collections: PhotoCollection[] = []
+            if(collectionTagResponse && collectionTagResponse.data && collectionTagResponse.data.length > 0){
+              collections.push(...(await Promise.all(collectionTagResponse.data.map(async (colTag) => {
+                const photoCollection = await colTag.collection()
+                if(!photoCollection || !photoCollection.data) return
+                const col: PhotoCollection = {
+                  ...photoCollection.data,
+                  coverPath: photoCollection.data.coverPath ?? undefined,
+                }
+                return col
+              }))).filter((collection) => collection !== undefined))
+            }
+
+            const userTag: UserTag = {
+              ...tagResponse.data,
+              color: tagResponse.data.color ?? undefined,
+              collections: collections
+            }
+
+            return userTag
+          }))).filter((tag) => tag !== undefined) : []
+
+          //all together
+          const part: Participant = {
+            ...participant,
+            timeslot: timeslot,
+            userTags: userTags,
+            middleName: participant.middleName ?? undefined,
+            preferredName: participant.preferredName ?? undefined,
+            email: participant.email ?? undefined,
+            contact: participant.contact ?? false,
+          }
+          return part
+        }))).filter((participant) => participant !== undefined) : []
+
+        participants.push(...parts)
+      }
+
+      return {
+        ...getProfileResponse.data,
+        participant: participants,
+        activeParticipant: participants.find((participant) => participant.id === getProfileResponse.data?.activeParticipant) ?? (participants.length > 0 ? participants[0] : undefined),
+        userTags: getProfileResponse.data.userTags ? getProfileResponse.data.userTags as string[] : [],
+        timeslot: timeslot,
+        participantFirstName: getProfileResponse.data.participantFirstName ?? undefined,
+        participantLastName: getProfileResponse.data.participantFirstName ?? undefined,
+        participantMiddleName: getProfileResponse.data.participantMiddleName ?? undefined,
+        participantPreferredName: getProfileResponse.data.participantPreferredName ?? undefined,
+        participantContact: getProfileResponse.data.participantContact ?? false,
+        participantEmail: getProfileResponse.data.participantEmail ?? undefined,
+        preferredContact: getProfileResponse.data.preferredContact ?? 'EMAIL',
+      }
+    }
+  }
+  return null
+}
+
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<Header />} id='/' loader={async () => {
-      const userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined
-      let userProfile: UserProfile | null = null
-      let timeslot: Timeslot[] = []
-      if(userStorage){
-        const getProfileResponse = await client.models.UserProfile.get({ email: userStorage.attributes.email! })
-        if(getProfileResponse && getProfileResponse.data !== null){
-          const participantResponse = await getProfileResponse.data.participant()
-          const participants: Participant[] = []
-          
-          //try to create a participant from the details
-
-          if(participantResponse.data.length == 0 && getProfileResponse.data.participantFirstName && getProfileResponse.data.participantLastName){
-            //timeslots
-            const timeslotResponse = await getProfileResponse.data.timeslot()
-            timeslot = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
-              if(!timeslot.id) return
-              const ts: Timeslot = {
-                ...timeslot,
-                id: timeslot.id,
-                register: timeslot.register ?? undefined,
-                tagId: (await timeslot.timeslotTag()).data?.tagId,
-                start: new Date(timeslot.start),
-                end: new Date(timeslot.end),
-              }
-              return ts
-            }))).filter((timeslot) => timeslot !== undefined) : []
-            console.log(timeslot)
-
-            //create
-            const createdParticipant = await createParticipantFromUserProfile({
-              ...getProfileResponse.data,
-              participantFirstName: getProfileResponse.data.participantFirstName,
-              participantLastName: getProfileResponse.data.participantFirstName,
-              participantMiddleName: getProfileResponse.data.participantMiddleName ?? undefined,
-              participantPreferredName: getProfileResponse.data.participantPreferredName ?? undefined,
-              participantContact: getProfileResponse.data.participantContact ?? false,
-              participantEmail: getProfileResponse.data.participantEmail ?? undefined,
-              //unecessary fields
-              participant: [],
-              activeParticipant: undefined,
-              userTags: [],
-              timeslot: [],
-              preferredContact: getProfileResponse.data.preferredContact ?? 'EMAIL',
-            }, timeslot, true)
-
-            //on success
-            if(createdParticipant) {
-              participants.push(createdParticipant)
-              //update timeslots
-              const timeslotUpdateResponse = await Promise.all(timeslot.map((timeslot) => {
-                return client.models.Timeslot.update({
-                  id: timeslot.id,
-                  participantId: createdParticipant.id
-                })
-              }))
-              console.log(timeslotUpdateResponse)
-            }
-          }
-          else if(participantResponse.data.length > 0){
-            const parts: Participant[] = participantResponse ? (await Promise.all(participantResponse.data.map(async (participant) => {
-              if(!participant.id) return
-
-              //timeslots
-              const timeslotResponse = await participant.timeslot()
-              const timeslot: Timeslot[] = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
-                if(!timeslot.id) return
-                const ts: Timeslot = {
-                  ...timeslot,
-                  id: timeslot.id,
-                  register: timeslot.register ?? undefined,
-                  tagId: (await timeslot.timeslotTag()).data?.tagId,
-                  start: new Date(timeslot.start),
-                  end: new Date(timeslot.end),
-                }
-                return ts
-              }))).filter((timeslot) => timeslot !== undefined) : []
-
-              //tags
-              const userTags: UserTag[] = participant.userTags ? (await Promise.all((participant.userTags as string[]).map(async (tag) => {
-                if(!tag) return
-                const tagResponse = await client.models.UserTag.get({ id: tag })
-                if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
-
-                //collection
-                const collectionTagResponse = await tagResponse.data.collectionTags()
-                const collections: PhotoCollection[] = []
-                if(collectionTagResponse && collectionTagResponse.data && collectionTagResponse.data.length > 0){
-                  collections.push(...(await Promise.all(collectionTagResponse.data.map(async (colTag) => {
-                    const photoCollection = await colTag.collection()
-                    if(!photoCollection || !photoCollection.data) return
-                    const col: PhotoCollection = {
-                      ...photoCollection.data,
-                      coverPath: photoCollection.data.coverPath ?? undefined,
-                    }
-                    return col
-                  }))).filter((collection) => collection !== undefined))
-                }
-
-                const userTag: UserTag = {
-                  ...tagResponse.data,
-                  color: tagResponse.data.color ?? undefined,
-                  collections: collections
-                }
-
-                return userTag
-              }))).filter((tag) => tag !== undefined) : []
-  
-              //all together
-              const part: Participant = {
-                ...participant,
-                timeslot: timeslot,
-                userTags: userTags,
-                middleName: participant.middleName ?? undefined,
-                preferredName: participant.preferredName ?? undefined,
-                email: participant.email ?? undefined,
-                contact: participant.contact ?? false,
-              }
-              return part
-            }))).filter((participant) => participant !== undefined) : []
-
-            participants.push(...parts)
-          }
-
-          userProfile = {
-            ...getProfileResponse.data,
-            participant: participants,
-            activeParticipant: participants.find((participant) => participant.id === getProfileResponse.data?.activeParticipant) ?? (participants.length > 0 ? participants[0] : undefined),
-            userTags: getProfileResponse.data.userTags ? getProfileResponse.data.userTags as string[] : [],
-            timeslot: timeslot,
-            participantFirstName: getProfileResponse.data.participantFirstName ?? undefined,
-            participantLastName: getProfileResponse.data.participantFirstName ?? undefined,
-            participantMiddleName: getProfileResponse.data.participantMiddleName ?? undefined,
-            participantPreferredName: getProfileResponse.data.participantPreferredName ?? undefined,
-            participantContact: getProfileResponse.data.participantContact ?? false,
-            participantEmail: getProfileResponse.data.participantEmail ?? undefined,
-            preferredContact: getProfileResponse.data.preferredContact ?? 'EMAIL',
-          }
-        }
-      }
-
+      let userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined
+      let userProfile: UserProfile | null = await fetchUserProfile(userStorage)
       return userProfile
     }} >
       <Route index element={<Home />} />
