@@ -1,6 +1,6 @@
 import './App.css'
 import SignIn from './components/authenticator/SignInForm'
-import SignUp from './components/authenticator/SignUpForm'
+import SignUp, { SignupAvailableTag } from './components/authenticator/SignUpForm'
 import Header from './components/header/Header'
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom'
 import ServiceForm from './components/service-form/ServiceForm'
@@ -238,7 +238,35 @@ const router = createBrowserRouter(
     }} >
       <Route index element={<Home />} />
       <Route path='login' element={<SignIn />} />
-      <Route path='register' element={<SignUp />} />
+      <Route path='register/:hash' element={<SignUp />} loader={async ({ params }): Promise<SignupAvailableTag[] | undefined> => {
+          const tags: SignupAvailableTag[] = []
+          if(!params.hash) return
+          else {
+            const tokenResponse = await client.models.TemporaryCreateUsersTokens.get(
+              { id : params.hash },
+              { authMode: 'iam' }
+            )
+            if(tokenResponse.data && tokenResponse.data.tags){
+              tags.push(...(await Promise.all(tokenResponse.data.tags
+                .filter((tag) => tag !== undefined && tag !== null)
+                .map(async (tagId) => {
+                  const tagResponse = await client.models.UserTag.get({ id: tagId }, { authMode: 'iam' })
+                  if(!tagResponse || !tagResponse.data) return
+                  const tag: SignupAvailableTag = {
+                    tag: {
+                      ...tagResponse.data,
+                      color: tagResponse.data.color ?? undefined,
+                    },
+                    selected: {
+                      selected: false,
+                    }
+                  }
+                  return tag
+                }))).filter((tag) => tag !== undefined))
+            }
+          }
+          return tags
+        }}/>
       <Route path='logout' element={<SignOut />} />
       <Route path='service-form' element={<ServiceForm />} />
       <Route path='service-form/checkout' element={<CheckoutForm />} />

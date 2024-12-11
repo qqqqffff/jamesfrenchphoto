@@ -93,7 +93,6 @@ export default function UserManagement(){
                     if(collectionData === null) return
                     const collection: PhotoCollection = {
                         ...collectionData,
-                        name: (await collectionData.subCategory()).data?.name,
                         coverPath: collectionData.coverPath ?? undefined,
                     }
                     return collection
@@ -132,7 +131,8 @@ export default function UserManagement(){
                 parentLastName: user.last,
                 preferredContact: profile.preferredContact ?? 'EMAIL',
                 participantContact: profile.participantContact ?? false,
-                participant: []
+                participant: [], //TODO: fix me
+                activeParticipant: undefined
             }
             return tableData;
         }))).filter((item) => item !== undefined)

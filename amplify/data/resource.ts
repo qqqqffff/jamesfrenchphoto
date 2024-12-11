@@ -57,7 +57,7 @@ const schema = a.schema({
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
   CollectionTag: a
     .model({
       collectionId: a.id().required(),
@@ -182,6 +182,7 @@ const schema = a.schema({
     .model({
       id: a.string().required(),
       tags: a.string().array(),
+      sittingNumberPrefix: a.integer(),
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['get'])]),
