@@ -44,7 +44,6 @@ export const ParticipantCreator: FC<ParticipantCreatorProps> = ({ width, userEma
         const userTags: (UserTag | undefined)[] = (await Promise.all(tags
                 .filter((tag) => tag !== '' && tag !== undefined)
                 .map(async (tag) => {
-                    console.log(!tag)
                     const tagResponse = await client.models.UserTag.get({ id: tag })
                     if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
                     const userTag: UserTag = {
@@ -85,7 +84,6 @@ export const ParticipantCreator: FC<ParticipantCreatorProps> = ({ width, userEma
                     middleName: middleName,
                     contact: contact
                 })
-                console.log(response)
                 if(response && response.data && response.data.id){
                     participant = {
                         ...response.data,

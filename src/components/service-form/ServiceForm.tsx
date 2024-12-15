@@ -6,10 +6,10 @@ import { HiOutlineArrowRight, HiOutlineArrowLeft } from "react-icons/hi";
 // import TRFDebutantePackage2 from '../../assets/tyler-rose-festival/2024/formatted-Debutante-packages-2.png'
 // import TRFEscortPackage from '../../assets/tyler-rose-festival/2024/formatted-Escort-packages.png'
 // import { useNavigate } from "react-router-dom";
-import { generateClient } from "aws-amplify/api";
-import type { Schema } from '../../../amplify/data/resource'
+// import { generateClient } from "aws-amplify/api";
+// import type { Schema } from '../../../amplify/data/resource'
 
-const client = generateClient<Schema>({authMode: 'none'})
+// const client = generateClient<Schema>({authMode: 'none'})
 
 interface PackageFormElements extends HTMLFormControlsCollection {
     eventType: HTMLButtonElement
@@ -39,19 +39,8 @@ const ServiceForm: FC<Props> = ({ event, pack }) => {
     async function handlesubmit(event: FormEvent<PackageRequestForm>){
         event.preventDefault()
         // const form = event.currentTarget;
-        // console.log(form.elements.eventType.innerText)
-        // console.log(form.elements.trfServiceType!.value)
-        // console.log(form.elements.trfPackageType!.value)
-        // console.log(form.elements.firstName.value)
-        // console.log(form.elements.lastName.value)
-        // console.log(form.elements.phoneNumber.value)
-        // console.log(form.elements.email.value)
         //preform validation
-        // console.log((await ))
-        
-        console.log(client)
         // const paymentIntent = await client.queries.GetPaymentIntent({ objects: [form.elements.eventType.innerText]})
-        // console.log(paymentIntent)
 
 
         //routing

@@ -32,7 +32,7 @@ const client = generateClient<Schema>()
 
 function addClassComponent(adminView: boolean){
     if(adminView){
-        return (<Badge color='gray' onClick={() => console.log('hello world')} icon={HiOutlinePlusCircle} size='md' />)
+        return (<Badge color='gray' icon={HiOutlinePlusCircle} size='md' />)
     }
     return (<></>)
 }
@@ -82,7 +82,6 @@ export function Dashboard() {
                         }
                         return ts
                       }))).filter((timeslot) => timeslot !== undefined) : []
-                      console.log(timeslot)
               
                       //create
                       const createdParticipant = await createParticipantFromUserProfile({
@@ -105,13 +104,12 @@ export function Dashboard() {
                       if(createdParticipant) {
                         participants.push(createdParticipant)
                         //update timeslots
-                        const timeslotUpdateResponse = await Promise.all(timeslot.map((timeslot) => {
+                        await Promise.all(timeslot.map((timeslot) => {
                           return client.models.Timeslot.update({
                             id: timeslot.id,
                             participantId: createdParticipant.id
                           })
                         }))
-                        console.log(timeslotUpdateResponse)
                       }
                     }
                     else if(participantResponse.data.length > 0){
@@ -202,8 +200,6 @@ export function Dashboard() {
                         return tag
                     }))) 
 
-                    console.log(userProfile, userTags, schedulerEnabled, item)
-
                     setSchedulerEnabled(schedulerEnabled)
                     setUserProfile(userProfile)
                     setUserProfileTags(userTags)
@@ -215,10 +211,8 @@ export function Dashboard() {
             let schedulerEnabled = false
             let tempUserProfile = userProfile
             let userProfileTags: UserTag[] = []
-            console.log(userProfile)
             if(tempUserProfile === null){
                 tempUserProfile = await fetchUserProfile(user)
-                console.log(tempUserProfile)
             }
             
             if(tempUserProfile !== null){
@@ -258,7 +252,6 @@ export function Dashboard() {
                             return userTag
                         }))).filter((tag) => tag !== undefined)
                     ) : []))
-                console.log(userProfileTags)
             }
             else{
                 navigate('/client')
@@ -306,14 +299,19 @@ export function Dashboard() {
     }
 
     function activeConsoleComponent(){
-        switch(activeConsole){
-            case 'home':
-                return (<Home user={userProfile!} tags={userProfileTags} />)
-            case 'scheduler':
-                return (<TimeslotComponent userEmail={userProfile?.email} userTags={userProfileTags}/>)
-            default:
-                return (<></>)
+        if(userProfile && userProfile.activeParticipant){
+            switch(activeConsole){
+                case 'home':
+                    return (<Home user={userProfile!} tags={userProfileTags} />)
+                case 'scheduler':
+                    return (<TimeslotComponent participantId={userProfile!.activeParticipant?.id} userEmail={userProfile!.email} userTags={userProfile!.activeParticipant?.userTags}/>)
+                default:
+                    return (<></>)
+            }
+        } else {
+            return (<></>)
         }
+        
     }
     return (
         <>

@@ -1,6 +1,7 @@
 import { Schema } from "../../data/resource";
 import sgMail from '@sendgrid/mail'
 import ics, { EventAttributes } from 'ics'
+import { DateTime } from 'luxon'
 
 export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = async (event) => {
     const email = event.arguments.email
@@ -10,8 +11,14 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
     sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
     const delta = new Date(end.getTime() - start.getTime())
+    const startDateTime = DateTime.fromObject(
+        { year: start.getFullYear(), month: start.getMonth() + 1, day: start.getDate(), hour: start.getHours(), minute: start.getMinutes()},
+        { zone: 'America/Chicago' }
+    )
+    const startUTC = startDateTime
+    
     const calendarEvent: EventAttributes = {
-        start: [start.getFullYear(), start.getMonth(), start.getDate(), start.getHours(), start.getMinutes()],
+        start: [startUTC.year, startUTC.month, startUTC.day, startUTC.hour, startUTC.minute],
         duration: { hours: delta.getHours(), minutes: delta.getMinutes() },
         title: 'LAF Photoshoot',
         description: 'Photoshoot for your participant',
@@ -24,7 +31,8 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
         organizer: { name: 'James French Photography', email: 'no-reply@jamesfrenchphotography.com' },
         attendees: [
             { email: email, rsvp: true, role: 'REQ-PARTICIPANT' }
-        ]
+        ],
+        alarms: [{action: 'display', trigger: { minutes: 30, before: true }}]
     }
 
     let calendarInvite: Buffer | undefined
@@ -34,7 +42,7 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
             console.log(error)
             return
         }
-        calendarInvite = Buffer.from(await new Blob([value], { type: 'text/calendar' }).text())
+        calendarInvite = Buffer.from(value, 'utf-8')
     })
 
     const message: sgMail.MailDataRequired = {
@@ -45,17 +53,18 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
             <p>
                 Your photoshoot timeslot has been confirmed to be on<strong>${' ' + start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' }) + ' '}</strong>from<strong>${' ' + start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' }) + " - " + end.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</strong>. If you wish to unregister from this timeslot please login and unregister by finding and clicking on the same timeslot. Please feel free to change your registration up until one day before your date.
             </p>`,
-        attachments: calendarInvite ? [
+        attachments: calendarInvite !== undefined ? [
             {
                 content: calendarInvite.toString('base64'),
-                filename: '2025_laf_debutante_headshot.ics',
+                filename: 'jfphoto_calendar_invite.ics',
                 type: 'text/calendar',
-                disposition: 'headshot calendar'
+                disposition: 'attachment'
             }
         ] : undefined
     }
 
     const response = await sgMail.send(message)
+    console.log(response)
 
-    return JSON.stringify([email, start, end, process.env.SENDGRID_API_KEY,  calendarEvent, response, calendarInvite?.toString('base64')])
+    return JSON.stringify([calendarEvent, calendarInvite?.toString('base64')])
 }

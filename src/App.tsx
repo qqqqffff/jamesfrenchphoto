@@ -27,16 +27,6 @@ const client = generateClient<Schema>()
 let createAccount = false
 
 export async function createParticipantFromUserProfile(userProfile: UserProfile, timeslots: Timeslot[], setActiveParticipant?: boolean): Promise<Participant | void> {
-  console.log({
-    firstName: userProfile.participantFirstName!,
-    lastName: userProfile.participantLastName!,
-    preferredName: userProfile.participantPreferredName,
-    middleName: userProfile.participantMiddleName,
-    email: userProfile.participantEmail,
-    contact: userProfile.participantContact,
-    userEmail: userProfile.email,
-    userTags: userProfile.userTags ? userProfile.userTags as string[] : []
-  })
   const createParticipantResponse = await client.models.Participant.create({
     firstName: userProfile.participantFirstName!,
     lastName: userProfile.participantLastName!,
@@ -47,7 +37,6 @@ export async function createParticipantFromUserProfile(userProfile: UserProfile,
     userEmail: userProfile.email,
     userTags: userProfile.userTags ? userProfile.userTags as string[] : []
   })
-  console.log(createParticipantResponse)
 
   if(createParticipantResponse && createParticipantResponse.data && createParticipantResponse.data.id){
     const userTags: UserTag[] = userProfile.userTags ? (await Promise.all((userProfile.userTags as string[]).map(async (tag) => {
@@ -93,11 +82,10 @@ export async function createParticipantFromUserProfile(userProfile: UserProfile,
     }
 
     if(setActiveParticipant){
-      const updateProfile = await client.models.UserProfile.update({
+      await client.models.UserProfile.update({
         email: userProfile.email,
         activeParticipant: createParticipantResponse.data.id
       })
-      console.log(updateProfile)
     }
     return participant
   }
@@ -131,7 +119,6 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
           }
           return ts
         }))).filter((timeslot) => timeslot !== undefined) : []
-        console.log(timeslot)
 
         //create
         const createdParticipant = await createParticipantFromUserProfile({
@@ -154,13 +141,12 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
         if(createdParticipant) {
           participants.push(createdParticipant)
           //update timeslots
-          const timeslotUpdateResponse = await Promise.all(timeslot.map((timeslot) => {
+          await Promise.all(timeslot.map((timeslot) => {
             return client.models.Timeslot.update({
               id: timeslot.id,
               participantId: createdParticipant.id
             })
           }))
-          console.log(timeslotUpdateResponse)
         }
       }
       else if(participantResponse.data.length > 0){
@@ -298,9 +284,7 @@ const router = createBrowserRouter(
       <Route path='contact-form' element={<ContactForm />} />
       {/* <Route path='photo-collection' element={<PhotoCollectionComponent />} /> */}
       <Route path='photo-collection/:collectionId' element={<CollectionViewer />} loader={async ({ params }) => {
-          console.log(params)
           if(!params.collectionId) return
-          console.log('api call')
           return Promise.all((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: params.collectionId })).data.map(async (path) => {
             return {
               id: path.id,

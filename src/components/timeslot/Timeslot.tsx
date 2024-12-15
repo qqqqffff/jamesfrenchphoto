@@ -258,7 +258,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         {tag ? tag.name : 'Undefined'}
                     </span>
                     <span>
-                        {`${timeslot[0].start.toLocaleDateString()}: ${timeslot[0].start.toLocaleTimeString()} - ${timeslot[0].end.toLocaleTimeString()}`}
+                        {`${timeslot[0].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}: ${timeslot[0].start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} - ${timeslot[0].end.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}`}
                     </span>
                 </div>
                 
@@ -385,7 +385,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                             <>
                                 <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>Add Timeslot</>} fn={() => setCreateTimeslotVisible(true)} type={true} disabled={activeDate.getTime() < currentDate.getTime() + DAY_OFFSET || updatingTimeslot}/>
                                 <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>Update Timeslot</>} fn={() => setCreateTimeslotVisible(true)} type={true} disabled={!updatingTimeslot}/>
-                                <ControlComponent name={<><HiOutlineMinusCircle size={20} className="mt-1 me-1"/>Remove Timeslot</>} fn={() => console.log('hello world')} type={true}/>
+                                <ControlComponent name={<><HiOutlineMinusCircle size={20} className="mt-1 me-1"/>Remove Timeslot</>} fn={() => {}} type={true}/>
                             </>
                         ) : (
                             <>
@@ -399,7 +399,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                                     const tag: UserTag = userTags!.find((tag) => tag.id == tagId)!
                                                     const sortedTimeslots = timeslots.sort((a, b) => a.start.getTime() - b.start.getTime())
                                                     
-                                                    const formattedDateString = sortedTimeslots[0].start.toLocaleDateString() + ' - ' + sortedTimeslots[sortedTimeslots.length - 1].start.toLocaleDateString()
+                                                    const formattedDateString = sortedTimeslots[0].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' }) + ' - ' + sortedTimeslots[sortedTimeslots.length - 1].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
 
                                                     return (
                                                         <div key={index} className="flex flex-col items-center justify-center">
@@ -491,7 +491,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         }} disabled={!(tagTimeslots && Object.entries(tagTimeslots).length > 0)}>
                             <HiOutlineArrowLeft className="text-xl"/>
                         </button>
-                        <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString()}>
+                        <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}>
                         {
                             tagTimeslots && Object.entries(tagTimeslots).length > 0 ? Object.entries(tagTimeslots).map(([tagId, timeslots]) => {
                                 const color = userTags!.find((tag) => tag.id === tagId)!.color ?? 'black'
@@ -507,7 +507,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                     .map((time) => new Date(time))
                                 const objects = dates.map((date, index) => {
                                     return (
-                                        <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString()}</Dropdown.Item>
+                                        <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}</Dropdown.Item>
                                     )
                                 })
                                 return objects
@@ -627,50 +627,45 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 confirmAction={async () => {
                     if(selectedTimeslot && userEmail && participantId && userTags) {
                         const timeslot = await client.models.Timeslot.get({id: selectedTimeslot.id})
-                        if(timeslot.data?.register){
-                            throw new Error('Timeslot has been filled')
+                        if(timeslot.data?.register || timeslot.data?.participantId){
+                            console.error('Timeslot has been filled')
                         }
-                        const response = await client.models.Timeslot.update({
+                        await client.models.Timeslot.update({
                             id: selectedTimeslot.id,
                             register: userEmail,
                             participantId: participantId
                         }, { authMode: 'userPool'})
 
-                        console.log(response)
-
                         if(notify && userEmail) {
-                            const response = client.queries.SendTimeslotConfirmation({
+                            client.queries.SendTimeslotConfirmation({
                                 email: userEmail,
                                 start: selectedTimeslot.start.toISOString(),
                                 end: selectedTimeslot.end.toISOString()
                             }, {
                                 authMode: 'userPool'
                             })
-
-                            console.log(response)
                         }
 
                         await userFetchTimeslots(userTags, userEmail)
                     }
                 }}
                 children={notificationComponent(userEmail)}
-                title="Confirm Timeslot Selection" body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}/>
+                title="Confirm Timeslot Selection" body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}/>
             <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
                 confirmText="Confirm"
                 denyText="Back"
                 confirmAction={async () => {
-                    if(selectedTimeslot && userEmail && userTags) {
-                        const response = await client.models.Timeslot.update({
+                    if(selectedTimeslot && userEmail && participantId && userTags) {
+                        await client.models.Timeslot.update({
                             id: selectedTimeslot.id,
-                            register: null
+                            register: null,
+                            participantId: null,
                         }, { authMode: 'userPool'})
-
-                        console.log(response)
 
                         await userFetchTimeslots(userTags, userEmail)
                     }
                 }}
-                title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} />
+                title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} />
             {
                 width > 1200 ? (
                     fullSizeDisplay()

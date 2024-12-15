@@ -1,6 +1,6 @@
 import { generateClient } from "aws-amplify/api"
 import { confirmSignUp, resendSignUpCode, signUp } from "aws-amplify/auth"
-import { Accordion, Alert, Badge, Button, Checkbox, Dropdown, Label, Modal, TextInput, Tooltip } from "flowbite-react"
+import { Accordion, Alert, Badge, Button, Checkbox, Dropdown, Label, Modal, TextInput } from "flowbite-react"
 import { FormEvent, useEffect, useRef, useState } from "react"
 import { useLoaderData, useNavigate } from "react-router-dom"
 import { Schema } from "../../../amplify/data/resource"
@@ -101,7 +101,6 @@ export default function SignUp(){
     const [formErrors, setFormErrors] = useState<string[]>([])
     const [invalidCode, setInvalidCode] = useState(false)
 
-    const [authCode, setAuthCode] = useState<number>()
     const [formSubmitting, setFormSubmitting] = useState(false)
     const [codeSubmitting, setCodeSubmitting] = useState(false)
 
@@ -151,7 +150,6 @@ export default function SignUp(){
             { authMode: 'iam' }
             )
             
-            console.log(profileCreateResponse)
             //creating participants
             const tempParticipants = participants
             if(activeParticipant == undefined && (participantFirstName && participantLastName)){
@@ -168,7 +166,8 @@ export default function SignUp(){
                 }
                 tempParticipants.push(participant)
             }
-            const participantResponses = await Promise.all(tempParticipants.map(async (participant) => {
+            
+            await Promise.all(tempParticipants.map(async (participant) => {
                 const response = await client.models.Participant.create({
                     firstName: participant.firstName,
                     lastName: participant.lastName,
@@ -181,7 +180,6 @@ export default function SignUp(){
                 }, { authMode: 'iam' })
                 return response
             }))
-            console.log(participantResponses)
 
 
             if(profileCreateResponse.errors && profileCreateResponse.errors.length > 0){
@@ -202,7 +200,6 @@ export default function SignUp(){
                 }
             })
 
-            console.log(response)
             if(response.nextStep.signUpStep !== 'DONE') {
                 setOpenModal(true);
                 setFormSubmitting(false);
@@ -260,8 +257,6 @@ export default function SignUp(){
             }
         }catch(err){
             //todo error handling
-            const error = err as Error
-            console.log(error)
             setInvalidCode(true)
         }
         setCodeSubmitting(false)
@@ -410,10 +405,8 @@ export default function SignUp(){
                         <p><b>Do not close this window until account has been confirmed.</b></p>
                         <div className="flex items-center gap-4 mt-4">
                             <Label className="font-medium text-lg" htmlFor="authCode">Verification Code:</Label>
-                            <TextInput color={invalidCode ? 'failure' : undefined} className='' sizing='md' placeholder="Verification Code" type="number" id="authCode" name="authCode" onChange={(event) => {
+                            <TextInput color={invalidCode ? 'failure' : undefined} className='' sizing='md' placeholder="Verification Code" type="number" id="authCode" name="authCode" onChange={() => {
                                 setInvalidCode(false)
-                                setAuthCode(event.target.valueAsNumber)
-                                console.log(authCode)
                             }} helperText={ invalidCode ? (
                                 <div className="-mt-2 mb-4 ms-2 text-sm">
                                     <span>Invalid Code</span>

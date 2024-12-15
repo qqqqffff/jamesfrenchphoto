@@ -5,10 +5,10 @@ export function formatTime(time: Date | string | undefined, params?: {timeString
     if(!time) return 'N/A'
     if(typeof time == 'string') return time
     if(params && !params.timeString){
-        const dateString = time.toLocaleDateString()
+        const dateString = time.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
         return dateString
     }
-    const timeString = time.toLocaleTimeString().replace(/[^0-9:]/g, '')
+    const timeString = time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' }).replace(/[^0-9:]/g, '')
     return timeString
 }
 

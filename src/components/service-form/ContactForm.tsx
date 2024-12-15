@@ -1,7 +1,7 @@
 import { Alert, Button, Label, Textarea, TextInput } from "flowbite-react"
-import { createRef, FC, FormEvent } from "react"
+import { FC, FormEvent } from "react"
 // import { useNavigate } from "react-router-dom"
-import ReCAPTCHA from "react-google-recaptcha";
+// import ReCAPTCHA from "react-google-recaptcha";
 
 interface IntentFormElements extends HTMLFormControlsCollection {
     message: HTMLButtonElement
@@ -20,7 +20,7 @@ type Props = {}
 
 const ContactForm: FC<Props> = ({}) => {
     // const navigate = useNavigate()
-    const recaptchaRef = createRef<ReCAPTCHA>()
+    // const recaptchaRef = createRef<ReCAPTCHA>()
 
     function handleSubmit(event: FormEvent<IntentFormFields>){
         event.preventDefault()
@@ -31,7 +31,7 @@ const ContactForm: FC<Props> = ({}) => {
         form.elements.email
         form.elements.message
 
-        console.log(recaptchaRef.current?.getValue())
+        // console.log(recaptchaRef.current?.getValue())
 
         // navigate('/',
         //     {

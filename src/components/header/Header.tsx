@@ -1,7 +1,7 @@
 import { Link, Outlet, useLoaderData, useRevalidator } from 'react-router-dom'
 import bannerIcon from '../../assets/headerPhoto.png'
 import { Dropdown } from 'flowbite-react'
-import { Participant, Timeslot, UserProfile, UserStorage, UserTag } from '../../types'
+import { UserProfile, UserStorage } from '../../types'
 import { HiOutlineMenu } from "react-icons/hi";
 import { HiOutlineCheckCircle } from "react-icons/hi2";
 import useWindowDimensions from '../../hooks/windowDimensions'
@@ -52,13 +52,11 @@ export default function Header() {
                             return (
                                 <Dropdown.Item key={index} 
                                     onClick={async () => {
-                                        console.log(userProfile.activeParticipant?.id, participant.id)
                                         if(userProfile.activeParticipant?.id !== participant.id){
-                                            const updateResponse = await client.models.UserProfile.update({
+                                            await client.models.UserProfile.update({
                                                 email: userProfile.email,
                                                 activeParticipant: participant.id
                                             })
-                                            console.log(updateResponse)
 
                                             const tempProfile = {...userProfile}
                                             tempProfile.activeParticipant = participant

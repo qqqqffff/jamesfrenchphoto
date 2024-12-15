@@ -174,7 +174,7 @@ const ParticipantProfileForm: FC<ParticipantFormParams> = ({width, participant, 
                 contact !== participant.contact ||
                 email !== participant.email) {
 
-                const response = await client.models.Participant.update({
+                await client.models.Participant.update({
                     id: participant.id,
                     email: email,
                     firstName: firstName,
@@ -183,8 +183,6 @@ const ParticipantProfileForm: FC<ParticipantFormParams> = ({width, participant, 
                     middleName: middleName,
                     contact: contact
                 })
-
-                console.log(response)
 
                 updatedParticipant = {
                     ...participant,
@@ -296,33 +294,30 @@ const UserProfileForm: FC<ParentFormParams> = ({ width, user, userProfile, submi
 
         try{
             if(userFirstName !== user.attributes.given_name || userLastName !== user.attributes.family_name){
-                const response = await updateUserAttributes({
+                await updateUserAttributes({
                     userAttributes: {
                         email: userProfile.email,
                         family_name: userLastName,
                         given_name: userFirstName,
                     }
                 })
-                console.log(response)
                 updated = true
                 updatedUser.attributes.family_name = userLastName
                 updatedUser.attributes.given_name = userFirstName
             }
             if(userPhoneNumber !== user.attributes.phone_number && userPhoneNumber && user.session.tokens){
-                const response = await client.queries.UpdateUserPhoneNumber({
+                await client.queries.UpdateUserPhoneNumber({
                     phoneNumber: `+1${userPhoneNumber}`,
                     accessToken: (await fetchAuthSession()).tokens!.accessToken.toString()
                 })
-                console.log(response)
                 updated = true
                 updatedUser.attributes.phone_number = `+1${userPhoneNumber}`
             }
             if(preferredContact !== userProfile.preferredContact){
-                const response = await client.models.UserProfile.update({
+                await client.models.UserProfile.update({
                     email: userProfile.email,
                     preferredContact: preferredContact,
                 })
-                console.log(response)
                 updated = true
                 updatedProfile.preferredContact = preferredContact
             }
