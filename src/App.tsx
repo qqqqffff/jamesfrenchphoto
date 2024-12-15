@@ -24,7 +24,19 @@ import { ClientProfile } from './components/client/Profile'
 Amplify.configure(outputs)
 const client = generateClient<Schema>()
 
+let createAccount = false
+
 export async function createParticipantFromUserProfile(userProfile: UserProfile, timeslots: Timeslot[], setActiveParticipant?: boolean): Promise<Participant | void> {
+  console.log({
+    firstName: userProfile.participantFirstName!,
+    lastName: userProfile.participantLastName!,
+    preferredName: userProfile.participantPreferredName,
+    middleName: userProfile.participantMiddleName,
+    email: userProfile.participantEmail,
+    contact: userProfile.participantContact,
+    userEmail: userProfile.email,
+    userTags: userProfile.userTags ? userProfile.userTags as string[] : []
+  })
   const createParticipantResponse = await client.models.Participant.create({
     firstName: userProfile.participantFirstName!,
     lastName: userProfile.participantLastName!,
@@ -100,8 +112,11 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
       const participants: Participant[] = []
       
       //try to create a participant from the details
-
-      if(participantResponse.data.length == 0 && getProfileResponse.data.participantFirstName && getProfileResponse.data.participantLastName){
+      
+      if(participantResponse.data.length == 0 && getProfileResponse.data.participantFirstName && getProfileResponse.data.participantLastName && 
+        !createAccount
+      ){
+        createAccount = true
         //timeslots
         const timeslotResponse = await getProfileResponse.data.timeslot()
         timeslot = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
@@ -122,7 +137,7 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
         const createdParticipant = await createParticipantFromUserProfile({
           ...getProfileResponse.data,
           participantFirstName: getProfileResponse.data.participantFirstName,
-          participantLastName: getProfileResponse.data.participantFirstName,
+          participantLastName: getProfileResponse.data.participantLastName,
           participantMiddleName: getProfileResponse.data.participantMiddleName ?? undefined,
           participantPreferredName: getProfileResponse.data.participantPreferredName ?? undefined,
           participantContact: getProfileResponse.data.participantContact ?? false,
@@ -130,7 +145,7 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
           //unecessary fields
           participant: [],
           activeParticipant: undefined,
-          userTags: [],
+          userTags: getProfileResponse.data.userTags ? getProfileResponse.data.userTags as string[] : [],
           timeslot: [],
           preferredContact: getProfileResponse.data.preferredContact ?? 'EMAIL',
         }, timeslot, true)
@@ -220,7 +235,7 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
         userTags: getProfileResponse.data.userTags ? getProfileResponse.data.userTags as string[] : [],
         timeslot: timeslot,
         participantFirstName: getProfileResponse.data.participantFirstName ?? undefined,
-        participantLastName: getProfileResponse.data.participantFirstName ?? undefined,
+        participantLastName: getProfileResponse.data.participantLastName ?? undefined,
         participantMiddleName: getProfileResponse.data.participantMiddleName ?? undefined,
         participantPreferredName: getProfileResponse.data.participantPreferredName ?? undefined,
         participantContact: getProfileResponse.data.participantContact ?? false,

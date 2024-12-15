@@ -88,7 +88,7 @@ export const ClientProfile: FC = () => {
                 )
             } else if(userStorage) {
                 return (
-                    <ParentProfileForm width={width} user={userStorage} submit={(noti: string, user: UserStorage, profile: UserProfile) => {
+                    <UserProfileForm width={width} user={userStorage} submit={(noti: string, user: UserStorage, profile: UserProfile) => {
                         setNotification([{message: noti, color: 'green'}])
                         setUser(profile)
                         setUserStorage(user)
@@ -129,10 +129,13 @@ export const ClientProfile: FC = () => {
                                 }}>{`Participant: ${participant.preferredName ?? participant.firstName}, ${participant.lastName}`}</Dropdown.Item>
                             )
                         })}
-                        <Dropdown.Item className="border-t" onClick={() => {
-                            setActiveParticipant(undefined)
-                            setCreateParticipantFormVisible(true)
-                        }}>Add Participant</Dropdown.Item>
+                        <Dropdown.Item className="border-t" 
+                            disabled={user !== null && user.participant.length >= 5}
+                            onClick={() => {
+                                setActiveParticipant(undefined)
+                                setCreateParticipantFormVisible(true)
+                            }}
+                        >{user !== null && user.participant.length >= 5 ? 'Maximum Participants Created' : 'Add Participant'}</Dropdown.Item>
                     </Dropdown>
                 </div>
                 <ContentRenderer />
@@ -207,7 +210,6 @@ const ParticipantProfileForm: FC<ParticipantFormParams> = ({width, participant, 
         else{
             setSubmitting(false)
         }
-        
     }
 
     return (
@@ -248,10 +250,12 @@ const ParticipantProfileForm: FC<ParticipantFormParams> = ({width, participant, 
                     </button>
                 </div>
             </div>
-            <Button isProcessing={submitting} className="w-[75px] self-end" onClick={async () => {
-                setSubmitting(true)
-                await updateProfile()
-            }}>Save</Button>
+            <div className="flex flex-row-reverse gap-2">
+                <Button isProcessing={submitting} className="w-[75px]" onClick={async () => {
+                    setSubmitting(true)
+                    await updateProfile()
+                }}>Save</Button>
+            </div>
         </div>
     )
 }
@@ -263,10 +267,23 @@ interface ParentFormParams {
     submit: Function
 }
 
-const ParentProfileForm: FC<ParentFormParams> = ({ width, user, userProfile, submit }) => {
-    const [parentFirstName, setParentFirstName] = useState(user.attributes.given_name)
-    const [parentLastName, setParentLastName] = useState(user.attributes.family_name)
-    const [parentPhoneNumber, setParentPhoneNumber] = useState(user.attributes.phone_number)
+const UserProfileForm: FC<ParentFormParams> = ({ width, user, userProfile, submit }) => {
+    const [userFirstName, setUserFirstName] = useState(user.attributes.given_name)
+    const [userLastName, setUserLastName] = useState(user.attributes.family_name)
+    const [userPhoneNumber, setUserPhoneNumber] = useState(() => {
+        if(!user.attributes.phone_number) return
+        const numbers = user.attributes.phone_number?.substring(2).replace(/\D/g, "");
+        let num = ''
+        // Format phone number: (XXX) XXX-XXXX
+        if (numbers.length <= 3) {
+            num = numbers
+        } else if (numbers.length <= 6) {
+            num = `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`
+        } else {
+            num = `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`
+        }
+        return num
+    })
     // const [parentEmail, setParentEmail] = useState(userProfile.email)
     const [preferredContact, setPreferredContact] = useState(userProfile.preferredContact)
 
@@ -278,27 +295,27 @@ const ParentProfileForm: FC<ParentFormParams> = ({ width, user, userProfile, sub
         let updatedProfile = {...userProfile}
 
         try{
-            if(parentFirstName !== user.attributes.given_name || parentLastName !== user.attributes.family_name){
+            if(userFirstName !== user.attributes.given_name || userLastName !== user.attributes.family_name){
                 const response = await updateUserAttributes({
                     userAttributes: {
                         email: userProfile.email,
-                        family_name: parentLastName,
-                        given_name: parentFirstName,
+                        family_name: userLastName,
+                        given_name: userFirstName,
                     }
                 })
                 console.log(response)
                 updated = true
-                updatedUser.attributes.family_name = parentLastName
-                updatedUser.attributes.given_name = parentFirstName
+                updatedUser.attributes.family_name = userLastName
+                updatedUser.attributes.given_name = userFirstName
             }
-            if(parentPhoneNumber !== user.attributes.phone_number && parentPhoneNumber && user.session.tokens){
+            if(userPhoneNumber !== user.attributes.phone_number && userPhoneNumber && user.session.tokens){
                 const response = await client.queries.UpdateUserPhoneNumber({
-                    phoneNumber: parentPhoneNumber,
+                    phoneNumber: `+1${userPhoneNumber}`,
                     accessToken: (await fetchAuthSession()).tokens!.accessToken.toString()
                 })
                 console.log(response)
                 updated = true
-                updatedUser.attributes.phone_number = parentPhoneNumber
+                updatedUser.attributes.phone_number = `+1${userPhoneNumber}`
             }
             if(preferredContact !== userProfile.preferredContact){
                 const response = await client.models.UserProfile.update({
@@ -329,21 +346,38 @@ const ParentProfileForm: FC<ParentFormParams> = ({ width, user, userProfile, sub
             <span className="text-xl ">Your Profile:</span>
             <div className="grid lg:grid-cols-2 md:grid-cols-1 gap-6 mb-6">
                 <div className={`flex ${width < 768 ? 'flex-col' : 'flex-row'} gap-1 items-center justify-between w-full`}>
-                    <Label className="font-semibold text-xl self-start me-4 mt-1">Parent Email:</Label>
+                    <Label className="font-semibold text-xl self-start me-4 mt-1">User Email:</Label>
                     <TextInput sizing='sm' className={`w-[60%] ${width < 768 ? 'self-start w-full' : ''}`} placeholder="Email" type="email" defaultValue={userProfile.email} disabled/>
                 </div>
                 <div className={`flex ${width < 768 ? 'flex-col' : 'flex-row'} gap-1 items-center justify-between w-full`}>
-                    <Label className="font-semibold text-xl self-start me-4 mt-1">Parent Email:</Label>
-                    <TextInput sizing='sm' className={`w-[60%] ${width < 768 ? 'self-start w-full' : ''}`} placeholder="Email" type="tel" defaultValue={user.attributes.phone_number} onChange={(event) => setParentPhoneNumber(event.target.value)}/>
+                    <Label className="font-semibold text-xl self-start me-4 mt-1">User Phone:</Label>
+                    <TextInput sizing='sm' className={`w-[60%] ${width < 768 ? 'self-start w-full' : ''}`} placeholder="Email" type="tel"
+                        onChange={(event) => {
+                            const numbers = event.target.value.replace(/\D/g, "");
+                            let num = ''
+                            // Format phone number: (XXX) XXX-XXXX
+                            if (numbers.length <= 3) {
+                                num = numbers
+                            } else if (numbers.length <= 6) {
+                                num = `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`
+                            } else {
+                                num = `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`
+                            }
+
+                            setUserPhoneNumber(num)
+                            // setInnerFormErrors(innerFormErrors.filter((error) => error.id !== userPhoneNumberRef.current?.id))
+                        }}
+                        value={userPhoneNumber}
+                    />
                 </div>
                 
                 <div className={`flex ${width < 768 ? 'flex-col' : 'flex-row'} gap-1 items-center justify-between w-full`}>
-                    <Label className="font-semibold text-xl self-start me-4 mt-1">Parent First Name:</Label>
-                    <TextInput sizing='sm' className={`w-[40%] ${width < 768 ? 'self-start w-full' : ''}`} placeholder="Last Name" type='text' defaultValue={user.attributes.given_name} onChange={(event) => setParentFirstName(event.target.value)}/>
+                    <Label className="font-semibold text-xl self-start me-4 mt-1">User First Name:</Label>
+                    <TextInput sizing='sm' className={`w-[40%] ${width < 768 ? 'self-start w-full' : ''}`} placeholder="Last Name" type='text' defaultValue={user.attributes.given_name} onChange={(event) => setUserFirstName(event.target.value)}/>
                 </div>
                 <div className={`flex ${width < 768 ? 'flex-col' : 'flex-row'} gap-1 items-center justify-between w-full`}>
-                    <Label className="font-semibold text-xl self-start me-4 mt-1">Parent Last Name:</Label>
-                    <TextInput sizing='sm' className={`w-[40%] ${width < 768 ? 'self-start w-full' : ''}`} placeholder="First Name" type="text" defaultValue={user.attributes.family_name} onChange={(event) => setParentLastName(event.target.value)}/>
+                    <Label className="font-semibold text-xl self-start me-4 mt-1">User Last Name:</Label>
+                    <TextInput sizing='sm' className={`w-[40%] ${width < 768 ? 'self-start w-full' : ''}`} placeholder="First Name" type="text" defaultValue={user.attributes.family_name} onChange={(event) => setUserLastName(event.target.value)}/>
                 </div>
                 
                 

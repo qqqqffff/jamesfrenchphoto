@@ -1,6 +1,6 @@
 import { generateClient } from "aws-amplify/api"
 import { confirmSignUp, resendSignUpCode, signUp } from "aws-amplify/auth"
-import { Accordion, Alert, Badge, Button, Checkbox, Dropdown, Label, Modal, TextInput } from "flowbite-react"
+import { Accordion, Alert, Badge, Button, Checkbox, Dropdown, Label, Modal, TextInput, Tooltip } from "flowbite-react"
 import { FormEvent, useEffect, useRef, useState } from "react"
 import { useLoaderData, useNavigate } from "react-router-dom"
 import { Schema } from "../../../amplify/data/resource"
@@ -384,7 +384,7 @@ export default function SignUp(){
         .map((tag) => tag)
         .map((tag, index, arr) => {
             return (
-                <p className={`${tag.color ? `text-${tag.color}` : ''} me-1`}>{tag.name + (arr.length - 1 != index ? ',' : '')}</p>
+                <p className={`${tag.color ? `text-${tag.color}` : ''} me-1`} key={index} >{tag.name + (arr.length - 1 != index ? ',' : '')}</p>
             )
         })
         .filter((item) => item !== undefined)
@@ -640,6 +640,7 @@ export default function SignUp(){
                                         <Checkbox className="mt-1" checked={participantSameDetails} readOnly />
                                         <span>Same Details as User Details</span>
                                     </button>
+                                    <p className="italic text-sm mb-4"><sup >*</sup>If you have more than one participant, submit your participant first then add another!</p>
                                     <div className={`w-full flex ${width < 830 ? 'flex-col' : 'flex-row'} justify-end gap-2`}>
                                         {activeParticipant ? (
                                             <Button color="light" 

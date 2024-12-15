@@ -6,14 +6,16 @@ import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp,
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand"
 import { CreateUserModal } from "../modals"
 import { CreateTagModal } from "../modals/CreateTag"
-import { ColumnColor, PhotoCollection, Timeslot, UserColumnDisplay, UserData, UserProfile, UserTag } from "../../types"
+import { ColumnColor, Participant, PhotoCollection, Timeslot, UserColumnDisplay, UserData, UserProfile, UserTag } from "../../types"
 import { createTimeString } from "../timeslot/Slot"
 import { UserColumnModal } from "../modals/UserColumn"
 import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
+import { v4 } from 'uuid'
 
 const client = generateClient<Schema>()
-
-interface UserTableData extends UserProfile { 
+type UserTableData = 
+    Omit<UserProfile, 'userTags' | 'participant' | 'activeParticipant'> & 
+    Omit<Participant, 'firstName' | 'lastName' | 'contact' | 'email'> & { 
     parentFirstName: string,
     parentLastName: string,
     createdAt: string,
@@ -25,7 +27,7 @@ export default function UserManagement(){
     const [createTagModalVisible, setCreateTagModalVisible] = useState(false)
     const [userColumnModalVisible, setUserColumnModalVisible] = useState(false)
 
-    const [userData, setUserData] = useState<UserTableData[] | undefined>()
+    const [userData, setUserData] = useState<UserTableData[]>([])
     const [userColumnDisplay, setUserColumnDisplay] = useState<UserColumnDisplay[]>([])
     const [sideBarToggles, setSideBarToggles] = useState<boolean>(true)
 
@@ -105,38 +107,100 @@ export default function UserManagement(){
             const profile = (await client.models.UserProfile.get({ email: user.email })).data
             if(!profile) return
             const timeslot = (await profile.timeslot()).data
-            const tableData: UserTableData = {
-                ...profile,
-                participantFirstName: profile.participantFirstName ?? undefined,
-                participantLastName: profile.participantLastName ?? undefined,
-                participantEmail: profile.participantEmail ?? undefined,
-                userTags: profile.userTags ? (profile.userTags as string[]).map((tag) => {
-                    return userTags.find((userTag) => userTag.id === tag)?.name
-                }).filter((tag) => tag !== undefined) : [],
-                timeslot: (await Promise.all(timeslot.map(async (timeslot) => {
-                    if(!timeslot || !timeslot.id) return
-                    const ts: Timeslot = {
-                        ...timeslot,
-                        id: timeslot.id!,
-                        register: timeslot.register ?? undefined,
-                        tagId: (await timeslot.timeslotTag()).data?.tagId,
-                        start: new Date(timeslot.start),
-                        end: new Date(timeslot.end),
+            const participantResponse = await profile.participant()
+            if(participantResponse && participantResponse.data){
+                const tableData: UserTableData[] = await Promise.all(participantResponse.data.map(async (participant) => {
+                    const participantTimeslotsResponse = await participant.timeslot()
+                    let participantTimeslot: Timeslot[] | undefined
+                    if(participantTimeslotsResponse.data && participantTimeslotsResponse.data.length > 0){
+                        participantTimeslot = (await Promise.all(participantTimeslotsResponse.data.map(async (timeslot) => {
+                            if(!timeslot || !timeslot.id) return
+                            const ts: Timeslot = {
+                                ...timeslot,
+                                id: timeslot.id!,
+                                register: timeslot.register ?? undefined,
+                                tagId: (await timeslot.timeslotTag()).data?.tagId,
+                                start: new Date(timeslot.start),
+                                end: new Date(timeslot.end),
+                            }
+                            return ts
+                        }))).filter((item) => item !== undefined)
                     }
-                    return ts
-                }))).filter((item) => item !== undefined),
-                participantMiddleName: profile.participantMiddleName ?? undefined,
-                participantPreferredName: profile.participantPreferredName ?? undefined,
-                parentFirstName: user.first,
-                parentLastName: user.last,
-                preferredContact: profile.preferredContact ?? 'EMAIL',
-                participantContact: profile.participantContact ?? false,
-                participant: [], //TODO: fix me
-                activeParticipant: undefined
+                    else if(timeslot.length > 0 && 
+                        (!profile.participantFirstName || profile.participantFirstName == participant.firstName) && 
+                        (!profile.participantLastName || profile.participantLastName == participant.lastName)) {
+                        participantTimeslot = (await Promise.all(timeslot.map(async (timeslot) => {
+                            if(!timeslot || !timeslot.id) return
+                            const ts: Timeslot = {
+                                ...timeslot,
+                                id: timeslot.id!,
+                                register: timeslot.register ?? undefined,
+                                tagId: (await timeslot.timeslotTag()).data?.tagId,
+                                start: new Date(timeslot.start),
+                                end: new Date(timeslot.end),
+                            }
+                            return ts
+                        }))).filter((item) => item !== undefined)
+                    }
+                    const participantData: UserTableData = {
+                        ...profile,
+                        id: participant.id,
+                        participantFirstName: participant.firstName ?? undefined,
+                        participantLastName: participant.lastName ?? undefined,
+                        participantEmail: participant.email ?? undefined,
+                        userTags: profile.userTags ? (profile.userTags as string[]).map((tag) => {
+                            return userTags.find((userTag) => userTag.id === tag)
+                        }).filter((tag) => tag !== undefined) : [],
+                        timeslot: participantTimeslot,
+                        participantMiddleName: participant.middleName ?? undefined,
+                        participantPreferredName: participant.preferredName ?? undefined,
+                        parentFirstName: user.first,
+                        parentLastName: user.last,
+                        preferredContact: profile.preferredContact ?? 'EMAIL',
+                        participantContact: participant.contact ?? false,
+                    }
+                    return participantData
+                }))
+                return tableData
             }
-            return tableData;
-        }))).filter((item) => item !== undefined)
-            .filter((item) => !tag || item.userTags.find((t) => t === tag) !== undefined)
+            else{
+                const participantData: UserTableData = {
+                    ...profile,
+                    id: v4(),
+                    participantFirstName: profile.participantFirstName ?? undefined,
+                    participantLastName: profile.participantLastName ?? undefined,
+                    participantEmail: profile.participantEmail?? undefined,
+                    userTags: profile.userTags ? (profile.userTags as string[]).map((tag) => {
+                        return userTags.find((userTag) => userTag.id === tag)
+                    }).filter((tag) => tag !== undefined) : [],
+                    timeslot: (await Promise.all(timeslot.map(async (timeslot) => {
+                        if(!timeslot || !timeslot.id) return
+                        const ts: Timeslot = {
+                            ...timeslot,
+                            id: timeslot.id!,
+                            register: timeslot.register ?? undefined,
+                            tagId: (await timeslot.timeslotTag()).data?.tagId,
+                            start: new Date(timeslot.start),
+                            end: new Date(timeslot.end),
+                        }
+                        return ts
+                    }))).filter((item) => item !== undefined),
+                    participantMiddleName: profile.participantMiddleName ?? undefined,
+                    participantPreferredName: profile.participantPreferredName ?? undefined,
+                    parentFirstName: user.first,
+                    parentLastName: user.last,
+                    preferredContact: profile.preferredContact ?? 'EMAIL',
+                    participantContact: profile.participantContact ?? false,
+                }
+                return [participantData]
+            }
+        })))
+        .filter((item) => item !== undefined)
+        .reduce((prev, cur) => {
+            const ret = cur
+            ret.push(...(prev.filter((item) => !cur.find((j) => j.id == item.id))))
+            return ret
+        }, [])
 
         const userColumnDisplay: UserColumnDisplay[] = []
         const response = await client.models.UserColumnDisplay.listUserColumnDisplayByTag({tag: 'all-users'})
@@ -163,7 +227,7 @@ export default function UserManagement(){
 
 
         setUserColumnDisplay(userColumnDisplay)
-        setUserData(userTableData)
+        // setUserData(userTableData)
         setUserTags(userTags)
         setApiCall(true)
     }
@@ -530,7 +594,10 @@ export default function UserManagement(){
         const updateProfileResponse = await client.models.UserProfile.update({
             email: newItem.email,
             sittingNumber: newItem.sittingNumber,
-            userTags: userTags.filter((item) => newItem.userTags.includes(item.name)).map((item) => item.id),
+            userTags: userTags
+                .filter((item) => newItem.userTags
+                .map((item) => item.name).includes(item.name))
+                .map((item) => item.id),
             participantFirstName: newItem.participantFirstName,
             participantLastName: newItem.participantLastName,
             participantMiddleName: newItem.participantMiddleName,
@@ -567,7 +634,7 @@ export default function UserManagement(){
                     data: userData ? userData.map((item) => {
                         const value = Object.entries(item)
                             .find((item) => (item[0].toLowerCase() === selectedColumn.toLowerCase()))
-                        if(!value?.[1]) return
+                        if(value === undefined || typeof value[1] !== 'string') return
                         return ({ 
                             value: value[1],
                             id: item.email
@@ -645,10 +712,10 @@ export default function UserManagement(){
                                                         }
                                                         let children: JSX.Element[] | undefined
                                                         if(k.toLowerCase() == 'usertags'){
-                                                            const tagString = (v as string[])
+                                                            const tagString = (v as UserTag[])
                                                             const displayTags = tagString
                                                                 .map((tag, index) => {
-                                                                    const userTag = userTags.find((ut) => ut.name == tag)
+                                                                    const userTag = userTags.find((ut) => ut.id == tag.id)
                                                                     if(!userTag) return
                                                                     return (
                                                                         <p className={`${userTag.color ? `text-${userTag.color}` : ''}`}>{userTag.name + (tagString.length - 1 != index ? ', ' : '')}</p>
@@ -663,16 +730,16 @@ export default function UserManagement(){
                                                                             <Dropdown.Item key={index}>
                                                                                 <button className="flex flex-row gap-2 text-left items-center" onClick={() => {
                                                                                     const temp = {...field}
-                                                                                    if(tagString.includes(tag.name)){
-                                                                                        temp.userTags = temp.userTags.filter((t) => t !== tag.name)
+                                                                                    if(tagString.map((tag) => tag.id).includes(tag.id)){
+                                                                                        temp.userTags = temp.userTags.filter((t) => t.id !== tag.id)
                                                                                     }
                                                                                     else{
-                                                                                        temp.userTags.push(tag.name)
+                                                                                        temp.userTags.push(tag)
                                                                                     }
                                                                                     
                                                                                     updateRow(temp)
                                                                                 }} type="button">
-                                                                                    <Checkbox className="mt-1" checked={tagString.includes(tag.name)} readOnly />
+                                                                                    <Checkbox className="mt-1" checked={tagString.map((tag) => tag.id).includes(tag.id)} readOnly />
                                                                                     <span className={`${tag.color ? `text-${tag.color}` : ''}`}>{tag.name}</span>
                                                                                 </button>
                                                                             </Dropdown.Item>
@@ -685,12 +752,12 @@ export default function UserManagement(){
                                                             display = String(v)[0].toUpperCase() + String(v).substring(1).toLowerCase()
                                                         }
                                                         if(k.toLocaleLowerCase() == 'createdat' || k.toLocaleLowerCase() == 'updatedat'){
-                                                            display = new Date(v).toLocaleString("en-us", { timeZone: 'America/Chicago' })
+                                                            display = new Date(v as string).toLocaleString("en-us", { timeZone: 'America/Chicago' })
                                                         }
                                                         if(k.toLocaleLowerCase() == 'timeslot'){
                                                             const timeslots = v as Timeslot[]
                                                             children = userData[i].userTags.map((tag) => {
-                                                                const userTag = userTags?.find((ut) => ut.name == tag)
+                                                                const userTag = userTags?.find((ut) => ut.id == tag.id)
                                                                 if(!userTag) return
                                                                 const timeslot = timeslots.find((timeslot) => timeslot.tagId === userTag.id)
                                                                 return (
@@ -711,12 +778,12 @@ export default function UserManagement(){
                                                                     <input 
                                                                         disabled={k.toLowerCase() == 'email' || k.toLowerCase() == 'createdat' || k.toLowerCase() == 'updatedat'} 
                                                                         className={`focus:outline-none focus:border-b focus:border-black disabled:bg-transparent disabled:cursor-not-allowed ${styling}`} 
-                                                                        defaultValue={display} 
+                                                                        defaultValue={typeof display == 'string' ? display : undefined} 
                                                                         onBlur={(event) => {
                                                                             headingMap(k, {original: field, val: event.target.value})
                                                                         }}
                                                                         onChange={() => {}}
-                                                                        value={display}
+                                                                        value={typeof display == 'string' ? display : undefined}
                                                                     />
                                                                 )}
                                                             </td>
@@ -748,6 +815,7 @@ export default function UserManagement(){
                                                                         .map((row) => {
                                                                             return Object.entries(row).find((entry) => entry[0] === item)?.[1]
                                                                         })
+                                                                        .filter((item) => item !== undefined && typeof item === 'string')
                                                                         .reduce((prev, cur) => cur !== undefined && cur == color.value ? prev = prev + 1 : prev, 0)
                                                                     leftover -= aggregate
                                                                     return (
@@ -790,7 +858,7 @@ export default function UserManagement(){
                             <div className="flex flex-row items-center">
                                 <Radio checked={selectedTag === ''} onChange={async () => {
                                     setSelectedTag('')
-                                    setUserData(undefined)
+                                    setUserData([])
                                     await getUsers('')
                                 }}/>
                                 <span className={`ms-4 mb-1`}>All Users</span>
@@ -802,7 +870,7 @@ export default function UserManagement(){
                                     <div className="flex flex-row items-center">
                                         <Radio checked={selectedTag === tag.id} onChange={async () => {
                                             setSelectedTag(tag.id)
-                                            setUserData(undefined)
+                                            setUserData([])
                                             await getUsers(tag.id)
                                         }}/>
                                         <span key={tag.id} className={`text-${color} ms-4 mb-1 cursor-pointer hover:underline underline-offset-2`} onClick={() => {

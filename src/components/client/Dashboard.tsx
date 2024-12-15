@@ -48,6 +48,8 @@ export function Dashboard() {
     const user = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) as UserStorage : undefined
     const adminView = user?.groups.includes('ADMINS') ?? false
 
+    
+
     useEffect(() => {
         //set subscription
         const profileSubscription = client.models.UserProfile.onUpdate({
@@ -205,7 +207,7 @@ export function Dashboard() {
                     setSchedulerEnabled(schedulerEnabled)
                     setUserProfile(userProfile)
                     setUserProfileTags(userTags)
-                  }
+                }
             }
         })
 
@@ -213,8 +215,10 @@ export function Dashboard() {
             let schedulerEnabled = false
             let tempUserProfile = userProfile
             let userProfileTags: UserTag[] = []
+            console.log(userProfile)
             if(tempUserProfile === null){
                 tempUserProfile = await fetchUserProfile(user)
+                console.log(tempUserProfile)
             }
             
             if(tempUserProfile !== null){
@@ -273,7 +277,7 @@ export function Dashboard() {
         return () => {
             profileSubscription.unsubscribe()
         }
-    }, [])
+    }, [userProfile])
 
     function structureFullname(){
         if(userProfile)
