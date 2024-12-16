@@ -26,14 +26,7 @@ const CheckoutForm: FC<Props> = ({}) => {
     const [mailingStateValue, setMailingStateValue] = useState('')
     const [displayBillingAddress, setDisplayBillingAddress] = useState(false)
     const navigate = useNavigate()
-    // const stripe = useStripe()
-    // const elements = useElements()
-
-    // useEffect(() => {
-        // console.log(history.state)
-        //preform state validation otherwise redirect
-    // }, [stripe])
-
+    
     function handleSubmit(event: FormEvent<CheckoutForm>){
         event.preventDefault()
         // const form = event.currentTarget

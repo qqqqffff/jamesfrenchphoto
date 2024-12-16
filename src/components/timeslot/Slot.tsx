@@ -45,7 +45,6 @@ export const SlotComponent: FC<SlotProps> = ({ timeslot, showTags = true, displa
                     ...tag,
                     color: tag.color ?? undefined
                 }
-                console.log(response)
                 setTag(response)
             }
             setApiCall(true)

@@ -5,16 +5,22 @@ export function formatTime(time: Date | string | undefined, params?: {timeString
     if(!time) return 'N/A'
     if(typeof time == 'string') return time
     if(params && !params.timeString){
-        const dateString = time.toLocaleDateString()
+        const dateString = time.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
         return dateString
     }
-    const timeString = time.toLocaleTimeString().replace(/[^0-9:]/g, '')
+    const timeString = time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' }).replace(/[^0-9:]/g, '')
     return timeString
 }
 
 export const DAY_OFFSET = 24 * 3600 * 1000;
 
 export const currentDate = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+
+export type RemoveIndexSignature<T> = {
+    [K in keyof T as string extends K ? never : K]: T[K];
+};
+export type DynamicStringEnum<T> = T | (string & {});
+export type DynamicStringEnumKeysOf<T extends object> = DynamicStringEnum<keyof RemoveIndexSignature<T>>;
 
 //TODO: de-duplication
 export const defaultColors = [

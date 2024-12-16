@@ -19,11 +19,12 @@ interface TimeslotComponentProps {
     userEmail?: string
     minDate?: Date
     userTags?: UserTag[]
+    participantId?: string
 }
 
 interface TagTimeslots extends Record<string, Timeslot[]> {}
 
-export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail, minDate, userTags }) => {
+export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail, participantId, minDate, userTags }) => {
     const [activeDate, setActiveDate] = useState<Date>(currentDate)
     const [timeslots, setTimeslots] = useState<Timeslot[]>([])
     const [profileTimeslots, setProfileTimeslots] = useState<TagTimeslots>({})
@@ -257,7 +258,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         {tag ? tag.name : 'Undefined'}
                     </span>
                     <span>
-                        {`${timeslot[0].start.toLocaleDateString()}: ${timeslot[0].start.toLocaleTimeString()} - ${timeslot[0].end.toLocaleTimeString()}`}
+                        {`${timeslot[0].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}: ${timeslot[0].start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} - ${timeslot[0].end.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}`}
                     </span>
                 </div>
                 
@@ -313,29 +314,69 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                 }
                             }}/>) : 
                             (
-                                <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString()}>
-                                    {
-                                        tagTimeslots && Object.entries(tagTimeslots).length > 0 ? Object.entries(tagTimeslots).map(([tagId, timeslots]) => {
-                                            const color = userTags!.find((tag) => tag.id === tagId)!.color ?? 'black'
-                                            const dates = timeslots
-                                                .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
-                                                .reduce((prev, cur) => {
-                                                    if(!prev.includes(cur)) {
-                                                        prev.push(cur)
-                                                    }
-                                                    return prev
-                                                }, [] as number[])
-                                                .sort((a, b) => a - b)
-                                                .map((time) => new Date(time))
-                                            const objects = dates.map((date, index) => {
-                                                return (
-                                                    <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString()}</Dropdown.Item>
-                                                )
-                                            })
-                                            return objects
-                                        }) : (<Dropdown.Item>No Dates available</Dropdown.Item>)
-                                    }
-                                </Dropdown>
+                                <div className="flex flex-row gap-2 items-center">
+                                    <button className="border p-1.5 rounded-full border-black bg-white hover:bg-gray-300" onClick={() => {
+                                        const timeslots = Object.values(tagTimeslots)
+                                            .reduce((prev, cur) => [...prev, ...cur], [])
+                                            .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                            .reduce((prev, cur) => {
+                                                if(!prev.includes(cur)){
+                                                    prev.push(cur)
+                                                }
+                                                return prev
+                                            }, [] as number[])
+                                            .map((time) => new Date(time))
+
+                                        const currentTimeslotIndex = timeslots.findIndex((date) => date.getTime() === activeDate.getTime())
+                                        const currentDate = currentTimeslotIndex - 1 < 0 ? timeslots[timeslots.length - 1] : timeslots[currentTimeslotIndex - 1]
+                                        
+                                        setActiveDate(currentDate)
+                                    }} disabled={!(tagTimeslots && Object.entries(tagTimeslots).length > 0)}>
+                                        <HiOutlineArrowLeft />
+                                    </button>
+                                    <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString()}>
+                                        {
+                                            tagTimeslots && Object.entries(tagTimeslots).length > 0 ? Object.entries(tagTimeslots).map(([tagId, timeslots]) => {
+                                                const color = userTags!.find((tag) => tag.id === tagId)!.color ?? 'black'
+                                                const dates = timeslots
+                                                    .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                                    .reduce((prev, cur) => {
+                                                        if(!prev.includes(cur)) {
+                                                            prev.push(cur)
+                                                        }
+                                                        return prev
+                                                    }, [] as number[])
+                                                    .sort((a, b) => a - b)
+                                                    .map((time) => new Date(time))
+                                                const objects = dates.map((date, index) => {
+                                                    return (
+                                                        <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString()}</Dropdown.Item>
+                                                    )
+                                                })
+                                                return objects
+                                            }) : (<Dropdown.Item>No Dates available</Dropdown.Item>)
+                                        }
+                                    </Dropdown>
+                                    <button className="border p-1.5 rounded-full border-black bg-white hover:bg-gray-300" onClick={() => {
+                                        const timeslots = Object.values(tagTimeslots)
+                                            .reduce((prev, cur) => [...prev, ...cur], [])
+                                            .map((timeslot) => new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate()).getTime())
+                                            .reduce((prev, cur) => {
+                                                if(!prev.includes(cur)){
+                                                    prev.push(cur)
+                                                }
+                                                return prev
+                                            }, [] as number[])
+                                            .map((time) => new Date(time))
+
+                                        const currentTimeslotIndex = timeslots.findIndex((date) => date.getTime() === activeDate.getTime())
+                                        const currentDate = currentTimeslotIndex + 1 >= timeslots.length ? timeslots[0] : timeslots[currentTimeslotIndex + 1]
+                                        
+                                        setActiveDate(currentDate)
+                                    }} disabled={!(tagTimeslots && Object.entries(tagTimeslots).length > 0)}>
+                                        <HiOutlineArrowRight />
+                                    </button>
+                                </div>
                                 
                             )
                     }
@@ -344,7 +385,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                             <>
                                 <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>Add Timeslot</>} fn={() => setCreateTimeslotVisible(true)} type={true} disabled={activeDate.getTime() < currentDate.getTime() + DAY_OFFSET || updatingTimeslot}/>
                                 <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>Update Timeslot</>} fn={() => setCreateTimeslotVisible(true)} type={true} disabled={!updatingTimeslot}/>
-                                <ControlComponent name={<><HiOutlineMinusCircle size={20} className="mt-1 me-1"/>Remove Timeslot</>} fn={() => console.log('hello world')} type={true}/>
+                                <ControlComponent name={<><HiOutlineMinusCircle size={20} className="mt-1 me-1"/>Remove Timeslot</>} fn={() => {}} type={true}/>
                             </>
                         ) : (
                             <>
@@ -358,7 +399,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                                     const tag: UserTag = userTags!.find((tag) => tag.id == tagId)!
                                                     const sortedTimeslots = timeslots.sort((a, b) => a.start.getTime() - b.start.getTime())
                                                     
-                                                    const formattedDateString = sortedTimeslots[0].start.toLocaleDateString() + ' - ' + sortedTimeslots[sortedTimeslots.length - 1].start.toLocaleDateString()
+                                                    const formattedDateString = sortedTimeslots[0].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' }) + ' - ' + sortedTimeslots[sortedTimeslots.length - 1].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
 
                                                     return (
                                                         <div key={index} className="flex flex-col items-center justify-center">
@@ -450,7 +491,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         }} disabled={!(tagTimeslots && Object.entries(tagTimeslots).length > 0)}>
                             <HiOutlineArrowLeft className="text-xl"/>
                         </button>
-                        <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString()}>
+                        <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}>
                         {
                             tagTimeslots && Object.entries(tagTimeslots).length > 0 ? Object.entries(tagTimeslots).map(([tagId, timeslots]) => {
                                 const color = userTags!.find((tag) => tag.id === tagId)!.color ?? 'black'
@@ -466,7 +507,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                     .map((time) => new Date(time))
                                 const objects = dates.map((date, index) => {
                                     return (
-                                        <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString()}</Dropdown.Item>
+                                        <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}</Dropdown.Item>
                                     )
                                 })
                                 return objects
@@ -551,11 +592,11 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
         )
     }
 
-    function notificationComponent(){
+    function notificationComponent(email?: string){
         return (
             <button className="flex flex-row gap-2 text-left items-center mt-4 ms-2" onClick={() => setNotify(!notify)} type="button">
                 <Checkbox className="mt-1" checked={notify} readOnly />
-                <span>Send an email confirmation to you</span>
+                <span>Send a confirmation email to <span className="italic">{email}</span></span>
             </button>
         )
     }
@@ -584,51 +625,47 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                 confirmText="Schedule"
                 denyText="Back"
                 confirmAction={async () => {
-                    if(selectedTimeslot && userEmail && userTags) {
+                    if(selectedTimeslot && userEmail && participantId && userTags) {
                         const timeslot = await client.models.Timeslot.get({id: selectedTimeslot.id})
-                        if(timeslot.data?.register){
-                            throw new Error('Timeslot has been filled')
+                        if(timeslot.data?.register || timeslot.data?.participantId){
+                            console.error('Timeslot has been filled')
                         }
-                        const response = await client.models.Timeslot.update({
+                        await client.models.Timeslot.update({
                             id: selectedTimeslot.id,
-                            register: userEmail
+                            register: userEmail,
+                            participantId: participantId
                         }, { authMode: 'userPool'})
 
-                        console.log(response)
-
-                        if(notify) {
-                            const response = client.queries.SendTimeslotConfirmation({
+                        if(notify && userEmail) {
+                            client.queries.SendTimeslotConfirmation({
                                 email: userEmail,
                                 start: selectedTimeslot.start.toISOString(),
                                 end: selectedTimeslot.end.toISOString()
                             }, {
                                 authMode: 'userPool'
                             })
-
-                            console.log(response)
                         }
 
                         await userFetchTimeslots(userTags, userEmail)
                     }
                 }}
-                children={notificationComponent()}
-                title="Confirm Timeslot Selection" body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}/>
+                children={notificationComponent(userEmail)}
+                title="Confirm Timeslot Selection" body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}/>
             <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
                 confirmText="Confirm"
                 denyText="Back"
                 confirmAction={async () => {
-                    if(selectedTimeslot && userEmail && userTags) {
-                        const response = await client.models.Timeslot.update({
+                    if(selectedTimeslot && userEmail && participantId && userTags) {
+                        await client.models.Timeslot.update({
                             id: selectedTimeslot.id,
-                            register: null
+                            register: null,
+                            participantId: null,
                         }, { authMode: 'userPool'})
-
-                        console.log(response)
 
                         await userFetchTimeslots(userTags, userEmail)
                     }
                 }}
-                title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString()} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} />
+                title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} />
             {
                 width > 1200 ? (
                     fullSizeDisplay()

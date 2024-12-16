@@ -67,14 +67,12 @@ export default function SignIn() {
                 setPasswordResetVisible(true)
                 return
             }
-            console.log(response)
 
             const user = await getCurrentUser();
             const session = await fetchAuthSession()
             const attributes = await fetchUserAttributes()
             const groups = JSON.stringify(session.tokens?.accessToken.payload['cognito:groups'])
             const profile = await client.models.UserProfile.get({email: user.userId}, {authToken: session.tokens?.accessToken.toString()})
-            console.log(profile)
 
             window.localStorage.setItem('user', JSON.stringify({
                 user: user, 
@@ -83,7 +81,6 @@ export default function SignIn() {
                 groups: groups, 
                 profile: profile
             }))
-            console.log(groups)
             
             setSubmitting(false)
             if(groups.includes('ADMINS')){
@@ -94,7 +91,6 @@ export default function SignIn() {
             }
         } catch(err){
             const error = err as Error
-            console.log(error.message)
             setFormErrors([error.message])
             setSubmitting(false)
         }
@@ -102,17 +98,15 @@ export default function SignIn() {
 
     async function confirmSignInWithNewPassword(){
         try{
-            const response = await confirmSignIn({
+            await confirmSignIn({
                 challengeResponse: password!
             })
-            console.log(response)
 
             const user = await getCurrentUser();
             const session = await fetchAuthSession()
             const attributes = await fetchUserAttributes()
             const groups = JSON.stringify(session.tokens?.accessToken.payload['cognito:groups'])
             const profile = await client.models.UserProfile.get({email: user.userId}, {authToken: session.tokens?.accessToken.toString()})
-            console.log(profile)
 
             window.localStorage.setItem('user', JSON.stringify({
                 user: user, 
@@ -121,7 +115,6 @@ export default function SignIn() {
                 groups: groups, 
                 profile: profile
             }))
-            console.log(groups)
             
             setSubmitting(false)
             if(groups.includes('ADMINS')){
@@ -132,7 +125,6 @@ export default function SignIn() {
             }
         }catch(err){
             const error = err as Error
-            console.log(error.message)
             setFormErrors([error.message])
             setSubmitting(false)
         }

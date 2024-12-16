@@ -26,13 +26,27 @@ export interface UserProfile {
     userTags: string[],
     preferredName?: string,
     timeslot?: Timeslot[],
-    participantFirstName: string,
-    participantLastName: string,
+    participantFirstName?: string,
+    participantLastName?: string,
     participantMiddleName?: string,
     participantPreferredName?: string,
     preferredContact: "EMAIL" | "PHONE",
-    participantContact: boolean,
-    participantEmail: string,
+    participantContact?: boolean,
+    participantEmail?: string,
+    participant: Participant[],
+    activeParticipant?: Participant,
+}
+
+export interface Participant {
+    id: string,
+    firstName: string,
+    lastName: string,
+    userTags: UserTag[],
+    middleName?: string,
+    preferredName?: string,
+    email?: string,
+    contact: boolean,
+    timeslot?: Timeslot[],
 }
 
 export type PicturePath = {
@@ -45,20 +59,11 @@ export type PicturePath = {
 }
 
 export type PhotoCollection = {
-    name?: string;
+    name: string;
     coverPath?: string;
     createdAt: string;
     id: string;
     updatedAt: string;
-    subcategoryId?: string
-}
-
-export type Subcategory = {
-    id: string,
-    name: string,
-    headers?: string[],
-    type: string,
-    eventId: string,
 }
 
 export type Timeslot = {
@@ -80,7 +85,6 @@ export interface UserColumnDisplay {
     id: string,
     heading: string,
     color?: ColumnColor[],
-    textColor?: string,
     display: boolean,
     tag: string,
     sort?: 'ASC' | 'DSC'

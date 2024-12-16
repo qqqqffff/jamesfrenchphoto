@@ -9,12 +9,10 @@ export const CollectionViewer = () => {
 
     const coverPath = 
         {url: collection[0].url}
-    // console.log(collection)
     const navigate = useNavigate()
     const coverPhotoRef = useRef<HTMLImageElement | null>(null)
     // const [photos, setPhotos] = useState<PicturePath[] | undefined>()
     const navigateControls = history.state && history.state.usr && history.state.usr.origin === 'admin'
-    const innerWindowHeight = window.innerHeight + 'px'
     const [coverPhoto, setCoverPhoto] = useState((<img ref={coverPhotoRef} src={coverPath.url} className={`max-h-[911px]`}/>))
     useEffect(() => {
         const handlerResize = () => {
@@ -25,7 +23,6 @@ export const CollectionViewer = () => {
         window.addEventListener('resize', handlerResize)
 
         if(coverPhotoRef && coverPhotoRef.current) {
-            console.log('hi')
             coverPhotoRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }
 
@@ -34,7 +31,6 @@ export const CollectionViewer = () => {
         }
     }, [coverPhotoRef])    
 
-    console.log(innerWindowHeight)
     let temp: PicturePath[] = []
     const formattedCollection: PicturePath[][] = []
 
@@ -48,9 +44,6 @@ export const CollectionViewer = () => {
             temp.push(picture)
         }
     })
-
-    console.log(formattedCollection)
-
 
     return (
         <div className="font-main">
@@ -69,8 +62,6 @@ export const CollectionViewer = () => {
                     return (
                         <div key={index} className="flex flex-col gap-4">
                             {subCollection.map((picture, s_index) => {
-                                console.log(picture)
-
                                 return (
                                     <div>
                                         <img key={s_index} className="h-auto max-w-full rounded-lg" src={picture.url} alt="" />

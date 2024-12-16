@@ -16,7 +16,7 @@ export const ConfirmationModal: FC<ConfirmationModalProps> = ({onClose, open, ti
     async function submit() {
         await confirmAction()
         setSubmitting(false)
-        // onClose()
+        onClose()
     }
     return (
         <Modal show={open} onClose={() => {

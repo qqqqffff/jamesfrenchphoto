@@ -1,9 +1,10 @@
 import { FC, useEffect, useState } from "react";
 import { PhotoCollection, UserProfile, UserTag } from "../../types";
-import { Schema } from "../../../amplify/data/resource";
-import { generateClient } from "aws-amplify/api";
+// import { Schema } from "../../../amplify/data/resource";
+// import { generateClient } from "aws-amplify/api";
 import { Alert } from "flowbite-react";
-const client = generateClient<Schema>()
+
+// const client = generateClient<Schema>()
 
 interface ClientHomeProps {
     user?: UserProfile
@@ -18,21 +19,7 @@ export const Home: FC<ClientHomeProps> = ({ user, tags }) => {
         async function api(){
             let temp: PhotoCollection[] = []
             if(user){
-                const userProfile = (await client.models.UserProfile.get({ email: user?.email })).data
-                console.log(userProfile)
-                if(userProfile && userProfile.userTags && userProfile.userTags.length > 0){
-                    temp = []
-                    console.log(user)
-                    // collections = await Promise.all(userProfile.userTags.filter((tag) => tag !== null).map(async (tag) => 
-                    //     (await client.models.PhotoCollection.listPhotoCollectionByTagId({ tagId: tag })).data[0]
-                    // ))
-                    // collections = await Promise.all(collections.filter((collection) => collection.subcategoryId).map(async (collection) => {
-                    //     return {
-                    //         ...collection,
-                    //         name: (await client.models.SubCategory.get({ id: collection.subcategoryId! })).data?.name
-                    //     }
-                    // }))
-                }
+                
             }
             
             setCollections(temp)

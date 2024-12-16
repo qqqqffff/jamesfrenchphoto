@@ -13,6 +13,7 @@ const client = generateClient<Schema>()
 export const Base = () => {
     const navigate = useNavigate()
     const location = useLocation()
+    
     useEffect(() => {
         async function verifyUser(){
             let group = ''
@@ -30,7 +31,6 @@ export const Base = () => {
                         groups: groups, 
                         profile: profile
                     }))
-                    window.dispatchEvent(new Event('storage'))
                     if(groups.includes('ADMINS')){
                         group = 'ADMIN'
                     }
@@ -53,7 +53,8 @@ export const Base = () => {
                 navigate(location.pathname)
             }
             else if(group === 'USERS'){
-                const path = location.pathname.includes('admin') ? location.pathname.replace('admin', 'client') : location.pathname
+                const path = location.pathname.includes('admin') ? location.pathname.replace('admin', 'client') : 
+                    location.pathname  === '/client' ? '/client/dashboard' : location.pathname
                 navigate(path)
             }
             
@@ -78,12 +79,12 @@ export const Base = () => {
         }
         verifyUser()
     }, [])
-    console.log(location.pathname)
+
     return (
         <>
             {location.pathname === '/client' ? (
                 <div className="w-full flex flex-col items-center justify-center">
-                    <p>If you are seeing this page, that means you are not logged in.</p>
+                    <p>If you are seeing this page, that means you are not logged in or an error occured. Please click the following link or refresh your page</p>
                     <Link to='/login' className="hover:underline text-blue-500">Click here to login</Link>
                 </div>
             ) : (

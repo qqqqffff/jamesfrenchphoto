@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PhotoCollection, Timeslot, UserProfile, UserStorage, UserTag } from "../../types";
+import { Participant, PhotoCollection, Timeslot, UserProfile, UserStorage, UserTag } from "../../types";
 import { Badge, Button } from "flowbite-react";
 import { 
     HiOutlineCalendar, 
@@ -8,179 +8,283 @@ import {
     // HiOutlineDocumentText, 
     HiOutlinePlusCircle 
 } from "react-icons/hi";
-import { NavigateFunction, useNavigate } from "react-router-dom";
-import { HiArrowUturnLeft, HiOutlineHome } from "react-icons/hi2";
+import { useNavigate, useRouteLoaderData } from "react-router-dom";
+import { HiOutlineHome } from "react-icons/hi2";
 import { Home } from "./Home";
 import { badgeColorThemeMap } from "../../utils";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { TimeslotComponent } from "../timeslot/Timeslot";
+import { createParticipantFromUserProfile, fetchUserProfile } from "../../App";
 
 const client = generateClient<Schema>()
 
-function returnToAdminConsoleComponent(adminView: boolean, navigate: NavigateFunction){
-    if(adminView){
-        return (
-            <Button color='gray' onClick={() => navigate('/admin/dashboard')}>
-                <HiArrowUturnLeft className="mt-1 me-1"/> Return to Admin View
-            </Button>
-        )
-    }
-    return (<></>)
-}
+// function returnToAdminConsoleComponent(adminView: boolean, navigate: NavigateFunction){
+//     if(adminView){
+//         return (
+//             <Button color='gray' onClick={() => navigate('/admin/dashboard')}>
+//                 <HiArrowUturnLeft className="mt-1 me-1"/> Return to Admin View
+//             </Button>
+//         )
+//     }
+//     return (<></>)
+// }
 
 function addClassComponent(adminView: boolean){
     if(adminView){
-        return (<Badge color='gray' onClick={() => console.log('hello world')} icon={HiOutlinePlusCircle} size='md' />)
+        return (<Badge color='gray' icon={HiOutlinePlusCircle} size='md' />)
     }
     return (<></>)
 }
 
 export function Dashboard() {
-    const [user, setUser] = useState<UserStorage>()
-    const [adminView, setAdminView] = useState(false)
+    const [userProfile, setUserProfile] = useState(useRouteLoaderData("/") as UserProfile | null)
     const [activeConsole, setActiveConsole] = useState('home')
-    const [userProfile, setUserProfile] = useState<UserProfile | undefined>()
     const [userProfileTags, setUserProfileTags] = useState<UserTag[]>([])
+    const [schedulerEnabled, setSchedulerEnabled] = useState(false)
     const [apiCall, setApiCall] = useState(false)
     const navigate = useNavigate()
 
+    const user = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) as UserStorage : undefined
+    const adminView = user?.groups.includes('ADMINS') ?? false
+
+    
+
     useEffect(() => {
-        async function api(){
-            let tempUser: UserStorage | undefined
-            if(!user){
-                if(!window.localStorage.getItem('user')){
-                    navigate('/client')
-                    return
-                }
-                else{
-                    tempUser = JSON.parse(window.localStorage.getItem('user')!);
+        //set subscription
+        const profileSubscription = client.models.UserProfile.onUpdate({
+            filter: {
+                email: {
+                    eq: userProfile?.email
                 }
             }
+        }).subscribe({
+            next: async (item) => {
+                if(item){
+                    const participantResponse = await item.participant()
+                    const participants: Participant[] = []
+                    let timeslot: Timeslot[] = []
+                    
+                    //try to create a participant from the details
+              
+                    if(participantResponse.data.length == 0 && item.participantFirstName && item.participantLastName){
+                      //timeslots
+                      const timeslotResponse = await item.timeslot()
+                      timeslot = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
+                        if(!timeslot.id) return
+                        const ts: Timeslot = {
+                          ...timeslot,
+                          id: timeslot.id,
+                          register: timeslot.register ?? undefined,
+                          tagId: (await timeslot.timeslotTag()).data?.tagId,
+                          start: new Date(timeslot.start),
+                          end: new Date(timeslot.end),
+                        }
+                        return ts
+                      }))).filter((timeslot) => timeslot !== undefined) : []
+              
+                      //create
+                      const createdParticipant = await createParticipantFromUserProfile({
+                        ...item,
+                        participantFirstName: item.participantFirstName,
+                        participantLastName: item.participantFirstName,
+                        participantMiddleName: item.participantMiddleName ?? undefined,
+                        participantPreferredName: item.participantPreferredName ?? undefined,
+                        participantContact: item.participantContact ?? false,
+                        participantEmail: item.participantEmail ?? undefined,
+                        //unecessary fields
+                        participant: [],
+                        activeParticipant: undefined,
+                        userTags: [],
+                        timeslot: [],
+                        preferredContact: item.preferredContact ?? 'EMAIL',
+                      }, timeslot, true)
+              
+                      //on success
+                      if(createdParticipant) {
+                        participants.push(createdParticipant)
+                        //update timeslots
+                        await Promise.all(timeslot.map((timeslot) => {
+                          return client.models.Timeslot.update({
+                            id: timeslot.id,
+                            participantId: createdParticipant.id
+                          })
+                        }))
+                      }
+                    }
+                    else if(participantResponse.data.length > 0){
+                      const parts: Participant[] = participantResponse ? (await Promise.all(participantResponse.data.map(async (participant) => {
+                        if(!participant.id) return
+              
+                        //timeslots
+                        const timeslotResponse = await participant.timeslot()
+                        const timeslot: Timeslot[] = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
+                          if(!timeslot.id) return
+                          const ts: Timeslot = {
+                            ...timeslot,
+                            id: timeslot.id,
+                            register: timeslot.register ?? undefined,
+                            tagId: (await timeslot.timeslotTag()).data?.tagId,
+                            start: new Date(timeslot.start),
+                            end: new Date(timeslot.end),
+                          }
+                          return ts
+                        }))).filter((timeslot) => timeslot !== undefined) : []
+              
+                        //tags
+                        const userTags: UserTag[] = participant.userTags ? (await Promise.all((participant.userTags as string[]).map(async (tag) => {
+                          if(!tag) return
+                          const tagResponse = await client.models.UserTag.get({ id: tag })
+                          if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
+              
+                          //collection
+                          const collectionTagResponse = await tagResponse.data.collectionTags()
+                          const collections: PhotoCollection[] = []
+                          if(collectionTagResponse && collectionTagResponse.data && collectionTagResponse.data.length > 0){
+                            collections.push(...(await Promise.all(collectionTagResponse.data.map(async (colTag) => {
+                              const photoCollection = await colTag.collection()
+                              if(!photoCollection || !photoCollection.data) return
+                              const col: PhotoCollection = {
+                                ...photoCollection.data,
+                                coverPath: photoCollection.data.coverPath ?? undefined,
+                              }
+                              return col
+                            }))).filter((collection) => collection !== undefined))
+                          }
+              
+                          const userTag: UserTag = {
+                            ...tagResponse.data,
+                            color: tagResponse.data.color ?? undefined,
+                            collections: collections
+                          }
+              
+                          return userTag
+                        }))).filter((tag) => tag !== undefined) : []
+              
+                        //all together
+                        const part: Participant = {
+                          ...participant,
+                          timeslot: timeslot,
+                          userTags: userTags,
+                          middleName: participant.middleName ?? undefined,
+                          preferredName: participant.preferredName ?? undefined,
+                          email: participant.email ?? undefined,
+                          contact: participant.contact ?? false,
+                        }
+                        return part
+                      }))).filter((participant) => participant !== undefined) : []
+              
+                      participants.push(...parts)
+                    }
+              
+                    const userProfile: UserProfile = {
+                      ...item,
+                      participant: participants,
+                      activeParticipant: participants.find((participant) => participant.id === item?.activeParticipant) ?? (participants.length > 0 ? participants[0] : undefined),
+                      userTags: item.userTags ? item.userTags as string[] : [],
+                      timeslot: timeslot,
+                      participantFirstName: item.participantFirstName ?? undefined,
+                      participantLastName: item.participantFirstName ?? undefined,
+                      participantMiddleName: item.participantMiddleName ?? undefined,
+                      participantPreferredName: item.participantPreferredName ?? undefined,
+                      participantContact: item.participantContact ?? false,
+                      participantEmail: item.participantEmail ?? undefined,
+                      preferredContact: item.preferredContact ?? 'EMAIL',
+                    }
 
-            if(!tempUser){
+                    let schedulerEnabled = false
+                    const userTags: UserTag[] = (await Promise.all((userProfile.activeParticipant ? userProfile.activeParticipant.userTags : []).map(async (tag) => {
+                        //secondary indexing to enable scheduler
+                        const secondaryIndex = (await client.models.TimeslotTag.listTimeslotTagByTagId({tagId: tag.id})).data
+                        schedulerEnabled = schedulerEnabled ? schedulerEnabled : secondaryIndex.filter((item) => item !== null && item !== undefined).length > 0
+                        return tag
+                    }))) 
+
+                    setSchedulerEnabled(schedulerEnabled)
+                    setUserProfile(userProfile)
+                    setUserProfileTags(userTags)
+                }
+            }
+        })
+
+        async function api(){
+            let schedulerEnabled = false
+            let tempUserProfile = userProfile
+            let userProfileTags: UserTag[] = []
+            if(tempUserProfile === null){
+                tempUserProfile = await fetchUserProfile(user)
+            }
+            
+            if(tempUserProfile !== null){
+                const userTags = tempUserProfile.activeParticipant ? tempUserProfile.activeParticipant.userTags : tempUserProfile.userTags
+
+                if(userTags == undefined || userTags.length <= 0) return
+                userProfileTags.push(...(tempUserProfile ? 
+                    (tempUserProfile.activeParticipant?.userTags && tempUserProfile.activeParticipant.userTags.length > 0 ? 
+                        (await Promise.all(tempUserProfile.activeParticipant.userTags.map(async (tag) => {
+                            //secondary indexing to enable scheduler
+                            const secondaryIndex = (await client.models.TimeslotTag.listTimeslotTagByTagId({tagId: tag.id})).data
+                            schedulerEnabled = schedulerEnabled ? schedulerEnabled : secondaryIndex.filter((item) => item !== null && item !== undefined).length > 0
+                            return tag
+                        }))) 
+                        :
+                        (await Promise.all(tempUserProfile.userTags.map(async (tag) => {
+                            //secondary indexing to enable scheduler
+                            const secondaryIndex = (await client.models.TimeslotTag.listTimeslotTagByTagId({tagId: tag})).data
+                            schedulerEnabled = schedulerEnabled ? schedulerEnabled : secondaryIndex.filter((item) => item !== null && item !== undefined).length > 0
+                            
+                            const response = (await client.models.UserTag.get({id: tag})).data
+                            if(!response) return
+                            const userTag: UserTag = {
+                                ...response,
+                                color: response.color ?? undefined,
+                                collections: (await Promise.all((await response.collectionTags()).data.map(async (item) => {
+                                    if(item === undefined) return
+                                    const collectionData = (await item.collection()).data
+                                    if(collectionData === null) return
+                                    const collection: PhotoCollection = {
+                                        ...collectionData,
+                                        coverPath: collectionData.coverPath ?? undefined,
+                                    }
+                                    return collection
+                                }))).filter((item) => item !== undefined)
+                            }
+                            return userTag
+                        }))).filter((tag) => tag !== undefined)
+                    ) : []))
+            }
+            else{
                 navigate('/client')
                 return
             }
-
-            
-            const resp = (await client.models.UserProfile.get({ email: tempUser.attributes.email! }))
-            const getProfileResponse = resp.data
-            console.log(resp)
-            if(!getProfileResponse){
-                // navigate('/logout', {
-                //     state: {
-                //         NoProfile: true
-                //     }
-                // })
-                setApiCall(true)
-                return
-            }
-            const getProfileTimeslot = (await getProfileResponse.timeslot()).data
-            const profileTimeslot: Timeslot[] | undefined = getProfileTimeslot ? getProfileTimeslot.map((timeslot) => {
-                if(!timeslot.id)
-                return {
-                    id: timeslot.id as string,
-                    register: timeslot.register ?? undefined,
-                    start: new Date(timeslot.start),
-                    end: new Date(timeslot.end),
-                }
-            }).filter((timeslot) => timeslot !== undefined) : undefined
-
-            let profile: UserProfile = {
-                ...getProfileResponse,
-                userTags: getProfileResponse.userTags ? getProfileResponse.userTags as string[] : [],
-                timeslot: profileTimeslot,
-                participantMiddleName: getProfileResponse.participantMiddleName ?? undefined,
-                participantPreferredName: getProfileResponse.participantPreferredName ?? undefined,
-                preferredContact: getProfileResponse.preferredContact ?? 'EMAIL',
-                participantContact: getProfileResponse.participantContact ?? true
-            }
-
-            console.log(profile)
-            
-            //get user tags
-            const userTags = (await client.models.UserTag.list()).data
-            const userTagIds = userTags.map((tag) => tag.id)
-            const filteredUserTags = profile.userTags.filter((tag) => userTagIds.includes(tag))
-
-            //validating tags
-            if(filteredUserTags.length < profile.userTags.length){
-                console.log(filteredUserTags, profile.userTags, userTagIds)
-                const response = (await client.models.UserProfile.update({
-                    email: profile.email,
-                    userTags: filteredUserTags
-                })).data
-
-                if(!response){
-                    // navigate('/logout', {
-                    //     state: {
-                    //         NoProfile: true
-                    //     }
-                    // })
-                    setApiCall(true)
-                    return
-                }
-
-                const getResponseTimeslot = (await response.timeslot()).data
-                const responseTimeslot: Timeslot[] | undefined = getResponseTimeslot ? getResponseTimeslot.map((timeslot) => {
-                    if(!timeslot.id) return
-                    return {
-                        id: timeslot.id as string,
-                        register: timeslot.register ?? undefined,
-                        start: new Date(timeslot.start),
-                        end: new Date(timeslot.end),
-                    }
-                }).filter((timeslot) => timeslot !== undefined) : undefined
-
-                profile = {
-                    ...response,
-                    userTags: response.userTags ? response.userTags as string[] : [],
-                    timeslot: responseTimeslot,
-                    participantMiddleName: response.participantMiddleName ?? undefined,
-                    participantPreferredName: response.participantPreferredName ?? undefined,
-                    preferredContact: response.preferredContact ?? 'EMAIL',
-                    participantContact: response.participantContact ?? true
-                }
-                console.log(response, profile)
-            }
-
-            //secondary indexing
-            const userProfileTags = await Promise.all(profile.userTags.map(async (tag) => {
-                const response = (await client.models.UserTag.get({id: tag})).data!
-                return {
-                    ...response,
-                    color: response.color ?? undefined,
-                    collectionId: (await Promise.all((await response.collectionTags()).data.map(async (item) => {
-                        if(item === undefined) return
-                        const collectionData = (await item.collection()).data
-                        if(collectionData === null) return
-                        const collection: PhotoCollection = {
-                            ...collectionData,
-                            name: (await collectionData.subCategory()).data?.name,
-                            coverPath: collectionData.coverPath ?? undefined,
-                        }
-                        return collection
-                    }))).filter((item) => item !== undefined)
-                }
-            }))
-            console.log(userProfileTags)
-
             setUserProfileTags(userProfileTags)
-            setUserProfile(profile)
-            setUser(tempUser)
-            setAdminView(tempUser.groups.includes('ADMINS'))
+            setSchedulerEnabled(schedulerEnabled)
+            setUserProfile(tempUserProfile)
             setApiCall(true)
         }
 
         if(!apiCall){
             api()
         }
-    }, [])
+
+        return () => {
+            profileSubscription.unsubscribe()
+        }
+    }, [userProfile])
 
     function structureFullname(){
         if(userProfile)
-            return  (userProfile.participantPreferredName ? userProfile.participantPreferredName : userProfile.participantFirstName) + ' ' + userProfile.participantLastName
+            return  (
+                userProfile.activeParticipant ? (
+                    `${userProfile.activeParticipant.preferredName ? userProfile.activeParticipant.preferredName : userProfile.activeParticipant.firstName} ${userProfile.activeParticipant.lastName}`
+                ) : (
+                    userProfile.participantFirstName && userProfile.participantFirstName ? (
+                        `${userProfile.participantPreferredName ? userProfile.participantPreferredName : userProfile.participantFirstName} ${userProfile.participantLastName}`
+                    ) : (
+                        'Error'
+                    )
+                )
+            )
         else{
             return 'Loading...'
         }
@@ -195,14 +299,19 @@ export function Dashboard() {
     }
 
     function activeConsoleComponent(){
-        switch(activeConsole){
-            case 'home':
-                return (<Home user={userProfile} tags={userProfileTags} />)
-            case 'scheduler':
-                return (<TimeslotComponent userEmail={userProfile?.email} userTags={userProfileTags}/>)
-            default:
-                return (<></>)
+        if(userProfile && userProfile.activeParticipant){
+            switch(activeConsole){
+                case 'home':
+                    return (<Home user={userProfile!} tags={userProfileTags} />)
+                case 'scheduler':
+                    return (<TimeslotComponent participantId={userProfile!.activeParticipant?.id} userEmail={userProfile!.email} userTags={userProfile!.activeParticipant?.userTags}/>)
+                default:
+                    return (<></>)
+            }
+        } else {
+            return (<></>)
         }
+        
     }
     return (
         <>
@@ -221,9 +330,9 @@ export function Dashboard() {
                     <Button color='gray' onClick={() => setActiveConsole('home')} className={activeConsoleClassName('home')}>
                         <HiOutlineHome className="mt-1 me-1"/>Home
                     </Button>
-                    <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
+                    {schedulerEnabled ? (<Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
                         <HiOutlineCalendar className="mt-1 me-1"/>Scheduler
-                    </Button>
+                    </Button>) : (<></>)}
                     {/* <Button color='gray' onClick={() => setActiveConsole('checklist')} className={activeConsoleClassName('checklist')}>
                         <HiOutlineClipboardList className="mt-1 me-1"/>Checklist
                     </Button>
@@ -234,7 +343,7 @@ export function Dashboard() {
                         <HiOutlineDocumentText className="mt-1 me-1"/>Package Info
                     </Button> */}
                     
-                    {returnToAdminConsoleComponent(adminView, navigate)}
+                    {/* {adminView ? returnToAdminConsoleComponent(adminView, navigate) : undefined} */}
                 </Button.Group>
             </div>
             {activeConsoleComponent()}

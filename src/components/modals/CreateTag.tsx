@@ -3,7 +3,7 @@ import { ModalProps } from ".";
 import { Button, Checkbox, Datepicker, Dropdown, Label, Modal, TextInput } from "flowbite-react";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
-import { Subcategory, Timeslot, UserTag } from "../../types";
+import { PhotoCollection, Timeslot, UserTag } from "../../types";
 import { currentDate, DAY_OFFSET, defaultColors, GetColorComponent, textInputTheme } from "../../utils";
 import { BiSolidSquareRounded } from "react-icons/bi";
 import { CompactSlotComponent, SlotComponent } from "../timeslot/Slot";
@@ -25,10 +25,10 @@ interface CreateTagProps extends ModalProps {
 }
 
 export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag}) => {
-    const [collections, setCollections] = useState<Subcategory[]>([])
+    const [collections, setCollections] = useState<PhotoCollection[]>([])
     const [timeslots, setTimeslots] = useState<Timeslot[]>([])
     const [apiCall, setApiCall] = useState(false)
-    const [activeCollections, setActiveCollections] = useState<Subcategory[]>([])
+    const [activeCollections, setActiveCollections] = useState<PhotoCollection[]>([])
     const [activeTimeslots, setActiveTimeslots] = useState<Timeslot[]>([])
     const [activeColor, setActiveColor] = useState<string | undefined>()
 
@@ -36,11 +36,13 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
         async function api(){
             console.log('api call')
 
-            const collections = (await client.models.SubCategory.list()).data.map((sc) => {
-                return {
-                    ...sc
-                } as Subcategory
-            }).filter((sc) => sc.type === 'photoCollection')
+            const collections = (await client.models.PhotoCollection.list()).data.map((photoCollection) => {
+                const mappedCollection: PhotoCollection = {
+                    ...photoCollection,
+                    coverPath: photoCollection.coverPath ?? undefined,
+                }
+                return mappedCollection
+            })
 
             const timeslots = (await client.models.Timeslot.list({
                 filter: {
@@ -61,26 +63,12 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
             ).filter((timeslot) => timeslot !== undefined)
             
             let activeTimeslots: Timeslot[] = []
-            let activeCollections: Subcategory[] = []
+            let activeCollections: PhotoCollection[] = []
             let activeColor: string | undefined = undefined
 
             if(existingTag){
                 if(existingTag.collections){
-                    const collectionData = (await Promise.all(existingTag.collections.map(async (collection) => {
-                        if(!collection.subcategoryId) return
-                        return (await client.models.SubCategory.get({ id: collection.subcategoryId })).data
-                    }))).filter((item) => item != undefined)
-                        
-                    
-                    if(collectionData) {
-                        activeCollections = collectionData.map((collection) => {
-                            const sc: Subcategory = {
-                                ...collection,
-                                headers: collection.headers ? collection.headers as string[] : []
-                            }
-                            return sc
-                        })
-                    }
+                    activeCollections.push(...existingTag.collections)
                 }
                 if(existingTag.color){
                     activeColor = existingTag.color
