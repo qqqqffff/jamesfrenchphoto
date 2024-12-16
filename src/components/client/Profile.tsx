@@ -307,7 +307,7 @@ const UserProfileForm: FC<ParentFormParams> = ({ width, user, userProfile, submi
             }
             if(userPhoneNumber !== user.attributes.phone_number && userPhoneNumber && user.session.tokens){
                 await client.queries.UpdateUserPhoneNumber({
-                    phoneNumber: `+1${userPhoneNumber}`,
+                    phoneNumber: `+1${userPhoneNumber.replace(/\D/g, "")}`,
                     accessToken: (await fetchAuthSession()).tokens!.accessToken.toString()
                 })
                 updated = true

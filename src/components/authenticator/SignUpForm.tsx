@@ -1,7 +1,7 @@
 import { generateClient } from "aws-amplify/api"
 import { confirmSignUp, resendSignUpCode, signUp } from "aws-amplify/auth"
 import { Accordion, Alert, Badge, Button, Checkbox, Dropdown, Label, Modal, TextInput } from "flowbite-react"
-import { FormEvent, useEffect, useRef, useState } from "react"
+import { FormEvent, useRef, useState } from "react"
 import { useLoaderData, useNavigate } from "react-router-dom"
 import { Schema } from "../../../amplify/data/resource"
 import { textInputTheme } from "../../utils"
@@ -60,7 +60,7 @@ export default function SignUp(){
     const [termsAndConditionsVisible, setTermsAndConditionsVisible] = useState(false)
     const [preferredContact, setPreferredContact] = useState(false)
     const [termsAndConditions, setTermsAndConditions] = useState(false)
-    const [availableTags, setAvailableTags] = useState<SignupAvailableTag[]>(useLoaderData() as SignupAvailableTag[]) //TODO: preload this on api calls from the route loader
+    const [availableTags, setAvailableTags] = useState<SignupAvailableTag[]>(useLoaderData() as SignupAvailableTag[])
 
     const [password, setPassword] = useState<string>()
     const [confirmPassword, setConfirmPassword] = useState<string>()
@@ -98,7 +98,12 @@ export default function SignUp(){
     const [participantSubmitting, setParticipantSubmitting] = useState(false)
     
 
-    const [formErrors, setFormErrors] = useState<string[]>([])
+    const [formErrors, setFormErrors] = useState<string[]>(() => {
+        if(window.localStorage.getItem('user')){
+            return ['You are already logged in! If you want to create a new account please sign out of your current account first.']
+        }
+        return []
+    })
     const [invalidCode, setInvalidCode] = useState(false)
 
     const [formSubmitting, setFormSubmitting] = useState(false)
@@ -106,13 +111,6 @@ export default function SignUp(){
 
     const navigate = useNavigate()
     const { width } = useWindowDimensions()
-
-    useEffect(() => {
-        if(window.localStorage.getItem('user')){
-            setFormErrors(['You are already logged in! If you want to create a new account please sign out of your current account first.'])
-        }
-    }, [])
-    
 
     async function handleSubmit(event: FormEvent<SignUpForm>){
         event.preventDefault()
@@ -401,7 +399,7 @@ export default function SignUp(){
                 <Modal.Header>Verification Code</Modal.Header>
                 <Modal.Body className="flex flex-col gap-3 font-main">
                     <form onSubmit={handleCodeSubmit}>
-                        <p>Please enter in the verification code sent to the parent's email.</p>
+                        <p>Please enter in the verification code sent to the user's email.</p>
                         <p><b>Do not close this window until account has been confirmed.</b></p>
                         <div className="flex items-center gap-4 mt-4">
                             <Label className="font-medium text-lg" htmlFor="authCode">Verification Code:</Label>

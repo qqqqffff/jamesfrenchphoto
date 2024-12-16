@@ -16,12 +16,12 @@ export const auth = defineAuth({
     "custom:verified": {
       dataType: 'Boolean',
     },
-    // familyName: {
-    //   required: true,
-    // },
-    // givenName: {
-    //   required: true,
-    // }
+    familyName: {
+      required: true,
+    },
+    givenName: {
+      required: true,
+    }
   },
   groups: ["ADMINS", "USERS"],
   triggers: {
