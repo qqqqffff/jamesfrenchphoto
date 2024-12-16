@@ -57,8 +57,9 @@ export default function UserManagement(){
         }
     }
 
+    //TODO: implement tag filtering
     async function getUsers(tag?: string) {
-        console.log('api call')
+        console.log('api call', tag)
         const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
         
         const users = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput
@@ -227,7 +228,7 @@ export default function UserManagement(){
 
 
         setUserColumnDisplay(userColumnDisplay)
-        // setUserData(userTableData)
+        setUserData(userTableData)
         setUserTags(userTags)
         setApiCall(true)
     }

@@ -64,6 +64,7 @@ export type PhotoCollection = {
     createdAt: string;
     id: string;
     updatedAt: string;
+    eventId: string;
 }
 
 export type Timeslot = {
