@@ -1,7 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "flowbite-react";
-import { HiOutlineCalendar, HiOutlineChat, HiOutlineClipboardList, HiOutlineDocumentText, HiOutlineUserCircle } from "react-icons/hi";
+import { HiOutlineCalendar
+    // HiOutlineChat, HiOutlineClipboardList, HiOutlineDocumentText, HiOutlineUserCircle
+ } from "react-icons/hi";
 import { UserStorage } from "../../types";
 // import EventManager from "./EventManager";
 import UserManagement from "./UserManagement";
@@ -9,7 +11,7 @@ import { TimeslotComponent } from "../timeslot/Timeslot";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
-    const [activeConsole, setActiveConsole] = useState('UserManagement')
+    const [activeConsole, setActiveConsole] = useState('scheduler')
     const navigate = useNavigate()
     useEffect(() => {
         if(!user){
@@ -64,7 +66,7 @@ export const Dashboard = () => {
                     <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
                         <HiOutlineCalendar className="mt-1 me-1"/> Scheduler
                     </Button>
-                    <Button color='gray' onClick={() => setActiveConsole('eventManager')} className={activeConsoleClassName('eventManager')}>
+                    {/* <Button color='gray' onClick={() => setActiveConsole('eventManager')} className={activeConsoleClassName('eventManager')}>
                         <HiOutlineClipboardList className="mt-1 me-1"/> Event Manager
                     </Button>
                     <Button color='gray' onClick={() => setActiveConsole('notificationCenter')} className={activeConsoleClassName('notificationCenter')}>
@@ -75,7 +77,7 @@ export const Dashboard = () => {
                     </Button>
                     <Button color='gray' onClick={() => setActiveConsole('userManagement')} className={activeConsoleClassName('userManagement')}>
                         <HiOutlineUserCircle className="mt-1 me-1"/> User Management
-                    </Button>
+                    </Button> */}
                     {/* <Button color='gray' onClick={() => navigate('/client/dashboard')}>
                         <HiOutlineUserCircle className="mt-1 me-1"/> User View
                     </Button> */}
