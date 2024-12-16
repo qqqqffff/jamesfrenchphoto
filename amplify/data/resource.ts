@@ -18,7 +18,7 @@ const schema = a.schema({
   Events: a
     .model({
       id: a.id().required(),
-      name: a.string(),
+      name: a.string().required(),
       collections: a.hasMany('PhotoCollection', 'eventId')
     })
     .identifier(['id'])

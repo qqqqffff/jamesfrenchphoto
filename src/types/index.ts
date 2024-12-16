@@ -1,5 +1,13 @@
 import { AuthSession, AuthUser, FetchUserAttributesOutput } from "aws-amplify/auth";
 
+export interface Event {
+    id: string;
+    name: string;
+    collections: PhotoCollection[]
+    createdAt: string,
+    updatedAt: string,
+}
+
 export interface UserStorage {
     user: AuthUser
     session: AuthSession

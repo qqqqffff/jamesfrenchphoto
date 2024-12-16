@@ -6,7 +6,6 @@ import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } 
 import ServiceForm from './components/service-form/ServiceForm'
 import Home from './components/common/Home'
 import CheckoutForm from './components/service-form/CheckoutForm'
-// import { loadStripe } from '@stripe/stripe-js'
 import { Amplify } from 'aws-amplify'
 import outputs from '../amplify_outputs.json'
 import { Dashboard as AdminDashboard } from './components/admin/Dashboard'
@@ -20,6 +19,7 @@ import { CollectionViewer } from './components/client/CollectionViewer'
 import { Participant, PhotoCollection, PicturePath, Timeslot, UserProfile, UserStorage, UserTag } from './types'
 import { getUrl } from 'aws-amplify/storage'
 import { ClientProfile } from './components/client/Profile'
+import { fetchAuthSession, signOut } from 'aws-amplify/auth'
 
 Amplify.configure(outputs)
 const client = generateClient<Schema>()
@@ -237,7 +237,17 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<Header />} id='/' loader={async () => {
       let userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined
-      let userProfile: UserProfile | null = await fetchUserProfile(userStorage)
+      let userProfile: UserProfile | null = null
+      try{
+        userProfile = await fetchUserProfile(userStorage)
+      }catch(error){
+        console.error(error)
+        window.localStorage.removeItem('user')
+        if((await fetchAuthSession()).tokens !== undefined) {
+          await signOut()
+        }
+      }
+      
       return userProfile
     }} >
       <Route index element={<Home />} />
