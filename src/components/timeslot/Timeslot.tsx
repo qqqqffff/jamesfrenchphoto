@@ -1,7 +1,8 @@
 import { Badge, Button, ButtonGroup, Checkbox, Datepicker, Dropdown, Label, Tooltip } from "flowbite-react"
 import { FC, useEffect, useState } from "react"
-import { ControlComponent } from "../admin/ControlPannel"
-import { HiOutlinePlusCircle, 
+// import { ControlComponent } from "../admin/ControlPannel"
+import { 
+    // HiOutlinePlusCircle, 
     // HiOutlineMinusCircle, 
     HiOutlineArrowRight, 
     HiOutlineArrowLeft 
@@ -11,7 +12,9 @@ import { Timeslot, UserTag } from "../../types"
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
 import { SlotComponent } from "./Slot"
-import { badgeColorThemeMap, currentDate, DAY_OFFSET, formatTime, GetColorComponent } from "../../utils"
+import { badgeColorThemeMap, currentDate, 
+    // DAY_OFFSET, 
+    formatTime, GetColorComponent } from "../../utils"
 import { ConfirmationModal } from "../modals/Confirmation"
 import { HiOutlineInformationCircle } from "react-icons/hi"
 import useWindowDimensions from "../../hooks/windowDimensions"
@@ -388,10 +391,10 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                     {
                         admin ? (
                             <>
-                                <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>{updatingTimeslot ? 'Update Timeslot' : 'Add Timeslot'}</>} fn={() => {
+                                {/* <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>{updatingTimeslot ? 'Update Timeslot' : 'Add Timeslot'}</>} fn={() => {
                                     setUpdatingTimeslot(timeslots.length > 0)
                                     setCreateTimeslotVisible(true)
-                                }} type={true} disabled={activeDate.getTime() < currentDate.getTime() + DAY_OFFSET}/>
+                                }} type={true} disabled={activeDate.getTime() < currentDate.getTime() + DAY_OFFSET}/> */}
                                 {/* <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>Update Timeslot</>} fn={() => setCreateTimeslotVisible(true)} type={true} disabled={}/> */}
                                 {/* <ControlComponent name={<><HiOutlineMinusCircle size={20} className="mt-1 me-1"/>Remove Timeslot</>} fn={() => {}} type={true}/> */}
                             </>
