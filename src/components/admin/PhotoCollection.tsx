@@ -1,5 +1,5 @@
 import { FC, useEffect, useState } from "react"
-import { PhotoCollection, PicturePath, Subcategory } from "../../types"
+import { PhotoCollection, PicturePath } from "../../types"
 import { ControlComponent } from "./ControlPannel";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
@@ -11,14 +11,13 @@ import { Tooltip } from "flowbite-react";
 import { UploadImagesModal } from "../modals";
 
 export type PhotoCollectionProps = {
-    subcategory: Subcategory;
     photoCollection: PhotoCollection;
     photoPaths?: PicturePath[];
 }
 
 const client = generateClient<Schema>()
 
-export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ subcategory, photoCollection, photoPaths }) => {
+export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths }) => {
     const [picturePaths, setPhotoPaths] = useState<PicturePath[] | undefined>(photoPaths)
     const [apiCalled, setApiCalled] = useState(false)
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>(([] as string[]))
@@ -65,9 +64,9 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ subcategory
         if(id == displayPhotoControls) return 'flex'
         return 'hidden'
     }
+
     function parseName(path: string){
-        let parsedPath = path.substring(path.indexOf(subcategory.id))
-        return parsedPath.substring(parsedPath.indexOf('_') + 1)
+        return path.substring(path.indexOf('_') + 1)
     }
 
     async function orderPhotoPaths(){
@@ -91,7 +90,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ subcategory
 
     return (
     <>
-        <UploadImagesModal open={uploadImagesVisible} onClose={() => setUploadImagesVisible(false)} collectionId={photoCollection.id} eventId={subcategory.eventId} subcategoryId={subcategory.id} offset={picturePaths ? picturePaths.length : 0}/>
+        <UploadImagesModal open={uploadImagesVisible} onClose={() => setUploadImagesVisible(false)} collectionId={photoCollection.id} eventId={photoCollection.eventId} subcategoryId={photoCollection.id} offset={picturePaths ? picturePaths.length : 0}/>
             <div className="grid grid-cols-6 gap-2">
                 <div className="grid grid-cols-5 col-span-5 border-black border rounded-2xl space-x-4 p-4">
                         {picturePaths && picturePaths.length > 0 ? picturePaths.filter((path) => path.url).map((path, index) => {

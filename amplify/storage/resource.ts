@@ -4,7 +4,8 @@ export const storage = defineStorage({
     name: 'photoCollections',
     access: (allow) => ({
         'photo-collections/*': [
-            allow.groups(['ADMINS']).to(['read', 'write', 'delete'])        
-        ]
+            allow.groups(['ADMINS']).to(['read', 'write', 'delete']),
+            allow.groups(['USERS']).to(['read'])
+        ],
     })
 })
