@@ -1,15 +1,29 @@
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
-import { Checkbox, Dropdown, Label, Radio, Tooltip } from "flowbite-react"
+import { 
+    // Checkbox, 
+    // Dropdown, 
+    Label, 
+    Radio, 
+    // Tooltip 
+} from "flowbite-react"
 import { useEffect, useState } from "react"
-import { HiOutlineChatAlt, HiOutlineChevronDoubleDown, HiOutlineChevronDoubleUp, HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineMinusCircle, HiOutlinePlusCircle } from "react-icons/hi"
+import { 
+    // HiOutlineChatAlt, 
+    // HiOutlineChevronDoubleDown, 
+    // HiOutlineChevronDoubleUp, 
+    HiOutlineChevronDown, 
+    HiOutlineChevronLeft, 
+    // HiOutlineMinusCircle, 
+    HiOutlinePlusCircle 
+} from "react-icons/hi"
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand"
 import { CreateUserModal } from "../modals"
 import { CreateTagModal } from "../modals/CreateTag"
 import { ColumnColor, Participant, PhotoCollection, Timeslot, UserColumnDisplay, UserData, UserProfile, UserTag } from "../../types"
-import { createTimeString } from "../timeslot/Slot"
+// import { createTimeString } from "../timeslot/Slot"
 import { UserColumnModal } from "../modals/UserColumn"
-import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
+// import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
 import { v4 } from 'uuid'
 
 const client = generateClient<Schema>()
@@ -28,15 +42,18 @@ export default function UserManagement(){
     const [userColumnModalVisible, setUserColumnModalVisible] = useState(false)
 
     const [userData, setUserData] = useState<UserTableData[]>([])
-    const [userColumnDisplay, setUserColumnDisplay] = useState<UserColumnDisplay[]>([])
+    // const [userColumnDisplay, setUserColumnDisplay] = useState<UserColumnDisplay[]>([])
     const [sideBarToggles, setSideBarToggles] = useState<boolean>(true)
 
     const [userTags, setUserTags] = useState<UserTag[]>([])
     const [existingTag, setExistingTag] = useState<UserTag>()
 
-    const [selectedColumn, setSelectedColumn] = useState<string>('')
+    const [
+        selectedColumn, 
+        // setSelectedColumn
+    ] = useState<string>('')
     const [selectedTag, setSelectedTag] = useState<string>('')
-    const [selectedHeader, setSelectedHeader] = useState<{header: string, sort: 'ASC' | 'DSC' | undefined}>()
+    // const [selectedHeader, setSelectedHeader] = useState<{header: string, sort: 'ASC' | 'DSC' | undefined}>()
 
     const [apiCall, setApiCall] = useState(false)
 
@@ -227,7 +244,7 @@ export default function UserManagement(){
         }
 
 
-        setUserColumnDisplay(userColumnDisplay)
+        // setUserColumnDisplay(userColumnDisplay)
         setUserData(userTableData)
         setUserTags(userTags)
         setApiCall(true)
@@ -238,56 +255,56 @@ export default function UserManagement(){
         }
     }, [])
 
-    const createUser = () => {
-        setCreateUserModalVisible(true)
-    }
+    // const createUser = () => {
+    //     setCreateUserModalVisible(true)
+    // }
     const createTag = () => {
         setCreateTagModalVisible(true)
     }
-    const notifyUser = () => {}
-    const deleteUser = () => {}
-    const promoteUser = () => {}
-    const demoteUser = () => {}
-    const deleteTag = () => {}
+    // const notifyUser = () => {}
+    // const deleteUser = () => {}
+    // const promoteUser = () => {}
+    // const demoteUser = () => {}
+    // const deleteTag = () => {}
 
 
     function managementOptions(){
         const options = [
+            // {
+            //     title: 'Create User',
+            //     fn: createUser,
+            //     icon: (<HiOutlinePlusCircle />)
+            // },
             {
-                title: 'Create User',
-                fn: createUser,
-                icon: (<HiOutlinePlusCircle />)
-            },
-            {
-                title: 'Create Tag',
+                title: 'Create User Tag',
                 fn: createTag,
                 icon: (<HiOutlinePlusCircle />)
             },
-            {
-                title: 'Notify User',
-                fn: notifyUser,
-                icon: (<HiOutlineChatAlt />)
-            },
-            {
-                title: 'Delete User',
-                fn: deleteUser,
-                icon: (<HiOutlineMinusCircle />)
-            },
-            {
-                title: 'Delete Tag',
-                fn: deleteTag,
-                icon: (<HiOutlineMinusCircle />)
-            },
-            {
-                title: 'Promote User',
-                fn: promoteUser,
-                icon: (<HiOutlineChevronDoubleUp />)
-            },
-            {
-                title: 'Demote User',
-                fn: demoteUser,
-                icon: (<HiOutlineChevronDoubleDown />)
-            },
+            // {
+            //     title: 'Notify User',
+            //     fn: notifyUser,
+            //     icon: (<HiOutlineChatAlt />)
+            // },
+            // {
+            //     title: 'Delete User',
+            //     fn: deleteUser,
+            //     icon: (<HiOutlineMinusCircle />)
+            // },
+            // {
+            //     title: 'Delete Tag',
+            //     fn: deleteTag,
+            //     icon: (<HiOutlineMinusCircle />)
+            // },
+            // {
+            //     title: 'Promote User',
+            //     fn: promoteUser,
+            //     icon: (<HiOutlineChevronDoubleUp />)
+            // },
+            // {
+            //     title: 'Demote User',
+            //     fn: demoteUser,
+            //     icon: (<HiOutlineChevronDoubleDown />)
+            // },
             
         ]
 
@@ -314,9 +331,9 @@ export default function UserManagement(){
         return (<HiOutlineChevronLeft className="me-3" />)
     }
 
-    function displayKeys(key: string): boolean {
-        return key != 'userId' && key != 'participant' && key != 'activeParticipant'
-    }
+    // function displayKeys(key: string): boolean {
+    //     return key != 'userId' && key != 'participant' && key != 'activeParticipant'
+    // }
 
     function headingMap(key: string | undefined, update?: {original: UserTableData, val: string, noCommit?: boolean}, sort?: "ASC" | 'DSC' ): string | undefined | UserTableData[] | UserTableData {
         if(key === undefined) return
@@ -655,7 +672,7 @@ export default function UserManagement(){
                    {managementOptions()}
                 </div>
                 <div className="flex col-span-4 justify-center border border-gray-400 rounded-lg px-1">
-                    <div className="relative overflow-x-auto overflow-y-auto max-h-[100rem] shadow-md sm:rounded-lg">
+                    {/* <div className="relative overflow-x-auto overflow-y-auto max-h-[100rem] shadow-md sm:rounded-lg">
                         {userData ? 
                             userData.length > 0 ? (
                                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
@@ -848,7 +865,7 @@ export default function UserManagement(){
                                 <>No Users in this group</>
                             )
                         : (<>Loading...</>)}
-                    </div>
+                    </div> */}
                 </div>
                 <div className="flex flex-col border border-gray-400 rounded-lg p-2 me-4">
                     <div className="mb-2">
