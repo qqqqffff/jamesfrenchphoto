@@ -34,7 +34,7 @@ const schema = a.schema({
       tags: a.hasMany('CollectionTag', 'collectionId')
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   PhotoPaths: a
     .model({
       id: a.id().required(),
@@ -47,7 +47,18 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('collectionId')])
-    .authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  UserFavorites: a
+    .model({
+      id: a.id().required(),
+      pathId: a.id().required(),
+      path: a.belongsTo('PhotoPath', 'pathId'),
+      userEmail: a.string().required(),
+      userProfile: a.belongsTo('UserProfile', 'userEmail'),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('userEmail').name('listFavoritesByUserEmail')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'delete', 'create', 'list'])]),
   UserTag: a
     .model({
       id: a.id().required(),
