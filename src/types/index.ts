@@ -88,6 +88,14 @@ export type UserTag = {
     name: string,
     color?: string,
     collections?: PhotoCollection[],
+    package?: Package,
+}
+
+export type Package = {
+    id: string,
+    name: string,
+    tag: UserTag,
+    pdfPath: string,
 }
 
 export interface UserColumnDisplay {

@@ -363,10 +363,10 @@ export default function CollectionManager(){
             </Modal>
             <div className="grid grid-cols-6 gap-2 mt-4 font-main">
                 <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
-                    <div className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer" onClick={() => setCreateEventModalVisible(true)}>
+                    <button className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer" onClick={() => setCreateEventModalVisible(true)}>
                         <span className="text-xl ms-4 mb-1">Create New Event</span>
                         <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2"/>
-                    </div>
+                    </button>
                     {eventList.map((event, index) => {
                         return (
                             <div className="flex flex-col" key={index}>

@@ -1,15 +1,18 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "flowbite-react";
-import { HiOutlineCalendar, HiOutlineChat, HiOutlineClipboardList, HiOutlineDocumentText, HiOutlineUserCircle } from "react-icons/hi";
+import { HiOutlineCalendar,
+    HiOutlineChat, HiOutlineClipboardList, HiOutlineDocumentText, HiOutlineUserCircle
+ } from "react-icons/hi";
 import { UserStorage } from "../../types";
 import UserManagement from "./UserManagement";
 import { TimeslotComponent } from "../timeslot/Timeslot";
 import CollectionManager from "./CollectionManager";
+import PackageManager from "./PackageManager";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
-    const [activeConsole, setActiveConsole] = useState('collectionManager')
+    const [activeConsole, setActiveConsole] = useState('packageManager')
     const navigate = useNavigate()
     useEffect(() => {
         if(!user){
@@ -49,8 +52,10 @@ export const Dashboard = () => {
                 return (<CollectionManager />)
             case 'userManagement':
                 return (<UserManagement />)
+            case 'packageManager':
+                return (<PackageManager />)
             default:
-                return (<></>)
+                return (<>Click a console to get started</>)
         }
     }
 
