@@ -264,7 +264,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                                             const timeslots = activeTimeslots.filter((ts) => ts.id !== timeslot.id)
                                             setActiveTimeslots(timeslots)
                                         }
-                                    }}><SlotComponent timeslot={timeslot} showTags={false} displayRegister/></button>)
+                                    }}><SlotComponent timeslot={timeslot} displayRegister/></button>)
                             }) : <Label className="text-lg italic text-gray-500">No timeslots for this date</Label>}
                         </div>
                         <div className="grid grid-cols-2 gap-2 w-full border-gray-500 rounded-lg px-2 py-2 max-h-[250px] overflow-auto">
