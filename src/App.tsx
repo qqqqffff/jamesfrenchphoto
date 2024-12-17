@@ -6,7 +6,6 @@ import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } 
 import ServiceForm from './components/service-form/ServiceForm'
 import Home from './components/common/Home'
 import CheckoutForm from './components/service-form/CheckoutForm'
-// import { loadStripe } from '@stripe/stripe-js'
 import { Amplify } from 'aws-amplify'
 import outputs from '../amplify_outputs.json'
 import { Dashboard as AdminDashboard } from './components/admin/Dashboard'
@@ -192,7 +191,7 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
             const userTag: UserTag = {
               ...tagResponse.data,
               color: tagResponse.data.color ?? undefined,
-              collections: collections
+              collections: collections,
             }
 
             return userTag
@@ -262,7 +261,8 @@ const router = createBrowserRouter(
                       color: tagResponse.data.color ?? undefined,
                     },
                     selected: {
-                      selected: false,
+                      selected: true,
+                      participantId: '1'
                     }
                   }
                   return tag
