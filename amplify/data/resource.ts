@@ -18,7 +18,7 @@ const schema = a.schema({
   Events: a
     .model({
       id: a.id().required(),
-      name: a.string(),
+      name: a.string().required(),
       collections: a.hasMany('PhotoCollection', 'eventId')
     })
     .identifier(['id'])
@@ -53,8 +53,9 @@ const schema = a.schema({
       id: a.id().required(),
       name: a.string().required(),
       color: a.string(),
-      collectionTags: a.hasMany('CollectionTag', 'tagId'),
+      collectionTags: a.hasMany('CollectionTag', 'tagId'), //TODO: improve authorization
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
+      packages: a.hasOne('Package', 'tagId')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
@@ -76,6 +77,16 @@ const schema = a.schema({
     })
     .identifier(['timeslotId'])
     .secondaryIndexes((index) => [index('tagId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  Package: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      tagId: a.id().required(),
+      tag: a.belongsTo('UserTag', 'tagId'),
+      pdfPath: a.string().required()
+    })
+    .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserColumnDisplay: a
     .model({

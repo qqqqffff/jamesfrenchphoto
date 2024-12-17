@@ -1,5 +1,13 @@
 import { AuthSession, AuthUser, FetchUserAttributesOutput } from "aws-amplify/auth";
 
+export interface Event {
+    id: string;
+    name: string;
+    collections: PhotoCollection[]
+    createdAt: string,
+    updatedAt: string,
+}
+
 export interface UserStorage {
     user: AuthUser
     session: AuthSession
@@ -73,6 +81,7 @@ export type Timeslot = {
     register?: string,
     start: Date;
     end: Date;
+    // participant?: Participant, //TODO: implement me
 }
 
 export type UserTag = {
@@ -80,6 +89,14 @@ export type UserTag = {
     name: string,
     color?: string,
     collections?: PhotoCollection[],
+    package?: Package,
+}
+
+export type Package = {
+    id: string,
+    name: string,
+    tag: UserTag,
+    pdfPath: string,
 }
 
 export interface UserColumnDisplay {

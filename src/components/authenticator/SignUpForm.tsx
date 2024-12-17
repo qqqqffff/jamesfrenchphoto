@@ -175,7 +175,7 @@ export default function SignUp(){
                 const response = await client.models.Participant.create({
                     firstName: participant.firstName,
                     lastName: participant.lastName,
-                    email: participant.preferredName,
+                    email: participant.email,
                     preferredName: participant.preferredName,
                     middleName: participant.middleName,
                     contact: participant.contact,

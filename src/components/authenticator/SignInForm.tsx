@@ -40,7 +40,7 @@ export default function SignIn() {
 
             if(history.state && history.state.usr){
                 if(history.state.usr.createAccountSuccess){
-                    components.push('Successfully created user! Login with the parent\'s email and password you just set!')
+                    components.push('Successfully created user! Login with the user\'s email and password you just set!')
                 }
             }
             setNotifications(components)
