@@ -1,13 +1,17 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "flowbite-react";
-import { HiOutlineCalendar,
-    HiOutlineChat, HiOutlineClipboardList, HiOutlineDocumentText, HiOutlineUserCircle
+import { 
+    HiOutlineCalendar,
+    // HiOutlineChat, 
+    // HiOutlineClipboardList, 
+    HiOutlineDocumentText, 
+    // HiOutlineUserCircle
  } from "react-icons/hi";
 import { UserStorage } from "../../types";
-import UserManagement from "./UserManagement";
+// import UserManagement from "./UserManagement";
 import { TimeslotComponent } from "../timeslot/Timeslot";
-import CollectionManager from "./CollectionManager";
+// import CollectionManager from "./CollectionManager";
 import PackageManager from "./PackageManager";
 
 export const Dashboard = () => {
@@ -48,10 +52,10 @@ export const Dashboard = () => {
         switch(activeConsole){
             case 'scheduler': 
                 return (<TimeslotComponent admin/>)
-            case 'collectionManager':
-                return (<CollectionManager />)
-            case 'userManagement':
-                return (<UserManagement />)
+            // case 'collectionManager':
+            //     return (<CollectionManager />)
+            // case 'userManagement':
+            //     return (<UserManagement />)
             case 'packageManager':
                 return (<PackageManager />)
             default:
@@ -69,18 +73,18 @@ export const Dashboard = () => {
                     <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
                         <HiOutlineCalendar className="mt-1 me-1"/> Scheduler
                     </Button>
-                    <Button color='gray' onClick={() => setActiveConsole('collectionManager')} className={activeConsoleClassName('collectionManager')}>
+                    {/* <Button color='gray' onClick={() => setActiveConsole('collectionManager')} className={activeConsoleClassName('collectionManager')}>
                         <HiOutlineClipboardList className="mt-1 me-1"/> Collection Manager
                     </Button>
                     <Button color='gray' onClick={() => setActiveConsole('notificationCenter')} className={activeConsoleClassName('notificationCenter')}>
                         <HiOutlineChat className="mt-1 me-1"/> Notification Center
-                    </Button>
+                    </Button> */}
                     <Button color='gray' onClick={() => setActiveConsole('packageManager')} className={activeConsoleClassName('packageManager')}>
                         <HiOutlineDocumentText className="mt-1 me-1"/> Package Manager
                     </Button>
-                    <Button color='gray' onClick={() => setActiveConsole('userManagement')} className={activeConsoleClassName('userManagement')}>
+                    {/* <Button color='gray' onClick={() => setActiveConsole('userManagement')} className={activeConsoleClassName('userManagement')}>
                         <HiOutlineUserCircle className="mt-1 me-1"/> User Management
-                    </Button>
+                    </Button> */}
                     {/* <Button color='gray' onClick={() => navigate('/client/dashboard')}>
                         <HiOutlineUserCircle className="mt-1 me-1"/> User View
                     </Button> */}
