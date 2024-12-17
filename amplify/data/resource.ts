@@ -87,7 +87,7 @@ const schema = a.schema({
       pdfPath: a.string().required()
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserColumnDisplay: a
     .model({
       id: a.string().required(),

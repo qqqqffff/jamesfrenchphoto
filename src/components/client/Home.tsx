@@ -1,8 +1,10 @@
-import { FC, useEffect, useState } from "react";
-import { PhotoCollection, UserProfile, UserTag } from "../../types";
+import { FC, useState } from "react";
+import { Package, UserProfile, UserTag } from "../../types";
 // import { Schema } from "../../../amplify/data/resource";
 // import { generateClient } from "aws-amplify/api";
-import { Alert } from "flowbite-react";
+import { Alert, Button, Modal } from "flowbite-react";
+import { downloadData } from "aws-amplify/storage";
+import PDFViewer from "../common/PDFViewer";
 
 // const client = generateClient<Schema>()
 
@@ -11,34 +13,67 @@ interface ClientHomeProps {
     tags: UserTag[]
 }
 
-//TODO: pass an open state variable 
-export const Home: FC<ClientHomeProps> = ({ user, tags }) => {
-    const [collections, setCollections] = useState<PhotoCollection[]>([])
-    const [apiCall, setApiCall] = useState(false)
-    useEffect(() => {
-        async function api(){
-            let temp: PhotoCollection[] = []
-            if(user){
-                
-            }
-            
-            setCollections(temp)
-            setApiCall(true)
-        }
-        if(!apiCall){
-            api()
-        }
-    })
+interface PackagePDFModalProps {
+    pdf: File,
+    pack: Package,
+    show: boolean,
+    onClose: () => void
+}
+
+const PackagePDFModal: FC<PackagePDFModalProps> = ({ pdf, pack, show, onClose }) => {
+    return (
+        <Modal show={show} onClose={onClose} className="w-full" size="4xl">
+            <Modal.Header className={`text-${pack.tag.color ?? 'black'}`}>{pack.name}</Modal.Header>
+            <Modal.Body>
+                <PDFViewer fileUrl={pdf} />
+            </Modal.Body>
+            <Modal.Footer>
+                <Button onClick={onClose}>Close</Button>
+            </Modal.Footer>
+        </Modal>
+    )
+}
+
+export const Home: FC<ClientHomeProps> = ({ tags }) => {
+    const [activePackagePDF, setActivePackagePDF] = useState<File>()
+    const [activePackage, setActivePackage] = useState<Package>()
+    const [packagePDFModalVisible, setPackagePDFModalVisible] = useState(false)
+
+    const collections = tags
+        .map((tag) => tag.collections)
+        .filter((collection) => collection !== undefined)
+        .reduce((prev, cur) => {
+            prev.push(...((cur).filter((collection) => (prev.find((prevColl) => prevColl.id !== collection.id)) === undefined)))
+            return prev
+        }, [])
+    
+    const packages: Package[] = tags
+        .map((tag) => tag.package)
+        .filter((pack) => pack !== undefined)
+    
     return (
         <>
+            {activePackage && activePackagePDF ? (
+                 <PackagePDFModal 
+                    show={packagePDFModalVisible} 
+                    pack={activePackage} 
+                    pdf={activePackagePDF}
+                    onClose={() => {
+                        setActivePackage(undefined)
+                        setActivePackagePDF(undefined)
+                        setPackagePDFModalVisible(false)
+                    }} 
+                />       
+            ) : (<></>)}
+            
             <div className="grid grid-cols-6 mt-8 font-main">
-                <div className="flex flex-col items-center justify-center col-start-2 col-span-4 border-black border rounded-xl">
+                <div className="flex flex-col items-center justify-center col-start-2 col-span-4 gap-4 border-black border rounded-xl mb-4 overflow-auto">
                     <div className="flex flex-col items-center justify-center my-4">
                         {tags.length > 0 ? 
-                            tags.map((tag) => {
+                            tags.map((tag, index) => {
                                 if(tag.name === 'LAF Escort 2025'){
                                     return (
-                                        <Alert color="gray">Headshots will be taken prior to the announcement party on <strong>Thursday, December 19th</strong>. Please see your emailed photography packets for additional information.</Alert>
+                                        <Alert color="gray" key={index}>Headshots will be taken prior to the announcement party on <strong>Thursday, December 19th</strong>. Please see your emailed photography packets for additional information.</Alert>
                                     )
                                 }
                                 return undefined
@@ -47,19 +82,54 @@ export const Home: FC<ClientHomeProps> = ({ user, tags }) => {
                         )}
                     </div>
                     
-                    <span className="text-3xl">Your Collections:</span>
-                    {collections?.filter((collection) => collection.name).length > 0 ? 
-                        collections?.filter((collection) => collection.name).map((collection) => {
+                    <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections:</span>
+                    {collections.length > 0 ? 
+                        (collections.map((collection) => {
                             return (
                                 <a href={`/photo-collection/${collection.id}`}>{collection.name}</a>
                             )
-                        }) :
-                        (<div className="text-xl text-gray-400 italic flex flex-col text-center mt-4 mb-4">
+                        })) :
+                        (<div className="text-xl text-gray-400 italic flex flex-col text-center">
                             <span>Sorry, there are no viewable collections for you right now.</span>
                             <span>You will receive a notification when your collection is ready!</span>
                         </div>
                         )
                     }
+
+                    <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package{packages.length > 1 ? 's' : ''}</span>
+                    <div className="flex flex-col items-center border border-gray-300 rounded-lg p-4 mb-4">
+                        {packages.length > 0 ? (
+                            packages.map((pack, index) => {
+                                const packageClass = `flex flex-row items-center justify-between hover:bg-gray-100 rounded-lg py-2 px-4 border-black border ${activePackage?.id == pack.id ? 'bg-gray-200' : ''} text-${pack.tag.color ?? 'black'}`
+                                return (
+                                    <button className={packageClass} key={index}
+                                        onClick={async () => {
+                                            if(activePackage?.id !== pack.id){
+                                                const result = await downloadData({
+                                                    path: pack.pdfPath,
+                                                }).result
+                                                const file = new File([await result.body.blob()], pack.pdfPath.substring(pack.pdfPath.indexOf('_') + 1), { type: result.contentType })
+                                                
+                                                setActivePackage(pack)
+                                                setActivePackagePDF(file)
+                                                setPackagePDFModalVisible(true)
+                                            }
+                                            else if(activePackage?.id === pack.id){
+                                                setActivePackage(undefined)
+                                                setActivePackagePDF(undefined)
+                                            }
+                                        }}
+                                    >
+                                        <span>{pack.name}</span>
+                                    </button>
+                                )
+                            })
+                        ) : (
+                            <div className="text-xl text-gray-400 italic flex flex-col text-center">
+                                <span>Sorry, there are no viewable packages for you right now.</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </>

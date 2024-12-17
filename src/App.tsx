@@ -6,6 +6,7 @@ import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } 
 import ServiceForm from './components/service-form/ServiceForm'
 import Home from './components/common/Home'
 import CheckoutForm from './components/service-form/CheckoutForm'
+// import { loadStripe } from '@stripe/stripe-js'
 import { Amplify } from 'aws-amplify'
 import outputs from '../amplify_outputs.json'
 import { Dashboard as AdminDashboard } from './components/admin/Dashboard'
@@ -16,10 +17,9 @@ import SignOut from './components/authenticator/SignOut'
 import { generateClient } from 'aws-amplify/api'
 import { Schema } from '../amplify/data/resource'
 import { CollectionViewer } from './components/client/CollectionViewer'
-import { Participant, PhotoCollection, PicturePath, Timeslot, UserProfile, UserStorage, UserTag } from './types'
+import { Package, Participant, PhotoCollection, PicturePath, Timeslot, UserProfile, UserStorage, UserTag } from './types'
 import { getUrl } from 'aws-amplify/storage'
 import { ClientProfile } from './components/client/Profile'
-import { fetchAuthSession, signOut } from 'aws-amplify/auth'
 
 Amplify.configure(outputs)
 const client = generateClient<Schema>()
@@ -189,10 +189,25 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
               }))).filter((collection) => collection !== undefined))
             }
 
+            //packages
+            const packageResponse = await tagResponse.data.packages()
+            let userPackage: Package | undefined
+            if(packageResponse && packageResponse.data){
+              userPackage = {
+                ...packageResponse.data,
+                tag: {
+                  ...tagResponse.data,
+                  color: tagResponse.data.color ?? undefined,
+                  collections: collections,
+                }
+              }
+            }
+
             const userTag: UserTag = {
               ...tagResponse.data,
               color: tagResponse.data.color ?? undefined,
               collections: collections,
+              package: userPackage,
             }
 
             return userTag
@@ -237,17 +252,7 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<Header />} id='/' loader={async () => {
       let userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined
-      let userProfile: UserProfile | null = null
-      try{
-        userProfile = await fetchUserProfile(userStorage)
-      }catch(error){
-        console.error(error)
-        window.localStorage.removeItem('user')
-        if((await fetchAuthSession()).tokens !== undefined) {
-          await signOut()
-        }
-      }
-      
+      let userProfile: UserProfile | null = await fetchUserProfile(userStorage)
       return userProfile
     }} >
       <Route index element={<Home />} />
