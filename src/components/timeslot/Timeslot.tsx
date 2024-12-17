@@ -243,7 +243,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                 setSelectedTimeslot(timeslot)
                             }
                         }} disabled={disabled} className={`${selected} rounded-lg enabled:hover:bg-gray-300 text-${color} ${disabledText}`}>
-                            <SlotComponent timeslot={timeslot} showTags={false} displayRegister={admin ?? false} />
+                            <SlotComponent timeslot={timeslot} displayRegister={admin ?? false} />
                         </button>
                     )
                 })
@@ -454,7 +454,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                                 setSelectedTimeslot(timeslot)
                                             }
                                         }} disabled={admin || timeslot.register !== undefined} className={`${selected} rounded-lg enabled:hover:bg-gray-300`}>
-                                            <SlotComponent timeslot={timeslot} showTags={false} displayRegister={admin ?? false} />
+                                            <SlotComponent timeslot={timeslot} displayRegister={admin ?? false} />
                                         </button>
                                     )
                             }) : (<Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>))}
