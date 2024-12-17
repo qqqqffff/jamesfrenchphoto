@@ -15,6 +15,7 @@ interface CreateTimeslotModalProps extends ModalProps {
 
 //TODO: when changing start and end dates try to preserve the currently selected time ranges
 export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose, day, update}) => {
+    console.log(open, day, update)
     const [startTime, setStartTime] = useState<string | Date>('Select Start Time')
     const [endTime, setEndTime] = useState<string | Date>('Select End Time')
     const [increment, setIncrement] = useState<number>(30)
@@ -62,6 +63,10 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
 
             console.log(increment, startTime, endTime, timeslots, activeTimeslots)
 
+            if(activeTimeslots.length > 0){
+                increment = (activeTimeslots[0].end.getTime() - activeTimeslots[0].start.getTime()) / (1000 * 60)
+            }
+
             setIncrement(increment)
             setStartTime(startTime)
             setEndTime(endTime)
@@ -71,7 +76,6 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
             setApiCall(true)
         }
         if(!apiCall && open && update){
-            //TODO: pass in timeslots from timeslot component
             api()
         }
     })
@@ -154,7 +158,20 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
         setTimeslots([])
         setActiveTimeslots([])
         setSubmitting(false)
-        setApiCall(false)
+    }
+
+    const startEnabled = (time: Date) => (
+        typeof startTime === 'string' || (
+            typeof endTime !== 'string' && time.getTime() <= endTime.getTime()
+        )
+    )
+
+    const endEnabled = (time: Date) => {
+        return (
+            (typeof endTime === 'string' && typeof startTime !== 'string' && time.getTime() > startTime.getTime()) || (
+                typeof startTime !== 'string' && time.getTime() > startTime.getTime()
+            )
+        )
     }
 
     return (
@@ -162,7 +179,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
             resetState()
             onClose()
         }}>
-            <Modal.Header>{update ? 'Update Timeslot' : 'Create a New Timeslot'}</Modal.Header>
+            <Modal.Header>{update ? 'Update Timeslots' : 'Create New Timeslots'}</Modal.Header>
             <Modal.Body>
                 <form onSubmit={createTimeslot}>
                     <div className="flex flex-col">
@@ -176,26 +193,39 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                                     <Dropdown placement="bottom-end" label={typeof startTime === 'string' ? startTime : startTime.toLocaleTimeString()} color="light" id="name" name="name" className="overflow-auto max-h-[250px]">
                                         {times.map((time, index) => { 
                                                 return (
-                                                    <Dropdown.Item key={index} 
+                                                    <Dropdown.Item 
+                                                    className='disabled:text-gray-400 disabled:cursor-not-allowed'
+                                                    disabled={!startEnabled(time)}
+                                                    key={index} 
                                                     onClick={() => {
                                                         let timeslots: Timeslot[] = []
+                                                        
                                                         if(typeof endTime !== 'string'){
                                                             let temp = time
-                                                            while(temp < endTime){
+                                                            while(temp.getTime() < new Date(endTime).getTime()){
                                                                 const end = new Date(temp.getTime() + DAY_OFFSET * (increment / 1440))
-                                                                if(end > temp) break;
+                                                                if(end.getTime() > new Date(endTime).getTime()) break;
                                                                 const timeslot: Timeslot = {
                                                                     id: '',
                                                                     start: temp,
                                                                     end: end,
                                                                 }
+                                                                if(activeTimeslots.find((ts) => timeslot.start == ts.start && timeslot.end == ts.end) !== undefined) continue
                                                                 timeslots.push(timeslot)
                                                                 temp = end
                                                             }
                                                         }
+
+                                                        activeTimeslots.forEach((timeslot) => {
+                                                            if(timeslots.find((ts) => {
+                                                                return ts.start.getTime() == timeslot.start.getTime() && ts.end.getTime() == timeslot.end.getTime()
+                                                            }) === undefined) {
+                                                                timeslots.push(timeslot)
+                                                            }
+                                                        })
+
                                                         setStartTime(time)
-                                                        setTimeslots(timeslots)
-                                                        setActiveTimeslots([])
+                                                        setTimeslots(timeslots.sort((a, b) => a.start.getTime() - b.start.getTime()))
                                                     }}>{time.toLocaleTimeString()}</Dropdown.Item>
                                                 )
                                             })}
@@ -208,7 +238,8 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                                     <Dropdown placement="bottom-end" label={typeof endTime === 'string' ? endTime : endTime.toLocaleTimeString()} color="light" id="name" name="name" disabled={typeof startTime == 'string'} className="overflow-auto max-h-[250px]">
                                         {times.map((time, index) => { 
                                                 return (
-                                                    <Dropdown.Item key={index} className='disabled:text-gray-400 disabled:cursor-not-allowed' disabled={time <= startTime} 
+                                                    <Dropdown.Item key={index} className='disabled:text-gray-400 disabled:cursor-not-allowed' 
+                                                        disabled={!endEnabled(time)} 
                                                         onClick={() => {
                                                             let timeslots: Timeslot[] = []
                                                             if(typeof startTime !== 'string'){
@@ -221,13 +252,22 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                                                                         start: temp,
                                                                         end: end,
                                                                     }
+                                                                    if(activeTimeslots.find((ts) => timeslot.start == ts.start && timeslot.end == ts.end) !== undefined) continue
                                                                     timeslots.push(timeslot)
                                                                     temp = end
                                                                 }
                                                             }
+
+                                                            activeTimeslots.forEach((timeslot) => {
+                                                                if(timeslots.find((ts) => {
+                                                                    return ts.start.getTime() == timeslot.start.getTime() && ts.end.getTime() == timeslot.end.getTime()
+                                                                }) === undefined) {
+                                                                    timeslots.push(timeslot)
+                                                                }
+                                                            })
+
                                                             setEndTime(time)
-                                                            setTimeslots(timeslots)
-                                                            setActiveTimeslots([])
+                                                            setTimeslots(timeslots.sort((a, b) => a.start.getTime() - b.start.getTime()))
                                                         }}>{time.toLocaleTimeString()}</Dropdown.Item>
                                                 )
                                             })}
@@ -236,30 +276,39 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                             </div>
                         </div>
                     </div>
-                    <div className="flex flex-col w-full items-center justify-center">
-                        <span>Timeslot Increment: {increment} mins</span>
-                        <RangeSlider min={15} max={60} step={15} defaultValue={increment} onChange={(event) => {
-                            const increment = event.target.valueAsNumber
-                            let timeslots: Timeslot[] = []
-                            if(typeof startTime !== 'string' && typeof endTime !== 'string'){
-                                let temp = startTime
-                                while(temp < endTime){
-                                    const end = new Date(temp.getTime() + DAY_OFFSET * (increment / 1440))
-                                    if(end > endTime) break;
-                                    const timeslot: Timeslot = {
-                                        id: '',
-                                        start: temp,
-                                        end: end,
+                    {
+                        update && initialActiveTimeslots.length > 0 ? (
+                            <div className="flex flex-col w-full items-center justify-center">
+                                <span>Timeslot Increment: {(initialActiveTimeslots[0].end.getTime() - initialActiveTimeslots[0].start.getTime()) / (1000 * 60)} mins</span>
+                            </div> 
+                        ) : (
+                            <div className="flex flex-col w-full items-center justify-center">
+                                <span>Timeslot Increment: {increment} mins</span>
+                                <RangeSlider min={15} max={60} step={15} defaultValue={increment} onChange={(event) => {
+                                    const increment = event.target.valueAsNumber
+                                    let timeslots: Timeslot[] = []
+                                    if(typeof startTime !== 'string' && typeof endTime !== 'string'){
+                                        let temp = startTime
+                                        while(temp < endTime){
+                                            const end = new Date(temp.getTime() + DAY_OFFSET * (increment / 1440))
+                                            if(end > endTime) break;
+                                            const timeslot: Timeslot = {
+                                                id: '',
+                                                start: temp,
+                                                end: end,
+                                            }
+                                            timeslots.push(timeslot)
+                                            temp = end
+                                        }
                                     }
-                                    timeslots.push(timeslot)
-                                    temp = end
-                                }
-                            }
-                            setIncrement(increment)
-                            setTimeslots(timeslots)
-                            setActiveTimeslots([])
-                            }} disabled={typeof startTime === 'string' || typeof endTime === 'string'} className="w-[60%]"/>
-                    </div>
+                                    setIncrement(increment)
+                                    setTimeslots(timeslots)
+                                    setActiveTimeslots([])
+                                    }} disabled={typeof startTime === 'string' || typeof endTime === 'string'} className="w-[60%]"/>
+                            </div>
+                        )
+                    }
+                    
                    
                     
                         {timeslots.length > 0 ? (

@@ -1,8 +1,8 @@
 import { Badge, Button, ButtonGroup, Checkbox, Datepicker, Dropdown, Label, Tooltip } from "flowbite-react"
 import { FC, useEffect, useState } from "react"
-// import { ControlComponent } from "../admin/ControlPannel"
+import { ControlComponent } from "../admin/ControlPannel"
 import { 
-    // HiOutlinePlusCircle, 
+    HiOutlinePlusCircle, 
     // HiOutlineMinusCircle, 
     HiOutlineArrowRight, 
     HiOutlineArrowLeft 
@@ -12,9 +12,13 @@ import { Timeslot, UserTag } from "../../types"
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
 import { SlotComponent } from "./Slot"
-import { badgeColorThemeMap, currentDate, 
-    // DAY_OFFSET, 
-    formatTime, GetColorComponent } from "../../utils"
+import { 
+    badgeColorThemeMap, 
+    currentDate, 
+    DAY_OFFSET, 
+    formatTime, 
+    GetColorComponent 
+} from "../../utils"
 import { ConfirmationModal } from "../modals/Confirmation"
 import { HiOutlineInformationCircle } from "react-icons/hi"
 import useWindowDimensions from "../../hooks/windowDimensions"
@@ -289,7 +293,8 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                     </div>
                     {
                         admin ? 
-                            (<Datepicker minDate={minDate} className='mt-2' onChange={async (date) => {
+                            (
+                            <Datepicker minDate={minDate} className='mt-2' onChange={async (date) => {
                                 if(date) {
                                     let timeslots: Timeslot[] = []
                                     if(admin){
@@ -320,8 +325,8 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                     setActiveDate(date)
                                     setTimeslots(timeslots)
                                 }
-                            }}/>) : 
-                            (
+                            }}/>
+                            ) : (
                                 <div className="flex flex-row gap-2 items-center">
                                     <button className="border p-1.5 rounded-full border-black bg-white hover:bg-gray-300" onClick={() => {
                                         const timeslots = Object.values(tagTimeslots)
@@ -391,10 +396,10 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                     {
                         admin ? (
                             <>
-                                {/* <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>{updatingTimeslot ? 'Update Timeslot' : 'Add Timeslot'}</>} fn={() => {
+                                <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>{updatingTimeslot ? 'Update Timeslot' : 'Add Timeslot'}</>} fn={() => {
                                     setUpdatingTimeslot(timeslots.length > 0)
                                     setCreateTimeslotVisible(true)
-                                }} type={true} disabled={activeDate.getTime() < currentDate.getTime() + DAY_OFFSET}/> */}
+                                }} type={true} disabled={activeDate.getTime() < currentDate.getTime() + DAY_OFFSET}/>
                                 {/* <ControlComponent className="" name={<><HiOutlinePlusCircle size={20} className="mt-1 me-1"/>Update Timeslot</>} fn={() => setCreateTimeslotVisible(true)} type={true} disabled={}/> */}
                                 {/* <ControlComponent name={<><HiOutlineMinusCircle size={20} className="mt-1 me-1"/>Remove Timeslot</>} fn={() => {}} type={true}/> */}
                             </>
