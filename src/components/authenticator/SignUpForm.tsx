@@ -91,11 +91,13 @@ export default function SignUp(){
     const [participantPreferredName, setParticipantPreferredName] = useState<string>()
     const [participantMiddleName, setParticipantMiddleName] = useState<string>()
     const [participantContact, setParticipantContact] = useState(false)
-    const [participantTags, setParticipantTags] = useState<UserTag[]>([])
+    const [participantTags, setParticipantTags] = useState<UserTag[]>([...(availableTags.map((tag) => tag.tag))])
     const [participantSameDetails, setParticipantSameDetails] = useState(false)
     const [participants, setParticipants] = useState<SignupParticipant[]>([])
     const [activeParticipant, setActiveParticipant] = useState<SignupParticipant>()
     const [participantSubmitting, setParticipantSubmitting] = useState(false)
+
+    console.log(participantTags)
     
 
     const [formErrors, setFormErrors] = useState<string[]>(() => {
@@ -147,6 +149,10 @@ export default function SignUp(){
             },
             { authMode: 'iam' }
             )
+
+            if(profileCreateResponse.errors && profileCreateResponse.errors.length > 0) {
+                throw new Error(JSON.stringify(profileCreateResponse.errors))
+            }
             
             //creating participants
             const tempParticipants = participants
@@ -176,13 +182,12 @@ export default function SignUp(){
                     userEmail: userEmail,
                     userTags: participant.userTags.map((tag) => tag.id),
                 }, { authMode: 'iam' })
+
+                if(response.errors && response.errors.length > 0) {
+                    throw new Error(JSON.stringify(response.errors))
+                }
                 return response
             }))
-
-
-            if(profileCreateResponse.errors && profileCreateResponse.errors.length > 0){
-                throw new Error(JSON.stringify(profileCreateResponse.errors.map((error) => error.errorType)))
-            }
 
             const response = await signUp({
                 username: userEmail,
@@ -264,16 +269,17 @@ export default function SignUp(){
         return (
             userFirstName === undefined || 
             userLastName === undefined || 
-            userEmail === undefined ||(
+            userEmail === undefined || ((
             participantFirstName === undefined ||
-            participantLastName === undefined ) || participants.length <= 0) ||
+            participantLastName === undefined ) && participants.length <= 0)) ||
             !(passwordMatch &&
             passwordNumber &&
             passwordSpecialCharacter &&
             passwordUpperCharacter &&
             passwordLowerCharacter && 
             passwordMinCharacters &&
-            termsAndConditions)
+            termsAndConditions) ||
+            window.localStorage.getItem('user') !== null
     }
 
 
