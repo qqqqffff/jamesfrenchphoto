@@ -81,6 +81,7 @@ export type Timeslot = {
     register?: string,
     start: Date;
     end: Date;
+    // participant?: Participant, //TODO: implement me
 }
 
 export type UserTag = {
