@@ -22,11 +22,11 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
         duration: { hours: delta.getHours(), minutes: delta.getMinutes() },
         title: 'LAF Photoshoot',
         description: 'Photoshoot for your participant',
-        url: 'https://www.jamesfrenchphotography.com',
+        url: 'https://www.jamesfrenchphoto.com',
         geo: { lat: 32.813040, lon: -96.803810 },
         location: '3624 Oak Lawn Ave # 222, Dallas, TX 75219',
         status: 'CONFIRMED',
-        categories: ['James French Photography', 'Photoshoot', 'La Fiesta'],
+        categories: ['James French Photography', 'Photoshoot', 'La Fiesta 2025', 'Debutante', 'Headshot'],
         busyStatus: 'BUSY',
         organizer: { name: 'James French Photography', email: 'no-reply@jamesfrenchphotography.com' },
         attendees: [
