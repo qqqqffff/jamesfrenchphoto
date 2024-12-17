@@ -192,7 +192,7 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
             const userTag: UserTag = {
               ...tagResponse.data,
               color: tagResponse.data.color ?? undefined,
-              collections: collections
+              collections: collections,
             }
 
             return userTag
@@ -272,7 +272,8 @@ const router = createBrowserRouter(
                       color: tagResponse.data.color ?? undefined,
                     },
                     selected: {
-                      selected: false,
+                      selected: true,
+                      participantId: '1'
                     }
                   }
                   return tag

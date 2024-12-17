@@ -46,28 +46,7 @@ export const Home: FC<ClientHomeProps> = ({ user, tags }) => {
                                 <></>
                         )}
                     </div>
-                
-                    {/* <Button
-                    onClick={async () => {
-                        // const response = await client.models.UserProfile.list()
-                        // const response = await client.models.UserProfile.create({email: user.attributes.email!})
-                        // const response = await client.models.UserTag.create({
-                        //     name: 'TRF Princess Debutante 2024',
-                        //     collectionId: "e2606167-0002-4503-a001-dff283705f51"
-                        // })
-                        // const response = await client.models.UserProfile.update({
-                        //     email: '1apollo.rowe@gmail.com',
-                        //     userTags: ["3ef8bb7b-5cf8-4361-8ef3-50c8be2d493a"]
-                        // })
-                        // const response = await client.models.PhotoCollection.update({ 
-                        //     id: "e2606167-0002-4503-a001-dff283705f51",
-                        //     tagId: "3ef8bb7b-5cf8-4361-8ef3-50c8be2d493a" 
-                        // })
-                        // const response = await client.models.PhotoPaths.list()
-                        const response = await client.models.SubCategory.list()
-                        console.log(response)
-                    }}
-                    >this does something</Button> */}
+                    
                     <span className="text-3xl">Your Collections:</span>
                     {collections?.filter((collection) => collection.name).length > 0 ? 
                         collections?.filter((collection) => collection.name).map((collection) => {
