@@ -59,6 +59,11 @@ export const CreatePackageModal: FC<CreatePackageProps> = ({ onClose, open, tags
     }
 
     function packageTagDropdownLabel(tag?: UserTag) {
+        if(tags.length == 0) {
+            return (
+                <span>None</span>
+            )
+        }
         if(tag){
             return (
                 <span className={`text-${tag.color ?? 'black'}`}>{tag.name}</span>
@@ -88,6 +93,7 @@ export const CreatePackageModal: FC<CreatePackageProps> = ({ onClose, open, tags
                         <Dropdown
                             label={packageTagDropdownLabel(activeTag)}
                             color="light"
+                            disabled={tags.length == 0}
                         >
                             {tags.map((tag, index) => {
                                 return (

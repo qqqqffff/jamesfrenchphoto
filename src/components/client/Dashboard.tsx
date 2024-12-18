@@ -147,6 +147,8 @@ export function Dashboard() {
                               const col: PhotoCollection = {
                                 ...photoCollection.data,
                                 coverPath: photoCollection.data.coverPath ?? undefined,
+                                paths: [], //TODO: fix me,
+                                tags: [] //TODO: fix me
                               }
                               return col
                             }))).filter((collection) => collection !== undefined))
@@ -245,6 +247,8 @@ export function Dashboard() {
                                     const collection: PhotoCollection = {
                                         ...collectionData,
                                         coverPath: collectionData.coverPath ?? undefined,
+                                        tags: [], //TODO: fix me
+                                        paths: [], //TODO: fix me
                                     }
                                     return collection
                                 }))).filter((item) => item !== undefined)

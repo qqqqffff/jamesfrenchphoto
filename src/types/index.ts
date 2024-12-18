@@ -61,8 +61,6 @@ export type PicturePath = {
     id: string;
     url: string;
     path: string;
-    height: number;
-    width: number;
     order: number;
 }
 
@@ -73,6 +71,8 @@ export type PhotoCollection = {
     id: string;
     updatedAt: string;
     eventId: string;
+    paths: PicturePath[]
+    tags: UserTag[]
 }
 
 export type Timeslot = {

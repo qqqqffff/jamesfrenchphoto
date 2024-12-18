@@ -378,6 +378,7 @@ export default function SignUp(){
         return true
     }
 
+
     const displayTags = participantTags
         .filter((tag) => tag)
         .map((tag) => tag)
@@ -590,7 +591,9 @@ export default function SignUp(){
                                     />
                                     <Label className="ms-2 font-medium text-lg" htmlFor="participantTags">User Tags:</Label>
                                     <Dropdown
-                                        label={availableTags.length > 0 ? displayTags.length > 0 ? displayTags : 'Select' : 'None'} color='light' dismissOnClick={false}>
+                                        label={availableTags.length > 0 ? displayTags.length > 0 ? displayTags : 'Select' : 'None'} color='light' dismissOnClick={false}
+                                        disabled={availableTags.length == 0}
+                                    >
                                         {availableTags.map((tag, index) => {
                                             const activeParticipantId = activeParticipant?.id ?? '1'
                                             return (

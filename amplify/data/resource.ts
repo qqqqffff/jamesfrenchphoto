@@ -39,11 +39,10 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       path: a.string().required(),
-      displayHeight: a.integer(),
-      displayWidth: a.integer(),
       order: a.integer().required(),
       collectionId: a.id().required(),
-      collection: a.belongsTo('PhotoCollection', 'collectionId')
+      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      favorites: a.hasMany('UserFavorites', 'pathId')
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('collectionId')])
@@ -52,7 +51,7 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       pathId: a.id().required(),
-      path: a.belongsTo('PhotoPath', 'pathId'),
+      path: a.belongsTo('PhotoPaths', 'pathId'),
       userEmail: a.string().required(),
       userProfile: a.belongsTo('UserProfile', 'userEmail'),
     })
@@ -148,6 +147,7 @@ const schema = a.schema({
       participantEmail: a.string(),
       participant: a.hasMany('Participant', 'userEmail'),
       activeParticipant: a.id(),
+      favorites: a.hasMany('UserFavorites', 'userEmail')
     })
     .identifier(['email'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create'])]),
