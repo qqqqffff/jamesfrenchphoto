@@ -6,6 +6,7 @@ import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import useWindowDimensions from "../../hooks/windowDimensions";
 import { textInputTheme } from "../../utils";
+import { UserStorage } from "../../types";
 
 const client = generateClient<Schema>()
 
@@ -18,9 +19,15 @@ interface SignInForm extends HTMLFormElement{
     readonly elements: SignInFormElements
 }
 
+interface NotificationComponent {
+    message: string, 
+    color: string,
+    action?: Function
+}
+
 export default function SignIn() {
     const navigate = useNavigate()
-    const [notifications, setNotifications] = useState<string[]>([])
+    const [notifications, setNotifications] = useState<NotificationComponent[]>([])
     const [formErrors, setFormErrors] = useState<string[]>([])
     const [submitting, setSubmitting] = useState(false)
     const { width } = useWindowDimensions()
@@ -31,18 +38,32 @@ export default function SignIn() {
     const [passwordMinCharacters, setPasswordMinCharacters] = useState(false)
     const [passwordUpperCharacter, setPasswordUpperCharacter] = useState(false)
     const [passwordLowerCharacter, setPasswordLowerCharacter] = useState(false)
+    const [username, setUsername] = useState('')
 
     const [apiCall, setApiCall] = useState(false)
 
     useEffect(() => {
         async function api(){
-            let components: string[] = []
+            let components: NotificationComponent[] = []
+
+            if(window.localStorage.getItem('user') !== null) {
+                const direction = (JSON.parse(window.localStorage.getItem('user')!) as UserStorage).groups.includes('ADMINS') ? 'admin' : 'client'
+                components.push({
+                    message: 'You are already logged in! Redirecting to your dashboard in 5 seconds.',
+                    color: 'red',
+                    action: () => setTimeout(() => navigate(`/${direction}/dashboard`), 5000)
+                })
+            }
 
             if(history.state && history.state.usr){
                 if(history.state.usr.createAccountSuccess){
-                    components.push('Successfully created user! Login with the user\'s email and password you just set!')
+                    components.push({
+                        message: 'Successfully created user! Login with the user\'s email and password you just set!',
+                        color: 'green'
+                    })
                 }
             }
+            
             setNotifications(components)
             setApiCall(true)
         }
@@ -51,6 +72,16 @@ export default function SignIn() {
             api()
         }
     }, [])
+
+    function validate(){
+        return (
+            window.localStorage.getItem('user') === null &&
+            username !== '' &&
+            password
+        )
+    }
+
+
 
     async function handlesubmit(event: FormEvent<SignInForm>) {
         event.preventDefault()
@@ -65,6 +96,7 @@ export default function SignIn() {
             if(response.nextStep.signInStep == 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED'){
                 setSubmitting(false)
                 setPasswordResetVisible(true)
+                setPassword('')
                 return
             }
 
@@ -137,10 +169,11 @@ export default function SignIn() {
             <div className='flex flex-col'>
                 {notifications.length > 0 ? (
                     notifications.map((element, index) => {
+                        if(element.action) element.action()
                         return (
                             <div key={index} className="flex justify-center items-center font-main mb-4">
-                                <Alert color='green' className="text-lg w-[90%]" onDismiss={() => {setNotifications(notifications.filter((e) => e != element))}}>
-                                    <p>{element}</p>
+                                <Alert color={element.color} className="text-lg w-[90%]" onDismiss={() => {setNotifications(notifications.filter((e) => e != element))}}>
+                                    <p>{element.message}</p>
                                 </Alert>
                             </div>
                         )
@@ -209,12 +242,12 @@ export default function SignIn() {
                     <p className="font-bold text-4xl mb-8 mt-2 text-center">Welcome Back</p>
                     <div className={`flex flex-col gap-3 ${width > 500 ? 'w-[60%]' : 'w-full px-6'}  max-w-[32rem]`}>
                         <Label className="ms-2 font-semibold text-xl" htmlFor="email">Email:</Label>
-                        <TextInput sizing='lg' className="mb-4 w-full" placeholder="Email" type="email" id="email" name="email" />
+                        <TextInput sizing='lg' className="mb-4 w-full" placeholder="Email" type="email" id="email" name="email" onChange={(event) => setUsername(event.target.value)} value={username} />
                         <Label className="ms-2 font-semibold text-xl" htmlFor="password">Password:</Label>
-                        <TextInput sizing='lg' className="mb-4 w-full" placeholder="Password" type="password" id="password" name="password" />
+                        <TextInput sizing='lg' className="mb-4 w-full" placeholder="Password" type="password" id="password" name="password" onChange={(event) => setPassword(event.target.value)} value={password} />
                         <div className="flex justify-end">
                             {/* <a href='contact-form' className="text-blue-500 hover:underline">No Account? Purchase a package first!</a> */}
-                            <Button isProcessing={submitting} className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit">Login</Button>
+                            <Button isProcessing={submitting} className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" disabled={!validate()}>Login</Button>
                         </div>
                     </div>
                 </div>

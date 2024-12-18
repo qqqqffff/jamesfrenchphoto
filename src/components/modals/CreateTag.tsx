@@ -3,7 +3,7 @@ import { ModalProps } from ".";
 import { Button, Checkbox, Datepicker, Dropdown, Label, Modal, TextInput } from "flowbite-react";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
-import { PhotoCollection, Timeslot, UserTag } from "../../types";
+import { Participant, PhotoCollection, Timeslot, UserTag } from "../../types";
 import { currentDate, DAY_OFFSET, defaultColors, GetColorComponent, textInputTheme } from "../../utils";
 import { BiSolidSquareRounded } from "react-icons/bi";
 import { CompactSlotComponent, SlotComponent } from "../timeslot/Slot";
@@ -79,13 +79,41 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                 console.log(timeslotTags)
                 if(timeslotTags){
                     activeTimeslots = (await Promise.all(timeslotTags.data.map(async (timeslotTags) => {
-                        const timeslot = (await timeslotTags.timeslot()).data
-                        if(!timeslot) return
-                        return {
-                            ...timeslot,
-                            start: new Date(timeslot.start),
-                            end: new Date(timeslot.end)
-                        } as Timeslot
+                        const timeslotResponse = (await timeslotTags.timeslot()).data
+                        if(!timeslotResponse || timeslotResponse.id === null) return
+                        const tagResponse = (await timeslotTags.tag()).data
+                        let tag: UserTag | undefined
+                        let participant: Participant | undefined
+                        if(tagResponse) {
+                            tag = { 
+                                ...tagResponse,
+                                color: tagResponse.color ?? undefined
+                            }
+                            const participantResponse = (await timeslotResponse.participant()).data
+                            if(participantResponse){
+                                participant = {
+                                    ...participantResponse,
+                                    preferredName: participantResponse.preferredName ?? undefined,
+                                    //unnecessary fields
+                                    userTags: [],
+                                    middleName: undefined,
+                                    email: undefined,
+                                    contact: false,
+                                    timeslot: undefined
+                                }
+                            }
+                        }
+
+                        const timeslot: Timeslot = {
+                            ...timeslotResponse,
+                            id: timeslotResponse.id!,
+                            start: new Date(timeslotResponse.start),
+                            end: new Date(timeslotResponse.end),
+                            tag: tag,
+                            participant: participant,
+                            register: timeslotResponse.register ?? undefined
+                        }
+                        return timeslot
                     }))).filter((timeslot) => timeslot !== undefined)
                     console.log(activeTimeslots)
                 }
@@ -264,7 +292,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                                             const timeslots = activeTimeslots.filter((ts) => ts.id !== timeslot.id)
                                             setActiveTimeslots(timeslots)
                                         }
-                                    }}><SlotComponent timeslot={timeslot} displayRegister/></button>)
+                                    }}><SlotComponent timeslot={timeslot} participant={timeslot.participant} tag={timeslot.tag} /></button>)
                             }) : <Label className="text-lg italic text-gray-500">No timeslots for this date</Label>}
                         </div>
                         <div className="grid grid-cols-2 gap-2 w-full border-gray-500 rounded-lg px-2 py-2 max-h-[250px] overflow-auto">
@@ -273,7 +301,9 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                                     <button className="hover:bg-red-300 rounded-lg" type='button' onClick={() => {
                                         const timeslots = activeTimeslots.filter((ts) => ts.id !== timeslot.id)
                                         setActiveTimeslots(timeslots)
-                                    }}><CompactSlotComponent timeslot={timeslot} displayRegister/></button>
+                                    }}>
+                                        <CompactSlotComponent timeslot={timeslot} participant={timeslot.participant} tag={timeslot.tag} />
+                                    </button>
                                 )
                             }) : <Label className="text-lg italic text-gray-500">No selected timeslots</Label>}
                         </div>

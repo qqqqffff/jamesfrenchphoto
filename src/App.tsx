@@ -109,13 +109,25 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
         const timeslotResponse = await getProfileResponse.data.timeslot()
         timeslot = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
           if(!timeslot.id) return
+          let tag: UserTag | undefined
+          const tsTagResponse = await timeslot.timeslotTag()
+          if(tsTagResponse && tsTagResponse.data) {
+              const tagResponse = await tsTagResponse.data.tag()
+              if(tagResponse && tagResponse.data){
+                  tag = {
+                      ...tagResponse.data,
+                      color: tagResponse.data.color ?? undefined,
+                  }
+              }
+          }
           const ts: Timeslot = {
             ...timeslot,
             id: timeslot.id,
             register: timeslot.register ?? undefined,
-            tagId: (await timeslot.timeslotTag()).data?.tagId,
+            tag: tag,
             start: new Date(timeslot.start),
             end: new Date(timeslot.end),
+            participant: undefined,
           }
           return ts
         }))).filter((timeslot) => timeslot !== undefined) : []
@@ -152,21 +164,6 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
       else if(participantResponse.data.length > 0){
         const parts: Participant[] = participantResponse ? (await Promise.all(participantResponse.data.map(async (participant) => {
           if(!participant.id) return
-
-          //timeslots
-          const timeslotResponse = await participant.timeslot()
-          const timeslot: Timeslot[] = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
-            if(!timeslot.id) return
-            const ts: Timeslot = {
-              ...timeslot,
-              id: timeslot.id,
-              register: timeslot.register ?? undefined,
-              tagId: (await timeslot.timeslotTag()).data?.tagId,
-              start: new Date(timeslot.start),
-              end: new Date(timeslot.end),
-            }
-            return ts
-          }))).filter((timeslot) => timeslot !== undefined) : []
 
           //tags
           const userTags: UserTag[] = participant.userTags ? (await Promise.all((participant.userTags as string[]).map(async (tag) => {
@@ -212,6 +209,24 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
 
             return userTag
           }))).filter((tag) => tag !== undefined) : []
+
+          //timeslots
+          const timeslotResponse = await participant.timeslot()
+          const timeslot: Timeslot[] = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
+            if(!timeslot.id) return
+            const tagId = (await timeslot.timeslotTag()).data?.tagId
+
+            const ts: Timeslot = {
+              ...timeslot,
+              id: timeslot.id,
+              register: timeslot.register ?? undefined,
+              tag: userTags.find((tag) => tag.id == tagId),
+              start: new Date(timeslot.start),
+              end: new Date(timeslot.end),
+              participant: undefined
+            }
+            return ts
+          }))).filter((timeslot) => timeslot !== undefined) : []
 
           //all together
           const part: Participant = {
