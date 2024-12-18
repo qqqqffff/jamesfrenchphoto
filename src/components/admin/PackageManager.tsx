@@ -85,7 +85,7 @@ export default function(){
                     {
                         packages.map((pack, index) => {
                             
-                            const packageClass = `flex flex-row items-center justify-between hover:bg-gray-100 rounded-lg py-1 px-2 w-full ${activePackage?.id == pack.id ? 'bg-gray-200' : ''}`
+                            const packageClass = `flex flex-row items-center flex-col gap-2 hover:bg-gray-100 rounded-lg py-1 px-2 w-full ${activePackage?.id == pack.id ? 'bg-gray-200' : ''}`
                             return (
                                 <button className={packageClass} key={index}
                                     onClick={async () => {
@@ -105,8 +105,10 @@ export default function(){
                                         }
                                     }}
                                 >
-                                    <span >{pack.name}</span>
-                                    <Badge theme={badgeColorThemeMap} color={pack.tag.color}>LAF Debutante 2025</Badge>
+                                    <span className="flex-col">{pack.name}</span>
+
+                                    <Badge theme={badgeColorThemeMap} color={pack.tag.color}>{pack.tag.name}</Badge>
+
                                 </button>
                                 
                             )

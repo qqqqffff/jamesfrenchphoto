@@ -72,9 +72,7 @@ export const SlotComponent: FC<SlotProps> = ({ timeslot, participant, tag }) => 
                             {`${participant.preferredName ? participant.preferredName : participant.firstName} ${participant.lastName}`}
                         </span>
                     ) : (
-                        <span>
-                            No Signup Yet
-                        </span>
+                        <></>
                     )
             }
             {

@@ -1,4 +1,4 @@
-import { Badge, Button, ButtonGroup, Checkbox, Datepicker, Dropdown, Label, Tooltip } from "flowbite-react"
+import { Badge, Button, ButtonGroup, Checkbox, Datepicker, Dropdown, Label, Progress, Tooltip } from "flowbite-react"
 import { FC, useEffect, useState } from "react"
 import { ControlComponent } from "../admin/ControlPannel"
 import { 
@@ -49,6 +49,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
     const [activeConsole, setActiveConsole] = useState<string>('myTimeslots')
     const [apiCall, setApiCall] = useState(false)
     const [notify, setNotify] = useState(false)
+    const [loading, setLoading] = useState(false)
 
     useEffect(() => {
         async function api(){
@@ -301,14 +302,20 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                             }>
                                 <Badge color="light" icon={HiOutlineInformationCircle} className="text-2xl text-gray-600 bg-transparent" theme={badgeColorThemeMap} size="" />
                             </Tooltip>)}
+                        
                     </div>
+                    { !loading ? (<></>) : 
+                        (
+                            <Progress progress={100} textLabel="Loading..." textLabelPosition='inside' labelText size="lg"/>
+                        )
+                    }
                     {
                         admin ? 
                             (
                             <Datepicker minDate={minDate} className='mt-2' onChange={async (date) => {
                                 if(date) {
                                     let timeslots: Timeslot[] = []
-
+                                    setLoading(true)
                                     timeslots = (await Promise.all((await client.models.Timeslot.list({ filter: {
                                         start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
                                     }})).data.map(async (timeslot) => {
@@ -374,6 +381,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                     setUpdatingTimeslot(timeslots.length > 0)
                                     setActiveDate(date)
                                     setTimeslots(timeslots)
+                                    setLoading(false)
                                 }
                             }}/>
                             ) : (
@@ -491,7 +499,11 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         { userTags ?  
                             (formatTimeslot().length > 0 ? 
                                 formatTimeslot() : 
-                                (<Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>)
+                                (
+                                    <div className="flex flex-row w-full items-center justify-center col-start-2">
+                                        <Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>
+                                    </div>
+                                )
                             ) :
                             (admin && timeslots && timeslots.length > 0 ? timeslots
                                 .sort((a, b) => a.start.getTime() - b.start.getTime())
@@ -500,7 +512,11 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                     return (
                                         <SlotComponent timeslot={timeslot} participant={timeslot.participant} tag={timeslot.tag} key={index} />
                                     )
-                            }) : (<Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>))}
+                            }) : (
+                                <div className="flex flex-row w-full items-center justify-center col-start-2">
+                                    <Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>
+                                </div>
+                            ))}
                     </div>
                 </div>
                 {
