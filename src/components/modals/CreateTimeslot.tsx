@@ -13,9 +13,7 @@ interface CreateTimeslotModalProps extends ModalProps {
     update: boolean;
 }
 
-//TODO: when changing start and end dates try to preserve the currently selected time ranges
 export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose, day, update}) => {
-    console.log(open, day, update)
     const [startTime, setStartTime] = useState<string | Date>('Select Start Time')
     const [endTime, setEndTime] = useState<string | Date>('Select End Time')
     const [increment, setIncrement] = useState<number>(30)
@@ -185,12 +183,12 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                     <div className="flex flex-col">
                         <span className="self-center text-lg max-h-">Date:</span>
                         {/* TODO: scrollable date arrows */}
-                        <span className="self-center text-2xl mb-4 underline underline-offset-4">{day.toLocaleDateString()}</span>
+                        <span className="self-center text-2xl mb-4 underline underline-offset-4">{day.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}</span>
                         <div className="grid grid-cols-2 gap-2 mb-6">
                             <div className="flex flex-col items-center">
                                 <div className="flex flex-col gap-2">
                                     <Label className="ms-2 font-medium text-lg" htmlFor="name">Start:</Label>
-                                    <Dropdown placement="bottom-end" label={typeof startTime === 'string' ? startTime : startTime.toLocaleTimeString()} color="light" id="name" name="name" className="overflow-auto max-h-[250px]">
+                                    <Dropdown placement="bottom-end" label={typeof startTime === 'string' ? startTime : startTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} color="light" id="name" name="name" className="overflow-auto max-h-[250px]">
                                         {times.map((time, index) => { 
                                                 return (
                                                     <Dropdown.Item 
@@ -226,7 +224,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
 
                                                         setStartTime(time)
                                                         setTimeslots(timeslots.sort((a, b) => a.start.getTime() - b.start.getTime()))
-                                                    }}>{time.toLocaleTimeString()}</Dropdown.Item>
+                                                    }}>{time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</Dropdown.Item>
                                                 )
                                             })}
                                     </Dropdown>
@@ -235,7 +233,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                             <div className="flex flex-col items-center">
                                 <div className="flex flex-col gap-2">
                                     <Label className="ms-2 font-medium text-lg" htmlFor="name">End:</Label>
-                                    <Dropdown placement="bottom-end" label={typeof endTime === 'string' ? endTime : endTime.toLocaleTimeString()} color="light" id="name" name="name" disabled={typeof startTime == 'string'} className="overflow-auto max-h-[250px]">
+                                    <Dropdown placement="bottom-end" label={typeof endTime === 'string' ? endTime : endTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} color="light" id="name" name="name" disabled={typeof startTime == 'string'} className="overflow-auto max-h-[250px]">
                                         {times.map((time, index) => { 
                                                 return (
                                                     <Dropdown.Item key={index} className='disabled:text-gray-400 disabled:cursor-not-allowed' 
@@ -268,7 +266,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
 
                                                             setEndTime(time)
                                                             setTimeslots(timeslots.sort((a, b) => a.start.getTime() - b.start.getTime()))
-                                                        }}>{time.toLocaleTimeString()}</Dropdown.Item>
+                                                        }}>{time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</Dropdown.Item>
                                                 )
                                             })}
                                     </Dropdown>
@@ -326,7 +324,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                                                     else {
                                                         setActiveTimeslots([...activeTimeslots, timeslot])
                                                     }
-                                                }}>{timeslot.start.toLocaleTimeString()}</button>
+                                                }}>{timeslot.start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</button>
                                         )})}
                                 </div>
                                 <div className="flex flex-row w-full justify-end">

@@ -77,11 +77,11 @@ export type PhotoCollection = {
 
 export type Timeslot = {
     id: string,
-    tagId?: string,
+    tag?: UserTag,
     register?: string,
     start: Date;
     end: Date;
-    // participant?: Participant, //TODO: implement me
+    participant?: Participant,
 }
 
 export type UserTag = {
