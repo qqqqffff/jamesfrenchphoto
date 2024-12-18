@@ -1,17 +1,14 @@
-import { FC, useEffect, useState } from "react";
+import { FC } from "react";
 import { Participant, Timeslot, UserTag } from "../../types";
-import { generateClient } from "aws-amplify/api";
-import { Schema } from "../../../amplify/data/resource";
 import { formatTime } from "../../utils";
 import { HiOutlineCalendar } from "react-icons/hi2";
 import { EventAttributes, createEvent } from 'ics'
 import { DateTime } from 'luxon'
 
-const client = generateClient<Schema>()
-
 export interface SlotProps {
     timeslot: Timeslot
-    displayRegister: boolean
+    participant?: Participant
+    tag?: UserTag
 }
 
 export function createTimeString(timeslot: Timeslot){
@@ -64,92 +61,27 @@ export function createTimeslotEvent(timeslot: Timeslot, participant: Participant
     )
 }
 
-export const SlotComponent: FC<SlotProps> = ({ timeslot, displayRegister }) => {
-    const [apiCall, setApiCall] = useState(false)
-    const [tag, setTag] = useState<UserTag>()
-    const [timeslotParticipant, setTimeslotParticipant] = useState<Participant>()
-    
-    useEffect(() => {
-        async function api(){
-            const timeslots = await client.models.Timeslot.get({id: timeslot.id})
-            let tag: UserTag | undefined
-            let participant: Participant | undefined
-            if(timeslots && timeslots.data){
-                const timeslotTagResponse = await timeslots.data.timeslotTag()
-                
-                if(timeslotTagResponse && timeslotTagResponse.data){
-                    const tagResponse = await timeslotTagResponse.data.tag()
-                    if(tagResponse && tagResponse.data){
-                        tag = {
-                            ...tagResponse.data,
-                            color: tagResponse.data.color ?? undefined
-                        }
-                    }
-                }
-                
-                const participantResponse = await timeslots.data.participant()
-
-                if(participantResponse && participantResponse.data){
-                    participant = {
-                        ...participantResponse.data,
-                        userTags: [],
-                        middleName: undefined,
-                        preferredName: participantResponse.data.preferredName ?? undefined,
-                        contact: false,
-                        email: undefined,
-                        timeslot: undefined,
-                    }
-                }
-                else if(timeslot.register) {
-                    const userProfileResponse = await client.models.UserProfile.get({ email: timeslot.register})
-
-                    if(userProfileResponse && userProfileResponse.data && 
-                        userProfileResponse.data.participantFirstName && userProfileResponse.data.participantLastName) {
-                        participant = {
-                            id: '',
-                            firstName: userProfileResponse.data.participantFirstName,
-                            lastName: userProfileResponse.data.participantLastName,
-                            preferredName: userProfileResponse.data.participantPreferredName ?? undefined,
-                            contact: false,
-                            userTags: []
-                            
-                        }
-                    }
-                }
-            }
-
-            setTimeslotParticipant(participant)
-            setTag(tag)
-            setApiCall(true)
-        }
-
-        if(!apiCall){
-            api()
-        }
-    })
-
+export const SlotComponent: FC<SlotProps> = ({ timeslot, participant, tag }) => {
     return (
         <div className={`flex flex-col relative border border-black justify-center items-center rounded-lg py-2 px-4 text-${tag?.color ?? 'black'}`}>
             <span>{"Time: " + createTimeString(timeslot)}</span>
             {
-                displayRegister ? 
+                participant ? 
                     (
-                        timeslotParticipant !== undefined ? (
-                            <span>{`${timeslotParticipant.preferredName ? timeslotParticipant.preferredName : timeslotParticipant.firstName} ${timeslotParticipant.lastName}`}</span>
-                        ) : (
-                            <span>
-                                No Signup Yet
-                            </span>
-                        )
-                    ) : (<></>)
+                        <span>
+                            {`${participant.preferredName ? participant.preferredName : participant.firstName} ${participant.lastName}`}
+                        </span>
+                    ) : (
+                        <span>
+                            No Signup Yet
+                        </span>
+                    )
             }
             {
-                displayRegister ? (
-                    timeslotParticipant !== undefined ? (
-                        <div className="absolute inset-y-0 right-0 self-center me-2">
-                            {createTimeslotEvent(timeslot, timeslotParticipant)}
-                        </div>
-                    ) : (<></>)
+                participant ? (
+                    <div className="absolute inset-y-0 right-0 self-center justify-self-center me-2">
+                        {createTimeslotEvent(timeslot, participant)}
+                    </div>
                 ) : (<></>)
             }
         </div>)

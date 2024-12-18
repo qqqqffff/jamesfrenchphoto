@@ -72,13 +72,25 @@ export function Dashboard() {
                       const timeslotResponse = await item.timeslot()
                       timeslot = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
                         if(!timeslot.id) return
+                        let tag: UserTag | undefined
+                        const tsTagResponse = await timeslot.timeslotTag()
+                        if(tsTagResponse && tsTagResponse.data) {
+                            const tagResponse = await tsTagResponse.data.tag()
+                            if(tagResponse && tagResponse.data){
+                                tag = {
+                                    ...tagResponse.data,
+                                    color: tagResponse.data.color ?? undefined,
+                                }
+                            }
+                        }
                         const ts: Timeslot = {
                           ...timeslot,
                           id: timeslot.id,
                           register: timeslot.register ?? undefined,
-                          tagId: (await timeslot.timeslotTag()).data?.tagId,
+                          tag: tag,
                           start: new Date(timeslot.start),
                           end: new Date(timeslot.end),
+                          participant: undefined
                         }
                         return ts
                       }))).filter((timeslot) => timeslot !== undefined) : []
@@ -115,51 +127,56 @@ export function Dashboard() {
                     else if(participantResponse.data.length > 0){
                       const parts: Participant[] = participantResponse ? (await Promise.all(participantResponse.data.map(async (participant) => {
                         if(!participant.id) return
+
+                        //tags
+                        const userTags: UserTag[] = participant.userTags ? (await Promise.all((participant.userTags as string[]).map(async (tag) => {
+                            if(!tag) return
+                            const tagResponse = await client.models.UserTag.get({ id: tag })
+                            if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
+                
+                            //collection
+                            const collectionTagResponse = await tagResponse.data.collectionTags()
+                            const collections: PhotoCollection[] = []
+                            if(collectionTagResponse && collectionTagResponse.data && collectionTagResponse.data.length > 0){
+                              collections.push(...(await Promise.all(collectionTagResponse.data.map(async (colTag) => {
+                                const photoCollection = await colTag.collection()
+                                if(!photoCollection || !photoCollection.data) return
+                                const col: PhotoCollection = {
+                                  ...photoCollection.data,
+                                  coverPath: photoCollection.data.coverPath ?? undefined,
+                                }
+                                return col
+                              }))).filter((collection) => collection !== undefined))
+                            }
+                
+                            const userTag: UserTag = {
+                              ...tagResponse.data,
+                              color: tagResponse.data.color ?? undefined,
+                              collections: collections
+                            }
+                
+                            return userTag
+                          }))).filter((tag) => tag !== undefined) : []
               
                         //timeslots
                         const timeslotResponse = await participant.timeslot()
                         const timeslot: Timeslot[] = timeslotResponse ? (await Promise.all(timeslotResponse.data.map(async (timeslot) => {
                           if(!timeslot.id) return
+                          const tagId = (await timeslot.timeslotTag()).data?.tagId
+
                           const ts: Timeslot = {
                             ...timeslot,
                             id: timeslot.id,
                             register: timeslot.register ?? undefined,
-                            tagId: (await timeslot.timeslotTag()).data?.tagId,
+                            tag: userTags.find((tag) => tag.id == tagId),
                             start: new Date(timeslot.start),
                             end: new Date(timeslot.end),
+                            participant: undefined
                           }
                           return ts
                         }))).filter((timeslot) => timeslot !== undefined) : []
               
-                        //tags
-                        const userTags: UserTag[] = participant.userTags ? (await Promise.all((participant.userTags as string[]).map(async (tag) => {
-                          if(!tag) return
-                          const tagResponse = await client.models.UserTag.get({ id: tag })
-                          if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
-              
-                          //collection
-                          const collectionTagResponse = await tagResponse.data.collectionTags()
-                          const collections: PhotoCollection[] = []
-                          if(collectionTagResponse && collectionTagResponse.data && collectionTagResponse.data.length > 0){
-                            collections.push(...(await Promise.all(collectionTagResponse.data.map(async (colTag) => {
-                              const photoCollection = await colTag.collection()
-                              if(!photoCollection || !photoCollection.data) return
-                              const col: PhotoCollection = {
-                                ...photoCollection.data,
-                                coverPath: photoCollection.data.coverPath ?? undefined,
-                              }
-                              return col
-                            }))).filter((collection) => collection !== undefined))
-                          }
-              
-                          const userTag: UserTag = {
-                            ...tagResponse.data,
-                            color: tagResponse.data.color ?? undefined,
-                            collections: collections
-                          }
-              
-                          return userTag
-                        }))).filter((tag) => tag !== undefined) : []
+                        
               
                         //all together
                         const part: Participant = {

@@ -133,13 +133,26 @@ export default function UserManagement(){
                     if(participantTimeslotsResponse.data && participantTimeslotsResponse.data.length > 0){
                         participantTimeslot = (await Promise.all(participantTimeslotsResponse.data.map(async (timeslot) => {
                             if(!timeslot || !timeslot.id) return
+                            //TODO: improve with si
+                            // let tag: UserTag | undefined
+                            // const tsTagResponse = await timeslot.timeslotTag()
+                            // if(tsTagResponse && tsTagResponse.data) {
+                            //     const tagResponse = await tsTagResponse.data.tag()
+                            //     if(tagResponse && tagResponse.data){
+                            //         tag = {
+                            //             ...tagResponse.data,
+                            //             color: tagResponse.data.color ?? undefined,
+                            //         }
+                            //     }
+                            // }
                             const ts: Timeslot = {
                                 ...timeslot,
                                 id: timeslot.id!,
                                 register: timeslot.register ?? undefined,
-                                tagId: (await timeslot.timeslotTag()).data?.tagId,
+                                tag: undefined,
                                 start: new Date(timeslot.start),
                                 end: new Date(timeslot.end),
+                                participant: undefined
                             }
                             return ts
                         }))).filter((item) => item !== undefined)
@@ -149,13 +162,15 @@ export default function UserManagement(){
                         (!profile.participantLastName || profile.participantLastName == participant.lastName)) {
                         participantTimeslot = (await Promise.all(timeslot.map(async (timeslot) => {
                             if(!timeslot || !timeslot.id) return
+                            //TODO: fix me too
                             const ts: Timeslot = {
                                 ...timeslot,
                                 id: timeslot.id!,
                                 register: timeslot.register ?? undefined,
-                                tagId: (await timeslot.timeslotTag()).data?.tagId,
+                                tag: undefined,
                                 start: new Date(timeslot.start),
                                 end: new Date(timeslot.end),
+                                participant: undefined
                             }
                             return ts
                         }))).filter((item) => item !== undefined)
@@ -193,13 +208,15 @@ export default function UserManagement(){
                     }).filter((tag) => tag !== undefined) : [],
                     timeslot: (await Promise.all(timeslot.map(async (timeslot) => {
                         if(!timeslot || !timeslot.id) return
+                        //TODO: fix me too
                         const ts: Timeslot = {
                             ...timeslot,
                             id: timeslot.id!,
                             register: timeslot.register ?? undefined,
-                            tagId: (await timeslot.timeslotTag()).data?.tagId,
+                            tag: undefined,
                             start: new Date(timeslot.start),
                             end: new Date(timeslot.end),
+                            participant: undefined
                         }
                         return ts
                     }))).filter((item) => item !== undefined),

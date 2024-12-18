@@ -16,7 +16,7 @@ import PackageManager from "./PackageManager";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
-    const [activeConsole, setActiveConsole] = useState('userManagement')
+    const [activeConsole, setActiveConsole] = useState('scheduler')
     const navigate = useNavigate()
     useEffect(() => {
         if(!user){

@@ -8,7 +8,7 @@ import {
     HiOutlineArrowLeft 
 } from "react-icons/hi2"
 import { CreateTimeslotModal } from "../modals/CreateTimeslot"
-import { Timeslot, UserTag } from "../../types"
+import { Participant, Timeslot, UserTag } from "../../types"
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
 import { SlotComponent } from "./Slot"
@@ -62,18 +62,30 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
             let profileTimeslots: Timeslot[] = []
 
             if(admin){
-                timeslots = (await client.models.Timeslot.list({ filter: {
+                timeslots = (await Promise.all((await client.models.Timeslot.list({ filter: {
                         start: { contains: currentDate.toISOString().substring(0, new Date().toISOString().indexOf('T')) },
-                    }})).data.map((timeslot) => {
+                    }})).data.map(async (timeslot) => {
                         if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
+                        let tag: UserTag | undefined
+                        const tsTagResponse = await timeslot.timeslotTag()
+                        if(tsTagResponse && tsTagResponse.data){
+                            const tagResponse = await tsTagResponse.data.tag()
+                            if(tagResponse && tagResponse.data){
+                                tag = {
+                                    ...tagResponse.data,
+                                    color: tagResponse.data.color ?? undefined,
+                                }
+                            }
+                        }
                         const ts: Timeslot = {
                             id: timeslot.id as string,
                             register: timeslot.register ?? undefined,
                             start: new Date(timeslot.start),
                             end: new Date(timeslot.end),
+                            tag: tag
                         }
                         return ts
-                    }).filter((timeslot) => timeslot !== undefined)
+                    }))).filter((timeslot) => timeslot !== undefined)
             }
             else if(userTags && !admin && userEmail){
                 const profileResponse = (await client.models.UserProfile.get({ email: userEmail})).data
@@ -116,7 +128,6 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                     id: timeslotResponse.id as string,
                                     start: new Date(timeslotResponse.start),
                                     end: new Date(timeslotResponse.end),
-                                    tagId: timeslotTag.tagId ?? undefined,
                                     register: timeslotResponse.register ?? undefined
                                 }
                                 return timeslot
@@ -161,6 +172,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
         if(profileResponse){
             profileTimeslots = (await Promise.all((await profileResponse.timeslot()).data.map((timeslot) => {
                 if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
+                
                 const ts: Timeslot = {
                     id: timeslot.id as string,
                     register: timeslot.register ?? undefined,
@@ -197,7 +209,6 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                     id: timeslotResponse.id as string,
                     start: new Date(timeslotResponse.start),
                     end: new Date(timeslotResponse.end),
-                    tagId: timeslotTag.tagId ?? undefined,
                     register: timeslotResponse.register ?? undefined
                 }
                 return timeslot
@@ -247,7 +258,7 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                                 setSelectedTimeslot(timeslot)
                             }
                         }} disabled={disabled} className={`${selected} rounded-lg enabled:hover:bg-gray-300 text-${color} ${disabledText}`}>
-                            <SlotComponent timeslot={timeslot} displayRegister={admin ?? false} />
+                            <SlotComponent timeslot={timeslot} />
                         </button>
                     )
                 })
@@ -297,29 +308,68 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                             <Datepicker minDate={minDate} className='mt-2' onChange={async (date) => {
                                 if(date) {
                                     let timeslots: Timeslot[] = []
-                                    if(admin){
-                                        timeslots = (await client.models.Timeslot.list({ filter: {
-                                            start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
-                                        }})).data.map((timeslot) => {
-                                            if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
-                                            const ts: Timeslot = {
-                                                id: timeslot.id as string,
-                                                register: timeslot.register ?? undefined,
-                                                start: new Date(timeslot.start),
-                                                end: new Date(timeslot.end),
+
+                                    timeslots = (await Promise.all((await client.models.Timeslot.list({ filter: {
+                                        start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
+                                    }})).data.map(async (timeslot) => {
+                                        if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
+                                        let tag: UserTag | undefined
+                                        const tsTagResponse = await timeslot.timeslotTag()
+                                        if(tsTagResponse && tsTagResponse.data){
+                                            const tagResponse = await tsTagResponse.data.tag()
+                                            if(tagResponse && tagResponse.data){
+                                                tag = {
+                                                    ...tagResponse.data,
+                                                    color: tagResponse.data.color ?? undefined,
+                                                }
                                             }
-                                            return ts
-                                        }).filter((timeslot) => timeslot !== undefined)
-                                    }
-                                    else if(!admin && userTags){
-                                        timeslots = Object.values(tagTimeslots)
-                                            .filter((timeslot) => timeslot !== undefined)
-                                            .filter((timeslot) => {
-                                                if(timeslot.length == 0) return false
-                                                return date.toISOString().includes(timeslot[0].start.toISOString().substring(0, timeslot[0].start.toISOString().indexOf('T')))
-                                            })
-                                            .reduce((prev, cur) => [...prev, ...cur], [])
-                                    }
+                                        }
+
+                                        const participantResponse = await timeslot.participant()
+                                        let participant: Participant | undefined
+                                        //TODO: improve me
+                                        if(participantResponse.data){
+                                            participant = {
+                                                ...participantResponse.data,
+                                                preferredName: participantResponse.data.preferredName ?? undefined,
+                                                //unnecessary fields
+                                                userTags: [],
+                                                middleName: undefined,
+                                                email: undefined,
+                                                contact: false,
+                                                timeslot: undefined
+                                            }
+                                        }
+                                        else if(timeslot.register) {
+                                            const userProfileResponse = await client.models.UserProfile.get({ email: timeslot.register })
+                                            if(userProfileResponse.data && 
+                                                userProfileResponse.data.participantFirstName && 
+                                                userProfileResponse.data.participantLastName){
+                                                participant = {
+                                                    id: '',
+                                                    firstName: userProfileResponse.data.participantFirstName,
+                                                    lastName: userProfileResponse.data.participantLastName,
+                                                    preferredName: userProfileResponse.data.participantPreferredName ?? undefined,
+                                                    //unnecessary fields
+                                                    userTags: [],
+                                                    middleName: undefined,
+                                                    email: undefined,
+                                                    contact: false,
+                                                    timeslot: undefined
+                                                }
+                                            }
+                                        }
+
+                                        const ts: Timeslot = {
+                                            id: timeslot.id as string,
+                                            register: timeslot.register ?? undefined,
+                                            start: new Date(timeslot.start),
+                                            end: new Date(timeslot.end),
+                                            participant: participant,
+                                            tag: tag
+                                        }
+                                        return ts
+                                    }))).filter((timeslot) => timeslot !== undefined)
                                     
                                     setUpdatingTimeslot(timeslots.length > 0)
                                     setActiveDate(date)
@@ -441,26 +491,14 @@ export const TimeslotComponent: FC<TimeslotComponentProps> = ({ admin, userEmail
                         { userTags ?  
                             (formatTimeslot().length > 0 ? 
                                 formatTimeslot() : 
-                                (<Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>)) :
+                                (<Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>)
+                            ) :
                             (admin && timeslots && timeslots.length > 0 ? timeslots
                                 .sort((a, b) => a.start.getTime() - b.start.getTime())
                                 .filter((timeslot) => timeslot !== undefined && timeslot.id !== undefined && timeslot.start !== undefined && timeslot.end !== undefined)
                                 .map((timeslot, index) => {
-                                    const selected = userEmail && userEmail === timeslot.register ? 'bg-gray-200' : ''
-
                                     return (
-                                        <button key={index} onClick={() => {
-                                            if(userEmail && userEmail === timeslot.register) {
-                                                setRegisterConfirmationVisible(true)
-                                                setSelectedTimeslot(timeslot)
-                                            }
-                                            else if(userEmail && userEmail === timeslot.register){
-                                                setUnegisterConfirmationVisible(true)
-                                                setSelectedTimeslot(timeslot)
-                                            }
-                                        }} disabled={admin || timeslot.register !== undefined} className={`${selected} rounded-lg enabled:hover:bg-gray-300`}>
-                                            <SlotComponent timeslot={timeslot} displayRegister={admin ?? false} />
-                                        </button>
+                                        <SlotComponent timeslot={timeslot} participant={timeslot.participant} tag={timeslot.tag} key={index} />
                                     )
                             }) : (<Label className="font-medium text-lg italic text-gray-500">No timeslots for this date</Label>))}
                     </div>
