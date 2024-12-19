@@ -37,22 +37,22 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         if(!apiCalled){
             console.log('api call')
             setApiCalled(true)
-            unsubscribe = client.models.PhotoPaths.observeQuery(
-                {filter: { collectionId: { eq: photoCollection.id } }})
-            .subscribe(async (data) => {
-                if(data.isSynced){
-                    console.log(data)
-                    setPhotoPaths((await Promise.all(data.items.map(async (item) => {
-                        return {
-                            id: item.id,
-                            path: item.path,
-                            url: (await getUrl({
-                                path: item.path
-                            })).url.toString()
-                        } as PicturePath
-                    }))).sort((a, b) => a.order - b.order))
-                }
-            })
+            // unsubscribe = client.models.PhotoPaths.observeQuery(
+            //     {filter: { collectionId: { eq: photoCollection.id } }})
+            // .subscribe(async (data) => {
+            //     if(data.isSynced){
+            //         console.log(data)
+            //         setPhotoPaths((await Promise.all(data.items.map(async (item) => {
+            //             return {
+            //                 id: item.id,
+            //                 path: item.path,
+            //                 url: (await getUrl({
+            //                     path: item.path
+            //                 })).url.toString()
+            //             } as PicturePath
+            //         }))).sort((a, b) => a.order - b.order))
+            //     }
+            // })
         }
         
         return () => {
@@ -74,9 +74,10 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         return path.substring(path.indexOf('_') + 1)
     }
 
-    async function saveCollection(){
+    // async function saveCollection(){
 
-    }
+    // }
+    //TODO: implement me
 
     function changesToSave(){
         return (

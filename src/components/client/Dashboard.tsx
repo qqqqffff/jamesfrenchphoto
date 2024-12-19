@@ -145,7 +145,9 @@ export function Dashboard() {
                                     ...photoCollection.data,
                                     coverPath: photoCollection.data.coverPath ?? undefined,
                                     paths: [], //TODO: fix me,
-                                    tags: [] //TODO: fix me
+                                    tags: [], //TODO: fix me
+                                    downloadable: photoCollection.data.downloadable ?? false, 
+                                    watermarkPath: photoCollection.data.watermarkPath ?? undefined,
                                 }
                                 return col
                               }))).filter((collection) => collection !== undefined))
@@ -266,6 +268,8 @@ export function Dashboard() {
                                         coverPath: collectionData.coverPath ?? undefined,
                                         tags: [], //TODO: fix me
                                         paths: [], //TODO: fix me
+                                        downloadable: collectionData.downloadable ?? false, 
+                                        watermarkPath: collectionData.watermarkPath ?? undefined,
                                     }
                                     return collection
                                 }))).filter((item) => item !== undefined)

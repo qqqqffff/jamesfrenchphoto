@@ -31,7 +31,9 @@ const schema = a.schema({
       coverPath: a.string(),
       name: a.string().required(),
       imagePaths: a.hasMany('PhotoPaths', 'collectionId'),
-      tags: a.hasMany('CollectionTag', 'collectionId')
+      tags: a.hasMany('CollectionTag', 'collectionId'),
+      watermarkPath: a.string(),
+      downloadable: a.boolean().default(false),
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),

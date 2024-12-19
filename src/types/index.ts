@@ -72,7 +72,9 @@ export type PhotoCollection = {
     updatedAt: string;
     eventId: string;
     paths: PicturePath[]
-    tags: UserTag[]
+    tags: UserTag[],
+    watermarkPath?: string,
+    downloadable: boolean,
 }
 
 export type Timeslot = {

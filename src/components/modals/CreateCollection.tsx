@@ -88,7 +88,9 @@ export const CreateCollectionModal: FC<UploadImagesProps> = ({ open, onClose, ev
                 ...collectionResponse.data,
                 paths: paths,
                 coverPath: undefined,
-                tags: selectedTags
+                tags: selectedTags,
+                downloadable: false, //TODO: implement me
+                watermarkPath: undefined, //TODO: implement me
             })
             setSubmitting(false)
             setProgress(undefined)

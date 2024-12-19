@@ -8,7 +8,7 @@ import {
     // HiOutlinePencil 
 } from "react-icons/hi2";
 import { Schema } from "../../../amplify/data/resource";
-import { remove } from "aws-amplify/storage";
+import { getUrl, remove } from "aws-amplify/storage";
 import { PhotoCollectionComponent } from "./PhotoCollection";
 import { PhotoCollection, PicturePath, Event, UserTag } from "../../types";
 import { CreateCollectionModal, CreateEventModal } from "../modals";
@@ -46,6 +46,8 @@ export default function CollectionManager(){
                         coverPath: collection.coverPath ?? undefined,
                         paths: [], //TODO: implement me
                         tags: [],
+                        downloadable: collection.downloadable ?? false,
+                        watermarkPath: collection.watermarkPath ?? undefined,
                     }
                     return mappedCollection
                 })
@@ -112,14 +114,20 @@ export default function CollectionManager(){
         if(!item){
             return (<>Error</>)
         }
-        const paths = await Promise.all(((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: item.id })).data).map(async (path) => {
-            return {
-                id: path.id,
-                order: path.order,
-                path: path.path,
-                url: ''
-            } as PicturePath
-        }))
+        const paths = await Promise.all(
+            (await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: item.id }))
+            .data.map(async (path) => {
+                const mappedPath: PicturePath = {
+                    id: path.id,
+                    order: path.order,
+                    path: path.path,
+                    url: (await getUrl({
+                        path: path.path
+                    })).url.toString()
+                }
+                return mappedPath
+            }
+        ))
         console.log(paths)
         return (<PhotoCollectionComponent photoCollection={item} photoPaths={paths}/>)
         // if(!interactionOverride)

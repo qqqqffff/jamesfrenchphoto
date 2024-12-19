@@ -10,6 +10,10 @@ export const storage = defineStorage({
         'packages/*': [
             allow.groups(['ADMINS']).to(['read', 'write', 'delete']),
             allow.groups(['USERS']).to(['read'])
+        ],
+        'watermarks/*': [
+            allow.groups(['ADMINS']).to(['read', 'write', 'delete']),
+            allow.groups(['USERS']).to(['read'])
         ]
     })
 })

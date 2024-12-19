@@ -52,9 +52,21 @@ export async function createParticipantFromUserProfile(userProfile: UserProfile,
         collections.push(...(await Promise.all(collectionTagResponse.data.map(async (colTag) => {
           const photoCollection = await colTag.collection()
           if(!photoCollection || !photoCollection.data) return
+          const paths = await photoCollection.data.imagePaths()
+          const mappedPaths: PicturePath[] = (await Promise.all(paths.data.map(async (path) => {
+            const mappedPath: PicturePath = {
+              ...path,
+              url: ''
+            }
+            return mappedPath
+          })))
           const col: PhotoCollection = {
             ...photoCollection.data,
             coverPath: photoCollection.data.coverPath ?? undefined,
+            paths: mappedPaths,
+            tags: [],
+            watermarkPath: photoCollection.data.watermarkPath ?? undefined,
+            downloadable: photoCollection.data.downloadable ?? false,
           }
           return col
         }))).filter((collection) => collection !== undefined))
@@ -178,9 +190,21 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
               collections.push(...(await Promise.all(collectionTagResponse.data.map(async (colTag) => {
                 const photoCollection = await colTag.collection()
                 if(!photoCollection || !photoCollection.data) return
+                const paths = await photoCollection.data.imagePaths()
+                const mappedPaths: PicturePath[] = (await Promise.all(paths.data.map(async (path) => {
+                  const mappedPath: PicturePath = {
+                    ...path,
+                    url: ''
+                  }
+                  return mappedPath
+                })))
                 const col: PhotoCollection = {
                   ...photoCollection.data,
                   coverPath: photoCollection.data.coverPath ?? undefined,
+                  paths: mappedPaths,
+                  tags: [],
+                  watermarkPath: photoCollection.data.watermarkPath ?? undefined,
+                  downloadable: photoCollection.data.downloadable ?? false,
                 }
                 return col
               }))).filter((collection) => collection !== undefined))
@@ -267,8 +291,11 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<Header />} id='/' loader={async () => {
       let userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined
-      let userProfile: UserProfile | null = await fetchUserProfile(userStorage)
-      return userProfile
+      try{
+        return await fetchUserProfile(userStorage)
+      }catch(err){
+        return null
+      }
     }} >
       <Route index element={<Home />} />
       <Route path='login' element={<SignIn />} />
@@ -319,8 +346,6 @@ const router = createBrowserRouter(
           return Promise.all((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: params.collectionId })).data.map(async (path) => {
             return {
               id: path.id,
-              width: path.displayWidth,
-              height: path.displayHeight,
               path: path.path,
               url: (await getUrl({
                 path: path.path,
