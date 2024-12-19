@@ -4,7 +4,6 @@ import { Button } from "flowbite-react"
 import { PicturePath } from "../../types"
 
 export const CollectionViewer = () => {
-    
     const collection = useLoaderData() as PicturePath[]
 
     const coverPath = 
@@ -48,7 +47,7 @@ export const CollectionViewer = () => {
     return (
         <div className="font-main">
             <div className="flex flex-row justify-center mb-10">
-                <Button color='light' onClick={() => navigate(`/${navigateControls ? 'admin' : 'client'}/dashboard`)}>{navigateControls ? 'Return to Admin Console' : 'Return Home'}</Button>
+                <Button  onClick={() => navigate(`/${navigateControls ? 'admin' : 'client'}/dashboard`)}>{navigateControls ? 'Return to Admin Console' : 'Return Home'}</Button>
             </div>
             <div className="border border-black flex flex-row justify-center items-center mb-2 relative">
                 <div className="absolute flex flex-col inset-0 place-self-center items-center justify-center">
@@ -64,7 +63,7 @@ export const CollectionViewer = () => {
                             {subCollection.map((picture, s_index) => {
                                 return (
                                     <div>
-                                        <img key={s_index} className="h-auto max-w-full rounded-lg" src={picture.url} alt="" />
+                                        <img key={s_index} className="h-auto max-w-full rounded-lg w-[300px]" src={picture.url} alt="" />
                                     </div>
                                 )
                             })}

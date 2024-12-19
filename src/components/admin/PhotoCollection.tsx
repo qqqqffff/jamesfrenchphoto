@@ -23,6 +23,7 @@ export type PhotoCollectionProps = {
 const client = generateClient<Schema>()
 
 export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths }) => {
+    const [pictureCollection, setPictureCollection] = useState(photoCollection)
     const [picturePaths, setPhotoPaths] = useState<PicturePath[] | undefined>(photoPaths)
     const [apiCalled, setApiCalled] = useState(false)
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>(([] as string[]))
@@ -77,10 +78,10 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
 
     }
 
-    function chagesToSave(){
+    function changesToSave(){
         return (
-            photoCollection.coverPath !== cover ||
-            photoPaths?.find((path) => picturePaths?.find((p) => path.id == p.id)?.order !== path.order)
+            pictureCollection.coverPath !== cover ||
+            pictureCollection.paths.find((path) => picturePaths?.find((p) => path.id == p.id)?.order !== path.order) !== undefined
         )
     }
 
@@ -89,13 +90,26 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         <UploadImagesModal 
             open={uploadImagesVisible} 
             onClose={() => setUploadImagesVisible(false)} 
-            collectionId={photoCollection.id} 
-            eventId={photoCollection.eventId} 
-            subcategoryId={photoCollection.id} 
-            offset={picturePaths ? picturePaths.length : 0}
+            collection={pictureCollection}
+            onSubmit={async (collection) => {
+                const paths: PicturePath[] = await Promise.all(collection.paths.map(async (path) => {
+                    const mappedPath: PicturePath = {
+                        ...path,
+                        url: (await getUrl({
+                            path: path.path
+                        })).url.toString()
+                    }
+                    return mappedPath
+                }))
+                setPictureCollection({
+                    ...collection,
+                    paths: paths,
+                })
+                setPhotoPaths(paths)
+            }}
         />
         <div className="grid grid-cols-6 gap-2">
-            <div className="grid grid-cols-5 col-span-5 border-gray-400 border rounded-2xl space-x-4 p-4">
+            <div className="grid grid-cols-5 col-span-5 border-gray-400 border rounded-2xl p-4 gap-4">
                     {picturePaths && picturePaths.length > 0 ? 
                     picturePaths.filter((path) => path.url).map((path, index) => {
                         const coverSelected = path.path === cover
@@ -121,7 +135,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
                                     setDisplayPhotoControls(undefined)
                                 }}
                             >
-                                <img src={path.url} className="object-cover rounded-lg" id='image'/>
+                                <img src={path.url} className="object-cover rounded-lg w-[200px] h-[300px]" id='image'/>
                                 <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-1 ${controlsEnabled(path.id)}`}>
                                     <Tooltip content={(<p>Set as cover</p>)} placement="bottom" className="w-[110px]">
                                         <button className="" onClick={async () => {
@@ -168,17 +182,18 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
                                                 id: path.id,
                                             })
                                             console.log(pathsresponse)
-                                            setPhotoPaths(await Promise.all((await client.models.PhotoPaths
-                                                .listPhotoPathsByCollectionId({ collectionId: photoCollection.id}))
-                                                .data.map(async (item) => {
-                                                    return {
-                                                        id: item.id,
-                                                        path: item.path,
-                                                        url: (await getUrl({
-                                                            path: item.path
-                                                        })).url.toString()
-                                                    } as PicturePath
-                                                })))
+                                            setPhotoPaths(picturePaths.filter((item) => item.id !== path.id))
+                                            // setPhotoPaths(await Promise.all((await client.models.PhotoPaths
+                                            //     .listPhotoPathsByCollectionId({ collectionId: photoCollection.id}))
+                                            //     .data.map(async (item) => {
+                                            //         return {
+                                            //             id: item.id,
+                                            //             path: item.path,
+                                            //             url: (await getUrl({
+                                            //                 path: item.path
+                                            //             })).url.toString()
+                                            //         } as PicturePath
+                                            //     })))
                                         }}>
                                             <HiOutlineTrash size={20} />
                                         </button>
@@ -195,7 +210,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
             <div className="flex flex-col col-span-1 border-gray-400 border rounded-2xl items-center gap-4 py-3 me-2">
                 <p className="text-2xl underline">Controls</p>
                 <ControlComponent name="Upload Picture" fn={() => setUploadImagesVisible(true)} />
-                <ControlComponent name="Save Changes" fn={() => console.log('hello world')} />
+                <ControlComponent name="Save Changes" fn={() => console.log('hello world')} disabled={changesToSave()}/>
                 <ControlComponent name={!(selectedPhotos.length > 0) ? "Preview" : "Preview Selected"} fn={() => navigate(`/photo-collection/${photoCollection.id}`, { state: { origin: 'admin' }})} />
             </div>
         </div>        

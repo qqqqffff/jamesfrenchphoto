@@ -29,6 +29,8 @@
     "react-google-recaptcha": "^3.1.0",
     "react-pdf": "^9.1.1",
     "react-router-dom": "^6.26.2",
+    "react-virtualized-auto-sizer": "^1.0.25",
+    "react-window": "^1.8.11",
     "validator": "^13.12.0"
   },
   "overrides": {
@@ -42,6 +44,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/react-google-recaptcha": "^2.1.9",
+    "@types/react-window": "^1.8.8",
     "@types/validator": "^13.12.2",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
