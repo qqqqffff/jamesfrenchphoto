@@ -4,19 +4,19 @@ import { Button } from "flowbite-react";
 import { 
     HiOutlineCalendar,
     // HiOutlineChat, 
-    // HiOutlineClipboardList, 
+    HiOutlineClipboardList, 
     HiOutlineDocumentText, 
     HiOutlineUserCircle
  } from "react-icons/hi";
 import { UserStorage } from "../../types";
 import UserManagement from "./UserManagement";
 import { TimeslotComponent } from "../timeslot/Timeslot";
-// import CollectionManager from "./CollectionManager";
+import CollectionManager from "./CollectionManager";
 import PackageManager from "./PackageManager";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
-    const [activeConsole, setActiveConsole] = useState('scheduler')
+    const [activeConsole, setActiveConsole] = useState('collectionManager')
     const navigate = useNavigate()
     useEffect(() => {
         if(!user){
@@ -52,8 +52,8 @@ export const Dashboard = () => {
         switch(activeConsole){
             case 'scheduler': 
                 return (<TimeslotComponent admin/>)
-            // case 'collectionManager':
-            //     return (<CollectionManager />)
+            case 'collectionManager':
+                return (<CollectionManager />)
             case 'userManagement':
                 return (<UserManagement />)
             case 'packageManager':
@@ -73,10 +73,10 @@ export const Dashboard = () => {
                     <Button color='gray' onClick={() => setActiveConsole('scheduler')} className={activeConsoleClassName('scheduler')}>
                         <HiOutlineCalendar className="mt-1 me-1"/> Scheduler
                     </Button>
-                    {/* <Button color='gray' onClick={() => setActiveConsole('collectionManager')} className={activeConsoleClassName('collectionManager')}>
+                    <Button color='gray' onClick={() => setActiveConsole('collectionManager')} className={activeConsoleClassName('collectionManager')}>
                         <HiOutlineClipboardList className="mt-1 me-1"/> Collection Manager
                     </Button>
-                    <Button color='gray' onClick={() => setActiveConsole('notificationCenter')} className={activeConsoleClassName('notificationCenter')}>
+                    {/* <Button color='gray' onClick={() => setActiveConsole('notificationCenter')} className={activeConsoleClassName('notificationCenter')}>
                         <HiOutlineChat className="mt-1 me-1"/> Notification Center
                     </Button> */}
                     <Button color='gray' onClick={() => setActiveConsole('packageManager')} className={activeConsoleClassName('packageManager')}>

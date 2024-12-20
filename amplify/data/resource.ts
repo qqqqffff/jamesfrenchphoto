@@ -31,23 +31,42 @@ const schema = a.schema({
       coverPath: a.string(),
       name: a.string().required(),
       imagePaths: a.hasMany('PhotoPaths', 'collectionId'),
-      tags: a.hasMany('CollectionTag', 'collectionId')
+      tags: a.hasMany('CollectionTag', 'collectionId'),
+      watermarkPath: a.string(),
+      downloadable: a.boolean().default(false),
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  Watermark: a
+    .model({
+      id: a.id().required(),
+      path: a.string().required(),
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS')]),
   PhotoPaths: a
     .model({
       id: a.id().required(),
       path: a.string().required(),
-      displayHeight: a.integer(),
-      displayWidth: a.integer(),
       order: a.integer().required(),
       collectionId: a.id().required(),
-      collection: a.belongsTo('PhotoCollection', 'collectionId')
+      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      favorites: a.hasMany('UserFavorites', 'pathId')
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('collectionId')])
-    .authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  UserFavorites: a
+    .model({
+      id: a.id().required(),
+      pathId: a.id().required(),
+      path: a.belongsTo('PhotoPaths', 'pathId'),
+      userEmail: a.string().required(),
+      userProfile: a.belongsTo('UserProfile', 'userEmail'),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('userEmail').name('listFavoritesByUserEmail')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'delete', 'create', 'list'])]),
   UserTag: a
     .model({
       id: a.id().required(),
@@ -137,6 +156,7 @@ const schema = a.schema({
       participantEmail: a.string(),
       participant: a.hasMany('Participant', 'userEmail'),
       activeParticipant: a.id(),
+      favorites: a.hasMany('UserFavorites', 'userEmail')
     })
     .identifier(['email'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create'])]),

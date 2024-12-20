@@ -61,9 +61,12 @@ export type PicturePath = {
     id: string;
     url: string;
     path: string;
-    height: number;
-    width: number;
     order: number;
+}
+
+export type Watermark = {
+    url: string,
+    path: string,
 }
 
 export type PhotoCollection = {
@@ -73,6 +76,10 @@ export type PhotoCollection = {
     id: string;
     updatedAt: string;
     eventId: string;
+    paths: PicturePath[]
+    tags: UserTag[],
+    watermarkPath?: string,
+    downloadable: boolean,
 }
 
 export type Timeslot = {

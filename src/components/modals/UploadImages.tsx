@@ -1,63 +1,106 @@
-import { Button, Label, Modal, Tooltip } from "flowbite-react"
+import { Button, Label, Modal, Progress, Tooltip } from "flowbite-react"
 import { FC, FormEvent, useState } from "react"
 import { HiOutlineXMark } from "react-icons/hi2"
 import { ModalProps } from "."
 import { uploadData } from "aws-amplify/storage";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
+import { PhotoCollection, PicturePath } from "../../types";
+import { v4 } from 'uuid'
+import { formatFileSize } from "../../utils";
+import { FixedSizeList, ListChildComponentProps } from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
 
 const client = generateClient<Schema>()
 
 interface UploadImagesProps extends ModalProps {
-    collectionId: string;
-    eventId: string;
-    offset: number;
-    subcategoryId: string;
+    collection: PhotoCollection;
+    onSubmit: (collection: PhotoCollection) => void
 }
 
-export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collectionId, subcategoryId, eventId, offset }) => {
+interface RowProps extends ListChildComponentProps {
+    data: {
+        data: { url: string, file: File}[],
+        onDelete: (key: string) => void
+    }
+}
+
+const Row: FC<RowProps> = ({ index, data, style }) => {
+
+    return (
+        <div key={index} className="flex flex-row justify-between" style={style}>
+            <Tooltip className='relative z-10' content={<img src={data.data[index].url} loading='lazy' className="w-[200px] h-[300px] object-cover"/>}>
+                <span>{data.data[index].file.name}</span>
+            </Tooltip>
+            <div className="flex flex-row gap-2">
+                <span>{formatFileSize(data.data[index].file.size)}</span>
+                <button className="hover:border-gray-500 border border-transparent rounded-full p-0.5" type='button' onClick={() => data.onDelete(data.data[index].url)}>
+                    <HiOutlineXMark size={20}/>
+                </button>
+            </div>
+        </div>
+    )
+}
+
+export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collection, onSubmit }) => {
     const [filesUpload, setFilesUpload] = useState<Map<string, File> | undefined>()
+    const [progress, setProgress] = useState<number>()
 
     async function handleUploadPhotos(event: FormEvent){
         event.preventDefault()
 
         //TODO: preform form validation
-        //TODO: progress bar
-        let paths = []
+        let paths: PicturePath[] = []
         if(filesUpload) {
-            paths = await Promise.all(
-                [...filesUpload.values()].map(async (file) => {
+            paths = (await Promise.all((await Promise.all(
+                [...filesUpload.values()].map(async (file, index, arr) => {
                     const result = await uploadData({
-                        path: `photo-collections/${eventId}_${subcategoryId}_${file.name}`,
+                        path: `photo-collections/${collection.eventId}/${collection.id}/${v4()}_${file.name}`,
                         data: file,
+                        options: {
+                            onProgress: () => {
+                                console.log(index, arr, ((index + 1) / arr.length) * 100)
+                                setProgress(((index + 1) / arr.length) * 100)
+                            }
+                        }
                     }).result
-                    await new Promise(resolve => setTimeout(resolve, 500))
                     console.log(result)
                     return result.path
                 })
-            )
-            paths.forEach(async (path, index) => {
+            )).map(async (path, index) => {
                 const response = await client.models.PhotoPaths.create({
                     path: path,
-                    order: index + offset,
-                    collectionId: collectionId
+                    order: index + collection.paths.length,
+                    collectionId: collection.id
                 })
-                console.log(response)
-            })
+                if(!response.data) return
+                const mappedPath: PicturePath = {
+                    ...response.data,
+                    url: ''
+                }
+                return mappedPath
+            }))).filter((path) => path !== undefined)
         }
+
+        console.log([...collection.paths, ...paths])
         
+        onSubmit({
+            ...collection,
+            paths: [...collection.paths, ...paths]
+        })
         setFilesUpload(undefined)
+        setProgress(undefined)
         onClose()
     }
 
-
     return (
-        <Modal show={open} className='font-main' onClose={() => {
+        <Modal size='xl' show={open} className='font-main' onClose={() => {
             setFilesUpload(undefined)
+            setProgress(undefined)
             onClose()
         }}>
             <Modal.Header>Upload Picture(s)</Modal.Header>
-            <Modal.Body>
+            <Modal.Body className="overflow-x-hidden">
                 <form onSubmit={handleUploadPhotos}>
                     <div className="flex flex-col">
                         <div className="flex items-center justify-center w-full">
@@ -69,7 +112,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                                     <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span></p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Picture Files Supported</p>
                                 </div>
-                                <input id="dropzone-file" type="file" className="hidden" multiple onChange={(event) => {
+                                <input id="dropzone-file" type="file" className="hidden" multiple onChange={async (event) => {
                                     if(event.target.files){
                                         const files = event.target.files
                                         async function createPreviews(files: File[]){
@@ -83,46 +126,61 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                                             })
                                             setFilesUpload(map)
                                         }
-                                        createPreviews(Array.from(files))
+                                        await createPreviews(Array.from(files))
                                     }
                                 }}/>
                             </label>
                         </div>
-                        <Label className="ms-2 font-semibold text-xl mt-3" htmlFor="name">Files:</Label>
-                        {filesUpload && filesUpload.size > 0? 
-                            (<>
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex flex-row ms-6 justify-between me-16">
-                                        <span className="underline font-semibold">File Name:</span>
-                                        <span className="underline font-semibold">Size:</span>
-                                    </div>
-                                    {[...filesUpload.entries()].map(([url, file], index) => {
-                                        return (
-                                                <div key={index} className="flex flex-row ms-6 justify-between me-6">
-                                                    <Tooltip content={<img src={url} className="w-[200px] h-[300px] object-cover"/>}>
-                                                        <span>{file.name}</span>
-                                                    </Tooltip>
-                                                    <div className="flex flex-row gap-2">
-                                                        <span>{(file.size * 0.000001).toFixed(4)} MB</span>
-                                                        <button className="hover:border-gray-500 border border-transparent rounded-full p-0.5" type='button' onClick={() => {
-                                                            const files = new Map<string, File>(filesUpload.entries())
-                                                            files.delete(url)
-                                                            console.log(files)
-                                                            setFilesUpload(files)
-                                                        }}><HiOutlineXMark size={20}/></button>
-                                                    </div>
-                                                </div>
-                                        )
-                                    })}
-                                </div>
-                                
-                            </>) 
-                            : 
-                            (<>
-                                <span className=" italic text-sm ms-6">Upload files to preview them here!</span>
-                            </>)
+                        
+                        <div className="flex flex-row items-center justify-between">
+                            <Label className="ms-2 font-semibold text-xl" htmlFor="name">Files:</Label>
+                            <div className="flex flex-row gap-2 items-center text-xl">
+                            {filesUpload && filesUpload.size > 0 ? (
+                                <>
+                                    <span className="font-semibold">Total:</span>
+                                    <span>{formatFileSize([...filesUpload.values()].map((file) => file.size).reduce((prev, cur) => prev = prev + cur, 0))}</span>
+                                </>
+                            ) : (<></>)}
+                            </div>
+                        </div>
+                        
+                        {filesUpload && filesUpload.size > 0 ? (
+                            <div className="h-full min-h-100">
+                                <AutoSizer className="min-h-[340px] z-0">
+                                {({ height, width }: { height: number; width: number }) => (
+                                    <FixedSizeList
+                                        height={height}
+                                        itemCount={filesUpload?.size ?? 0}
+                                        itemSize={35}
+                                        width={width}
+                                        itemData={{
+                                            data: [...filesUpload.entries()].map(([url, file]) => ({url: url, file: file})),
+                                            onDelete: (key) => {
+                                                const files = new Map<string, File>(filesUpload.entries())
+                                                files.delete(key)
+                                                console.log(files)
+                                                setFilesUpload(files)
+                                            }
+                                        }}
+                                    >
+                                        {Row}
+                                    </FixedSizeList>
+                                )}
+                                </AutoSizer>
+                            </div>
+                        ) : (
+                            <span className=" italic text-sm ms-6">Upload files to preview them here!</span>
+                        )
+                        
                         }
                     </div>
+                    
+                    {progress ? (
+                        <div className="flex flex-col gap-1 mt-2">
+                            <Label className="ms-2 text-lg">Upload Progress</Label>
+                            <Progress progress={progress} />
+                        </div>
+                    ) : (<></>)}
                     <div className="flex flex-row justify-end border-t mt-4">
                         <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" >Upload</Button>
                     </div>

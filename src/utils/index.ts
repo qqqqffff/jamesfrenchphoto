@@ -22,6 +22,18 @@ export type RemoveIndexSignature<T> = {
 export type DynamicStringEnum<T> = T | (string & {});
 export type DynamicStringEnumKeysOf<T extends object> = DynamicStringEnum<keyof RemoveIndexSignature<T>>;
 
+export function formatFileSize(bytes: number, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+
+    const k = 1024; // Factor for size conversion
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']; // Size units
+
+    const i = Math.floor(Math.log(bytes) / Math.log(k)); // Determine the unit index
+    const size = parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)); // Convert size
+
+    return `${size} ${sizes[i]}`;
+}
+
 //TODO: de-duplication
 export const defaultColors = [
     'pink-400',
