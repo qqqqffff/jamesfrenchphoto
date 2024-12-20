@@ -50,7 +50,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
         event.preventDefault()
 
         //TODO: preform form validation
-        //TODO: progress bar
         let paths: PicturePath[] = []
         if(filesUpload) {
             paths = (await Promise.all((await Promise.all(
@@ -173,30 +172,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                             <span className=" italic text-sm ms-6">Upload files to preview them here!</span>
                         )
                         
-                        }
-                        {
-                            // (<>
-                            //     <div className="flex flex-col gap-1">
-                            //         <div className="flex flex-row ms-6 justify-between me-16">
-                            //             <span className="underline font-semibold">File Name:</span>
-                            //             <span className="underline font-semibold">Size:</span>
-                            //         </div>
-                            //         {[...filesUpload.entries()].map(([url, file], index) => {
-                            //             return (
-                            //                 <div key={index} className="flex flex-row ms-6 justify-between me-6">
-                            //                     <PhotoRow url={url} file={file} onDelete={() => {
-                            //                         const files = new Map<string, File>(filesUpload.entries())
-                            //                         files.delete(url)
-                            //                         console.log(files)
-                            //                         setFilesUpload(files)
-                            //                     }}/>
-                            //                 </div>
-                            //             )
-                            //         })}
-                            //     </div>
-                                
-                            // </>) 
-                            
                         }
                     </div>
                     

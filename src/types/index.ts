@@ -64,6 +64,11 @@ export type PicturePath = {
     order: number;
 }
 
+export type Watermark = {
+    url: string,
+    path: string,
+}
+
 export type PhotoCollection = {
     name: string;
     coverPath?: string;

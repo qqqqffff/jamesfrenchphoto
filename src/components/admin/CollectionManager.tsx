@@ -10,7 +10,7 @@ import {
 import { Schema } from "../../../amplify/data/resource";
 import { getUrl, remove } from "aws-amplify/storage";
 import { PhotoCollectionComponent } from "./PhotoCollection";
-import { PhotoCollection, PicturePath, Event, UserTag } from "../../types";
+import { PhotoCollection, PicturePath, Event, UserTag, Watermark } from "../../types";
 import { CreateCollectionModal, CreateEventModal } from "../modals";
 
 const client = generateClient<Schema>()
@@ -25,7 +25,7 @@ export default function CollectionManager(){
     const [createEventModalVisible, setCreateEventModalVisible] = useState(false)
     const [createPhotoCollectionModalVisible, setCreatePhotoCollectionModalVisible] = useState(false)
     const [eventList, setEventList] = useState<Event[]>([])
-    const [subcategoryId, setSubcategoryId] = useState<string>()
+    const [collectionId, setCollectionId] = useState<string>()
     const [pictureCollection] = useState<PhotoCollection | undefined>()
     const [pictureCollectionPaths, setPictureCollectionPaths] = useState<PicturePath[] | undefined>()
     const [createCollectionForId, setCreateCollectionForId] = useState('')
@@ -97,7 +97,7 @@ export default function CollectionManager(){
                             onClick={async () => {
                                 const collection = await renderPhotoCollection(item)
 
-                                setSubcategoryId(item.id)
+                                setCollectionId(item.id)
                                 setActiveItem(collection)
                             }}
                         >
@@ -128,98 +128,19 @@ export default function CollectionManager(){
                 return mappedPath
             }
         ))
+        let watermarkUrls: Watermark[] = await Promise.all(
+            (await client.models.Watermark.list())
+            .data.map(async (watermark) => {
+            const url = (await getUrl({
+                path: watermark.path
+            })).url.toString()
+            return {
+                url: url,
+                path: watermark.path
+            }
+        }))
         console.log(paths)
-        return (<PhotoCollectionComponent photoCollection={item} photoPaths={paths}/>)
-        // if(!interactionOverride)
-        //     setInteractingCollection({interactionOverride: false, buttonText: 'Delete Picture(s)', selectedURLs: ([] as string[])})
-        
-        // let picturePaths = ([] as PicturePath[])
-        // if(subcategoryId != item.id){
-        //     const collection = (await client.models.PhotoCollection.listPhotoCollectionBySubCategoryId({
-        //         subCategoryId: item.id
-        //     })).data[0]
-        //     console.log(collection)
-        //     setPictureCollection({ ...collection })
-
-        //     let paths = (await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: collection.id })).data.map((item) => {
-        //         return {
-        //             id: item.id,
-        //             path: item.path,
-        //             width: !item.displayWidth ? 200 : item.displayWidth,
-        //             height: !item.displayHeight ? 200 : item.displayHeight,
-        //             url: ''
-        //         }
-        //     })
-        //     console.log(paths)
-
-        //     if(paths && paths.length > 0){
-        //         paths = await Promise.all(paths.map(async (item) => {
-        //             return {
-        //                 ...item,
-        //                 url: (await getUrl({
-        //                     path: item.path
-        //                 })).url.toString()
-        //             }
-        //         }))
-        //         setPictureCollectionPaths(paths)
-        //     }
-        //     picturePaths = paths
-        // }
-        // else{
-        //     picturePaths = !pictureCollectionPaths ? [] : pictureCollectionPaths
-        // }
-        // // console.log(picturePaths)
-        // if(!interactionOverride) {
-        //     if(picturePaths.length > 0){
-        //         setEventControls(renderPhotoCollectionControls('photoCollection', [false, false, false, false, false, false], item.id))
-        //     }
-        //     else{
-        //         setEventControls(renderPhotoCollectionControls('photoCollection', [false, true, true, true, false, false], item.id))
-        //     }
-        // }
-
-        // const pictures = picturePaths.map((path, index: number) => {
-        //     let styling = "enabled:hover:bg-gray-200 w-auto h-auto"
-        //     if(interactingCollection.selectedURLs){
-        //         styling += (interactingCollection.selectedURLs.includes(path.url) ? 'bg-gray-100' : '')
-        //     }
-        //     return (
-        //         //TODO: fix the display when the photos are selected
-        //         <button key={index} className={`flex flex-row hover:bg-gray-200 ${interactingCollection.selectedURLs.includes(path.path) ? 'bg-gray-300' : 'bg-transparent'} h-[${path.height.toString()}px] w-[${path.width.toString()}px]`} onClick={async () => {
-        //             if(interactionOverride){
-        //                 const interacting = {...interactingCollection}
-        //                 if(!interacting.selectedURLs.includes(path.path))
-        //                     interacting.selectedURLs.push(path.path)
-        //                 else{
-        //                     interacting.selectedURLs = interacting.selectedURLs.filter((item) => item != path.path)
-        //                 }
-        //                 setInteractingCollection(interacting)
-        //                 setActiveItem(await renderPhotoCollection(item, interactionOverride))
-        //                 console.log(interacting)
-        //             }
-        //             else{
-        //                 setPhotoViewUrl(path)
-        //                 setPhotoModalVisible(true)
-        //             }
-        //         }}>
-        //             <img  src={path.url} alt="picture" className={`h-[${path.height.toString()}px] w-[${path.width.toString()}px] object-fill`}/>
-        //         </button>
-        //     )
-        // })
-            
-        // return (
-        //     <>
-                
-        //         {pictures ? 
-        //             (
-        //                 <div className="flex flex-row border-black border gap-1">
-        //                     {pictures}
-        //                 </div>
-        //             ) 
-        //             : (<p>Upload pictures to start!</p>)}
-        //     </>
-        // )
-        
+        return (<PhotoCollectionComponent photoCollection={item} photoPaths={paths} watermarkObjects={watermarkUrls} />)
     }
 
     return (
@@ -271,7 +192,7 @@ export default function CollectionManager(){
                         return ''
                     }
                     let urlstr = photoPath!.substring(photoPath!.indexOf('photo-collections/'), photoPath!.indexOf('?'))
-                    urlstr = urlstr.substring(urlstr.indexOf(subcategoryId!))
+                    urlstr = urlstr.substring(urlstr.indexOf(collectionId!))
                     urlstr = urlstr.substring(urlstr.indexOf('_') + 1)
                     return urlstr
                 })}</Modal.Header>

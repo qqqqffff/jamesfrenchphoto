@@ -37,6 +37,13 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  Watermark: a
+    .model({
+      id: a.id().required(),
+      path: a.string().required(),
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS')]),
   PhotoPaths: a
     .model({
       id: a.id().required(),

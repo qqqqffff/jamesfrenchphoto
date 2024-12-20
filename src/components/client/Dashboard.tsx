@@ -16,6 +16,7 @@ import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import { TimeslotComponent } from "../timeslot/Timeslot";
 import { createParticipantFromUserProfile, fetchUserProfile } from "../../App";
+import { getUrl } from "aws-amplify/storage";
 
 const client = generateClient<Schema>()
 
@@ -143,7 +144,11 @@ export function Dashboard() {
                                 if(!photoCollection || !photoCollection.data) return
                                 const col: PhotoCollection = {
                                     ...photoCollection.data,
-                                    coverPath: photoCollection.data.coverPath ?? undefined,
+                                    coverPath: photoCollection.data.coverPath ?  (
+                                        (await getUrl({
+                                            path: photoCollection.data.coverPath
+                                        })).url.toString()
+                                    ) : undefined,
                                     paths: [], //TODO: fix me,
                                     tags: [], //TODO: fix me
                                     downloadable: photoCollection.data.downloadable ?? false, 
@@ -265,7 +270,11 @@ export function Dashboard() {
                                     if(collectionData === null) return
                                     const collection: PhotoCollection = {
                                         ...collectionData,
-                                        coverPath: collectionData.coverPath ?? undefined,
+                                        coverPath: collectionData.coverPath ?  (
+                                            (await getUrl({
+                                                path: collectionData.coverPath
+                                            })).url.toString()
+                                        ) : undefined,
                                         tags: [], //TODO: fix me
                                         paths: [], //TODO: fix me
                                         downloadable: collectionData.downloadable ?? false, 

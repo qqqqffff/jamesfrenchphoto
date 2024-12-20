@@ -16,7 +16,7 @@ import ContactForm from './components/service-form/ContactForm'
 import SignOut from './components/authenticator/SignOut'
 import { generateClient } from 'aws-amplify/api'
 import { Schema } from '../amplify/data/resource'
-import { CollectionViewer } from './components/client/CollectionViewer'
+import { CollectionViewer, DisplayCollectionData } from './components/client/CollectionViewer'
 import { Package, Participant, PhotoCollection, PicturePath, Timeslot, UserProfile, UserStorage, UserTag } from './types'
 import { getUrl } from 'aws-amplify/storage'
 import { ClientProfile } from './components/client/Profile'
@@ -200,7 +200,11 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
                 })))
                 const col: PhotoCollection = {
                   ...photoCollection.data,
-                  coverPath: photoCollection.data.coverPath ?? undefined,
+                  coverPath: photoCollection.data.coverPath ?  (
+                      (await getUrl({
+                          path: photoCollection.data.coverPath
+                      })).url.toString()
+                  ) : undefined,
                   paths: mappedPaths,
                   tags: [],
                   watermarkPath: photoCollection.data.watermarkPath ?? undefined,
@@ -341,18 +345,35 @@ const router = createBrowserRouter(
       </Route>
       <Route path='contact-form' element={<ContactForm />} />
       {/* <Route path='photo-collection' element={<PhotoCollectionComponent />} /> */}
-      <Route path='photo-collection/:collectionId' element={<CollectionViewer />} loader={async ({ params }) => {
+      <Route path='photo-collection/:collectionId' element={<CollectionViewer />} 
+      loader={async ({ params }) => {
           if(!params.collectionId) return
-          return Promise.all((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: params.collectionId })).data.map(async (path) => {
-            return {
-              id: path.id,
-              path: path.path,
-              url: (await getUrl({
+          const collection = (await client.models.PhotoCollection.get({ id: params.collectionId })).data
+          if(!collection) return null
+          const ret: DisplayCollectionData = {
+            name: collection.name,
+            createdAt: collection.createdAt,
+            paths: await Promise.all((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: params.collectionId })).data.map(async (path) => {
+              return {
+                id: path.id,
                 path: path.path,
-              })).url.toString()
-            } as PicturePath
-          }))
-      }} />
+                order: path.order,
+                url: (await getUrl({
+                  path: path.path,
+                })).url.toString()
+              } as PicturePath
+            })),
+            watermarkPath: collection.watermarkPath ? (await getUrl({
+              path: collection.watermarkPath
+            })).url.toString() : undefined,
+            downloadable: collection.downloadable ?? false,
+            coverPath: collection.coverPath ? (await getUrl({
+              path: collection.coverPath
+            })).url.toString() : undefined,
+          }
+          return ret
+        }} 
+      />
     </Route>
   )
 )

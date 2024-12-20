@@ -3,7 +3,7 @@ import { Package, UserProfile, UserTag } from "../../types";
 // import { Schema } from "../../../amplify/data/resource";
 // import { generateClient } from "aws-amplify/api";
 import { Alert, Button, Modal } from "flowbite-react";
-import { downloadData } from "aws-amplify/storage";
+// import { downloadData } from "aws-amplify/storage";
 import PDFViewer from "../common/PDFViewer";
 
 // const client = generateClient<Schema>()
@@ -47,9 +47,11 @@ export const Home: FC<ClientHomeProps> = ({ tags }) => {
             return prev
         }, [])
     
-    const packages: Package[] = tags
-        .map((tag) => tag.package)
-        .filter((pack) => pack !== undefined)
+    // const packages: Package[] = tags
+    //     .map((tag) => tag.package)
+    //     .filter((pack) => pack !== undefined)
+
+    console.log(collections)
     
     return (
         <>
@@ -83,20 +85,28 @@ export const Home: FC<ClientHomeProps> = ({ tags }) => {
                     </div>
                     
                     <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections:</span>
-                    {collections.length > 0 ? 
-                        (collections.map((collection) => {
-                            return (
-                                <a href={`/photo-collection/${collection.id}`}>{collection.name}</a>
+                    <div className="grid grid-cols-2 gap-10 mb-4">
+                        {collections.length > 0 ? 
+                            (collections.map((collection) => {
+                                return (
+                                    <a href={`/photo-collection/${collection.id}`} className="relative items-center border-black border">
+                                        <img src={collection.coverPath} className="w-[200px] h-[200px]"/>
+                                        <div className="absolute flex flex-col inset-0 place-self-center items-center justify-center text-center">
+                                            <p className="text-4xl font-thin">{collection.name}</p>
+                                        </div>
+                                    </a>
+                                )
+                            })) :
+                            (<div className="text-xl text-gray-400 italic flex flex-col text-center">
+                                <span>Sorry, there are no viewable collections for you right now.</span>
+                                <span>You will receive a notification when your collection is ready!</span>
+                            </div>
                             )
-                        })) :
-                        (<div className="text-xl text-gray-400 italic flex flex-col text-center">
-                            <span>Sorry, there are no viewable collections for you right now.</span>
-                            <span>You will receive a notification when your collection is ready!</span>
-                        </div>
-                        )
-                    }
+                        }
+                    </div>
+                    
 
-                    <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package{packages.length > 1 ? 's' : ''}</span>
+                    {/* <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package{packages.length > 1 ? 's' : ''}</span>
                     <div className="flex flex-col items-center border border-gray-300 rounded-lg p-4 mb-4">
                         {packages.length > 0 ? (
                             packages.map((pack, index) => {
@@ -129,7 +139,7 @@ export const Home: FC<ClientHomeProps> = ({ tags }) => {
                                 <span>Sorry, there are no viewable packages for you right now.</span>
                             </div>
                         )}
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </>
