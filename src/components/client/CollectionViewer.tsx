@@ -30,23 +30,28 @@ export const CollectionViewer = () => {
         }
     }, [coverPhotoRef.current])    
 
-    let temp: PicturePath[] = []
     const formattedCollection: PicturePath[][] = []
+    let maxIndex = (dimensions.width > 1600 ? 5 : (dimensions.width > 800 ? 3 : 1))
+    for(let i = 0; i < maxIndex; i++){
+        formattedCollection.push([] as PicturePath[])
+    }
 
+    console.log(formattedCollection)
+
+    let curIndex = 0
     collection.paths
         .sort((a, b) => a.order - b.order)
-        .forEach((picture, index) => {
-            if(index == 0 || (index % Number((collection.paths.length / 7).toFixed(0))).toFixed(0) != '0'){
-                temp.push(picture)
+        .forEach((picture) => {
+            formattedCollection[curIndex].push(picture)
+            if(curIndex + 2 > maxIndex){
+                curIndex = 0
             }
             else{
-                formattedCollection.push(temp)
-                temp = []
-                temp.push(picture)
+                curIndex = curIndex + 1
             }
         })
 
-    const gridClass = `grid grid-cols-${dimensions.width > 1600 ? '5' : '3'} gap-4 mx-4`
+    const gridClass = `grid grid-cols-${String(maxIndex)} gap-4 mx-4`
 
     return (
         <div className="font-main">

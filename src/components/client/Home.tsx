@@ -85,25 +85,27 @@ export const Home: FC<ClientHomeProps> = ({ tags }) => {
                     </div>
                     
                     <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections:</span>
-                    <div className="grid grid-cols-2 gap-10 mb-4">
-                        {collections.length > 0 ? 
-                            (collections.map((collection) => {
-                                return (
-                                    <a href={`/photo-collection/${collection.id}`} className="relative items-center border-black border">
-                                        <img src={collection.coverPath} className="w-[200px] h-[200px]"/>
-                                        <div className="absolute flex flex-col inset-0 place-self-center items-center justify-center text-center">
-                                            <p className="text-4xl font-thin">{collection.name}</p>
-                                        </div>
-                                    </a>
-                                )
-                            })) :
-                            (<div className="text-xl text-gray-400 italic flex flex-col text-center">
-                                <span>Sorry, there are no viewable collections for you right now.</span>
-                                <span>You will receive a notification when your collection is ready!</span>
-                            </div>
+                    
+                    {collections.length > 0 ? 
+                        (
+                            <div className="grid grid-cols-2 gap-10 mb-4">
+                            {collections.map((collection) => {
+                            return (
+                                <a href={`/photo-collection/${collection.id}`} className="relative items-center border-black border">
+                                    <img src={collection.coverPath} className="w-[200px] h-[200px]"/>
+                                    <div className="absolute flex flex-col inset-0 place-self-center items-center justify-center text-center">
+                                        <p className="text-4xl font-thin">{collection.name}</p>
+                                    </div>
+                                </a>
                             )
-                        }
-                    </div>
+                            })}
+                        </div>) :
+                        (<div className="text-xl text-gray-400 italic flex flex-col text-center mb-4">
+                            <span>Sorry, there are no viewable collections for you right now.</span>
+                            <span>You will receive a notification when your collection is ready!</span>
+                        </div>
+                        )
+                    }
                     
 
                     {/* <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package{packages.length > 1 ? 's' : ''}</span>
