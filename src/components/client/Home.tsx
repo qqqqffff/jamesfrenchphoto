@@ -5,6 +5,7 @@ import { Package, UserProfile, UserTag } from "../../types";
 import { Alert, Button, Modal } from "flowbite-react";
 // import { downloadData } from "aws-amplify/storage";
 import PDFViewer from "../common/PDFViewer";
+import useWindowDimensions from "../../hooks/windowDimensions";
 
 // const client = generateClient<Schema>()
 
@@ -38,6 +39,7 @@ export const Home: FC<ClientHomeProps> = ({ tags }) => {
     const [activePackagePDF, setActivePackagePDF] = useState<File>()
     const [activePackage, setActivePackage] = useState<Package>()
     const [packagePDFModalVisible, setPackagePDFModalVisible] = useState(false)
+    const dimensions = useWindowDimensions()
 
     const collections = tags
         .map((tag) => tag.collections)
@@ -88,7 +90,7 @@ export const Home: FC<ClientHomeProps> = ({ tags }) => {
                     
                     {collections.length > 0 ? 
                         (
-                            <div className="grid grid-cols-2 gap-10 mb-4">
+                            <div className={`grid grid-cols-${dimensions.width > 700 ? 2 : 1} gap-10 mb-4`}>
                             {collections.map((collection) => {
                             return (
                                 <a href={`/photo-collection/${collection.id}`} className="relative items-center border-black border">

@@ -95,10 +95,7 @@ export default function CollectionManager(){
                         <button key={index} type='button'
                             className="flex flex-row items-center ms-4 my-1 hover:bg-gray-100 ps-2 py-1 rounded-3xl cursor-pointer" 
                             onClick={async () => {
-                                const collection = await renderPhotoCollection(item)
-
-                                setCollectionId(item.id)
-                                setActiveItem(collection)
+                                await renderPhotoCollection(item)
                             }}
                         >
                             <HiOutlineCamera className="mt-0.5 me-2"/><span>{item.name}</span>
@@ -110,10 +107,11 @@ export default function CollectionManager(){
         return (<></>)
     }
 
-    async function renderPhotoCollection(item: PhotoCollection | undefined): Promise<JSX.Element> {
+    async function renderPhotoCollection(item: PhotoCollection | undefined) {
         if(!item){
             return (<>Error</>)
         }
+        setActiveItem(<>Loading...</>)
         const paths = await Promise.all(
             (await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: item.id }))
             .data.map(async (path) => {
@@ -139,8 +137,8 @@ export default function CollectionManager(){
                 path: watermark.path
             }
         }))
-        console.log(paths)
-        return (<PhotoCollectionComponent photoCollection={item} photoPaths={paths} watermarkObjects={watermarkUrls} />)
+        setCollectionId(item.id)
+        setActiveItem(<PhotoCollectionComponent photoCollection={item} photoPaths={paths} watermarkObjects={watermarkUrls} />)
     }
 
     return (
