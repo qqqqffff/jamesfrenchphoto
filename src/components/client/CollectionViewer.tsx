@@ -15,9 +15,10 @@ export const CollectionViewer = () => {
     const collection = useLoaderData() as DisplayCollectionData
 
     const coverPath = 
-        { url: collection.coverPath ? 
-            (collection.paths.length > 0 ? collection.paths[0].url : undefined) : 
-            collection.coverPath 
+        { url: collection.coverPath !== undefined ? 
+            collection.coverPath : 
+            (collection.paths.length > 0 ? collection.paths[0].url : undefined)
+             
         }
     const navigate = useNavigate()
     const coverPhotoRef = useRef<HTMLImageElement | null>(null)
@@ -63,7 +64,7 @@ export const CollectionViewer = () => {
                     if(!collection.downloadable) e.preventDefault()
                 }}
             >
-                <div className="absolute flex flex-col inset-0 place-self-center items-center justify-center">
+                <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
                     <p className="text-5xl font-thin">{collection.name}</p>
                     {/* <p className="italic text-xl">{new Date(collection.createdAt).toLocaleDateString()}</p> */}
                 </div>
