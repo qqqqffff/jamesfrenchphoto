@@ -96,7 +96,7 @@ export const Home: FC<ClientHomeProps> = ({ tags }) => {
                                 <a href={`/photo-collection/${collection.id}`} className="relative items-center border-black border">
                                     <img src={collection.coverPath} className="w-[200px] h-[200px]"/>
                                     <div className="absolute flex flex-col inset-0 place-self-center items-center justify-center text-center">
-                                        <p className="text-4xl font-thin">{collection.name}</p>
+                                        <p className="text-3xl font-thin opacity-90">{collection.name}</p>
                                     </div>
                                 </a>
                             )

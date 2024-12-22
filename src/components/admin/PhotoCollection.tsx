@@ -213,7 +213,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         setSubmitting(false)
     }
 
-    console.log(dimensions)
+    const gridClass = `w-full self-center`
 
     return (
     <>
@@ -256,151 +256,43 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         <div className="grid grid-cols-6 gap-2">
             <div className="border-gray-400 border rounded-2xl p-4 col-span-5 flex flex-col items-center">
                 <span className="text-2xl mb-4">{pictureCollection.name}</span>
-                <AutoSizer className={`w-full self-center min-h-[650px]`}>
-                {({ height, width }: { height: number; width: number }) => {
-                    console.log(height)
-                return (
-                    <FixedSizeGrid
-                        style={{
-                            left: -(940 / 2),
-                        }}
-                        height={height - 50}
-                        rowCount={Number(Number(picturePaths.length / 4).toFixed(1)) + 1}
-                        columnCount={4}
-                        rowHeight={400}
-                        width={width - (940 / 8) - 5}
-                        columnWidth={240}
-                        itemData={{
-                            data: picturePaths
-                                .sort((a, b) => a.order - b.order)
-                                .filter((path) => path.url && path.path && path.id),
-                            cover,
-                            parseName,
-                            pictureStyle,
-                            submitting,
-                            selectedPhotos,
-                            setSelectedPhotos,
-                            setDisplayPhotoControls,
-                            controlsEnabled,
-                            setCover,
-                            setChangesToSave,
-                            setPicturePaths,
-                            displayTitleOverride,
-                        }}
-                    >
-                        {Row}
-                    </FixedSizeGrid>)}}
-                </AutoSizer>
-
-                {/* <div className="grid grid-cols-5 gap-4 w-full">
-                    {picturePaths.length > 0 ? 
-                        picturePaths
-                            .sort((a, b) => a.order - b.order)
-                            .filter((path) => path.url)
-                            .map((path, index) => {
-                                const coverSelected = parseName(path.path) === parseName(cover ?? '')
-                                const coverSelectedStyle = `${coverSelected ? 'fill-yellow-300' : ''}`
-
-                                let img = document.createElement('img')
-                                img.src = path.url!
-
-                                const portrait = (img.naturalHeight / img.naturalWidth) > 1
-
-                                return (
-                                    <button 
-                                        disabled={submitting}
-                                        key={index} 
-                                        className={pictureStyle(path.url, coverSelected)} id='image-container'
-                                        onClick={(event) => {
-                                            if((event.target as HTMLElement).id.includes('image')){
-                                                if(selectedPhotos.includes(path.url)){
-                                                    setSelectedPhotos(selectedPhotos.filter((url) => url != path.url))
-                                                }
-                                                else{
-                                                    const temp = [...selectedPhotos]
-                                                    temp.push(path.url)
-                                                    setSelectedPhotos(temp)
-                                                }
-                                            }
-                                        }}
-                                        onMouseEnter={() => {
-                                            setDisplayPhotoControls(path.id)
-                                        }}  
-                                        onMouseLeave={() => {
-                                            setDisplayPhotoControls(undefined)
-                                        }}
-                                    >
-                                        <img src={path.url} className="object-cover rounded-lg w-[200px] h-[300px] justify-self-center " id='image'/>
-                                        <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(path.id, false)}`}>
-                                            <Tooltip content={(<p>{portrait ? 'Will display as portait' : 'Will display as landscape'}</p>)} placement="bottom" className="w-[150px]">
-                                                {portrait ? (
-                                                    <TbCircleLetterPFilled size={20} />
-                                                ) : (
-                                                    <TbCircleLetterLFilled size={20} />
-                                                )}
-                                            </Tooltip>
-                                            <Tooltip content={(<p>Set as cover</p>)} placement="bottom" className="w-[110px]">
-                                                <button className="" disabled={submitting} onClick={async () => {
-                                                    if(coverSelected) {
-                                                        setCover(null)
-                                                        setChangesToSave(true)
-                                                    } else {
-                                                        setCover(path.path)
-                                                        setChangesToSave(true)
-                                                    }
-                                                }}>
-                                                    <HiOutlineStar className={coverSelectedStyle} size={20} />
-                                                </button>
-                                            </Tooltip>
-                                            <Tooltip content={(<p>Move to Top</p>)} placement="bottom" className="w-[110px]">
-                                                <button className="" disabled={submitting} onClick={async () => {
-                                                    const temp = [path, ...picturePaths.filter((p) => p.id !== path.id)].map((path, index) => {
-                                                        return {
-                                                            ...path,
-                                                            order: index,
-                                                        }
-                                                    })
-                                                    setPicturePaths(temp)
-                                                    setChangesToSave(true)
-                                                }}>
-                                                    <HiOutlineBarsArrowUp size={20} />
-                                                </button>
-                                            </Tooltip>
-                                            <Tooltip content={(<p>Move to Bottom</p>)} placement="bottom" className="w-[130px]">
-                                                <button className="" disabled={submitting} onClick={async () => {
-                                                    const temp = [...picturePaths.filter((p) => p.id !== path.id), path].map((path, index) => {
-                                                        return {
-                                                            ...path,
-                                                            order: index,
-                                                        }
-                                                    })
-                                                    setPicturePaths(temp)
-                                                    setChangesToSave(true)
-                                                }}><HiOutlineBarsArrowDown size={20} /></button>
-                                            </Tooltip>
-                                            <Tooltip content='Delete' placement="bottom">
-                                                <button className="" disabled={submitting} onClick={async () => {
-                                                    const s3response = await remove({
-                                                        path: path.path
-                                                    })
-                                                    console.log(s3response)
-                                                    const pathsresponse = await client.models.PhotoPaths.delete({
-                                                        id: path.id,
-                                                    })
-                                                    console.log(pathsresponse)
-                                                    setPicturePaths(picturePaths.filter((item) => item.id !== path.id))
-                                                }}>
-                                                    <HiOutlineTrash size={20} />
-                                                </button>
-                                            </Tooltip>
-                                        </div>
-                                        <div className={`absolute top-1 inset-x-0 justify-center flex-row ${controlsEnabled(path.id, displayTitleOverride)}`}>
-                                            <p id="image-name">{parseName(path.path)}</p>
-                                        </div>
-                                    </button>
-                                )
-                        }) : (<p>Upload Pictures to Start!</p>)}
-                </div> */}
+                {picturePaths.length > 0 ? 
+                    <AutoSizer className={gridClass} style={{ minHeight: `${dimensions.height - 350}px`}}>
+                        {({ height, width }: { height: number; width: number }) => {
+                            console.log(width)
+                        return (
+                            <FixedSizeGrid
+                                style={{
+                                    left: -(940 / 2),
+                                }}
+                                height={height - 50}
+                                rowCount={Number(Number(picturePaths.length / 4).toFixed(1)) + 1}
+                                columnCount={4}
+                                rowHeight={400}
+                                width={width - (width - 940 - ((width - 940)/2 + 10))}
+                                columnWidth={240}
+                                itemData={{
+                                    data: picturePaths
+                                        .sort((a, b) => a.order - b.order)
+                                        .filter((path) => path.url && path.path && path.id),
+                                    cover,
+                                    parseName,
+                                    pictureStyle,
+                                    submitting,
+                                    selectedPhotos,
+                                    setSelectedPhotos,
+                                    setDisplayPhotoControls,
+                                    controlsEnabled,
+                                    setCover,
+                                    setChangesToSave,
+                                    setPicturePaths,
+                                    displayTitleOverride,
+                                }}
+                            >
+                                {Row}
+                            </FixedSizeGrid>)}}
+                    </AutoSizer>
+                : (<p>Upload Pictures to Start!</p>)}
             </div>
             
             <div className="flex flex-col col-span-1 border-gray-400 border rounded-2xl items-center gap-4 py-3 me-2">

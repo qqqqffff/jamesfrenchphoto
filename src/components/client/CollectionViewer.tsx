@@ -37,8 +37,6 @@ export const CollectionViewer = () => {
         formattedCollection.push([] as PicturePath[])
     }
 
-    console.log(formattedCollection)
-
     let curIndex = 0
     collection.paths
         .sort((a, b) => a.order - b.order)
@@ -65,7 +63,7 @@ export const CollectionViewer = () => {
                 }}
             >
                 <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
-                    <p className="text-5xl font-thin">{collection.name}</p>
+                    <p className={`${dimensions.width > 1600 ? "text-5xl" : 'text-3xl' }  font-thin opacity-90`}>{collection.name}</p>
                     {/* <p className="italic text-xl">{new Date(collection.createdAt).toLocaleDateString()}</p> */}
                 </div>
                 <img ref={coverPhotoRef} src={coverPath.url} style={{ maxHeight: dimensions.height }} />
@@ -76,7 +74,6 @@ export const CollectionViewer = () => {
                     return (
                         <div key={index} className="flex flex-col gap-4">
                             {subCollection.map((picture, s_index) => {
-                                console.log(picture.order, index)
                                 return (
                                     <div className="relative" onContextMenu={(e) => {
                                         if(!collection.downloadable) e.preventDefault()
