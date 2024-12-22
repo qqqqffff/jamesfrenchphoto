@@ -135,12 +135,12 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                         <div className="flex flex-row items-center justify-between">
                             <Label className="ms-2 font-semibold text-xl" htmlFor="name">Files:</Label>
                             <div className="flex flex-row gap-2 items-center text-xl">
-                            {filesUpload && filesUpload.size > 0 ? (
-                                <>
-                                    <span className="font-semibold">Total:</span>
-                                    <span>{formatFileSize([...filesUpload.values()].map((file) => file.size).reduce((prev, cur) => prev = prev + cur, 0))}</span>
-                                </>
-                            ) : (<></>)}
+                                {filesUpload && filesUpload.size > 0 ? (
+                                    <>
+                                        <span className="font-semibold">Total:</span>
+                                        <span>{formatFileSize([...filesUpload.values()].map((file) => file.size).reduce((prev, cur) => prev = prev + cur, 0))}</span>
+                                    </>
+                                ) : (<></>)}
                             </div>
                         </div>
                         

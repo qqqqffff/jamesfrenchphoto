@@ -15,7 +15,7 @@ import testPhoto from '../../assets/home-carousel/carousel-1.jpg'
 
 const client = generateClient<Schema>()
 
-interface UploadImagesProps extends ModalProps {
+interface WatermarkProps extends ModalProps {
     collection: PhotoCollection;
     onCollectionSubmit: (collection: PhotoCollection) => void,
     onWatermarkUpload: (paths: Watermark[]) => void,
@@ -47,7 +47,7 @@ const Row: FC<RowProps> = ({ index, data, style }) => {
     )
 }
 
-export const WatermarkModal: FC<UploadImagesProps> = ({ open, onClose, collection, paths, onCollectionSubmit, onWatermarkUpload, watermarks }) => {
+export const WatermarkModal: FC<WatermarkProps> = ({ open, onClose, collection, paths, onCollectionSubmit, onWatermarkUpload, watermarks }) => {
     const [pictureCollection, setPictureCollection] = useState(collection)
     const [filesUpload, setFilesUpload] = useState<Map<string, File> | undefined>()
     const [progress, setProgress] = useState<number>()

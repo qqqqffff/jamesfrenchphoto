@@ -1,5 +1,5 @@
 import { FC, useState } from "react"
-import { PhotoCollection, PicturePath } from "../../types"
+import { PhotoCollection, PicturePath, UserTag } from "../../types"
 import { ControlComponent } from "./ControlPannel";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
@@ -11,7 +11,7 @@ import {
     HiOutlineStar
 } from "react-icons/hi2";
 import { Tooltip } from "flowbite-react";
-import { UploadImagesModal, WatermarkModal } from "../modals";
+import { CreateCollectionModal, UploadImagesModal, WatermarkModal } from "../modals";
 import { useNavigate } from "react-router-dom";
 import { TbCircleLetterPFilled, TbCircleLetterLFilled } from "react-icons/tb";
 import { FixedSizeGrid, GridChildComponentProps } from "react-window";
@@ -24,7 +24,8 @@ export type PhotoCollectionProps = {
     watermarkObjects: {
         path: string,
         url: string
-    }[]
+    }[],
+    availableTags: UserTag[]
 }
 
 const client = generateClient<Schema>()
@@ -158,7 +159,7 @@ const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
     )
 }
 
-export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths, watermarkObjects }) => {
+export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths, watermarkObjects, availableTags }) => {
     const [pictureCollection, setPictureCollection] = useState(photoCollection)
     const [picturePaths, setPicturePaths] = useState<PicturePath[]>(photoPaths)
     const [submitting, setSubmitting] = useState(false)
@@ -172,6 +173,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
     const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
     const [deleteSubmitting, setDeleteSubmitting] = useState(false)
     const dimensions = useWindowDimensions()
+    const [updateCollection, setUpdateCollection] = useState(false)
     const navigate = useNavigate()
 
     function pictureStyle(url: string, cover: boolean){
@@ -253,13 +255,23 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
             }}
             watermarks={watermarks}
         />
+        <CreateCollectionModal
+            collection={{...pictureCollection, paths: picturePaths}}
+            eventId={pictureCollection.eventId}
+            availableTags={availableTags}
+            onSubmit={(collection) => {
+                setPictureCollection(collection)
+                setUpdateCollection(false)
+            }}
+            onClose={() => setUpdateCollection(false)}
+            open={updateCollection}
+        />
         <div className="grid grid-cols-6 gap-2">
             <div className="border-gray-400 border rounded-2xl p-4 col-span-5 flex flex-col items-center">
                 <span className="text-2xl mb-4">{pictureCollection.name}</span>
                 {picturePaths.length > 0 ? 
                     <AutoSizer className={gridClass} style={{ minHeight: `${dimensions.height - 350}px`}}>
                         {({ height, width }: { height: number; width: number }) => {
-                            console.log(width)
                         return (
                             <FixedSizeGrid
                                 style={{
@@ -297,6 +309,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
             
             <div className="flex flex-col col-span-1 border-gray-400 border rounded-2xl items-center gap-4 py-3 me-2">
                 <p className="text-2xl underline">Controls</p>
+                <ControlComponent name='Update Collection' fn={() => setUpdateCollection(true)} />
                 <ControlComponent name="Upload Picture" fn={() => setUploadImagesVisible(true)} />
                 <ControlComponent name="Save Changes" fn={() => saveCollection()} disabled={!changesToSave} isProcessing={submitting} />
                 <ControlComponent name="Preview" fn={() => navigate(`/photo-collection/${photoCollection.id}`, { state: { origin: 'admin' }})} />
