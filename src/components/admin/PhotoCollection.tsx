@@ -14,7 +14,9 @@ import { Tooltip } from "flowbite-react";
 import { UploadImagesModal, WatermarkModal } from "../modals";
 import { useNavigate } from "react-router-dom";
 import { TbCircleLetterPFilled, TbCircleLetterLFilled } from "react-icons/tb";
-import { ListChildComponentProps } from "react-window";
+import { FixedSizeGrid, GridChildComponentProps } from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
+import useWindowDimensions from "../../hooks/windowDimensions";
 
 export type PhotoCollectionProps = {
     photoCollection: PhotoCollection;
@@ -27,10 +29,10 @@ export type PhotoCollectionProps = {
 
 const client = generateClient<Schema>()
 
-interface RowProps extends ListChildComponentProps {
+interface RowProps extends GridChildComponentProps {
     data: {
         data: PicturePath[],
-        cover: string,
+        cover: string | null,
         parseName: (path: string) => string 
         pictureStyle: (path: string, selected: boolean) => string
         submitting: boolean
@@ -41,11 +43,13 @@ interface RowProps extends ListChildComponentProps {
         setCover: (path: string | null) => void
         setChangesToSave: (changes: boolean) => void
         setPicturePaths: (paths: PicturePath[]) => void
-        displayTitleOverride: boolean
+        displayTitleOverride: boolean,
     }
 }
 
-const Row: FC<RowProps> = ({ index, data, style }) => {
+const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
+    const index = columnIndex + 4 * rowIndex
+    if(!data.data[index]) return (<>Failed to Load</>)
     const coverSelected = data.parseName(data.data[index].path) === data.parseName(data.cover ?? '')
     const coverSelectedStyle = `${coverSelected ? 'fill-yellow-300' : ''}`
 
@@ -56,7 +60,11 @@ const Row: FC<RowProps> = ({ index, data, style }) => {
 
     return (
         <button 
-            style={style}
+            style={{
+                ...style,
+                width: Number(style.width ?? 0) - 20,
+                height: Number(style.height ?? 0) - 20,
+            }}
             disabled={data.submitting}
             key={index} 
             className={data.pictureStyle(data.data[index].url, coverSelected)} id='image-container'
@@ -163,6 +171,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
     const [watermarks, setWatermarks] = useState<{path: string, url: string }[]>(watermarkObjects)
     const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
     const [deleteSubmitting, setDeleteSubmitting] = useState(false)
+    const dimensions = useWindowDimensions()
     const navigate = useNavigate()
 
     function pictureStyle(url: string, cover: boolean){
@@ -183,7 +192,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         setSubmitting(true)
         const collectionUpdateResponse = await client.models.PhotoCollection.update({
             id: photoCollection.id,
-            coverPath: pictureCollection.coverPath,
+            coverPath: cover,
             downloadable: pictureCollection.downloadable,
             watermarkPath: pictureCollection.watermarkPath,
         })
@@ -203,6 +212,8 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         setChangesToSave(false)
         setSubmitting(false)
     }
+
+    console.log(dimensions)
 
     return (
     <>
@@ -245,8 +256,43 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         <div className="grid grid-cols-6 gap-2">
             <div className="border-gray-400 border rounded-2xl p-4 col-span-5 flex flex-col items-center">
                 <span className="text-2xl mb-4">{pictureCollection.name}</span>
+                <AutoSizer className={`w-full self-center min-h-[650px]`}>
+                {({ height, width }: { height: number; width: number }) => {
+                    console.log(height)
+                return (
+                    <FixedSizeGrid
+                        style={{
+                            left: -(940 / 2),
+                        }}
+                        height={height - 50}
+                        rowCount={Number(Number(picturePaths.length / 4).toFixed(1)) + 1}
+                        columnCount={4}
+                        rowHeight={400}
+                        width={width - (940 / 8) - 5}
+                        columnWidth={240}
+                        itemData={{
+                            data: picturePaths
+                                .sort((a, b) => a.order - b.order)
+                                .filter((path) => path.url && path.path && path.id),
+                            cover,
+                            parseName,
+                            pictureStyle,
+                            submitting,
+                            selectedPhotos,
+                            setSelectedPhotos,
+                            setDisplayPhotoControls,
+                            controlsEnabled,
+                            setCover,
+                            setChangesToSave,
+                            setPicturePaths,
+                            displayTitleOverride,
+                        }}
+                    >
+                        {Row}
+                    </FixedSizeGrid>)}}
+                </AutoSizer>
 
-                <div className="grid grid-cols-5 gap-4 w-full">
+                {/* <div className="grid grid-cols-5 gap-4 w-full">
                     {picturePaths.length > 0 ? 
                         picturePaths
                             .sort((a, b) => a.order - b.order)
@@ -354,7 +400,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
                                     </button>
                                 )
                         }) : (<p>Upload Pictures to Start!</p>)}
-                </div>
+                </div> */}
             </div>
             
             <div className="flex flex-col col-span-1 border-gray-400 border rounded-2xl items-center gap-4 py-3 me-2">
