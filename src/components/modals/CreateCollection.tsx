@@ -8,6 +8,8 @@ import { Schema } from "../../../amplify/data/resource";
 import { PhotoCollection, PicturePath, UserTag } from "../../types";
 import { v4 } from 'uuid'
 import { badgeColorThemeMap, formatFileSize, textInputTheme } from "../../utils";
+import { FixedSizeList, ListChildComponentProps } from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
 
 const client = generateClient<Schema>()
 
@@ -17,10 +19,49 @@ interface UploadImagesProps extends ModalProps {
     availableTags: UserTag[]
 }
 
+interface RowProps extends ListChildComponentProps {
+    data: {
+        data: { url: string, file: File}[],
+        onDelete: (key: string) => void,
+        cover: string | null,
+        setCover: (cover: string | null) => void
+    }
+}
+
+const Row: FC<RowProps> = ({ index, data, style }) => {
+    const starClass = `${data.cover == data.data[index].file.name ? 'fill-yellow-300' : ''}`
+    return (
+        <div key={index} className="flex flex-row justify-between" style={style}>
+            <Tooltip className='relative z-10' content={<img src={data.data[index].url} loading='lazy' className="w-[200px] h-[300px] object-cover"/>}>
+                <span>{data.data[index].file.name}</span>
+            </Tooltip>
+            <div className="flex flex-row gap-2">
+                <span>{formatFileSize(data.data[index].file.size)}</span>
+                <button 
+                    type='button'
+                    onClick={() => {
+                        if(data.cover === data.data[index].file.name){
+                            data.setCover(null)
+                        }
+                        else {
+                            data.setCover(data.data[index].file.name)
+                        }
+                    }}
+                >
+                    <HiOutlineStar className={starClass} size={20} />
+                </button>
+                <button className="hover:border-gray-500 border border-transparent rounded-full p-0.5" type='button' onClick={() => data.onDelete(data.data[index].url)}>
+                    <HiOutlineXMark size={20}/>
+                </button>
+            </div>
+        </div>
+    )
+}
+
 export const CreateCollectionModal: FC<UploadImagesProps> = ({ open, onClose, eventId, onSubmit, availableTags }) => {
     const [filesUpload, setFilesUpload] = useState<Map<string, File> | undefined>()
     const [name, setName] = useState('')
-    const [cover, setCover] = useState('')
+    const [cover, setCover] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
     const [progress, setProgress] = useState<number | undefined>()
     const [selectedTags, setSelectedTags] = useState<UserTag[]>([])
@@ -60,7 +101,7 @@ export const CreateCollectionModal: FC<UploadImagesProps> = ({ open, onClose, ev
 
                         setProgress((index + 1 / arr.length) * 100)
                         //updating cover
-                        if(cover && file.name === cover){
+                        if(cover !== null && file.name === cover){
                             const collectionUpdate = await client.models.PhotoCollection.update({
                                 id: collectionResponse.data!.id,
                                 coverPath: result.path
@@ -101,14 +142,6 @@ export const CreateCollectionModal: FC<UploadImagesProps> = ({ open, onClose, ev
         }
     }
 
-    const displayTags = selectedTags
-        .map((tag, index, arr) => {
-            return (
-                <p className={`${tag.color ? `text-${tag.color}` : ''} me-1`} key={index} >{tag.name + (arr.length - 1 != index ? ',' : '')}</p>
-            )
-        })
-        .filter((item) => item !== undefined)
-
     return (
         <Modal show={open} className='font-main' onClose={() => {
             setFilesUpload(undefined)
@@ -126,9 +159,7 @@ export const CreateCollectionModal: FC<UploadImagesProps> = ({ open, onClose, ev
                             <div className="flex flex-col gap-2 mb-4 w-[40%]">
                                 <Label className="ms-2 font-medium text-lg" htmlFor="name">Package Tag:</Label>
                                 <Dropdown
-                                    label={availableTags.length > 0 ? (
-                                        displayTags.length > 0 ? displayTags : 'Select'
-                                    ) : 'None'} 
+                                    label={availableTags.length > 0 ? 'Select' : 'None'} 
                                     color='light' dismissOnClick={false} disabled={availableTags.length == 0}>
                                     {availableTags.map((tag, index) => {
                                         const selected = selectedTags.find((st) => st.id === tag.id)
@@ -155,7 +186,7 @@ export const CreateCollectionModal: FC<UploadImagesProps> = ({ open, onClose, ev
                                 </Dropdown>
                             </div>
                         </div>
-                        <div className='flex flex-row gap-2 items-center justify-center mb-4'>
+                        <div className='flex flex-row gap-2 items-center justify-center mb-2'>
                             {
                                 selectedTags.map((tag, index) => {
                                     return (<Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 text-md">{tag.name}</Badge>)
@@ -163,7 +194,7 @@ export const CreateCollectionModal: FC<UploadImagesProps> = ({ open, onClose, ev
                             }
                         </div>
                         <div className="flex items-center justify-center w-full">
-                            <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                            <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-[50%] h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                     <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
                                         <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
@@ -190,61 +221,37 @@ export const CreateCollectionModal: FC<UploadImagesProps> = ({ open, onClose, ev
                             </label>
                         </div>
                         <Label className="ms-2 font-semibold text-xl mt-3" htmlFor="name">Files:</Label>
-                        {filesUpload && filesUpload.size > 0? 
-                            (<>
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex flex-row ms-6 justify-between me-24">
-                                        <span className="underline font-semibold">File Name:</span>
-                                        <span className="underline font-semibold">Size:</span>
-                                    </div>
-                                    {[...filesUpload.entries()].map(([url, file], index) => {
-                                        const starClass = `${cover == file.name ? 'fill-yellow-300' : ''}`
-                                        return (
-                                                <div key={index} className="flex flex-row ms-6 justify-between me-6">
-                                                    <Tooltip content={<img src={url} className="w-[200px] h-[300px] object-cover"/>}>
-                                                        <span>{file.name}</span>
-                                                    </Tooltip>
-                                                    <div className="flex flex-row gap-2">
-                                                        <span>{formatFileSize(file.size)}</span>
-                                                        <button 
-                                                            type='button'
-                                                            onClick={() => {
-                                                                if(cover === file.name){
-                                                                    setCover('')
-                                                                }
-                                                                else {
-                                                                    setCover(file.name)
-                                                                }
-                                                            }}
-                                                        >
-                                                            <HiOutlineStar className={starClass} size={20} />
-                                                        </button>
-                                                        <button className="hover:border-gray-500 border border-transparent rounded-full p-0.5" type='button' onClick={() => {
-                                                            const files = new Map<string, File>(filesUpload.entries())
-                                                            files.delete(url)
-
-                                                            const c = file.name == cover ? '' : cover
-
-                                                            setFilesUpload(files)
-                                                            setCover(c)
-                                                        }}>
-                                                            <HiOutlineXMark size={20}/>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                        )
-                                    })}
-                                    <div className="flex flex-row items-center justify-end gap-2 me-10">
-                                        <span className="underline font-semibold">Total:</span>
-                                        <span>{formatFileSize([...filesUpload.values()].map((file) => file.size).reduce((prev, cur) => prev = prev + cur, 0))}</span>
-                                    </div>
-                                </div>
-                                
-                            </>) 
-                            : 
-                            (<>
-                                <span className="italic text-sm ms-6">Upload files to preview them here!</span>
-                            </>)
+                        {filesUpload && filesUpload.size > 0 ? (
+                            <div className="h-full min-h-100">
+                                <AutoSizer className="min-h-[320px] z-0">
+                                {({ height, width }: { height: number; width: number }) => {
+                                    return (
+                                    <FixedSizeList
+                                        height={height}
+                                        itemCount={filesUpload?.size ?? 0}
+                                        itemSize={35}
+                                        width={width}
+                                        itemData={{
+                                            data: [...filesUpload.entries()].map(([url, file]) => ({url: url, file: file})),
+                                            onDelete: (key) => {
+                                                const files = new Map<string, File>(filesUpload.entries())
+                                                files.delete(key)
+                                                console.log(files)
+                                                setFilesUpload(files)
+                                            },
+                                            cover,
+                                            setCover
+                                        }}
+                                    >
+                                        {Row}
+                                    </FixedSizeList>
+                                )}}
+                                </AutoSizer>
+                            </div>
+                        ) : (
+                            <span className=" italic text-sm ms-6">Upload files to preview them here!</span>
+                        )
+                        
                         }
                     </div>
                     {progress ? (
