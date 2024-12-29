@@ -7,8 +7,9 @@ import { DateTime } from 'luxon'
 
 export interface SlotProps {
     timeslot: Timeslot
-    participant?: Participant
-    tag?: UserTag
+    participant?: Participant | null
+    tag?: UserTag,
+    className?: string,
 }
 
 export function createTimeString(timeslot: Timeslot){
@@ -61,9 +62,9 @@ export function createTimeslotEvent(timeslot: Timeslot, participant: Participant
     )
 }
 
-export const SlotComponent: FC<SlotProps> = ({ timeslot, participant, tag }) => {
+export const SlotComponent: FC<SlotProps> = ({ timeslot, participant, tag, className }) => {
     return (
-        <div className={`flex flex-col relative border border-black justify-center items-center rounded-lg py-2 px-4 text-${tag?.color ?? 'black'}`}>
+        <div className={`flex flex-col relative border border-black justify-center items-center rounded-lg py-2 px-4 text-${tag?.color ?? 'black'} ${className ?? ''}`}>
             <span>{"Time: " + createTimeString(timeslot)}</span>
             {
                 participant ? 
@@ -72,7 +73,9 @@ export const SlotComponent: FC<SlotProps> = ({ timeslot, participant, tag }) => 
                             {`${participant.preferredName ? participant.preferredName : participant.firstName} ${participant.lastName}`}
                         </span>
                     ) : (
-                        <></>
+                        participant === null ? (
+                            <span>No Register</span>
+                        ) : undefined
                     )
             }
             {

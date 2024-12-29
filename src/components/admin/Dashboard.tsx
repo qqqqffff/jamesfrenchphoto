@@ -10,9 +10,10 @@ import {
  } from "react-icons/hi";
 import { UserStorage } from "../../types";
 import UserManagement from "./UserManagement";
-import { TimeslotComponent } from "../timeslot/Timeslot";
+// import { TimeslotComponent } from "../timeslot/Timeslot";
 import CollectionManager from "./CollectionManager";
 import PackageManager from "./PackageManager";
+import { Scheduler } from "./Scheduler";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
@@ -51,7 +52,8 @@ export const Dashboard = () => {
     function activeConsoleComponent(){
         switch(activeConsole){
             case 'scheduler': 
-                return (<TimeslotComponent admin/>)
+                // return (<TimeslotComponent admin/>)
+                return (<Scheduler />)
             case 'collectionManager':
                 return (<CollectionManager />)
             case 'userManagement':

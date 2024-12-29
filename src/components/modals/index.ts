@@ -9,6 +9,7 @@ import { CreateEventModal as createEvent } from './CreateEvent';
 import { CreatePackageModal as createPackage } from './CreatePackage';
 import { CreateCollectionModal as createCollection } from './CreateCollection';
 import { WatermarkModal as watermark } from './Watermark';
+import { EditTimeslotModal as editTimeslot } from './EditTimeslotModal';
 
 
 export type ModalProps = {
@@ -27,3 +28,4 @@ export const CreateEventModal = createEvent
 export const CreatePackageModal = createPackage
 export const CreateCollectionModal = createCollection
 export const WatermarkModal = watermark
+export const EditTimeslotModal = editTimeslot

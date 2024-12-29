@@ -25,6 +25,7 @@ import { ColumnColor, Participant, PhotoCollection, Timeslot, UserColumnDisplay,
 import { UserColumnModal } from "../modals/UserColumn"
 // import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
 import { v4 } from 'uuid'
+import { parseAttribute } from "../../utils"
 
 const client = generateClient<Schema>()
 type UserTableData = 
@@ -56,23 +57,6 @@ export default function UserManagement(){
     // const [selectedHeader, setSelectedHeader] = useState<{header: string, sort: 'ASC' | 'DSC' | undefined}>()
 
     const [apiCall, setApiCall] = useState(false)
-
-    function parseAttribute(attribute: string){
-        switch(attribute){
-            case 'email':
-                return 'email'
-            case 'email_verified':
-                return 'verified'
-            case 'family_name':
-                return 'last'
-            case 'given_name':
-                return 'first'
-            case 'sub':
-                return 'userId'
-            default:
-                return 'attribute'
-        }
-    }
 
     //TODO: implement tag filtering
     async function getUsers(tag?: string) {
