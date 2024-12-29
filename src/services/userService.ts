@@ -28,34 +28,43 @@ async function getAllUserTags(client: V6Client<Schema>): Promise<UserTag[]> {
     return mappedTags
 }
 
-//TODO: conditional si based on options
-async function getUserProfileByEmail(client: V6Client<Schema>, email: string): Promise<UserProfile | undefined> {
+interface GetUserProfileByEmailOptions {
+    siTags: boolean,
+    siTimeslot: boolean,
+}
+export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     console.log('api call')
     const profileResponse = await client.models.UserProfile.get({ email: email })
     if(!profileResponse || !profileResponse.data) return
     const participantResponse = await profileResponse.data.participant()
     const mappedParticipants: Participant[] = await Promise.all(participantResponse.data.map(async (participant) => {
-        const tags: UserTag[] = (await Promise.all((participant.userTags ?? []).filter((tag) => tag !== null).map(async (tag) => {
-            const tagResponse = await client.models.UserTag.get({ id: tag })
-            if(!tagResponse || !tagResponse.data) return
-            const mappedTag: UserTag = {
-                ...tagResponse.data,
-                color: tagResponse.data.color ?? undefined
-            }
-            return mappedTag
-        }))).filter((tag) => tag !== undefined)
-
-        const timeslot = (await participant.timeslot()).data.map((timeslot) => {
-            const mappedTimeslot: Timeslot = {
-                ...timeslot,
-                start: new Date(timeslot.start),
-                end: new Date(timeslot.end),
-                //unneccessary
-                register: undefined,
-                participant: undefined,
-            }
-            return mappedTimeslot
-        })
+        const tags: UserTag[] = []
+        const timeslots: Timeslot[] = []
+        if(options === undefined || options.siTags){
+             tags.push(...(await Promise.all((participant.userTags ?? []).filter((tag) => tag !== null).map(async (tag) => {
+                const tagResponse = await client.models.UserTag.get({ id: tag })
+                if(!tagResponse || !tagResponse.data) return
+                const mappedTag: UserTag = {
+                    ...tagResponse.data,
+                    color: tagResponse.data.color ?? undefined
+                }
+                return mappedTag
+            }))).filter((tag) => tag !== undefined))
+        }
+        if(options === undefined || options.siTimeslot){
+            timeslots.push(...((await participant.timeslot()).data.map((timeslot) => {
+                const mappedTimeslot: Timeslot = {
+                    ...timeslot,
+                    start: new Date(timeslot.start),
+                    end: new Date(timeslot.end),
+                    //unneccessary
+                    register: undefined,
+                    participant: undefined,
+                }
+                return mappedTimeslot
+            })))
+        }
+        
 
         const mappedParticipant: Participant = {
             ...participant,
@@ -64,7 +73,7 @@ async function getUserProfileByEmail(client: V6Client<Schema>, email: string): P
             preferredName: participant.preferredName ?? undefined,
             email: participant.email ?? undefined,
             contact: participant.contact ?? false,
-            timeslot: timeslot,
+            timeslot: timeslots,
         }
         return mappedParticipant
     }))
@@ -79,10 +88,10 @@ async function getUserProfileByEmail(client: V6Client<Schema>, email: string): P
         //deprecated
         userTags: [],
         timeslot: undefined,
-        participantFirstName: undefined,
-        participantLastName: undefined,
-        participantMiddleName: undefined,
-        participantPreferredName: undefined,
+        participantFirstName: profileResponse.data.participantFirstName ?? undefined,
+        participantLastName: profileResponse.data.participantLastName ?? undefined,
+        participantMiddleName: profileResponse.data.participantMiddleName ?? undefined,
+        participantPreferredName: profileResponse.data.participantPreferredName ?? undefined,
         participantContact: undefined,
         participantEmail: undefined,
     }

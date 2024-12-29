@@ -3,6 +3,7 @@ import { Schema } from "../../amplify/data/resource";
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Participant, Timeslot, UserTag } from "../types";
+import { getUserProfileByEmail } from "./userService";
 
 const client = generateClient<Schema>()
 
@@ -39,6 +40,24 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
                 contact: false,
                 timeslot: undefined,
                 middleName: undefined,
+            }
+        }
+        //deprecation compatability
+        else if(timeslot.register !== null){
+            const userProfile = await getUserProfileByEmail(client, timeslot.register, { siTags: false, siTimeslot: false })
+            if(userProfile && userProfile.participantFirstName && userProfile.participantLastName){
+                participant = {
+                    id: '',
+                    firstName: userProfile.participantFirstName,
+                    lastName: userProfile.participantLastName,
+                    preferredName: userProfile?.participantPreferredName,
+                    //unnecessary
+                    userTags: [],
+                    email: undefined,
+                    contact: false,
+                    timeslot: undefined,
+                    middleName: undefined,
+                }
             }
         }
         const mappedTimeslot: Timeslot = {
