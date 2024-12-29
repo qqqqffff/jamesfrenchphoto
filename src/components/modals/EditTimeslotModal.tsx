@@ -118,9 +118,9 @@ const EditTimeslotModalComponent: FC<EditTimeslotModalProps> = ({open, onClose, 
                     <Datepicker inline value={activeDate} onChange={(date) => {
                         if(date){
                             const tempStart = startTime
-                            tempStart.setFullYear(activeDate.getFullYear(), activeDate.getMonth(), activeDate.getDate())
+                            tempStart.setFullYear(date.getFullYear(), date.getMonth(), date.getDate())
                             const tempEnd = endTime
-                            tempEnd.setFullYear(activeDate.getFullYear(), activeDate.getMonth(), activeDate.getDate())
+                            tempEnd.setFullYear(date.getFullYear(), date.getMonth(), date.getDate())
                             setActiveDate(date)
                             setStartTime(tempStart)
                             setEndTime(tempEnd)
