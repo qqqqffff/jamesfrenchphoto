@@ -30,7 +30,7 @@ export const Scheduler: FC = () => {
                     <div className="flex flex-row gap-1 w-full justify-between">
                         <span className="text-2xl underline underline-offset-4">Timeslot Date</span>
                     </div>
-                    { !timeslots.isLoading ? (<></>) : 
+                    { timeslots.isLoading &&
                         (
                             <Progress progress={100} textLabel="Loading..." textLabelPosition='inside' labelText size="lg"/>
                         )
@@ -38,74 +38,6 @@ export const Scheduler: FC = () => {
                     <Datepicker className='mt-2' onChange={async (date) => {
                         if(date) {
                             setActiveDate(date)
-                            // let timeslots: Timeslot[] = []
-                            // setLoading(true)
-                            // timeslots = (await Promise.all((await client.models.Timeslot.list({ filter: {
-                            //     start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
-                            // }})).data.map(async (timeslot) => {
-                            //     if(timeslot === undefined || timeslot.id === undefined || timeslot.start === undefined || timeslot.end === undefined) return undefined
-                            //     let tag: UserTag | undefined
-                            //     const tsTagResponse = await timeslot.timeslotTag()
-                            //     if(tsTagResponse && tsTagResponse.data){
-                            //         const tagResponse = await tsTagResponse.data.tag()
-                            //         if(tagResponse && tagResponse.data){
-                            //             tag = {
-                            //                 ...tagResponse.data,
-                            //                 color: tagResponse.data.color ?? undefined,
-                            //             }
-                            //         }
-                            //     }
-
-                            //     const participantResponse = await timeslot.participant()
-                            //     let participant: Participant | undefined
-                            //     //TODO: improve me
-                            //     if(participantResponse.data){
-                            //         participant = {
-                            //             ...participantResponse.data,
-                            //             preferredName: participantResponse.data.preferredName ?? undefined,
-                            //             //unnecessary fields
-                            //             userTags: [],
-                            //             middleName: undefined,
-                            //             email: undefined,
-                            //             contact: false,
-                            //             timeslot: undefined
-                            //         }
-                            //     }
-                            //     else if(timeslot.register) {
-                            //         const userProfileResponse = await client.models.UserProfile.get({ email: timeslot.register })
-                            //         if(userProfileResponse.data && 
-                            //             userProfileResponse.data.participantFirstName && 
-                            //             userProfileResponse.data.participantLastName){
-                            //             participant = {
-                            //                 id: '',
-                            //                 firstName: userProfileResponse.data.participantFirstName,
-                            //                 lastName: userProfileResponse.data.participantLastName,
-                            //                 preferredName: userProfileResponse.data.participantPreferredName ?? undefined,
-                            //                 //unnecessary fields
-                            //                 userTags: [],
-                            //                 middleName: undefined,
-                            //                 email: undefined,
-                            //                 contact: false,
-                            //                 timeslot: undefined
-                            //             }
-                            //         }
-                            //     }
-
-                            //     const ts: Timeslot = {
-                            //         id: timeslot.id as string,
-                            //         register: timeslot.register ?? undefined,
-                            //         start: new Date(timeslot.start),
-                            //         end: new Date(timeslot.end),
-                            //         participant: participant,
-                            //         tag: tag
-                            //     }
-                            //     return ts
-                            // }))).filter((timeslot) => timeslot !== undefined)
-                            
-                            // setUpdatingTimeslot(timeslots.length > 0)
-                            // setActiveDate(date)
-                            // setTimeslots(timeslots)
-                            // setLoading(false)
                         }
                     }}/>
                     <ControlComponent className="" name={
