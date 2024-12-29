@@ -51,7 +51,7 @@ const EditTimeslotModalComponent: FC<EditTimeslotModalProps> = ({open, onClose, 
                     timeslot.end.getTime() === endTime.getTime() ||
                     (timeslot.start.getTime() > startTime.getTime() && timeslot.end.getTime() < endTime.getTime())
         })
-        if(found == undefined) return undefined
+        if(found.length == 0) return undefined
         if(found.find((timeslot) => timeslot.participant !== undefined || timeslot.register !== undefined) !== undefined) return 'emergency'
         return 'warning'
     })()
