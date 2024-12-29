@@ -34,6 +34,49 @@ export function formatFileSize(bytes: number, decimals = 2) {
     return `${size} ${sizes[i]}`;
 }
 
+export const TZ_OFFSET = (day: Date) => (new Date(day.toLocaleString('en-US', { timeZone: 'America/Chicago' })).getTime() - new Date(day.toLocaleString()).getTime())
+
+export const getTimes = (day: Date) => [
+    new Date(day.getTime() + DAY_OFFSET * (16/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (17/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (18/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (19/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (20/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (21/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (22/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (23/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (24/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (25/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (26/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (27/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (28/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (29/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (30/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (31/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (32/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (33/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (34/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (35/48) - TZ_OFFSET(day)),
+    new Date(day.getTime() + DAY_OFFSET * (36/48) - TZ_OFFSET(day)),
+]
+
+export function parseAttribute(attribute: string){
+    switch(attribute){
+        case 'email':
+            return 'email'
+        case 'email_verified':
+            return 'verified'
+        case 'family_name':
+            return 'last'
+        case 'given_name':
+            return 'first'
+        case 'sub':
+            return 'userId'
+        default:
+            return 'attribute'
+    }
+}
+
 //TODO: de-duplication
 export const defaultColors = [
     'pink-400',

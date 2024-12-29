@@ -3,7 +3,7 @@ import { ModalProps } from ".";
 import { Button, Dropdown, Label, Modal, RangeSlider } from "flowbite-react";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
-import { DAY_OFFSET } from "../../utils";
+import { DAY_OFFSET, getTimes } from "../../utils";
 import { Timeslot } from "../../types";
 
 const client = generateClient<Schema>()
@@ -78,29 +78,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
         }
     })
 
-    const times = [
-        new Date(day.getTime() + DAY_OFFSET * (16/48)),
-        new Date(day.getTime() + DAY_OFFSET * (17/48)),
-        new Date(day.getTime() + DAY_OFFSET * (18/48)),
-        new Date(day.getTime() + DAY_OFFSET * (19/48)),
-        new Date(day.getTime() + DAY_OFFSET * (20/48)),
-        new Date(day.getTime() + DAY_OFFSET * (21/48)),
-        new Date(day.getTime() + DAY_OFFSET * (22/48)),
-        new Date(day.getTime() + DAY_OFFSET * (23/48)),
-        new Date(day.getTime() + DAY_OFFSET * (24/48)),
-        new Date(day.getTime() + DAY_OFFSET * (25/48)),
-        new Date(day.getTime() + DAY_OFFSET * (26/48)),
-        new Date(day.getTime() + DAY_OFFSET * (27/48)),
-        new Date(day.getTime() + DAY_OFFSET * (28/48)),
-        new Date(day.getTime() + DAY_OFFSET * (29/48)),
-        new Date(day.getTime() + DAY_OFFSET * (30/48)),
-        new Date(day.getTime() + DAY_OFFSET * (31/48)),
-        new Date(day.getTime() + DAY_OFFSET * (32/48)),
-        new Date(day.getTime() + DAY_OFFSET * (33/48)),
-        new Date(day.getTime() + DAY_OFFSET * (34/48)),
-        new Date(day.getTime() + DAY_OFFSET * (35/48)),
-        new Date(day.getTime() + DAY_OFFSET * (36/48)),
-    ]
+    const times = getTimes(day)
 
     async function createTimeslot(event: FormEvent){
         event.preventDefault()
@@ -160,7 +138,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
 
     const startEnabled = (time: Date) => (
         typeof startTime === 'string' || (
-            typeof endTime !== 'string' && time.getTime() <= endTime.getTime()
+            typeof endTime !== 'string' && time.getTime() < endTime.getTime()
         )
     )
 

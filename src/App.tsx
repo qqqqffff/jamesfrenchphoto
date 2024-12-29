@@ -20,6 +20,7 @@ import { CollectionViewer, DisplayCollectionData } from './components/client/Col
 import { Package, Participant, PhotoCollection, PicturePath, Timeslot, UserProfile, UserStorage, UserTag } from './types'
 import { getUrl } from 'aws-amplify/storage'
 import { ClientProfile } from './components/client/Profile'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 Amplify.configure(outputs)
 const client = generateClient<Schema>()
@@ -379,10 +380,11 @@ const router = createBrowserRouter(
 )
 
 function App() {
+  const queryClient = new QueryClient()
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-    </>
+    </QueryClientProvider>
   )
 }
 

@@ -38,9 +38,9 @@ export default function Header() {
 
         return (
             <>
-                <Dropdown.Item href={profileUrl}>Profile</Dropdown.Item>
+                {adminState ? undefined : (<Dropdown.Item href={profileUrl}>Profile</Dropdown.Item>)}
                 <Dropdown.Item href={dashboardUrl}>Dashboard</Dropdown.Item>
-                <Dropdown.Item>
+                {adminState ? undefined : (<Dropdown.Item>
                     <Dropdown
                         arrowIcon={false}
                         inline
@@ -71,7 +71,7 @@ export default function Header() {
                             )
                         })}
                     </Dropdown>
-                </Dropdown.Item>
+                </Dropdown.Item>)}
                 <Dropdown.Item href='/logout'>Logout</Dropdown.Item>
             </>
         )

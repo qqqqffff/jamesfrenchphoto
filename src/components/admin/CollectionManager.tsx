@@ -40,17 +40,27 @@ export default function CollectionManager(){
             console.log('api call')
             const eList: Event[] = (await Promise.all((await client.models.Events.list()).data.map(async (event) => {
                 const collectionResponse = await event.collections()
-                const collections: PhotoCollection[] = collectionResponse.data.map((collection) => {
+                const collections: PhotoCollection[] = await Promise.all(collectionResponse.data.map(async (collection) => {
+                    const tagResponse = (await collection.tags()).data
+                    const tags: UserTag[] = (await Promise.all(tagResponse.map(async (tag) => {
+                        const userTagResponse = (await tag.tag()).data
+                        if(!userTagResponse) return undefined
+                        const mappedTag: UserTag = {
+                            ...userTagResponse,
+                            color: userTagResponse.color ?? undefined,
+                        }
+                        return mappedTag
+                    }))).filter((tag) => tag !== undefined)
                     const mappedCollection: PhotoCollection = {
                         ...collection,
                         coverPath: collection.coverPath ?? undefined,
                         paths: [], //TODO: implement me
-                        tags: [],
+                        tags: tags,
                         downloadable: collection.downloadable ?? false,
                         watermarkPath: collection.watermarkPath ?? undefined,
                     }
                     return mappedCollection
-                })
+                }))
                 const mappedEvent: Event = {
                     ...event,
                     collections: collections,
@@ -138,7 +148,12 @@ export default function CollectionManager(){
             }
         }))
         setCollectionId(item.id)
-        setActiveItem(<PhotoCollectionComponent photoCollection={item} photoPaths={paths} watermarkObjects={watermarkUrls} />)
+        setActiveItem(<PhotoCollectionComponent 
+            photoCollection={item} 
+            photoPaths={paths} 
+            watermarkObjects={watermarkUrls} 
+            availableTags={availableTags}
+        />)
     }
 
     return (

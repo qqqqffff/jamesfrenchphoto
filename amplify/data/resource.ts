@@ -106,6 +106,7 @@ const schema = a.schema({
       pdfPath: a.string().required()
     })
     .identifier(['id'])
+    .secondaryIndexes((index) => [index('tagId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserColumnDisplay: a
     .model({
@@ -131,7 +132,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS')]),
   Timeslot: a
     .model({
-      id: a.id(),
+      id: a.id().required(),
       register: a.string().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]),
       user: a.belongsTo('UserProfile', 'register'),
       start: a.datetime().required(),
