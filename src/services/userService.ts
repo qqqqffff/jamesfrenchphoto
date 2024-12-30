@@ -1,7 +1,7 @@
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from "../../amplify/data/resource";
-import { Participant, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { Participant, PhotoCollection, Timeslot, UserData, UserProfile, UserTag } from "../types";
 import { getAllCollectionsFromUserTags } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
@@ -9,15 +9,23 @@ import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provide
 
 const client = generateClient<Schema>()
 
-async function getAllUserTags(client: V6Client<Schema>): Promise<UserTag[]> {
+interface GetAllUserTagsOptions {
+    siCollections: boolean
+}
+async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
     console.log('api call')
     const userTagsResponse = await client.models.UserTag.list()
     const mappedTags = await Promise.all(userTagsResponse.data.map(async (tag) => {
-        const collections = await getAllCollectionsFromUserTags(client, [{
-            ...tag,
-            collections: [],
-            color: undefined,
-        }])
+        const collections: PhotoCollection[] = []
+        if(!options || options.siCollections) {
+            console.log('si')
+            collections.push(...(await getAllCollectionsFromUserTags(client, [{
+                    ...tag,
+                    collections: [],
+                    color: undefined,
+                }])
+            ))
+        }
         const mappedTag: UserTag = {
             ...tag,
             collections: collections,
@@ -130,14 +138,14 @@ async function getAuthUsers(client: V6Client<Schema>, filter?: string | null): P
     return parsedUsersData
 }
 
-export const getAllUserTagsQueryOptions = queryOptions({
-    queryKey: ['userTags', client],
-    queryFn: () => getAllUserTags(client)
+export const getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({
+    queryKey: ['userTags', client, options],
+    queryFn: () => getAllUserTags(client, options)
 })
 
-export const getUserProfileQueryOptions = (email: string) => queryOptions({
-    queryKey: ['userProfile', client, email],
-    queryFn: () => getUserProfileByEmail(client, email)
+export const getUserProfileQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({
+    queryKey: ['userProfile', client, email, options],
+    queryFn: () => getUserProfileByEmail(client, email, options)
 })
 
 export const getAuthUsersQueryOptions = (filter?: string | null) =>  queryOptions({

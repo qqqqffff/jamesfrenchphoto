@@ -101,11 +101,11 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                 setFilesUpload(map)
             }
         }
-        if(!apiCall){
+        if(!apiCall && open){
             api()
             setApiCall(true)
         }
-    }, [apiCall])
+    }, [apiCall, open])
 
     async function handleUploadPhotos(event: FormEvent){
         event.preventDefault()
@@ -204,8 +204,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
         setCover(null)
         onClose()
     }
-
-
 
     function filterFiles(term: string): undefined | void {
         if(!term) {
@@ -326,15 +324,19 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                                     {sort.direction ? (<GoTriangleDown className="text-lg"/>) : (<GoTriangleUp className="text-lg"/>)}
                                 </button>)}
                             </div>
-                            <div className="flex flex-row gap-2 items-center text-xl">
-                                {filesUpload && filesUpload.size > 0 ? (
-                                    <>
+                            {filesUpload && filesUpload.size > 0 && 
+                                <>
+                                    <div className="flex flex-row gap-2 items-center text-xl">
                                         <span className="font-semibold">Total:</span>
                                         <span>{formatFileSize([...filesUpload.values()].map((file) => file.size).reduce((prev, cur) => prev = prev + cur, 0))}</span>
-                                    </>
-                                ) : (<></>)}
-                            </div>
-                            <TextInput className="absolute inset-0 w-[40%] justify-self-center" theme={textInputTheme} sizing='sm' placeholder="Filter" onChange={(event) => filterFiles(event.target.value)}/>
+                                    </div>
+                                    <TextInput 
+                                        className="absolute inset-0 w-[40%] justify-self-center" 
+                                        theme={textInputTheme} sizing='sm' placeholder="Filter" 
+                                        onChange={(event) => filterFiles(event.target.value)}
+                                    />
+                                </>
+                            }
                         </div>
                         {filesUpload && filesUpload.size > 0 ? (
                             <div className="h-full min-h-100">

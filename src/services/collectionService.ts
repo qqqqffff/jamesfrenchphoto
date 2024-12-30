@@ -1,4 +1,4 @@
-import { Event, PhotoCollection, PicturePath, UserTag } from "../types";
+import { Event, PhotoCollection, PicturePath, UserTag, Watermark } from "../types";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
@@ -7,12 +7,11 @@ import { getUrl } from "aws-amplify/storage";
 
 const client = generateClient<Schema>()
 
-
-export async function getAllEventsWithCollections(client: V6Client<Schema>): Promise<Event[]> {
+async function getAllEvents(client: V6Client<Schema>): Promise<Event[]> {
     console.log('api call')
     const returnedEvents = await client.models.Events.list()
 
-    return await Promise.all(returnedEvents.data.map(async (event) => {
+    return (await Promise.all(returnedEvents.data.map(async (event) => {
         const collectionResponse = await event.collections()
         const mappedCollections = await Promise.all(collectionResponse.data.map(async (collection) => {
             const collectionTagsResponse = await collection.tags()
@@ -45,11 +44,12 @@ export async function getAllEventsWithCollections(client: V6Client<Schema>): Pro
         }
 
         return mappedEvent
-    }))
+    }))).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 }
 
-export async function getAllPicturePathsFromCollectionId(client: V6Client<Schema>, collectionId: string): Promise<PicturePath[]> {
+async function getAllPicturePathsFromCollectionId(client: V6Client<Schema>, collectionId?: string): Promise<PicturePath[] | null> {
     console.log('api call')
+    if(!collectionId) return null
     const pathResponse = await client.models.PhotoPaths.listPhotoPathsByCollectionId({
         collectionId: collectionId
     })
@@ -111,17 +111,40 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
     return collections
 }
 
-export const eventQueryOptions = queryOptions({
+async function getAllWatermarkObjects(client: V6Client<Schema>): Promise<Watermark[]> {
+    const watermarksResponse = await client.models.Watermark.list()
+    return Promise.all(watermarksResponse
+        .data.map(async (watermark) => {
+            const url = (await getUrl({
+                path: watermark.path
+            })).url.toString()
+            const mappedWatermark: Watermark = {
+                url: url,
+                path: watermark.path
+            }
+            return mappedWatermark
+        }
+    ))
+}
+
+export const getAllEventsQueryOptions = () => queryOptions({
     queryKey: ['events', client],
-    queryFn: () => getAllEventsWithCollections(client),
+    queryFn: () => getAllEvents(client),
 })
 
-export const picturePathsQueryOptions = (collectionId: string) => queryOptions({
+export const getAllPicturePathsQueryOptions = (collectionId?: string) => queryOptions({
     queryKey: ['photoPaths', client, collectionId],
-    queryFn: () => getAllPicturePathsFromCollectionId(client, collectionId)
+    queryFn: () => getAllPicturePathsFromCollectionId(client, collectionId),
+    gcTime: 1000 * 15 * 60 //15 minutes
 })
 
 export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOptions({
     queryKey: ['photoCollection', client, tags],
     queryFn: () => getAllCollectionsFromUserTags(client, tags)
+})
+
+export const getAllWatermarkObjectsQueryOptions = () => queryOptions({
+    queryKey: ['watermark', client],
+    queryFn: () => getAllWatermarkObjects(client),
+    gcTime: 1000 * 15 * 60 //15 minutes
 })
