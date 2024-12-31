@@ -36,6 +36,7 @@ const schema = a.schema({
       downloadable: a.boolean().default(false),
     })
     .identifier(['id'])
+    .secondaryIndexes((index) => [index('eventId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   Watermark: a
     .model({

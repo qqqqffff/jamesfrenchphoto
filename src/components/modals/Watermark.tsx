@@ -54,7 +54,9 @@ export const WatermarkModal: FC<WatermarkProps> = ({ open, onClose, collection, 
     const [watermarkUrls, setWatermarkUrls] = useState<Watermark[]>(watermarks)
     const [state, setState] = useState<'upload' | 'pick'>('upload')
     const [submitting, setSubmitting] = useState(false)
-    const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
+    const [selectedWatermark, setSelectedWatermark] = useState<Watermark | undefined>(
+        watermarks.find((watermark) => collection.watermarkPath === watermark.path)
+    )
 
     async function handleUploadPhotos(event: FormEvent){
         event.preventDefault()
@@ -224,7 +226,9 @@ export const WatermarkModal: FC<WatermarkProps> = ({ open, onClose, collection, 
                                 label={selectedWatermark ? parseName(selectedWatermark.path) : 'None'}
                             >
                                 <Dropdown.Item onClick={() =>setSelectedWatermark(undefined)}>None</Dropdown.Item>
-                                {watermarkUrls.map((url, index) => {
+                                {watermarkUrls
+                                    .sort((a, b) => parseName(a.path)
+                                    .localeCompare(parseName(b.path))).map((url, index) => {
                                     return (
                                         <Dropdown.Item key={index} onClick={() => setSelectedWatermark(url)}>{parseName(url.path)}</Dropdown.Item>
                                     )

@@ -213,7 +213,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
         const normalSearchTerm = term.trim().toLocaleLowerCase()
 
         const data = [...(filesUpload?.entries() ?? [])].filter((item) => {
-            console.log(item[1].name.trim().toLocaleLowerCase())
             let filterResult = false
             try{
                 filterResult = item[1].name.trim().toLocaleLowerCase().includes(normalSearchTerm)

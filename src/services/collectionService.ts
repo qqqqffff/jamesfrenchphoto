@@ -3,7 +3,7 @@ import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
-import { getUrl } from "aws-amplify/storage";
+import { getUrl, remove } from "aws-amplify/storage";
 
 const client = generateClient<Schema>()
 
@@ -125,6 +125,84 @@ async function getAllWatermarkObjects(client: V6Client<Schema>): Promise<Waterma
             return mappedWatermark
         }
     ))
+}
+
+interface DeleteEventMutationOptions {
+    logging: boolean
+}
+export async function deleteEventMutation(eventId: string, options?: DeleteEventMutationOptions) {
+    console.log('api call')
+    const collectionsResponse = await client.models.PhotoCollection.
+        listPhotoCollectionByEventId({eventId: eventId})
+    const deleteCollectionResponse = await Promise.all(collectionsResponse.data.map(async (collection) => {
+        const paths = await collection.imagePaths()
+        const deletePathsResponses = await Promise.all(paths.data.map(async (path) => {
+            const s3response = await remove({
+                path: path.path,
+            })
+            const dynamoResponse = await client.models.PhotoPaths.delete({
+                id: path.id,
+            })
+            return [s3response, dynamoResponse]
+        }))
+        const response = await client.models.PhotoCollection.delete({
+            id: collection.id,
+        })
+        return [deletePathsResponses, response]
+    }))
+    const response = await client.models.Events.delete({
+        id: eventId
+    })
+
+    if(options?.logging) {
+        console.log(response, deleteCollectionResponse)
+    }
+
+    let mappedEvent: Event | undefined
+
+    if(response.data)
+        mappedEvent = {
+        ...response.data,
+        collections: collectionsResponse.data.map((data) => {
+            const mappedCollection: PhotoCollection = {
+                ...data,
+                //unnecessary
+                paths: [],
+                coverPath: undefined,
+                watermarkPath: undefined,
+                tags: [],
+                downloadable: false,
+            }
+            return mappedCollection
+        })
+    }
+    return mappedEvent
+}
+
+export async function updateEventMutation(event: Event) {
+    const response = await client.models.Events.update({
+        id: event.id,
+        name: event.name,
+    })
+    if(response && response.data) return event
+    return null
+}
+
+export interface CreateEventParams {
+    name: string,
+}
+export async function createEventMutation(params: CreateEventParams) {
+    const response = await client.models.Events.create({
+        name: params.name,
+    })
+    if(response && response.data) {
+        const returnedEvent: Event = {
+            ...response.data,
+            collections: [],
+        }
+        return returnedEvent
+    }
+    return null
 }
 
 export const getAllEventsQueryOptions = () => queryOptions({
