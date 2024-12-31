@@ -215,8 +215,6 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         setSubmitting(false)
     }
 
-    const gridClass = `w-full self-center`
-
     return (
     <>
         <UploadImagesModal 
@@ -270,7 +268,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
             <div className="border-gray-400 border rounded-2xl p-4 col-span-5 flex flex-col items-center">
                 <span className="text-2xl mb-4">{pictureCollection.name}</span>
                 {picturePaths.length > 0 ? 
-                    <AutoSizer className={gridClass} style={{ minHeight: `${dimensions.height - 350}px`}}>
+                    <AutoSizer className='w-full self-center' style={{ minHeight: `${dimensions.height - 350}px`}}>
                         {({ height, width }: { height: number; width: number }) => {
                         return (
                             <FixedSizeGrid

@@ -10,7 +10,6 @@ import {
  } from "react-icons/hi";
 import { UserStorage } from "../../types";
 import UserManagement from "./UserManagement";
-// import { TimeslotComponent } from "../timeslot/Timeslot";
 import CollectionManager from "./CollectionManager";
 import PackageManager from "./PackageManager";
 import { Scheduler } from "./Scheduler";

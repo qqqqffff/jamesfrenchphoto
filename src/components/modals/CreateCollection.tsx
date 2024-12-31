@@ -78,7 +78,7 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     const [selectedTags, setSelectedTags] = useState<UserTag[]>(collection ? collection.tags : [])
     const [apiCall, setApiCall] = useState(false)
     const [filteredResult, setFilteredResult] = useState<Map<string, File> | undefined>()
-    const [sort, setSort] = useState<{col: 'file' | 'size' | undefined, direction: boolean, visible: boolean}>()
+    const [sort, setSort] = useState<{col: 'file' | 'size' | undefined, direction?: boolean, visible: boolean}>()
 
     useEffect(() => {
         async function api(){
@@ -228,6 +228,17 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
         setFilteredResult(map)
     }
 
+    if(sort){
+        if(sort.col === 'file'){
+            if(sort.direction){
+                console.log('direction a')
+            }
+            else{
+                console.log('direction b')
+            }
+        }
+    }
+
     return (
         <Modal show={open} className='font-main' onClose={() => {
             setFilesUpload(undefined)
@@ -281,56 +292,141 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                                 })
                             }
                         </div>
-                        <div className="flex items-center justify-center w-full">
-                            <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-[50%] h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                                    </svg>
-                                    <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span></p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">Picture Files Supported</p>
-                                </div>
-                                <input id="dropzone-file" type="file" className="hidden" multiple onChange={(event) => {
-                                    if(event.target.files){
-                                        const files = event.target.files
-                                        async function createPreviews(files: File[]){
-                                            const map = new Map<string, File>(filesUpload)
-                                            let list = await Promise.all(files.map(async (file) => {
-                                                return { key: URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type})), value: file }
-                                            }))
-                                            list.forEach((entry) => {
-                                                map.set(entry.key, entry.value)
-                                            })
-                                            setFilesUpload(map)
+                        <div className="grid grid-cols-2 justify-items-center">
+                            <div className="flex flex-col items-center justify-center w-full h-full">
+                                <Label className="self-start ms-[20%] font-medium text-lg" htmlFor="name">Upload:</Label>
+                                <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-[75%] h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                                        </svg>
+                                        <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span></p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Picture Files Supported</p>
+                                    </div>
+                                    <input id="dropzone-file" type="file" className="hidden" multiple onChange={(event) => {
+                                        if(event.target.files){
+                                            const files = event.target.files
+                                            async function createPreviews(files: File[]){
+                                                const map = new Map<string, File>(filesUpload)
+                                                let list = await Promise.all(files.map(async (file) => {
+                                                    return { key: URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type})), value: file }
+                                                }))
+                                                list.forEach((entry) => {
+                                                    map.set(entry.key, entry.value)
+                                                })
+                                                setFilesUpload(map)
+                                            }
+                                            createPreviews(Array.from(files))
                                         }
-                                        createPreviews(Array.from(files))
-                                    }
-                                }}/>
-                            </label>
+                                    }}/>
+                                </label>
+                            </div>
+                            <div className="flex flex-col items-center w-full h-full">
+                                <Label className="self-start ms-[20%] font-medium text-lg" htmlFor="name">Cover Photo Preview:</Label>
+                                {cover}
+                            </div>
                         </div>
-                        <div className="relative flex flex-row items-center justify-between mt-2">
-                            <div className="flex flex-row items-center gap-2" 
-                                onMouseEnter={() => setSort({
-                                    col: 'file', 
-                                    direction: sort?.direction ?? true, 
-                                    visible: true
-                                })}
-                                onMouseLeave={() => setSort(undefined)}
+                        
+                        <div className="relative flex flex-row items-center justify-between mt-6 border-b-gray-100 border-b">
+                            <div 
+                                className="flex flex-row items-center gap-2" 
+                                onMouseEnter={() => 
+                                    setSort({
+                                        col: 'file', 
+                                        direction: sort ? (sort.col === 'size' ? undefined : sort.direction) : undefined, 
+                                        visible: true
+                                    })
+                                }
+                                onMouseLeave={() => {
+                                    if(sort && sort.direction !== undefined){
+                                        setSort({
+                                            ...sort,
+                                            visible: false
+                                        })
+                                    }
+                                    else{
+                                        setSort(undefined)
+                                    }
+                                }}
                             >
-                                <Label className="ms-2 font-semibold text-xl" htmlFor="name">Files:</Label>
-                                {sort?.col == 'file' && sort.visible && 
-                                (<button onClick={() => console.log('you clicked me')} type="button">
-                                    {sort.direction ? (<GoTriangleDown className="text-lg"/>) : (<GoTriangleUp className="text-lg"/>)}
+                                <Label className="font-semibold text-xl" htmlFor="name">Files:</Label>
+                                {sort?.col == 'file' && sort.visible && (filesUpload !== undefined || filteredResult !== undefined) &&
+                                (<button 
+                                    onClick={() => {
+                                        setFilteredResult(new Map([
+                                            ...(filteredResult ?? filesUpload)!.entries()]
+                                                .sort((a, b) => {
+                                                    if(!(sort?.direction ?? false)){
+                                                        return a[1].name.localeCompare(b[1].name)
+                                                    }
+                                                    else {
+                                                        return b[1].name.localeCompare(a[1].name)
+                                                    }
+                                                })
+                                            )
+                                        )
+                                        setSort({col: 'file', direction: !(sort?.direction ?? false), visible: true})
+                                    }} 
+                                    type="button">
+                                    {sort.direction === undefined || sort.direction ? (<GoTriangleDown className="text-lg"/>) : (<GoTriangleUp className="text-lg"/>)}
                                 </button>)}
                             </div>
                             {filesUpload && filesUpload.size > 0 && 
                                 <>
-                                    <div className="flex flex-row gap-2 items-center text-xl">
+                                    <div 
+                                        className="flex flex-row gap-2 items-center text-lg"
+                                        onMouseEnter={() =>
+                                            setSort({
+                                                col: 'size', 
+                                                direction: sort ? (sort.col === 'file' ? undefined : sort.direction) : undefined, 
+                                                visible: true
+                                            })
+                                        }
+                                        onMouseLeave={() => {
+                                            if(sort && sort.direction !== undefined){
+                                                setSort({
+                                                    ...sort,
+                                                    visible: false
+                                                })
+                                            }
+                                            else{
+                                                setSort(undefined)
+                                            }
+                                        }}
+                                    >
                                         <span className="font-semibold">Total:</span>
-                                        <span>{formatFileSize([...filesUpload.values()].map((file) => file.size).reduce((prev, cur) => prev = prev + cur, 0))}</span>
+                                        <span>
+                                            {formatFileSize([...filesUpload.values()]
+                                                .map((file) => file.size)
+                                                .reduce((prev, cur) => prev = prev + cur, 0))}
+                                        </span>
+                                        {sort?.col == 'size' && sort.visible ? (
+                                            <button 
+                                                onClick={() => {
+                                                    setFilteredResult(new Map([
+                                                        ...(filteredResult ?? filesUpload).entries()]
+                                                            .sort((a, b) => {
+                                                                if(!(sort?.direction ?? false)){
+                                                                    return a[1].size - b[1].size
+                                                                }
+                                                                else {
+                                                                    return b[1].size - a[1].size
+                                                                }
+                                                            })
+                                                        )
+                                                    )
+                                                    setSort({col: 'size', direction: !(sort?.direction ?? false), visible: true})
+                                                }} 
+                                                type="button">
+                                                {sort.direction === undefined || sort.direction ? (<GoTriangleDown className="text-lg"/>) : (<GoTriangleUp className="text-lg"/>)}
+                                            </button>
+                                            ) : (
+                                                <div className="w-[18px]"/>
+                                            )
+                                        }
                                     </div>
                                     <TextInput 
-                                        className="absolute inset-0 w-[40%] justify-self-center" 
+                                        className="absolute inset-0 w-[40%] -top-4 justify-self-center" 
                                         theme={textInputTheme} sizing='sm' placeholder="Filter" 
                                         onChange={(event) => filterFiles(event.target.value)}
                                     />
