@@ -4,32 +4,40 @@ import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { HiOutlineCheckCircle } from "react-icons/hi2";
 import { AuthContext, useAuth } from '../auth'
 import { Dropdown } from 'flowbite-react'
-import { ReactNode } from 'react'
+import { FC, ReactNode } from 'react'
+import { UserStorage } from '../types';
+import bannerIcon from '../assets/headerPhoto.png'
+// import useWindowDimensions from '../hooks/windowDimensions';
+// import { HiOutlineMenu } from 'react-icons/hi';
 
-const RootComponent = () => {
-    const auth = useAuth()
+const LoginComponent = () => (<Link to='/login'>Login</Link>)
+const UserProfileComponent: FC<{
+    user: UserStorage,
+    admin: boolean | null, 
+    changeParticipant: (participantId: string) => Promise<void | undefined>,
+    logout: () => Promise<void>,
+}> = ({ user, admin, changeParticipant, logout }) => {
     const participantMutation = useMutation({
-        mutationFn: (participantId: string) => auth.changeParticipant(participantId)
+        mutationFn: (participantId: string) => changeParticipant(participantId)
     })
-    
-    if(auth.user == null) return (<Link to='/login'>Login</Link>)
 
-    let dashboardUrl = '/' +  (auth.admin !== undefined && auth.admin ? 'admin' : 'client') + '/dashboard'
-    let profileUrl = '/' + (auth.admin !== undefined && auth.admin ? 'admin' : 'client') + '/profile'
+    let dashboardUrl = '/' +  (admin !== null && admin ? 'admin' : 'client') + '/dashboard'
+    let profileUrl = '/' + (admin !== null && admin ? 'admin' : 'client') + '/profile'
 
-    function UserDropdownSkeleton({ children } : {children: ReactNode}) {
+    function UserDropdownSkeleton({ children } : {children?: ReactNode}) {
         return (
             <>
                 <Dropdown.Item href={dashboardUrl}>Dashboard</Dropdown.Item>
                 {children}
-                <Dropdown.Item href='/logout'>Logout</Dropdown.Item>
+                <Dropdown.Item onClick={() => logout()}>Logout</Dropdown.Item>
             </>
         )
     }
 
-    function UserDropdown(){
+    function UserDropdown() {
         return (
             <UserDropdownSkeleton>
+                <Dropdown.Item href={profileUrl}>Profile</Dropdown.Item>
                 <Dropdown.Item>
                     <Dropdown
                         arrowIcon={false}
@@ -38,17 +46,21 @@ const RootComponent = () => {
                         trigger='hover'
                         placement='left'
                     >
-                        {auth.user.profile.participant.map((participant, index) => {
+                        {user.profile.participant.map((participant, index) => {
                             return (
                                 <Dropdown.Item key={index} 
                                     onClick={async () => {
-                                        if(auth.user.activeParticipant?.id !== participant.id){
-
+                                        if(user.profile.activeParticipant?.id !== participant.id){
+                                            participantMutation.mutate(participant.id)
                                         }
                                     }}
-                                >{participant.id === userProfile.activeParticipant?.id ? (
-                                    <HiOutlineCheckCircle fontSize={'32'}/>
-                                ) : (<></>)}{`${participant.preferredName && participant.preferredName !== '' ? participant.preferredName : participant.firstName} ${participant.lastName}`}</Dropdown.Item>
+                                >
+                                    {participant.id === user.profile.activeParticipant?.id && (
+                                        <HiOutlineCheckCircle fontSize={'32'}/>
+                                    )}
+                                    {`${participant.preferredName && participant.preferredName !== '' ? 
+                                        participant.preferredName : participant.firstName} ${participant.lastName}`}
+                                </Dropdown.Item>
                             )
                         })}
                     </Dropdown>
@@ -57,8 +69,50 @@ const RootComponent = () => {
         )
     }
 
+    if(admin) return (<UserDropdown />)
+    return (<UserDropdownSkeleton />)
+}
+
+const RootComponent = () => {
+    const auth = useAuth()
+
+    function UserComponent(){
+        if(auth.user == null) return (<LoginComponent />)
+        else if (auth.user !== null) return (
+            <UserProfileComponent 
+                user={auth.user} 
+                admin={auth.admin} 
+                changeParticipant={auth.changeParticipant}
+                logout={auth.logout}
+            />
+        )
+    }
+
     return (
-        <> 
+        <>
+            <div className='flex flex-row px-8 py-4 font-main border-b-2 border-gray-300'>
+                <div className='flex justify-center items-center'>
+                    <a href="/">
+                        <img className='ml-3 mt-3' src={bannerIcon} alt='James French Photography Banner' width={150} height={100} />
+                    </a>
+                </div>
+                <div className='flex flex-row items-center lg:px-12 text-2xl w-full justify-end gap-10'>
+                {
+                    // dimensions.width > 800 ? 
+                    // (
+                        <>
+                            <UserComponent />
+                        </>
+                    // ) : (
+                    //     <Dropdown label={(<HiOutlineMenu className='text-xl' />)} color='light' arrowIcon={false} trigger='hover'>
+                    //         <Dropdown.Item><Link to="/contact-form">Contact Us</Link></Dropdown.Item>
+                    //         <Dropdown.Divider className='bg-gray-300'/>
+                    //         {renderHeaderItems()}
+                    //     </Dropdown>
+                    // )
+                }
+                </div>
+            </div>
             <Outlet />
             <TanStackRouterDevtools position='bottom-right' />
         </>

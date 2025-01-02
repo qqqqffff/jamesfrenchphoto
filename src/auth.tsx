@@ -22,8 +22,8 @@ const AuthContext = createContext<AuthContext | null>(null)
 const key = 'jfp.auth.user'
 
 function getStoredUser() {
-    const parsedLocalStorage = JSON.parse(localStorage.getItem(key) ?? '{}')
-    return parsedLocalStorage === '{}' ? null : parsedLocalStorage as UserStorage
+    const parsedLocalStorage = JSON.parse(localStorage.getItem(key) ?? '{\"failed\": true}')
+    return parsedLocalStorage?.failed ? null : parsedLocalStorage as UserStorage
 }
 
 function setStoredUser(user: UserStorage | null){
@@ -96,7 +96,8 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         }
     }, [])
 
-    const admin = user ? (user.groups.includes('ADMINS') ? true : user.groups.includes('USERS')) : null
+    console.log(user)
+    const admin = user !== null ? (user.groups.includes('ADMINS') ? true : user.groups.includes('USERS')) : null
 
     const changeParticipant = useCallback(async (participantId: string) => {
         if(user){
