@@ -1,5 +1,5 @@
 import { QueryClient, useMutation } from '@tanstack/react-query'
-import { createRootRouteWithContext, Link, Outlet } from '@tanstack/react-router'
+import { createRootRouteWithContext, Link, Outlet, useNavigate } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { HiOutlineCheckCircle } from "react-icons/hi2";
 import { AuthContext, useAuth } from '../auth'
@@ -7,8 +7,8 @@ import { Dropdown } from 'flowbite-react'
 import { FC, ReactNode } from 'react'
 import { UserStorage } from '../types';
 import bannerIcon from '../assets/headerPhoto.png'
-// import useWindowDimensions from '../hooks/windowDimensions';
-// import { HiOutlineMenu } from 'react-icons/hi';
+import useWindowDimensions from '../hooks/windowDimensions';
+import { HiOutlineMenu } from 'react-icons/hi';
 
 const LoginComponent = () => (<Link to='/login'>Login</Link>)
 const UserProfileComponent: FC<{
@@ -16,10 +16,13 @@ const UserProfileComponent: FC<{
     admin: boolean | null, 
     changeParticipant: (participantId: string) => Promise<void | undefined>,
     logout: () => Promise<void>,
-}> = ({ user, admin, changeParticipant, logout }) => {
+    width: number
+}> = ({ user, admin, changeParticipant, logout, width }) => {
     const participantMutation = useMutation({
         mutationFn: (participantId: string) => changeParticipant(participantId)
     })
+    const navigate = useNavigate()
+    
 
     let dashboardUrl = '/' +  (admin !== null && admin ? 'admin' : 'client') + '/dashboard'
     let profileUrl = '/' + (admin !== null && admin ? 'admin' : 'client') + '/profile'
@@ -29,7 +32,10 @@ const UserProfileComponent: FC<{
             <>
                 <Dropdown.Item href={dashboardUrl}>Dashboard</Dropdown.Item>
                 {children}
-                <Dropdown.Item onClick={() => logout()}>Logout</Dropdown.Item>
+                <Dropdown.Item onClick={async () => {
+                  await logout()
+                  navigate({to: '/', search: { logout: true }})
+                }}>Logout</Dropdown.Item>
             </>
         )
     }
@@ -38,13 +44,14 @@ const UserProfileComponent: FC<{
         return (
             <UserDropdownSkeleton>
                 <Dropdown.Item href={profileUrl}>Profile</Dropdown.Item>
-                <Dropdown.Item>
+                <Dropdown.Item as='div'>
                     <Dropdown
                         arrowIcon={false}
                         inline
                         label={'Participants'}
-                        trigger='hover'
+                        trigger={width > 800 ? 'hover' : 'click'}
                         placement='left'
+                        
                     >
                         {user.profile.participant.map((participant, index) => {
                             return (
@@ -69,22 +76,38 @@ const UserProfileComponent: FC<{
         )
     }
 
-    if(admin) return (<UserDropdown />)
+    if(!admin) return (<UserDropdown />)
     return (<UserDropdownSkeleton />)
 }
 
 const RootComponent = () => {
     const auth = useAuth()
+    const { width } = useWindowDimensions()
 
     function UserComponent(){
         if(auth.user == null) return (<LoginComponent />)
         else if (auth.user !== null) return (
+          <Dropdown
+            arrowIcon={false}
+            label={(width > 800 ? (
+              <span>Profile</span>
+            ) : (
+              <HiOutlineMenu className='text-xl'/>
+            ))}
+            trigger={width > 800 ? 'hover' : 'click'}
+            placement='bottom-end'
+            inline
+            dismissOnClick={false}
+          >
             <UserProfileComponent 
                 user={auth.user} 
                 admin={auth.admin} 
                 changeParticipant={auth.changeParticipant}
                 logout={auth.logout}
+                width={width}
             />
+          </Dropdown>
+            
         )
     }
 

@@ -7,10 +7,12 @@ import { getUserProfileByEmail } from "./services/userService";
 
 const client = generateClient<Schema>()
 
+
+type LoginReturnType = 'fail' | 'admin' | 'client' | 'nextStep'
 export interface AuthContext {
     isAuthenticated: boolean,
-    login: (username: string, password: string) => Promise<boolean | 'nextStep'>,
-    confirmLogin: (username: string, password: string) => Promise<boolean>
+    login: (username: string, password: string) => Promise<LoginReturnType>,
+    confirmLogin: (username: string, password: string) => Promise<LoginReturnType>
     logout: () => Promise<void>,
     user: UserStorage | null,
     admin: boolean | null,
@@ -51,7 +53,15 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         const session = await fetchAuthSession()
         const attributes = await fetchUserAttributes()
         const groups = JSON.stringify(session.tokens?.accessToken.payload['cognito:groups'])
-        const profile = await getUserProfileByEmail(client, username)
+        const profile = await getUserProfileByEmail(client, username, 
+            !groups.includes('ADMINS') && groups.includes('USERS') ? {
+                siTags: true,
+                siTimeslot: true,
+            } : {
+                siTags: false,
+                siTimeslot: false
+            }
+        )
         if(!profile) throw new Error('Failed to query profile')
         const userStorage: UserStorage = {
             user,
@@ -62,6 +72,7 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         }
         setStoredUser(userStorage)
         setUser(userStorage)
+        return groups.includes('ADMINS') ? 'admin' : groups.includes('USERS') ? 'client' : 'fail'
     }
 
     const login = useCallback(async (username: string, password: string) => {
@@ -72,13 +83,13 @@ export function AuthProvider({ children } : { children: ReactNode }) {
             })
             if(response.nextStep.signInStep == 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') return 'nextStep'
             else if(response.isSignedIn) {
-                await signinFlow(username)
-                return true
+                const response = await signinFlow(username)
+                return response
             }
-            return false
+            return 'fail'
         }catch(err){
             console.error(err)
-            return false
+            return 'fail'
         }
     }, [])
 
@@ -88,15 +99,14 @@ export function AuthProvider({ children } : { children: ReactNode }) {
                 challengeResponse: password
             })
 
-            await signinFlow(username)
-            return true
+            const response = await signinFlow(username)
+            return response
         } catch(err){
             console.error(err)
-            return false
+            return 'fail'
         }
     }, [])
 
-    console.log(user)
     const admin = user !== null ? (user.groups.includes('ADMINS') ? true : user.groups.includes('USERS')) : null
 
     const changeParticipant = useCallback(async (participantId: string) => {
