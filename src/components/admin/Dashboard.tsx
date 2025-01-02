@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "flowbite-react";
 import { 
@@ -13,6 +12,7 @@ import UserManagement from "./UserManagement";
 import CollectionManager from "./CollectionManager";
 import PackageManager from "./PackageManager";
 import { Scheduler } from "./Scheduler";
+import { useNavigate } from "@tanstack/react-router";
 
 export const Dashboard = () => {
     const [user, setUser] = useState<UserStorage>()
@@ -21,12 +21,12 @@ export const Dashboard = () => {
     useEffect(() => {
         if(!user){
             if(!window.localStorage.getItem('user')){
-                navigate('/login')
+                navigate({to: '/login'})
             }
             else{
                 const tempUser: UserStorage = JSON.parse(window.localStorage.getItem('user')!);
                 if(!tempUser.groups.includes('ADMINS')){
-                    navigate('/client/dashboard')
+                    navigate({ to: '/client/dashboard'})
                 }
                 setUser(tempUser)
             }

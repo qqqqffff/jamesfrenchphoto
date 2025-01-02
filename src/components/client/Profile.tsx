@@ -1,6 +1,5 @@
 import { FC, useState } from "react";
 import { Participant, UserProfile, UserStorage } from "../../types";
-import { useRevalidator, useRouteLoaderData } from "react-router-dom";
 import { Alert, Badge, Button, Checkbox, Dropdown, FlowbiteColors, Label, TextInput } from "flowbite-react";
 import { badgeColorThemeMap, DynamicStringEnumKeysOf } from "../../utils";
 import { generateClient } from "aws-amplify/api";
@@ -20,9 +19,9 @@ interface ProfileNotification {
 }
 
 export const ClientProfile: FC = () => {
-    const [user, setUser] = useState(useRouteLoaderData('/') as UserProfile | null)
+    //TODO: fix me
+    const [user, setUser] = useState<UserProfile | null>(null)
     const [userStorage, setUserStorage] = useState(window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) as UserStorage : undefined)
-    const revalidator = useRevalidator()
 
     const [activeParticipant, setActiveParticipant] = useState<Participant>()
     const [participantPrefilledElements, setParticipantPrefilledElements] = useState<PrefilledParticipantFormElements>()
@@ -56,7 +55,6 @@ export const ClientProfile: FC = () => {
                                     setNotification([{message: noti, color: 'green'}])
                                     setActiveParticipant(participant)
                                     setCreateParticipantFormVisible(false)
-                                    revalidator.revalidate()
                                 } else if(errorReturn){
                                     setNotification([{message: noti, color: 'red'}])
                                     setParticipantPrefilledElements(errorReturn)
@@ -82,7 +80,6 @@ export const ClientProfile: FC = () => {
                             setUser(tempUserProfile)
                             setNotification([{message: noti, color: 'green'}])
                             setActiveParticipant(participant)
-                            revalidator.revalidate()
                         }} 
                     />
                 )
@@ -93,7 +90,6 @@ export const ClientProfile: FC = () => {
                         setUser(profile)
                         setUserStorage(user)
                         window.localStorage.setItem('user', JSON.stringify(user))
-                        revalidator.revalidate()
                     }} userProfile={user}/>
                 )
             }

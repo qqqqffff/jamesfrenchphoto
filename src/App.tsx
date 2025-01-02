@@ -1,26 +1,25 @@
 import './App.css'
-import SignIn from './components/authenticator/SignInForm'
-import SignUp, { SignupAvailableTag } from './components/authenticator/SignUpForm'
-import Header from './components/header/Header'
-import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom'
-import ServiceForm from './components/service-form/ServiceForm'
-import Home from './components/common/Home'
-import CheckoutForm from './components/service-form/CheckoutForm'
+// import SignIn from './components/authenticator/SignInForm'
+// import SignUp, { SignupAvailableTag } from './components/authenticator/SignUpForm'
+// import Header from './components/header/Header'
+// import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom'
+// import ServiceForm from './components/service-form/ServiceForm'
+// import Home from './components/common/Home'
+// import CheckoutForm from './components/service-form/CheckoutForm'
 // import { loadStripe } from '@stripe/stripe-js'
 import { Amplify } from 'aws-amplify'
 import outputs from '../amplify_outputs.json'
-import { Dashboard as AdminDashboard } from './components/admin/Dashboard'
-import { Dashboard as ClientDashboard } from './components/client/Dashboard'
-import { Base } from './components/common/Base'
-import ContactForm from './components/service-form/ContactForm'
-import SignOut from './components/authenticator/SignOut'
+// import { Dashboard as AdminDashboard } from './components/admin/Dashboard'
+// import { Dashboard as ClientDashboard } from './components/client/Dashboard'
+// import { Base } from './components/common/Base'
+// import ContactForm from './components/service-form/ContactForm'
+// import SignOut from './components/authenticator/SignOut'
 import { generateClient } from 'aws-amplify/api'
 import { Schema } from '../amplify/data/resource'
-import { CollectionViewer, DisplayCollectionData } from './components/client/CollectionViewer'
+// import { CollectionViewer, DisplayCollectionData } from './components/client/CollectionViewer'
 import { Package, Participant, PhotoCollection, PicturePath, Timeslot, UserProfile, UserStorage, UserTag } from './types'
 import { getUrl } from 'aws-amplify/storage'
-import { ClientProfile } from './components/client/Profile'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+// import { ClientProfile } from './components/client/Profile'
 
 Amplify.configure(outputs)
 const client = generateClient<Schema>()
@@ -292,106 +291,89 @@ export async function fetchUserProfile(userStorage?: UserStorage): Promise<UserP
   return null
 }
 
-const router = createBrowserRouter(
-  createRoutesFromElements(
-    <Route path='/' element={<Header />} id='/' loader={async () => {
-      let userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined
-      try{
-        return await fetchUserProfile(userStorage)
-      }catch(err){
-        return null
-      }
-    }} >
-      <Route index element={<Home />} />
-      <Route path='login' element={<SignIn />} />
-      <Route path='register/:hash' element={<SignUp />} loader={async ({ params }): Promise<SignupAvailableTag[] | undefined> => {
-          const tags: SignupAvailableTag[] = []
-          if(!params.hash) return
-          else {
-            const tokenResponse = await client.models.TemporaryCreateUsersTokens.get(
-              { id : params.hash },
-              { authMode: 'iam' }
-            )
-            if(tokenResponse.data && tokenResponse.data.tags){
-              tags.push(...(await Promise.all(tokenResponse.data.tags
-                .filter((tag) => tag !== undefined && tag !== null)
-                .map(async (tagId) => {
-                  const tagResponse = await client.models.UserTag.get({ id: tagId }, { authMode: 'iam' })
-                  if(!tagResponse || !tagResponse.data) return
-                  const tag: SignupAvailableTag = {
-                    tag: {
-                      ...tagResponse.data,
-                      color: tagResponse.data.color ?? undefined,
-                    },
-                    selected: {
-                      selected: true,
-                      participantId: '1'
-                    }
-                  }
-                  return tag
-                }))).filter((tag) => tag !== undefined))
-            }
-          }
-          return tags
-        }}/>
-      <Route path='logout' element={<SignOut />} />
-      <Route path='service-form' element={<ServiceForm />} />
-      <Route path='service-form/checkout' element={<CheckoutForm />} />
-      <Route path='admin' element={<Base />} >
-        <Route path='dashboard' element={<AdminDashboard />} />
-      </Route>
-      <Route path='client' element={<Base />} >
-        <Route path='dashboard' element={<ClientDashboard />} />
-        <Route path='profile' element={<ClientProfile />} />
-      </Route>
-      <Route path='contact-form' element={<ContactForm />} />
-      {/* <Route path='photo-collection' element={<PhotoCollectionComponent />} /> */}
-      <Route path='photo-collection/:collectionId' element={<CollectionViewer />} 
-      loader={async ({ params }) => {
-          if(!params.collectionId) return
-          const collection = (await client.models.PhotoCollection.get({ id: params.collectionId })).data
-          if(!collection) return null
-          const ret: DisplayCollectionData = {
-            name: collection.name,
-            createdAt: collection.createdAt,
-            paths: await Promise.all((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: params.collectionId })).data.map(async (path) => {
-              return {
-                id: path.id,
-                path: path.path,
-                order: path.order,
-                url: (await getUrl({
-                  path: path.path,
-                })).url.toString()
-              } as PicturePath
-            })),
-            watermarkPath: collection.watermarkPath ? (await getUrl({
-              path: collection.watermarkPath
-            })).url.toString() : undefined,
-            downloadable: collection.downloadable ?? false,
-            coverPath: collection.coverPath ? (await getUrl({
-              path: collection.coverPath
-            })).url.toString() : undefined,
-          }
-          return ret
-        }} 
-      />
-    </Route>
-  )
-)
-
-function App() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        refetchOnWindowFocus: false,
-      }
-    }
-  })
-  return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  )
-}
-
-export default App
+// const router = createBrowserRouter(
+//   createRoutesFromElements(
+//     <Route path='/' element={<Header />} id='/' loader={async () => {
+//       let userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined
+//       try{
+//         return await fetchUserProfile(userStorage)
+//       }catch(err){
+//         return null
+//       }
+//     }} >
+//       <Route index element={<Home />} />
+//       <Route path='login' element={<SignIn />} />
+//       <Route path='register/:hash' element={<SignUp />} loader={async ({ params }): Promise<SignupAvailableTag[] | undefined> => {
+//           const tags: SignupAvailableTag[] = []
+//           if(!params.hash) return
+//           else {
+//             const tokenResponse = await client.models.TemporaryCreateUsersTokens.get(
+//               { id : params.hash },
+//               { authMode: 'iam' }
+//             )
+//             if(tokenResponse.data && tokenResponse.data.tags){
+//               tags.push(...(await Promise.all(tokenResponse.data.tags
+//                 .filter((tag) => tag !== undefined && tag !== null)
+//                 .map(async (tagId) => {
+//                   const tagResponse = await client.models.UserTag.get({ id: tagId }, { authMode: 'iam' })
+//                   if(!tagResponse || !tagResponse.data) return
+//                   const tag: SignupAvailableTag = {
+//                     tag: {
+//                       ...tagResponse.data,
+//                       color: tagResponse.data.color ?? undefined,
+//                     },
+//                     selected: {
+//                       selected: true,
+//                       participantId: '1'
+//                     }
+//                   }
+//                   return tag
+//                 }))).filter((tag) => tag !== undefined))
+//             }
+//           }
+//           return tags
+//         }}/>
+//       <Route path='logout' element={<SignOut />} />
+//       <Route path='service-form' element={<ServiceForm />} />
+//       <Route path='service-form/checkout' element={<CheckoutForm />} />
+//       <Route path='admin' element={<Base />} >
+//         <Route path='dashboard' element={<AdminDashboard />} />
+//       </Route>
+//       <Route path='client' element={<Base />} >
+//         <Route path='dashboard' element={<ClientDashboard />} />
+//         <Route path='profile' element={<ClientProfile />} />
+//       </Route>
+//       <Route path='contact-form' element={<ContactForm />} />
+//       {/* <Route path='photo-collection' element={<PhotoCollectionComponent />} /> */}
+//       <Route path='photo-collection/:collectionId' element={<CollectionViewer />} 
+//       loader={async ({ params }) => {
+//           if(!params.collectionId) return
+//           const collection = (await client.models.PhotoCollection.get({ id: params.collectionId })).data
+//           if(!collection) return null
+//           const ret: DisplayCollectionData = {
+//             name: collection.name,
+//             createdAt: collection.createdAt,
+//             paths: await Promise.all((await client.models.PhotoPaths.listPhotoPathsByCollectionId({ collectionId: params.collectionId })).data.map(async (path) => {
+//               return {
+//                 id: path.id,
+//                 path: path.path,
+//                 order: path.order,
+//                 url: (await getUrl({
+//                   path: path.path,
+//                 })).url.toString()
+//               } as PicturePath
+//             })),
+//             watermarkPath: collection.watermarkPath ? (await getUrl({
+//               path: collection.watermarkPath
+//             })).url.toString() : undefined,
+//             downloadable: collection.downloadable ?? false,
+//             coverPath: collection.coverPath ? (await getUrl({
+//               path: collection.coverPath
+//             })).url.toString() : undefined,
+//           }
+//           return ret
+//         }} 
+//       />
+//     </Route>
+//   )
+// )

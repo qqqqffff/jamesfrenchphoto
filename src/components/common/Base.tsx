@@ -1,11 +1,11 @@
 import { fetchAuthSession, fetchUserAttributes, getCurrentUser } from "aws-amplify/auth"
 import { useEffect } from "react"
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Amplify } from "aws-amplify";
 import outputs from '../../../amplify_outputs.json'
 import { Schema } from "../../../amplify/data/resource";
 import { generateClient } from "aws-amplify/api";
 import { UserStorage } from "../../types";
+import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 
 Amplify.configure(outputs)
 const client = generateClient<Schema>()
@@ -50,12 +50,12 @@ export const Base = () => {
             }
 
             if(group === 'ADMIN'){
-                navigate(location.pathname)
+                navigate({ to: location.pathname})
             }
             else if(group === 'USERS'){
                 const path = location.pathname.includes('admin') ? location.pathname.replace('admin', 'client') : 
                     location.pathname  === '/client' ? '/client/dashboard' : location.pathname
-                navigate(path)
+                navigate({ to: path})
             }
             
         }
@@ -63,18 +63,14 @@ export const Base = () => {
         if(window.localStorage.getItem('user')){
             const tempUser: UserStorage = JSON.parse(window.localStorage.getItem('user')!)
             if(tempUser.groups.includes('ADMINS')){
-                navigate(location.pathname)
+                navigate({ to: location.pathname})
             }
             else if(tempUser.groups.includes('USERS')){
                 const path = location.pathname.includes('admin') ? location.pathname.replace('admin', 'client') : location.pathname
-                navigate(path)
+                navigate({ to: path})
             }
             else{
-                navigate('/login', {
-                    state: {
-                        unauthorized: true
-                    }
-                })
+                navigate({ to: '/login', params: { unauthorized: true } })
             }
         }
         verifyUser()

@@ -1,10 +1,48 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
 import './index.css'
+import { createRouter, RouterProvider } from '@tanstack/react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AuthProvider, useAuth } from './auth.tsx'
+import { routeTree } from './routeTree.gen.ts'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    }
+  }
+})
+
+const router = createRouter({
+  routeTree,
+  context: {
+    queryClient,
+    auth: undefined!
+  },
+  defaultPreload: 'intent',
+  defaultPreloadStaleTime: 0,
+})
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
+}
+
+function App() {
+  const auth = useAuth()
+  return (
+    <QueryClientProvider client={queryClient} >
+      <RouterProvider router={router} context={{ auth }}/>
+    </QueryClientProvider>
+  )
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
-  </StrictMode>,
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  </StrictMode>
 )

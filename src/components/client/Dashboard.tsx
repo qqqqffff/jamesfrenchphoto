@@ -8,7 +8,6 @@ import {
     // HiOutlineDocumentText, 
     HiOutlinePlusCircle 
 } from "react-icons/hi";
-import { useNavigate, useRouteLoaderData } from "react-router-dom";
 import { HiOutlineHome } from "react-icons/hi2";
 import { Home } from "./Home";
 import { badgeColorThemeMap } from "../../utils";
@@ -17,6 +16,7 @@ import { Schema } from "../../../amplify/data/resource";
 import { TimeslotComponent } from "../timeslot/Timeslot";
 import { createParticipantFromUserProfile, fetchUserProfile } from "../../App";
 import { getUrl } from "aws-amplify/storage";
+import { useNavigate } from "@tanstack/react-router";
 
 const client = generateClient<Schema>()
 
@@ -39,7 +39,8 @@ function addClassComponent(adminView: boolean){
 }
 
 export function Dashboard() {
-    const [userProfile, setUserProfile] = useState(useRouteLoaderData("/") as UserProfile | null)
+    //TODO: fix me
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
     const [activeConsole, setActiveConsole] = useState('home')
     const [userProfileTags, setUserProfileTags] = useState<UserTag[]>([])
     const [schedulerEnabled, setSchedulerEnabled] = useState(false)
@@ -288,7 +289,7 @@ export function Dashboard() {
                     ) : []))
             }
             else{
-                navigate('/client')
+                navigate({ to: '/client' })
                 return
             }
             setUserProfileTags(userProfileTags)

@@ -1,12 +1,12 @@
 import { FormEvent, useEffect, useState } from "react";
 import { confirmSignIn, fetchAuthSession, fetchUserAttributes, getCurrentUser, signIn } from "aws-amplify/auth";
 import { Alert, Button, Label, Modal, TextInput } from "flowbite-react";
-import { useNavigate } from "react-router-dom";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
 import useWindowDimensions from "../../hooks/windowDimensions";
 import { textInputTheme } from "../../utils";
 import { UserStorage } from "../../types";
+import { useNavigate } from "@tanstack/react-router";
 
 const client = generateClient<Schema>()
 
@@ -51,7 +51,7 @@ export default function SignIn() {
                 components.push({
                     message: 'You are already logged in! Redirecting to your dashboard in 5 seconds.',
                     color: 'red',
-                    action: () => setTimeout(() => navigate(`/${direction}/dashboard`), 5000)
+                    action: () => setTimeout(() => navigate({ to: `/${direction}/dashboard`}), 5000)
                 })
             }
 
@@ -116,10 +116,10 @@ export default function SignIn() {
             
             setSubmitting(false)
             if(groups.includes('ADMINS')){
-                navigate('/admin/dashboard')
+                navigate({ to: '/admin/dashboard'})
             }
             else if(groups.includes('USERS')){
-                navigate('/client/dashboard')
+                navigate({ to: '/client/dashboard'})
             }
         } catch(err){
             const error = err as Error
@@ -150,10 +150,10 @@ export default function SignIn() {
             
             setSubmitting(false)
             if(groups.includes('ADMINS')){
-                navigate('/admin/dashboard')
+                navigate({ to: '/admin/dashboard' })
             }
             else if(groups.includes('USERS')){
-                navigate('/client/dashboard')
+                navigate({ to: '/client/dashboard' })
             }
         }catch(err){
             const error = err as Error

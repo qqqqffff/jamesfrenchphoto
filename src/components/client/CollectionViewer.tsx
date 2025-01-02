@@ -1,8 +1,8 @@
-import { useLoaderData, useNavigate } from "react-router-dom"
 import { useEffect, useRef } from "react"
 import { Button } from "flowbite-react"
 import { PhotoCollection, PicturePath } from "../../types"
 import useWindowDimensions from "../../hooks/windowDimensions"
+import { useNavigate } from "@tanstack/react-router"
 
 export interface DisplayCollectionData extends Partial<PhotoCollection> {
     name: string,
@@ -12,7 +12,7 @@ export interface DisplayCollectionData extends Partial<PhotoCollection> {
 }
 
 export const CollectionViewer = () => {
-    const collection = useLoaderData() as DisplayCollectionData
+    const collection = {} as DisplayCollectionData
 
     const coverPath = 
         { url: collection.coverPath !== undefined ? 
@@ -55,7 +55,7 @@ export const CollectionViewer = () => {
     return (
         <div className="font-main">
             <div className="flex flex-row justify-center mb-10">
-                <Button className='mt-4' onClick={() => navigate(`/${navigateControls ? 'admin' : 'client'}/dashboard`)}>{navigateControls ? 'Return to Admin Console' : 'Return Home'}</Button>
+                <Button className='mt-4' onClick={() => navigate({ to: `/${navigateControls ? 'admin' : 'client'}/dashboard` })}>{navigateControls ? 'Return to Admin Console' : 'Return Home'}</Button>
             </div>
             <div className="flex flex-row justify-center items-center mb-2 relative bg-gray-200" 
                 onContextMenu={(e) => {

@@ -1,4 +1,3 @@
-import { Link, Outlet, useLoaderData, useRevalidator } from 'react-router-dom'
 import bannerIcon from '../../assets/headerPhoto.png'
 import { Dropdown } from 'flowbite-react'
 import { UserProfile, UserStorage } from '../../types'
@@ -9,16 +8,16 @@ import { generateClient } from 'aws-amplify/api';
 import { Schema } from '../../../amplify/data/resource';
 import { useEffect, useState } from 'react';
 import { fetchUserProfile } from '../../App';
+import { Link, Outlet } from '@tanstack/react-router';
 
 const client = generateClient<Schema>()
 
 export default function Header() {
     const userStorage: UserStorage | undefined = window.localStorage.getItem('user') !== null ? JSON.parse(window.localStorage.getItem('user')!) : undefined;
     const adminState = userStorage !== undefined && userStorage.groups !== undefined && userStorage.groups.includes('ADMINS')
-    const [userProfile, setUserProfile] = useState(useLoaderData() as UserProfile | null)
+    const [userProfile, setUserProfile] = useState<UserProfile | null>() //useState(useLoaderData() as UserProfile | null)
     const { width } = useWindowDimensions()
-    const revalidator = useRevalidator()
-
+    
     useEffect(() => {
         const api = async () => {
             if(userStorage !== undefined && userProfile == null){
@@ -61,7 +60,6 @@ export default function Header() {
                                             const tempProfile = {...userProfile}
                                             tempProfile.activeParticipant = participant
                                             
-                                            revalidator.revalidate()
                                             setUserProfile(tempProfile)
                                         }
                                     }}
@@ -146,12 +144,12 @@ export default function Header() {
                     width > 800 ? 
                     (
                         <>
-                            <Link to="contact-form">Contact Us</Link>
+                            <Link to="/contact-form">Contact Us</Link>
                             {renderHeaderItems()}
                         </>
                     ) : (
                         <Dropdown label={(<HiOutlineMenu className='text-xl' />)} color='light' arrowIcon={false} trigger='hover'>
-                            <Dropdown.Item><Link to="contact-form">Contact Us</Link></Dropdown.Item>
+                            <Dropdown.Item><Link to="/contact-form">Contact Us</Link></Dropdown.Item>
                             <Dropdown.Divider className='bg-gray-300'/>
                             {renderHeaderItems()}
                         </Dropdown>

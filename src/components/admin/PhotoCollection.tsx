@@ -12,11 +12,11 @@ import {
 } from "react-icons/hi2";
 import { Tooltip } from "flowbite-react";
 import { CreateCollectionModal, UploadImagesModal, WatermarkModal } from "../modals";
-import { useNavigate } from "react-router-dom";
 import { TbCircleLetterPFilled, TbCircleLetterLFilled } from "react-icons/tb";
 import { FixedSizeGrid, GridChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import useWindowDimensions from "../../hooks/windowDimensions";
+import { useNavigate } from "@tanstack/react-router";
 
 export type PhotoCollectionProps = {
     photoCollection: PhotoCollection;
@@ -310,7 +310,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
                 <ControlComponent name='Update Collection' fn={() => setUpdateCollection(true)} />
                 <ControlComponent name="Upload Picture" fn={() => setUploadImagesVisible(true)} />
                 <ControlComponent name="Save Changes" fn={() => saveCollection()} disabled={!changesToSave} isProcessing={submitting} />
-                <ControlComponent name="Preview" fn={() => navigate(`/photo-collection/${photoCollection.id}`, { state: { origin: 'admin' }})} />
+                <ControlComponent name="Preview" fn={() => navigate({ to: `/photo-collection/${photoCollection.id}`})} />
                 <ControlComponent name='Downloadable' fn={() => {
                     const temp = {...pictureCollection}
                     temp.downloadable = !temp.downloadable

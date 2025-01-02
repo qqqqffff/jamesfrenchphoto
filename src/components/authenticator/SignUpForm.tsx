@@ -2,7 +2,6 @@ import { generateClient } from "aws-amplify/api"
 import { confirmSignUp, resendSignUpCode, signUp } from "aws-amplify/auth"
 import { Accordion, Alert, Badge, Button, Checkbox, Dropdown, Label, Modal, TextInput } from "flowbite-react"
 import { FormEvent, useRef, useState } from "react"
-import { useLoaderData, useNavigate } from "react-router-dom"
 import { Schema } from "../../../amplify/data/resource"
 import { textInputTheme } from "../../utils"
 import { TermsAndConditionsModal } from "../modals/TermsAndConditions"
@@ -11,6 +10,7 @@ import { HiOutlineCheckCircle, HiOutlineExclamationCircle, HiOutlineXCircle } fr
 import validator from 'validator'
 import { Participant, UserTag } from "../../types"
 import { v4 } from 'uuid'
+import { useNavigate } from "@tanstack/react-router"
 
 
 const client = generateClient<Schema>()
@@ -60,7 +60,8 @@ export default function SignUp(){
     const [termsAndConditionsVisible, setTermsAndConditionsVisible] = useState(false)
     const [preferredContact, setPreferredContact] = useState(false)
     const [termsAndConditions, setTermsAndConditions] = useState(false)
-    const [availableTags, setAvailableTags] = useState<SignupAvailableTag[]>(useLoaderData() as SignupAvailableTag[])
+    //TODO: fix me
+    const [availableTags, setAvailableTags] = useState<SignupAvailableTag[]>([])
 
     const [password, setPassword] = useState<string>()
     const [confirmPassword, setConfirmPassword] = useState<string>()
@@ -210,11 +211,7 @@ export default function SignUp(){
             }
             else{
                 setFormSubmitting(false)
-                navigate('/login', {
-                    state: {
-                        createAccountSuccess: true
-                    }
-                })
+                navigate({ to: '/login', params: { createAccountSuccess: true }})
             }
 
         } catch(err: any) {
@@ -252,11 +249,7 @@ export default function SignUp(){
             })
 
             if(response.isSignUpComplete){
-                navigate('/login', {
-                    state: {
-                        createAccountSuccess: true
-                    }
-                })
+                navigate({ to: '/login', params: { createAccountSuccess: true }})
             }
         }catch(err){
             //todo error handling
