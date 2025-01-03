@@ -141,7 +141,7 @@ async function getPathsDataMapFromPaths(paths: PicturePath[]): Promise<Map<strin
             {file: new File([file], parsePathName(path.path), { type: file.type }), order: path.order}
         ]
     }))).sort((a, b) => (a[1] as {file: File, order: number}).order - (b[1] as {file: File, order: number}).order))
-    
+
     Object.entries(mappedFiles).forEach((entry) => {
         map.set(entry[0], entry[1])
     })
@@ -315,6 +315,9 @@ export interface UpdateCollectionParams extends CreateCollectionParams {
 }
 export async function updateCollectionMutation(params: UpdateCollectionParams) {
     //TODO:
+    const newPaths = Array.from((params.paths ?? new Map<string, File>()).entries())
+            .filter((entry) => entry[0].includes('blob'))
+    const removed = 
     //find added
     //find removed
     //update name and cover

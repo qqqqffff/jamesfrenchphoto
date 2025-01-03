@@ -142,7 +142,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
           ...createCollectionParams,
           collection: collection,
         }
-        console.log(Array.from((updateCollectionParams.paths ?? new Map<string, File>()).entries()).filter((entry) => entry[0].includes('blob')))
         // await updateCollection.mutateAsync(updateCollectionParams)
         setSubmitting(false)
       }
