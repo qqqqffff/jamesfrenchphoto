@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useAuth } from '../auth'
 import { FormEvent, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
@@ -6,13 +6,15 @@ import { Alert, Button, Label, Modal, TextInput } from 'flowbite-react'
 import { textInputTheme } from '../utils'
 
 interface LoginParams {
-  createAccount?: boolean
+  createAccount?: boolean,
+  unauthorized?: boolean
 }
 
 export const Route = createFileRoute('/login')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): LoginParams => ({
-    createAccount: (search.createAccount as boolean) || undefined
+    createAccount: (search.createAccount as boolean) || undefined,
+    unauthorized: (search.unauthorized as boolean) || undefined
   })
 })
 
@@ -29,12 +31,14 @@ function RouteComponent() {
   const auth = useAuth()
   const search = Route.useSearch()
   const navigate = useNavigate()
+  const router = useRouter()
+
   const [notifications, setNotifications] = useState<{item: string, visible: boolean}[]>(
     [
       ...Object.entries(search).map((item) => 
         ({item: item[0], visible: item[1] !== undefined})
       ), 
-      { item: 'alreadyLoggedIn', visible: auth.isAuthenticated }
+      { item: 'alreadyLoggedIn', visible: auth.isAuthenticated },
     ]
   )
   const [formErrors, setFormErrors] = useState<string[]>([])
@@ -83,6 +87,20 @@ function RouteComponent() {
             () => setTimeout(() => navigate({ to: `/${auth.admin ? 'admin' : 'client'}/dashboard`}), 5000)
           )
         }
+        {
+          notifications.find((item) => item.item === 'unauthorized')?.visible && 
+          notification('Unauthorized', 'red', 
+            () => {
+              navigate({ to: '.' })
+              setNotifications(
+                notifications.map((notification) => {
+                  if(notification.item === 'unauthorized') return {...notification, visible: false}
+                  return notification
+                })
+              )
+            }
+          )
+        }
       </div>
     )
   }
@@ -111,6 +129,10 @@ function RouteComponent() {
           return
         }
 
+        await router.invalidate()
+
+        await new Promise(resolve => setTimeout(resolve, 1))
+
         if(response === 'admin'){
           navigate({ to: '/admin/dashboard'})
         }
@@ -129,13 +151,17 @@ function RouteComponent() {
       try{
           auth.confirmLogin(username, password!)
 
-          setSubmitting(false)
+          await router.invalidate()
+
+          await new Promise(resolve => setTimeout(resolve, 1))
+
           if(auth.admin){
             navigate({ to: '/admin/dashboard'})
           }
           else if(auth.admin === false){
             navigate({ to: '/client/dashboard'})
           }
+          setSubmitting(false)
       }catch(err){
         const error = err as Error
         setFormErrors([error.message])

@@ -20,7 +20,7 @@ interface HomeParams {
 export const Route = createFileRoute('/')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): HomeParams => ({
-    logout: (search.logout as boolean) || undefined
+    logout: (search.logout as boolean) || undefined,
   })
 })
 

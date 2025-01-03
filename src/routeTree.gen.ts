@@ -12,9 +12,15 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as LoginImport } from './routes/login'
+import { Route as AuthImport } from './routes/_auth'
 import { Route as IndexImport } from './routes/index'
-import { Route as ClientDashboardImport } from './routes/client/dashboard'
-import { Route as AdminDashboardImport } from './routes/admin/dashboard'
+import { Route as AuthClientDashboardImport } from './routes/_auth.client/dashboard'
+import { Route as AuthAdminDashboardImport } from './routes/_auth.admin/dashboard'
+import { Route as AuthAdminDashboardIndexImport } from './routes/_auth.admin/dashboard/index'
+import { Route as AuthAdminDashboardUserImport } from './routes/_auth.admin/dashboard/user'
+import { Route as AuthAdminDashboardSchedulerImport } from './routes/_auth.admin/dashboard/scheduler'
+import { Route as AuthAdminDashboardPackageImport } from './routes/_auth.admin/dashboard/package'
+import { Route as AuthAdminDashboardCollectionImport } from './routes/_auth.admin/dashboard/collection'
 
 // Create/Update Routes
 
@@ -24,23 +30,60 @@ const LoginRoute = LoginImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const AuthRoute = AuthImport.update({
+  id: '/_auth',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRoute,
 } as any)
 
-const ClientDashboardRoute = ClientDashboardImport.update({
+const AuthClientDashboardRoute = AuthClientDashboardImport.update({
   id: '/client/dashboard',
   path: '/client/dashboard',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => AuthRoute,
 } as any)
 
-const AdminDashboardRoute = AdminDashboardImport.update({
+const AuthAdminDashboardRoute = AuthAdminDashboardImport.update({
   id: '/admin/dashboard',
   path: '/admin/dashboard',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => AuthRoute,
 } as any)
+
+const AuthAdminDashboardIndexRoute = AuthAdminDashboardIndexImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthAdminDashboardRoute,
+} as any)
+
+const AuthAdminDashboardUserRoute = AuthAdminDashboardUserImport.update({
+  id: '/user',
+  path: '/user',
+  getParentRoute: () => AuthAdminDashboardRoute,
+} as any)
+
+const AuthAdminDashboardSchedulerRoute =
+  AuthAdminDashboardSchedulerImport.update({
+    id: '/scheduler',
+    path: '/scheduler',
+    getParentRoute: () => AuthAdminDashboardRoute,
+  } as any)
+
+const AuthAdminDashboardPackageRoute = AuthAdminDashboardPackageImport.update({
+  id: '/package',
+  path: '/package',
+  getParentRoute: () => AuthAdminDashboardRoute,
+} as any)
+
+const AuthAdminDashboardCollectionRoute =
+  AuthAdminDashboardCollectionImport.update({
+    id: '/collection',
+    path: '/collection',
+    getParentRoute: () => AuthAdminDashboardRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
@@ -53,6 +96,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AuthImport
+      parentRoute: typeof rootRoute
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -60,68 +110,179 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
     }
-    '/admin/dashboard': {
-      id: '/admin/dashboard'
+    '/_auth/admin/dashboard': {
+      id: '/_auth/admin/dashboard'
       path: '/admin/dashboard'
       fullPath: '/admin/dashboard'
-      preLoaderRoute: typeof AdminDashboardImport
-      parentRoute: typeof rootRoute
+      preLoaderRoute: typeof AuthAdminDashboardImport
+      parentRoute: typeof AuthImport
     }
-    '/client/dashboard': {
-      id: '/client/dashboard'
+    '/_auth/client/dashboard': {
+      id: '/_auth/client/dashboard'
       path: '/client/dashboard'
       fullPath: '/client/dashboard'
-      preLoaderRoute: typeof ClientDashboardImport
-      parentRoute: typeof rootRoute
+      preLoaderRoute: typeof AuthClientDashboardImport
+      parentRoute: typeof AuthImport
+    }
+    '/_auth/admin/dashboard/collection': {
+      id: '/_auth/admin/dashboard/collection'
+      path: '/collection'
+      fullPath: '/admin/dashboard/collection'
+      preLoaderRoute: typeof AuthAdminDashboardCollectionImport
+      parentRoute: typeof AuthAdminDashboardImport
+    }
+    '/_auth/admin/dashboard/package': {
+      id: '/_auth/admin/dashboard/package'
+      path: '/package'
+      fullPath: '/admin/dashboard/package'
+      preLoaderRoute: typeof AuthAdminDashboardPackageImport
+      parentRoute: typeof AuthAdminDashboardImport
+    }
+    '/_auth/admin/dashboard/scheduler': {
+      id: '/_auth/admin/dashboard/scheduler'
+      path: '/scheduler'
+      fullPath: '/admin/dashboard/scheduler'
+      preLoaderRoute: typeof AuthAdminDashboardSchedulerImport
+      parentRoute: typeof AuthAdminDashboardImport
+    }
+    '/_auth/admin/dashboard/user': {
+      id: '/_auth/admin/dashboard/user'
+      path: '/user'
+      fullPath: '/admin/dashboard/user'
+      preLoaderRoute: typeof AuthAdminDashboardUserImport
+      parentRoute: typeof AuthAdminDashboardImport
+    }
+    '/_auth/admin/dashboard/': {
+      id: '/_auth/admin/dashboard/'
+      path: '/'
+      fullPath: '/admin/dashboard/'
+      preLoaderRoute: typeof AuthAdminDashboardIndexImport
+      parentRoute: typeof AuthAdminDashboardImport
     }
   }
 }
 
 // Create and export the route tree
 
+interface AuthAdminDashboardRouteChildren {
+  AuthAdminDashboardCollectionRoute: typeof AuthAdminDashboardCollectionRoute
+  AuthAdminDashboardPackageRoute: typeof AuthAdminDashboardPackageRoute
+  AuthAdminDashboardSchedulerRoute: typeof AuthAdminDashboardSchedulerRoute
+  AuthAdminDashboardUserRoute: typeof AuthAdminDashboardUserRoute
+  AuthAdminDashboardIndexRoute: typeof AuthAdminDashboardIndexRoute
+}
+
+const AuthAdminDashboardRouteChildren: AuthAdminDashboardRouteChildren = {
+  AuthAdminDashboardCollectionRoute: AuthAdminDashboardCollectionRoute,
+  AuthAdminDashboardPackageRoute: AuthAdminDashboardPackageRoute,
+  AuthAdminDashboardSchedulerRoute: AuthAdminDashboardSchedulerRoute,
+  AuthAdminDashboardUserRoute: AuthAdminDashboardUserRoute,
+  AuthAdminDashboardIndexRoute: AuthAdminDashboardIndexRoute,
+}
+
+const AuthAdminDashboardRouteWithChildren =
+  AuthAdminDashboardRoute._addFileChildren(AuthAdminDashboardRouteChildren)
+
+interface AuthRouteChildren {
+  AuthAdminDashboardRoute: typeof AuthAdminDashboardRouteWithChildren
+  AuthClientDashboardRoute: typeof AuthClientDashboardRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthAdminDashboardRoute: AuthAdminDashboardRouteWithChildren,
+  AuthClientDashboardRoute: AuthClientDashboardRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/client/dashboard': typeof ClientDashboardRoute
+  '/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
+  '/client/dashboard': typeof AuthClientDashboardRoute
+  '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
+  '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
+  '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
+  '/admin/dashboard/user': typeof AuthAdminDashboardUserRoute
+  '/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/client/dashboard': typeof ClientDashboardRoute
+  '/client/dashboard': typeof AuthClientDashboardRoute
+  '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
+  '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
+  '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
+  '/admin/dashboard/user': typeof AuthAdminDashboardUserRoute
+  '/admin/dashboard': typeof AuthAdminDashboardIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/_auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/client/dashboard': typeof ClientDashboardRoute
+  '/_auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
+  '/_auth/client/dashboard': typeof AuthClientDashboardRoute
+  '/_auth/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
+  '/_auth/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
+  '/_auth/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
+  '/_auth/admin/dashboard/user': typeof AuthAdminDashboardUserRoute
+  '/_auth/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/admin/dashboard' | '/client/dashboard'
+  fullPaths:
+    | '/'
+    | ''
+    | '/login'
+    | '/admin/dashboard'
+    | '/client/dashboard'
+    | '/admin/dashboard/collection'
+    | '/admin/dashboard/package'
+    | '/admin/dashboard/scheduler'
+    | '/admin/dashboard/user'
+    | '/admin/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/admin/dashboard' | '/client/dashboard'
-  id: '__root__' | '/' | '/login' | '/admin/dashboard' | '/client/dashboard'
+  to:
+    | '/'
+    | ''
+    | '/login'
+    | '/client/dashboard'
+    | '/admin/dashboard/collection'
+    | '/admin/dashboard/package'
+    | '/admin/dashboard/scheduler'
+    | '/admin/dashboard/user'
+    | '/admin/dashboard'
+  id:
+    | '__root__'
+    | '/'
+    | '/_auth'
+    | '/login'
+    | '/_auth/admin/dashboard'
+    | '/_auth/client/dashboard'
+    | '/_auth/admin/dashboard/collection'
+    | '/_auth/admin/dashboard/package'
+    | '/_auth/admin/dashboard/scheduler'
+    | '/_auth/admin/dashboard/user'
+    | '/_auth/admin/dashboard/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRouteWithChildren
   LoginRoute: typeof LoginRoute
-  AdminDashboardRoute: typeof AdminDashboardRoute
-  ClientDashboardRoute: typeof ClientDashboardRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRouteWithChildren,
   LoginRoute: LoginRoute,
-  AdminDashboardRoute: AdminDashboardRoute,
-  ClientDashboardRoute: ClientDashboardRoute,
 }
 
 export const routeTree = rootRoute
@@ -135,22 +296,57 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/login",
-        "/admin/dashboard",
-        "/client/dashboard"
+        "/_auth",
+        "/login"
       ]
     },
     "/": {
       "filePath": "index.tsx"
     },
+    "/_auth": {
+      "filePath": "_auth.tsx",
+      "children": [
+        "/_auth/admin/dashboard",
+        "/_auth/client/dashboard"
+      ]
+    },
     "/login": {
       "filePath": "login.tsx"
     },
-    "/admin/dashboard": {
-      "filePath": "admin/dashboard.tsx"
+    "/_auth/admin/dashboard": {
+      "filePath": "_auth.admin/dashboard.tsx",
+      "parent": "/_auth",
+      "children": [
+        "/_auth/admin/dashboard/collection",
+        "/_auth/admin/dashboard/package",
+        "/_auth/admin/dashboard/scheduler",
+        "/_auth/admin/dashboard/user",
+        "/_auth/admin/dashboard/"
+      ]
     },
-    "/client/dashboard": {
-      "filePath": "client/dashboard.tsx"
+    "/_auth/client/dashboard": {
+      "filePath": "_auth.client/dashboard.tsx",
+      "parent": "/_auth"
+    },
+    "/_auth/admin/dashboard/collection": {
+      "filePath": "_auth.admin/dashboard/collection.tsx",
+      "parent": "/_auth/admin/dashboard"
+    },
+    "/_auth/admin/dashboard/package": {
+      "filePath": "_auth.admin/dashboard/package.tsx",
+      "parent": "/_auth/admin/dashboard"
+    },
+    "/_auth/admin/dashboard/scheduler": {
+      "filePath": "_auth.admin/dashboard/scheduler.tsx",
+      "parent": "/_auth/admin/dashboard"
+    },
+    "/_auth/admin/dashboard/user": {
+      "filePath": "_auth.admin/dashboard/user.tsx",
+      "parent": "/_auth/admin/dashboard"
+    },
+    "/_auth/admin/dashboard/": {
+      "filePath": "_auth.admin/dashboard/index.tsx",
+      "parent": "/_auth/admin/dashboard"
     }
   }
 }

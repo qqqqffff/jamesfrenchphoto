@@ -34,6 +34,10 @@ export function formatFileSize(bytes: number, decimals = 2) {
     return `${size} ${sizes[i]}`;
 }
 
+export function parsePathName(path: string): string {
+    return path.substring(path.indexOf('_') + 1)
+}
+
 export const TZ_OFFSET = (day: Date) => (new Date(day.toLocaleString('en-US', { timeZone: 'America/Chicago' })).getTime() - new Date(day.toLocaleString()).getTime())
 
 export const getTimes = (day: Date) => [

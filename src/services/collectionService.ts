@@ -3,7 +3,9 @@ import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
-import { getUrl, remove } from "aws-amplify/storage";
+import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
+import { parsePathName } from "../utils";
+import { v4 } from "uuid";
 
 const client = generateClient<Schema>()
 
@@ -127,6 +129,26 @@ async function getAllWatermarkObjects(client: V6Client<Schema>): Promise<Waterma
     ))
 }
 
+async function getPathsDataMapFromPaths(paths: PicturePath[]): Promise<Map<string,  {file: File, order: number}>>{
+    const map = new Map<string,  {file: File, order: number}>()
+
+    const mappedFiles: Record<string,  {file: File, order: number}> = Object.fromEntries((await Promise.all(paths.map(async (path) => {
+        const file = await (await downloadData({
+            path: path.path
+        }).result).body.blob()
+        return [
+            path.url,
+            {file: new File([file], parsePathName(path.path), { type: file.type }), order: path.order}
+        ]
+    }))).sort((a, b) => (a[1] as {file: File, order: number}).order - (b[1] as {file: File, order: number}).order))
+    
+    Object.entries(mappedFiles).forEach((entry) => {
+        map.set(entry[0], entry[1])
+    })
+    
+    return map
+}
+
 interface DeleteEventMutationOptions {
     logging: boolean
 }
@@ -205,6 +227,100 @@ export async function createEventMutation(params: CreateEventParams) {
     return null
 }
 
+export interface CreateCollectionParams {
+    eventId: string,
+    name: string,
+    tags:  UserTag[],
+    cover: string | null,
+    downloadable: boolean,
+    paths?: Map<string, File>,
+    options?: {
+        logging: boolean
+    },
+    setProgress: (progress: number) => void
+}
+export async function createCollectionMutation(params: CreateCollectionParams) {
+    const collectionResponse = await client.models.PhotoCollection.create({
+        eventId: params.eventId,
+        name: params.name,
+        downloadable: params.downloadable,
+    })
+    if(params.options?.logging) console.log(collectionResponse)
+
+    if(!collectionResponse || !collectionResponse.data) return null
+
+    const taggingResponse = await Promise.all(params.tags.map(async (tag) => {
+        const taggingResponse = await client.models.CollectionTag.create({
+            collectionId: collectionResponse.data!.id,
+            tagId: tag.id
+        })
+        return taggingResponse
+    }))
+
+    if(params.options?.logging) console.log(taggingResponse)
+
+    let paths: PicturePath[] = []
+    let coverPath: string | undefined
+
+    if(params.paths && params.paths.size > 0) {
+        paths = (await Promise.all((await Promise.all(
+            [...params.paths.values()].map(async (file, index, arr) => {
+                const result = await uploadData({
+                    path: `photo-collections/${params.eventId}/${collectionResponse.data!.id}/${v4()}_${file.name}`,
+                    data: file,
+                }).result
+                if(params.options?.logging) console.log(result)
+
+                params.setProgress((index + 1 / arr.length) * 100)
+                //updating cover
+                if(params.cover !== null && file.name === params.cover){
+                    const collectionUpdate = await client.models.PhotoCollection.update({
+                        id: collectionResponse.data!.id,
+                        coverPath: result.path
+                    })
+                    coverPath = result.path
+                    if(params.options?.logging) console.log(collectionUpdate)
+                }
+                return result.path
+            })
+        )).map(async (path, index) => {
+            const response = await client.models.PhotoPaths.create({
+                path: path,
+                order: index,
+                collectionId: collectionResponse.data!.id
+            })
+            if(params.options?.logging) console.log(response)
+            if(!response || !response.data) return
+            const returnPath: PicturePath = {
+                ...response.data,
+                url: ''
+            }
+            return returnPath
+        }))).filter((item) => item !== undefined)
+    }
+
+    const returnedCollection: PhotoCollection = {
+        ...collectionResponse.data,
+        paths: paths,
+        coverPath: coverPath,
+        tags: params.tags,
+        downloadable: params.downloadable,
+        watermarkPath: undefined,
+    }
+
+    return returnedCollection
+}
+export interface UpdateCollectionParams extends CreateCollectionParams {
+    collection: PhotoCollection,
+}
+export async function updateCollectionMutation(params: UpdateCollectionParams) {
+    //TODO:
+    //find added
+    //find removed
+    //update name and cover
+    //update order
+}
+
 export const getAllEventsQueryOptions = () => queryOptions({
     queryKey: ['events', client],
     queryFn: () => getAllEvents(client),
@@ -224,5 +340,11 @@ export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOp
 export const getAllWatermarkObjectsQueryOptions = () => queryOptions({
     queryKey: ['watermark', client],
     queryFn: () => getAllWatermarkObjects(client),
+    gcTime: 1000 * 15 * 60 //15 minutes
+})
+
+export const getPathsDataMapFromPathsQueryOptions = (paths: PicturePath[]) => queryOptions({
+    queryKey: ['photoPaths', paths],
+    queryFn: () => getPathsDataMapFromPaths(paths),
     gcTime: 1000 * 15 * 60 //15 minutes
 })
