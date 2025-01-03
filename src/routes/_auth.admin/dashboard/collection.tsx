@@ -11,9 +11,10 @@ import { PhotoCollectionComponent } from "../../../components/PhotoCollection";
 import { PhotoCollection, Event } from "../../../types";
 import { ConfirmationModal, CreateCollectionModal, CreateEventModal } from '../../../components/modals'
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { deleteEventMutation, getAllEventsQueryOptions, getAllPicturePathsQueryOptions, getAllWatermarkObjectsQueryOptions } from "../../../services/collectionService";
+import { getAllPicturePathsQueryOptions, getAllWatermarkObjectsQueryOptions } from "../../../services/collectionService";
 import { getAllUserTagsQueryOptions } from "../../../services/userService";
 import { textInputTheme } from "../../../utils";
+import { deleteEventMutation, getAllEventsQueryOptions } from '../../../services/eventService';
 
 export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   component: RouteComponent,

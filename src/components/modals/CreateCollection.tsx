@@ -101,12 +101,12 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     })
     const updateCollection = useMutation({
       mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params),
-      onSettled: (data) => {
-        if(data){
-          onSubmit(data)
-          clearState()
-        }
-      }
+      // onSettled: (data) => {
+      //   if(data){
+      //     onSubmit(data)
+      //     clearState()
+      //   }
+      // }
     })
     if(filesUpload === undefined && initialFiles.data && initialFiles.data.size > 0){
       setFilesUpload(initialFiles.data)
@@ -142,7 +142,7 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
           ...createCollectionParams,
           collection: collection,
         }
-        // await updateCollection.mutateAsync(updateCollectionParams)
+        await updateCollection.mutateAsync(updateCollectionParams)
         setSubmitting(false)
       }
       else{
@@ -456,13 +456,27 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                         width={width}
                         itemData={{
                           data: [...(filteredResult ?? filesUpload).entries()].map(([url, file]) => ({url: url, file: file.file, order: file.order})),
-                          onDelete: (key) => {
-                              const files = new Map<string, {file: File, order: number}>(filesUpload.entries())
-                              const filteredFiles = filteredResult ? new Map<string, {file: File, order: number}>(filteredResult.entries()) : undefined
-                              files.delete(key)
-                              if(filteredFiles) filteredFiles.delete(key)
-                              setFilesUpload(files)
-                              setFilteredResult(filteredFiles)
+                          onDelete: (key: string) => {
+                            const newFiles = Array.from(filesUpload.entries())
+                              .filter((entry) => entry[0] !== key)
+                              .sort((a, b) => a[1].order - b[1].order)
+                              .map((entry, index) => {
+                                return {
+                                  key: entry[0], 
+                                  file: entry[1].file,
+                                  order: index
+                                }
+                              })
+                              
+                            const files = new Map<string, {file: File, order: number}>()
+                            
+                            newFiles.forEach((entry) => {
+                              files.set(entry.key, {file: entry.file, order: entry.order})
+                            })
+                            
+                            files.delete(key)
+                            setFilesUpload(files)
+                            setFilteredResult(undefined)
                           },
                           cover,
                           setCover

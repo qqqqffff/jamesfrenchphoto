@@ -1,53 +1,13 @@
-import { Event, PhotoCollection, PicturePath, UserTag, Watermark } from "../types";
+import { PhotoCollection, PicturePath, UserTag, Watermark } from "../types";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
-import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
+import { downloadData, getUrl, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
 import { v4 } from "uuid";
 
 const client = generateClient<Schema>()
-
-async function getAllEvents(client: V6Client<Schema>): Promise<Event[]> {
-    console.log('api call')
-    const returnedEvents = await client.models.Events.list()
-
-    return (await Promise.all(returnedEvents.data.map(async (event) => {
-        const collectionResponse = await event.collections()
-        const mappedCollections = await Promise.all(collectionResponse.data.map(async (collection) => {
-            const collectionTagsResponse = await collection.tags()
-            const mappedTags: UserTag[] = (await Promise.all(collectionTagsResponse.data.map(async (collectionTag) => {
-                const tagResponse = await collectionTag.tag()
-                if(!tagResponse.data || !tagResponse.data.id) return
-                const mappedTag: UserTag = {
-                    ...tagResponse.data,
-                    color: tagResponse.data.color ?? undefined,
-
-                }
-                return mappedTag
-            }))).filter((tag) => tag !== undefined)
-
-            const mappedCollection: PhotoCollection = {
-                ...collection,
-                paths: [],
-                tags: mappedTags,
-                watermarkPath: collection.watermarkPath ?? undefined,
-                downloadable: collection.downloadable ?? false,
-                coverPath: collection.coverPath ?? undefined,
-            }
-
-            return mappedCollection
-        }))
-        
-        const mappedEvent: Event = {
-            ...event,
-            collections: mappedCollections,
-        }
-
-        return mappedEvent
-    }))).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-}
 
 async function getAllPicturePathsFromCollectionId(client: V6Client<Schema>, collectionId?: string): Promise<PicturePath[] | null> {
     console.log('api call')
@@ -149,84 +109,6 @@ async function getPathsDataMapFromPaths(paths: PicturePath[]): Promise<Map<strin
     return map
 }
 
-interface DeleteEventMutationOptions {
-    logging: boolean
-}
-export async function deleteEventMutation(eventId: string, options?: DeleteEventMutationOptions) {
-    console.log('api call')
-    const collectionsResponse = await client.models.PhotoCollection.
-        listPhotoCollectionByEventId({eventId: eventId})
-    const deleteCollectionResponse = await Promise.all(collectionsResponse.data.map(async (collection) => {
-        const paths = await collection.imagePaths()
-        const deletePathsResponses = await Promise.all(paths.data.map(async (path) => {
-            const s3response = await remove({
-                path: path.path,
-            })
-            const dynamoResponse = await client.models.PhotoPaths.delete({
-                id: path.id,
-            })
-            return [s3response, dynamoResponse]
-        }))
-        const response = await client.models.PhotoCollection.delete({
-            id: collection.id,
-        })
-        return [deletePathsResponses, response]
-    }))
-    const response = await client.models.Events.delete({
-        id: eventId
-    })
-
-    if(options?.logging) {
-        console.log(response, deleteCollectionResponse)
-    }
-
-    let mappedEvent: Event | undefined
-
-    if(response.data)
-        mappedEvent = {
-        ...response.data,
-        collections: collectionsResponse.data.map((data) => {
-            const mappedCollection: PhotoCollection = {
-                ...data,
-                //unnecessary
-                paths: [],
-                coverPath: undefined,
-                watermarkPath: undefined,
-                tags: [],
-                downloadable: false,
-            }
-            return mappedCollection
-        })
-    }
-    return mappedEvent
-}
-
-export async function updateEventMutation(event: Event) {
-    const response = await client.models.Events.update({
-        id: event.id,
-        name: event.name,
-    })
-    if(response && response.data) return event
-    return null
-}
-
-export interface CreateEventParams {
-    name: string,
-}
-export async function createEventMutation(params: CreateEventParams) {
-    const response = await client.models.Events.create({
-        name: params.name,
-    })
-    if(response && response.data) {
-        const returnedEvent: Event = {
-            ...response.data,
-            collections: [],
-        }
-        return returnedEvent
-    }
-    return null
-}
-
 export interface CreateCollectionParams {
     eventId: string,
     name: string,
@@ -310,24 +192,29 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
 
     return returnedCollection
 }
+
 export interface UpdateCollectionParams extends CreateCollectionParams {
     collection: PhotoCollection,
 }
 export async function updateCollectionMutation(params: UpdateCollectionParams) {
     //TODO:
-    const newPaths = Array.from((params.paths ?? new Map<string, File>()).entries())
-            .filter((entry) => entry[0].includes('blob'))
-    const removed = 
     //find added
     //find removed
     //update name and cover
     //update order
-}
+    const newPaths = Array.from((params.paths ?? new Map<string, File>()).entries())
+            .filter((entry) => entry[0].includes('blob'))
 
-export const getAllEventsQueryOptions = () => queryOptions({
-    queryKey: ['events', client],
-    queryFn: () => getAllEvents(client),
-})
+    const fileNamesMap = Array.from(params.paths?.values() ?? []).map((file) => {
+        return file.name
+    })
+    const removedPaths = params.collection.paths
+        .filter((path) => 
+            fileNamesMap.find((fn) => fn === parsePathName(path.path)) === undefined)
+
+    console.log(removedPaths, newPaths)
+    
+}
 
 export const getAllPicturePathsQueryOptions = (collectionId?: string) => queryOptions({
     queryKey: ['photoPaths', client, collectionId],

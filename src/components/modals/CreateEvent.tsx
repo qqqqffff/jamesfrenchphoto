@@ -3,7 +3,7 @@ import { ModalProps } from ".";
 import { Button, Label, Modal, TextInput } from "flowbite-react";
 import { Event } from "../../types";
 import { useMutation } from "@tanstack/react-query";
-import { createEventMutation, CreateEventParams, updateEventMutation } from "../../services/collectionService";
+import { createEventMutation, CreateEventParams, updateEventMutation } from "../../services/eventService";
 
 interface CreateEventProps extends ModalProps {
     onSubmit: (event?: Event) => void,
