@@ -3,7 +3,7 @@ import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
-import { downloadData, getUrl, uploadData } from "aws-amplify/storage";
+import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
 import { v4 } from "uuid";
 
@@ -115,7 +115,7 @@ export interface CreateCollectionParams {
     tags:  UserTag[],
     cover: string | null,
     downloadable: boolean,
-    paths?: Map<string, File>,
+    paths?: Map<string, File>, //TODO: convert to order
     options?: {
         logging: boolean
     },
@@ -155,7 +155,7 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
 
                 params.setProgress((index + 1 / arr.length) * 100)
                 //updating cover
-                if(params.cover !== null && file.name === params.cover){
+                if(params.cover !== null && file.name === parsePathName(params.cover)){
                     const collectionUpdate = await client.models.PhotoCollection.update({
                         id: collectionResponse.data!.id,
                         coverPath: result.path
@@ -202,6 +202,10 @@ export async function updateCollectionMutation(params: UpdateCollectionParams) {
     //find removed
     //update name and cover
     //update order
+    let updatedCollection = {
+        ...params.collection
+    }
+
     const newPaths = Array.from((params.paths ?? new Map<string, File>()).entries())
             .filter((entry) => entry[0].includes('blob'))
 
@@ -212,10 +216,129 @@ export async function updateCollectionMutation(params: UpdateCollectionParams) {
         .filter((path) => 
             fileNamesMap.find((fn) => fn === parsePathName(path.path)) === undefined)
 
-    console.log(removedPaths, newPaths)
-    
-}
+    const newTags = params.tags.filter((tag) => 
+        (params.collection.tags.find((colTag) => colTag.id === tag.id)) === undefined)
 
+    const removedTags = params.collection.tags.filter((colTag) => 
+        (params.tags.find((tag) => tag.id === colTag.id) === undefined))
+
+    if(params.options?.logging) console.log(newPaths, removedPaths)
+
+    const createPathsResponse = (await Promise.all((await Promise.all(newPaths.map(async (path, index, arr) => {
+        const result = await uploadData({
+            path: `photo-collections/${params.eventId}/${params.collection.id}/${v4()}_${path[1].name}`,
+            data: path[1],
+        }).result
+
+        if(params.options?.logging) console.log(result)
+
+        params.setProgress((index + 1 / arr.length) * 100)
+
+        return result.path
+    }))).map(async (path, index) => {
+        const offset = newPaths.length - removedPaths.length + params.collection.paths.length
+        const response = await client.models.PhotoPaths.create({
+            path: path,
+            order: offset + index,
+            collectionId: params.collection.id,
+        })
+        if(params.options?.logging) console.log(response)
+        if(!response || !response.data) return
+        const mappedPath: PicturePath = {
+            ...response.data,
+            url: '',
+        }
+        return mappedPath
+    }))).filter((item) => item !== undefined)
+
+    updatedCollection.paths.push(...createPathsResponse)
+    updatedCollection.paths = updatedCollection.paths
+        .filter((item) => removedPaths.find((path) => path.id === item.id) === undefined)
+        .sort((a, b) => a.order - b.order)
+        .map((path, index) => ({
+            ...path,
+            order: index
+        }))
+
+    const updatedPathsResponse = await Promise.all(updatedCollection.paths
+        .filter((path) => createPathsResponse.find((createPath) => createPath.id === path.id) === undefined)
+        .map(async (path) => {
+            const response = await client.models.PhotoPaths.update({
+                id: path.id,
+                order: path.order,
+            })
+            return response
+        })
+    )
+    if(params.options?.logging) console.log(updatedPathsResponse)
+
+    const removePathResponse = await Promise.all(removedPaths.map(async (path) => {
+        const s3response = await remove({
+            path: path.path
+        })
+
+        const dynamoResponse = await client.models.PhotoPaths.delete({
+            id: path.id,
+        })
+
+        return {
+            s3: s3response,
+            dynamo: dynamoResponse,
+        }
+    }))
+    if(params.options?.logging) console.log(removePathResponse)
+
+
+    updatedCollection.tags.push(...newTags)
+    updatedCollection.tags = updatedCollection.tags
+        .filter((tag) => removedTags.find((removedTag) => removedTag.id === tag.id) === undefined)
+
+    const createTagResponse = await Promise.all(newTags.map(async (tag) => {
+        const response = await client.models.CollectionTag.create({
+            collectionId: params.collection.id,
+            tagId: tag.id
+        })
+        return response
+    }))
+    if(params.options?.logging) console.log(createTagResponse)
+
+    const removeTagsResponse = await Promise.all((await client.models.CollectionTag
+        .listCollectionTagByCollectionId({
+            collectionId: params.collection.id
+        }))
+        .data
+        .filter((tag) => 
+            (removedTags.find((removedTag) => removedTag.id == tag.tagId) !== undefined)
+        )
+        .map(async (collectionTag) => {
+            const response = await client.models.CollectionTag.delete({
+                id: collectionTag.id,
+            })
+
+            return response
+        }))
+    if(params.options?.logging) console.log(removeTagsResponse)
+    
+    if(params.name !== params.collection.name || 
+        params.downloadable !== params.collection.downloadable ||
+        (params.cover !== null && params.collection.coverPath && params.cover !== parsePathName(params.collection.coverPath)) 
+    ) {
+        const coverPath = updatedCollection.paths.find((path) => parsePathName(path.path) === parsePathName(params.cover!))
+        const response = await client.models.PhotoCollection.update({
+            id: params.collection.id,
+            coverPath: coverPath?.path,
+            downloadable: params.downloadable,
+            name: params.name
+        })
+        if(params.options?.logging) console.log(response)
+
+        updatedCollection.name = params.name
+        updatedCollection.downloadable = params.downloadable
+        updatedCollection.coverPath = coverPath?.path
+    }
+
+    return updatedCollection
+}
 export const getAllPicturePathsQueryOptions = (collectionId?: string) => queryOptions({
     queryKey: ['photoPaths', client, collectionId],
     queryFn: () => getAllPicturePathsFromCollectionId(client, collectionId),

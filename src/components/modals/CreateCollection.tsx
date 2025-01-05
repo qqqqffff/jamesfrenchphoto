@@ -9,6 +9,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createCollectionMutation, CreateCollectionParams, getPathsDataMapFromPathsQueryOptions, updateCollectionMutation, UpdateCollectionParams } from "../../services/collectionService";
+import useWindowDimensions from "../../hooks/windowDimensions";
 
 interface CreateCollectionProps extends ModalProps {
   eventId: string;
@@ -81,6 +82,9 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     const [submitting, setSubmitting] = useState(false)
     const [progress, setProgress] = useState<number | undefined>()
     const [loaded, setLoaded] = useState(false)
+    const dimensions = useWindowDimensions()
+
+    console.log(dimensions)
 
     if(!loaded && collection){
       setName(collection.name)
@@ -272,7 +276,20 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                   </div>
                   <div className="flex flex-col items-center w-full h-full">
                     <Label className="self-start ms-[20%] font-medium text-lg" htmlFor="name">Cover Photo Preview:</Label>
-                    {cover}
+                    {filesUpload && cover !== null &&
+                    [[...(filesUpload.entries() ?? [])]
+                      .find((entry) => parsePathName(entry[1].file.name) === parsePathName(cover))]
+                      .map((entry) => {
+                        if(!entry) return
+                        return (
+                          <div className="flex flex-row justify-center items-center mb-2 relative bg-gray-200 w-full">
+                            <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
+                              <p className="font-thin">{name}</p>
+                            </div>
+                            <img src={entry[0]} style={{ maxHeight: dimensions.height * (0.20), maxWidth: dimensions.width * (0.20)}}/>
+                          </div>
+                        )
+                    })}
                   </div>
                 </div>
                 

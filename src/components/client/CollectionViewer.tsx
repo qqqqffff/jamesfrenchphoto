@@ -63,7 +63,7 @@ export const CollectionViewer = () => {
                 }}
             >
                 <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
-                    <p className={`${dimensions.width > 1600 ? "text-5xl" : 'text-3xl' }  font-thin opacity-90`}>{collection.name}</p>
+                    <p className={`${dimensions.width > 1600 ? "text-5xl" : 'text-3xl' } font-thin opacity-90`}>{collection.name}</p>
                     {/* <p className="italic text-xl">{new Date(collection.createdAt).toLocaleDateString()}</p> */}
                 </div>
                 <img ref={coverPhotoRef} src={coverPath.url} style={{ maxHeight: dimensions.height }} />

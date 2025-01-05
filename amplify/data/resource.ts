@@ -29,6 +29,11 @@ const schema = a.schema({
       eventId: a.id().required(),
       event: a.belongsTo('Events', 'eventId'),
       coverPath: a.string(),
+      coverText: a.customType({
+        color: a.string(),
+        opacity: a.string(),
+        family: a.string()
+      }),
       name: a.string().required(),
       imagePaths: a.hasMany('PhotoPaths', 'collectionId'),
       tags: a.hasMany('CollectionTag', 'collectionId'),
@@ -86,7 +91,7 @@ const schema = a.schema({
       tagId: a.id().required(),
       tag: a.belongsTo('UserTag', 'tagId')
     })
-    .secondaryIndexes((index) => [index('tagId')])
+    .secondaryIndexes((index) => [index('tagId'), index('collectionId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   TimeslotTag: a
     .model({
