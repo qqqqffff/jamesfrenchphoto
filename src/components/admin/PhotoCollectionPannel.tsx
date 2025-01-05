@@ -1,8 +1,8 @@
 import { FC, useState } from "react"
-import { PhotoCollection, PicturePath, UserTag } from "../types"
+import { PhotoCollection, PicturePath, UserTag } from "../../types"
 import { ControlComponent } from "./ControlPannel";
 import { generateClient } from "aws-amplify/api";
-import { Schema } from "../../amplify/data/resource";
+import { Schema } from "../../../amplify/data/resource";
 import { getUrl, remove } from "aws-amplify/storage";
 import { 
     HiOutlineBarsArrowDown, 
@@ -11,11 +11,11 @@ import {
     HiOutlineStar
 } from "react-icons/hi2";
 import { Tooltip } from "flowbite-react";
-import { CreateCollectionModal, UploadImagesModal, WatermarkModal } from "./modals";
+import { CreateCollectionModal, UploadImagesModal, WatermarkModal } from "../modals";
 import { TbCircleLetterPFilled, TbCircleLetterLFilled } from "react-icons/tb";
 import { FixedSizeGrid, GridChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import useWindowDimensions from "../hooks/windowDimensions";
+import useWindowDimensions from "../../hooks/windowDimensions";
 import { useNavigate } from "@tanstack/react-router";
 
 export type PhotoCollectionProps = {
@@ -159,7 +159,7 @@ const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
     )
 }
 
-export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths, watermarkObjects, availableTags }) => {
+export const PhotoCollectionPannel: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths, watermarkObjects, availableTags }) => {
     const [pictureCollection, setPictureCollection] = useState(photoCollection)
     const [picturePaths, setPicturePaths] = useState<PicturePath[]>(photoPaths)
     const [submitting, setSubmitting] = useState(false)

@@ -18,7 +18,6 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
     const mappedTags = await Promise.all(userTagsResponse.data.map(async (tag) => {
         const collections: PhotoCollection[] = []
         if(!options || options.siCollections) {
-            console.log('si')
             collections.push(...(await getAllCollectionsFromUserTags(client, [{
                     ...tag,
                     collections: [],

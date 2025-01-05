@@ -27,7 +27,10 @@ async function getAllPicturePathsFromCollectionId(client: V6Client<Schema>, coll
     return mappedPaths
 }
 
-export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, tags: UserTag[]): Promise<PhotoCollection[]> {
+interface GetAllCollectionsFromUserTagsOptions {
+    siTags: boolean
+}
+export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, tags: UserTag[], options?: GetAllCollectionsFromUserTagsOptions): Promise<PhotoCollection[]> {
     console.log('api call')
     const collections: PhotoCollection[] = (await Promise.all(tags.map(async (tag) => {
         const collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByTagId({
@@ -37,15 +40,19 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
         const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagsResponse.data.map(async (collectionTag) => {
             const collectionResponse = await collectionTag.collection()
             if(!collectionResponse.data || !collectionResponse.data) return
-            const tags = (await Promise.all((await collectionResponse.data.tags()).data.map(async (collTag) => {
-                const tag = await collTag.tag()
-                if(!tag || !tag.data) return
-                const mappedTag: UserTag = {
-                    ...tag.data,
-                    color: tag.data.color ?? undefined,
-                }
-                return mappedTag
-            }))).filter((tag) => tag !== undefined)
+            const tags: UserTag[] = []
+            
+            if(!options || options.siTags){
+                tags.push(...(await Promise.all((await collectionResponse.data.tags()).data.map(async (collTag) => {
+                    const tag = await collTag.tag()
+                    if(!tag || !tag.data) return
+                    const mappedTag: UserTag = {
+                        ...tag.data,
+                        color: tag.data.color ?? undefined,
+                    }
+                    return mappedTag
+                }))).filter((tag) => tag !== undefined))
+            }
     
             const mappedCollection: PhotoCollection = {
                 ...collectionResponse.data,
@@ -107,6 +114,48 @@ async function getPathsDataMapFromPaths(paths: PicturePath[]): Promise<Map<strin
     })
     
     return map
+}
+
+interface GetAllCollectionsByEventOptions {
+    siTags: boolean
+}
+async function getAllCollectionsByEvent(client: V6Client<Schema>, eventId: string, options?: GetAllCollectionsByEventOptions): Promise<PhotoCollection[]> {
+    console.log('api call')
+    const mappedCollections = await Promise.all((await client.models.PhotoCollection
+        .listPhotoCollectionByEventId({ eventId: eventId }))
+        .data.map(async (collection) => {
+            const tags: UserTag[] = []
+            if(!options || options.siTags){
+                tags.push(...(await Promise.all((await collection.tags()).data
+                    .map(async (colTag) => {
+                        const tag = await colTag.tag()
+                        if(!tag || !tag.data) return
+                        const mappedTag: UserTag = {
+                            ...tag.data,
+                            color: tag.data.color ?? undefined,
+                        }
+                        return mappedTag
+                }))).filter((tag) => tag !== undefined))
+            }
+            const mappedCollection: PhotoCollection = {
+                ...collection,
+                coverPath: collection.coverPath ?? undefined,
+                watermarkPath: collection.watermarkPath ?? undefined,
+                downloadable: collection.downloadable ?? false,
+                tags: tags,
+                //unnecessary,
+                paths: []
+            }
+            return mappedCollection
+        })
+    )
+    return mappedCollections
+}
+
+async function getCoverPathFromCollection(collection: PhotoCollection): Promise<[string, string]> {
+    return [collection.id, (await getUrl({
+        path: collection.coverPath!
+    })).url.toString()]
 }
 
 export interface CreateCollectionParams {
@@ -339,6 +388,7 @@ export async function updateCollectionMutation(params: UpdateCollectionParams) {
 
     return updatedCollection
 }
+
 export const getAllPicturePathsQueryOptions = (collectionId?: string) => queryOptions({
     queryKey: ['photoPaths', client, collectionId],
     queryFn: () => getAllPicturePathsFromCollectionId(client, collectionId),
@@ -360,4 +410,14 @@ export const getPathsDataMapFromPathsQueryOptions = (paths: PicturePath[]) => qu
     queryKey: ['photoPaths', paths],
     queryFn: () => getPathsDataMapFromPaths(paths),
     gcTime: 1000 * 15 * 60 //15 minutes
+})
+
+export const getAllCollectionsByEventQueryOptions = (eventId: string, options?: GetAllCollectionsByEventOptions) => queryOptions({
+    queryKey: ['photoCollection', client, eventId, options],
+    queryFn: () => getAllCollectionsByEvent(client, eventId, options)
+})
+
+export const getCoverPathFromCollectionQueryOptions = (coverPath: PhotoCollection) => queryOptions({
+    queryKey: ['coverPath', coverPath],
+    queryFn: () => getCoverPathFromCollection(coverPath)
 })

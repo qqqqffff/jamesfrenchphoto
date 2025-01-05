@@ -7,37 +7,43 @@ import { queryOptions } from "@tanstack/react-query";
 
 const client = generateClient<Schema>()
 
-async function getAllEvents(client: V6Client<Schema>): Promise<Event[]> {
+interface GetAllEventOptions {
+    siCollections: boolean
+}
+async function getAllEvents(client: V6Client<Schema>, params?: GetAllEventOptions): Promise<Event[]> {
     console.log('api call')
     const returnedEvents = await client.models.Events.list()
 
     return (await Promise.all(returnedEvents.data.map(async (event) => {
-        const collectionResponse = await event.collections()
-        const mappedCollections = await Promise.all(collectionResponse.data.map(async (collection) => {
-            const collectionTagsResponse = await collection.tags()
-            const mappedTags: UserTag[] = (await Promise.all(collectionTagsResponse.data.map(async (collectionTag) => {
-                const tagResponse = await collectionTag.tag()
-                if(!tagResponse.data || !tagResponse.data.id) return
-                const mappedTag: UserTag = {
-                    ...tagResponse.data,
-                    color: tagResponse.data.color ?? undefined,
+        const mappedCollections: PhotoCollection[] = []
+        if(!params || params.siCollections){
+            const collectionResponse = await event.collections()
+            mappedCollections.push(...await Promise.all(collectionResponse.data.map(async (collection) => {
+                const collectionTagsResponse = await collection.tags()
+                const mappedTags: UserTag[] = (await Promise.all(collectionTagsResponse.data.map(async (collectionTag) => {
+                    const tagResponse = await collectionTag.tag()
+                    if(!tagResponse.data || !tagResponse.data.id) return
+                    const mappedTag: UserTag = {
+                        ...tagResponse.data,
+                        color: tagResponse.data.color ?? undefined,
 
+                    }
+                    return mappedTag
+                }))).filter((tag) => tag !== undefined)
+
+                const mappedCollection: PhotoCollection = {
+                    ...collection,
+                    paths: [],
+                    tags: mappedTags,
+                    watermarkPath: collection.watermarkPath ?? undefined,
+                    downloadable: collection.downloadable ?? false,
+                    coverPath: collection.coverPath ?? undefined,
                 }
-                return mappedTag
-            }))).filter((tag) => tag !== undefined)
 
-            const mappedCollection: PhotoCollection = {
-                ...collection,
-                paths: [],
-                tags: mappedTags,
-                watermarkPath: collection.watermarkPath ?? undefined,
-                downloadable: collection.downloadable ?? false,
-                coverPath: collection.coverPath ?? undefined,
-            }
+                return mappedCollection
+            })))
+        }
 
-            return mappedCollection
-        }))
-        
         const mappedEvent: Event = {
             ...event,
             collections: mappedCollections,
@@ -125,7 +131,7 @@ export async function createEventMutation(params: CreateEventParams) {
     return null
 }
 
-export const getAllEventsQueryOptions = () => queryOptions({
-    queryKey: ['events', client],
-    queryFn: () => getAllEvents(client),
+export const getAllEventsQueryOptions = (options?: GetAllEventOptions) => queryOptions({
+    queryKey: ['events', client, options],
+    queryFn: () => getAllEvents(client, options),
 })

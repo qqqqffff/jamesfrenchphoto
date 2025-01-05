@@ -1,6 +1,6 @@
 import { Badge, Button, ButtonGroup, Checkbox, Datepicker, Dropdown, Label, Progress, Tooltip } from "flowbite-react"
 import { FC, useEffect, useState } from "react"
-import { ControlComponent } from "../ControlPannel"
+import { ControlComponent } from "../admin/ControlPannel"
 import { 
     HiOutlinePlusCircle, 
     // HiOutlineMinusCircle, 

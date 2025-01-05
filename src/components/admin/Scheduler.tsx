@@ -3,7 +3,7 @@ import { FC, useState } from "react";
 import { getAllTimeslotsByDateQueryOptions } from "../../services/timeslotService";
 import { currentDate, DAY_OFFSET } from "../../utils";
 import { Datepicker, Label, Progress } from "flowbite-react";
-import { ControlComponent } from "../ControlPannel";
+import { ControlComponent } from "./ControlPannel";
 import { HiOutlinePlusCircle } from "react-icons/hi2";
 import { SlotComponent } from "../timeslot/Slot";
 import { CreateTimeslotModal, EditTimeslotModal } from "../modals";
