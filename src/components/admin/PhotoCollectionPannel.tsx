@@ -10,7 +10,7 @@ import {
     HiOutlineTrash,
     HiOutlineStar
 } from "react-icons/hi2";
-import { Tooltip } from "flowbite-react";
+import { Button, Tooltip } from "flowbite-react";
 import { CreateCollectionModal, UploadImagesModal, WatermarkModal } from "../modals";
 import { TbCircleLetterPFilled, TbCircleLetterLFilled } from "react-icons/tb";
 import { FixedSizeGrid, GridChildComponentProps } from "react-window";
@@ -25,7 +25,8 @@ export type PhotoCollectionProps = {
         path: string,
         url: string
     }[],
-    availableTags: UserTag[]
+    availableTags: UserTag[],
+    removeActiveCollection: () => void
 }
 
 const client = generateClient<Schema>()
@@ -159,7 +160,7 @@ const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
     )
 }
 
-export const PhotoCollectionPannel: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths, watermarkObjects, availableTags }) => {
+export const PhotoCollectionPannel: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths, watermarkObjects, availableTags, removeActiveCollection }) => {
     const [pictureCollection, setPictureCollection] = useState(photoCollection)
     const [picturePaths, setPicturePaths] = useState<PicturePath[]>(photoPaths)
     const [submitting, setSubmitting] = useState(false)
@@ -174,7 +175,13 @@ export const PhotoCollectionPannel: FC<PhotoCollectionProps> = ({ photoCollectio
     const [deleteSubmitting, setDeleteSubmitting] = useState(false)
     const dimensions = useWindowDimensions()
     const [updateCollection, setUpdateCollection] = useState(false)
+    const [update, setUpdate] = useState(false)
     const navigate = useNavigate()
+
+    if(!update && picturePaths.length !== photoPaths.length){
+        setPicturePaths(photoPaths)
+        setUpdate(true)
+    }
 
     function pictureStyle(url: string, cover: boolean){
         const conditionalBackground = selectedPhotos.includes(url) ? `bg-gray-100 ${cover ? 'border-yellow-300' : 'border-cyan-400'}` : `bg-transparent border-gray-500 ${cover ? 'border-yellow-300' : 'border-gray-500'}`
@@ -266,7 +273,13 @@ export const PhotoCollectionPannel: FC<PhotoCollectionProps> = ({ photoCollectio
         />
         <div className="grid grid-cols-6 gap-2">
             <div className="border-gray-400 border rounded-2xl p-4 col-span-5 flex flex-col items-center">
-                <span className="text-2xl mb-4">{pictureCollection.name}</span>
+                <div className="grid grid-cols-3 justify-items-center w-full">
+                    <div className="w-full flex flex-row">
+                        <Button onClick={() => removeActiveCollection()} color="light">Back</Button>
+                    </div>
+                    <span className="text-2xl mb-4">{pictureCollection.name}</span>
+                </div>
+                <div className="w-full border border-gray-200 my-2"></div>
                 {picturePaths.length > 0 ? 
                     <AutoSizer className='w-full self-center' style={{ minHeight: `${dimensions.height - 350}px`}}>
                         {({ height, width }: { height: number; width: number }) => {

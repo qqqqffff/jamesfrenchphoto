@@ -84,8 +84,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     const [loaded, setLoaded] = useState(false)
     const dimensions = useWindowDimensions()
 
-    console.log(dimensions)
-
     if(!loaded && collection){
       setName(collection.name)
       setCover(collection.coverPath ? parsePathName(collection.coverPath) : null)

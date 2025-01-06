@@ -134,7 +134,7 @@ function RouteComponent() {
         onClose={() => setDeleteConfirmationVisible(false)}
       />
       <div className="grid grid-cols-6 gap-2 mt-4 font-main">
-        <div className="flex flex-col ms-5 border border-gray-400 rounded-lg p-2">
+        <div className="flex flex-col ms-5 border border-gray-400 rounded-2xl p-2">
           <button
             className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer"
             onClick={() => setCreateEventModalVisible(true)}
@@ -225,13 +225,13 @@ function RouteComponent() {
         </div>
         <div className="col-span-5">
           {selectedEvent === undefined ? (
-            <div className="w-[80%] border border-gray-400 rounded-lg p-2 flex flex-row items-center justify-center">
+            <div className={`w-[${100 * 5/6}%] border border-gray-400 rounded-2xl p-2 flex flex-row items-center justify-center`}>
               Click An Event to View It's Collections
             </div>
           ) : 
             watermarkObjects.isLoading ||
             availableTags.isLoading ? (
-            <div className="w-[80%] border border-gray-400 rounded-lg p-2 flex flex-row items-center justify-center">
+            <div className={`w-[${100 * 5/6}%] border border-gray-400 rounded-2xl p-2 flex flex-row items-center justify-center`}>
               <Progress
                 progress={100}
                 textLabel="Loading..."
