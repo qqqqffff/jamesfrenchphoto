@@ -5,5 +5,5 @@ export const Route = createFileRoute('/_auth/admin/dashboard/package')({
 })
 
 function RouteComponent() {
-  return <div>Hello "/_auth/admin/dashboard/package"!</div>
+  return <div>This page has not been implemented yet</div>
 }
