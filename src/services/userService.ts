@@ -78,17 +78,32 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
             }))).filter((tag) => tag !== undefined))
         }
         if(options === undefined || options.siTimeslot){
-            timeslots.push(...((await participant.timeslot()).data.map((timeslot) => {
+            timeslots.push(...(await Promise.all((await participant.timeslot()).data.map(async (timeslot) => {
+                const tag = await timeslot.timeslotTag()
+                let mappedTag: UserTag | undefined
+                if(options?.siTags){
+                    mappedTag = tags.find((userTag) => userTag.id === tag.data?.tagId)
+                }
+                else {
+                    const tagResponse = await tag.data?.tag()
+                    if(tagResponse && tagResponse.data){
+                        mappedTag = {
+                            ...tagResponse.data,
+                            color: tagResponse.data.color ?? undefined
+                        }
+                    }
+                }
                 const mappedTimeslot: Timeslot = {
                     ...timeslot,
                     start: new Date(timeslot.start),
                     end: new Date(timeslot.end),
+                    tag: mappedTag,
                     //unneccessary
                     register: undefined,
                     participant: undefined,
                 }
                 return mappedTimeslot
-            })))
+            }))))
         }
         
 

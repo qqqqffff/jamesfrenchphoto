@@ -97,12 +97,25 @@ async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag: UserT
                     //unnecessary
                     userTags: [],
                     timeslot: undefined,
-                }) : undefined
+                }) : undefined,
+                tag: userTag
             }
             return mappedTimeslot
         })
     )).filter((timeslot) => timeslot !== undefined)
     return mappedTimeslots
+}
+
+async function getAllTimeslotsByUserTagList(client: V6Client<Schema>, userTags: UserTag[]){
+    const timeslots = (await Promise.all(userTags.map(async (tag) => {
+        const returnedTimeslots = await getAllTimeslotsByUserTag(client, tag)
+        return returnedTimeslots
+    }))).reduce((prev, cur) => {
+        prev.push(...cur)
+        return prev
+    }, [])
+
+    return timeslots
 }
 
 export async function updateTimeslotMutation(timeslot: Timeslot){
@@ -113,6 +126,25 @@ export async function updateTimeslotMutation(timeslot: Timeslot){
     })
 }
 
+export async function registerTimeslotMutation(timeslot: Timeslot, notify: boolean){
+    const response = await client.models.Timeslot.update({
+        id: timeslot.id,
+        register: timeslot.register ?? null,
+        participantId: timeslot.participant?.id ?? null
+    }, { authMode: 'userPool' })
+    if(!response.data) return false
+    if(notify && timeslot.register){
+        client.queries.SendTimeslotConfirmation({
+            email: timeslot.register,
+            start: timeslot.start.toISOString(),
+            end: timeslot.end.toISOString()
+        }, {
+            authMode: 'userPool'
+        })
+    }
+    return true
+}
+
 export const getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({
     queryKey: ['timeslot', client, date],
     queryFn: () => getAllTimeslotsByDate(client, date)
@@ -121,4 +153,9 @@ export const getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({
 export const getAllTimeslotsByUserTagQueryOptions = (userTag: UserTag) => queryOptions({
     queryKey: ['timeslot', client, userTag],
     queryFn: () => getAllTimeslotsByUserTag(client, userTag)
+})
+
+export const getAllTimeslotsByUserTagListQueryOptions = (userTags: UserTag[]) => queryOptions({
+    queryKey: ['timeslot', client, userTags],
+    queryFn: () => getAllTimeslotsByUserTagList(client, userTags)
 })

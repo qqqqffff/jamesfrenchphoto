@@ -16,6 +16,32 @@ export const DAY_OFFSET = 24 * 3600 * 1000;
 
 export const currentDate = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
 
+export const normalizeDate = (date: Date): Date => {
+    return new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+    )
+}
+
+export const sortDatesAround = (dates: Date[], date: Date) => {
+    const normalReferenceDate = normalizeDate(date)
+
+    return dates.sort((a, b) => {
+        const normalizedA = normalizeDate(a)
+        const normalizedB = normalizeDate(b)
+
+        const diffA = normalizedA.getTime() - normalReferenceDate.getTime()
+        const diffB = normalizedB.getTime() - normalReferenceDate.getTime()
+
+        if ((diffA < 0 && diffB < 0) || (diffA > 0 && diffB > 0)) {
+            return normalizedA.getTime() - normalizedB.getTime();
+        }
+
+        return diffA - diffB;
+    })
+}
+
 export type RemoveIndexSignature<T> = {
     [K in keyof T as string extends K ? never : K]: T[K];
 };
