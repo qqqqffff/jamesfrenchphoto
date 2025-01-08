@@ -25,19 +25,20 @@ export const ConfirmationModal: FC<ConfirmationModalProps> = ({onClose, open, ti
             <Modal.Header>{title}</Modal.Header>
             <Modal.Body>
                 <div className="text-center w-full flex flex-col">
-                    {body.split('\n').map((line, index) => {
+                    {body.split('\n').map((line, i) => {
                         let trimmedLine: JSX.Element[] | String[] = [line]
                         const bold = trimmedLine[0].includes('<b>')
                         if(bold){
                             trimmedLine = trimmedLine[0].split('<b>')
-                            trimmedLine = trimmedLine.map((newline, index) => {
+                            trimmedLine = trimmedLine.map((newline, j) => {
                                 if(!newline.includes('<')) return (<>{newline}</>)
                                 const nl = newline.substring(0, newline.indexOf('<'))
                                 const rest = newline.substring(newline.indexOf('>') + 1)
-                                return (<span key={index}><b>{nl}</b>{rest}</span>)
+                                return (<span key={j}><b>{nl}</b>{rest}</span>)
                             })
                         }
-                        return (<span key={index}>{bold ? (trimmedLine) : (trimmedLine[0])}</span>)
+
+                        return (<span key={i}>{bold ? (trimmedLine) : (trimmedLine[0])}</span>)
                     })}
                 </div>
                 {children ? children : (<></>)}

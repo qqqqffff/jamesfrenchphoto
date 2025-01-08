@@ -246,18 +246,12 @@ export interface UpdateCollectionParams extends CreateCollectionParams {
     collection: PhotoCollection,
 }
 export async function updateCollectionMutation(params: UpdateCollectionParams) {
-    //TODO:
-    //find added
-    //find removed
-    //update name and cover
-    //update order
     let updatedCollection = {
         ...params.collection
     }
 
     const newPaths = Array.from((params.paths ?? new Map<string, File>()).entries())
             .filter((entry) => entry[0].includes('blob'))
-
     const fileNamesMap = Array.from(params.paths?.values() ?? []).map((file) => {
         return file.name
     })
@@ -271,7 +265,7 @@ export async function updateCollectionMutation(params: UpdateCollectionParams) {
     const removedTags = params.collection.tags.filter((colTag) => 
         (params.tags.find((tag) => tag.id === colTag.id) === undefined))
 
-    if(params.options?.logging) console.log(newPaths, removedPaths)
+    if(params.options?.logging) console.log(newPaths, removedPaths, newTags, removedTags, fileNamesMap)
 
     const createPathsResponse = (await Promise.all((await Promise.all(newPaths.map(async (path, index, arr) => {
         const result = await uploadData({
@@ -308,6 +302,8 @@ export async function updateCollectionMutation(params: UpdateCollectionParams) {
             ...path,
             order: index
         }))
+
+    if(params.options?.logging) console.log(updatedCollection.paths)
 
     const updatedPathsResponse = await Promise.all(updatedCollection.paths
         .filter((path) => createPathsResponse.find((createPath) => createPath.id === path.id) === undefined)

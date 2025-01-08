@@ -162,7 +162,9 @@ function RouteComponent() {
                       <button
                         type="button"
                         className={`flex flex-row w-full items-center justify-start rounded-2xl py-1 bg-gray ${selectedEventClass}`}
-                        onClick={() => {
+                        onClick={async () => {
+                          setSelectedEvent(undefined)
+                          await new Promise(resolve => setTimeout(resolve, 1))
                           setSelectedEvent(event)
                         }}
                       >
@@ -225,13 +227,13 @@ function RouteComponent() {
         </div>
         <div className="col-span-5">
           {selectedEvent === undefined ? (
-            <div className={`w-[${100 * 5/6}%] border border-gray-400 rounded-2xl p-2 flex flex-row items-center justify-center`}>
+            <div className={`w-[80%] border border-gray-400 rounded-2xl p-2 flex flex-row items-center justify-center me-4`}>
               Click An Event to View It's Collections
             </div>
           ) : 
             watermarkObjects.isLoading ||
             availableTags.isLoading ? (
-            <div className={`w-[${100 * 5/6}%] border border-gray-400 rounded-2xl p-2 flex flex-row items-center justify-center`}>
+            <div className={`w-[80%] border border-gray-400 rounded-2xl p-2 flex flex-row items-center justify-center me-4`}>
               <Progress
                 progress={100}
                 textLabel="Loading..."

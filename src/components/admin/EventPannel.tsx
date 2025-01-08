@@ -14,7 +14,7 @@ interface EventPannelProps {
 }
 
 export const EventPannel: FC<EventPannelProps> = ({ event, watermarkObjects, availableTags, }) => {
-    const collections = useQuery(getAllCollectionsByEventQueryOptions(event.id, { siTags: false }))
+    const collections = useQuery(getAllCollectionsByEventQueryOptions(event.id))
     const coverPaths = useQueries({
         queries: (collections.data ?? [])
             .filter((collection) => collection.coverPath !== undefined)
@@ -60,13 +60,14 @@ export const EventPannel: FC<EventPannelProps> = ({ event, watermarkObjects, ava
                                 </div>
                             ) : (
                                 collections.data && collections.data.length > 0 ? (
-                                    collections.data.map((collection) => {
+                                    collections.data.map((collection, index) => {
                                         return (
                                             <button 
                                                 className="flex flex-row justify-center items-center relative rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] hover:bg-gray-300 hover:text-gray-500"
                                                 onClick={() => {
                                                     setSelectedCollection(collection)
                                                 }}
+                                                key={index}
                                             >
                                                 <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
                                                     <p className={`font-thin opacity-90 text-2xl`}>{collection.name}</p>

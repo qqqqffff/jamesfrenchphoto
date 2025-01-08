@@ -1,5 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { Button } from 'flowbite-react'
 import {
   HiOutlineCalendar,
@@ -19,8 +18,8 @@ export const Route = createFileRoute('/_auth/admin/dashboard')({
 
 function RouteComponent() {
   const auth = useAuth()
-  const [activeConsole, setActiveConsole] = useState('collectionManager')
   const navigate = useNavigate()
+  const location = useLocation()
 
   function structureFullname() {
     if (auth.user)
@@ -33,26 +32,11 @@ function RouteComponent() {
   }
 
   function activeConsoleClassName(console: string) {
-    if (console == activeConsole) {
+    if (location.pathname.includes(console)) {
       return 'border border-black'
     }
     return ''
   }
-
-  // function activeConsoleComponent(){
-  //     switch(activeConsole){
-  //         case 'scheduler':
-  //             return (<Scheduler />)
-  //         case 'collectionManager':
-  //             return (<CollectionManager />)
-  //         case 'userManagement':
-  //             return (<UserManagement />)
-  //         case 'packageManager':
-  //             return (<PackageManager />)
-  //         default:
-  //             return (<>Click a console to get started</>)
-  //     }
-  // }
 
   return (
     <>
@@ -65,7 +49,6 @@ function RouteComponent() {
           <Button
             color="gray"
             onClick={() => {
-                setActiveConsole('scheduler')
                 navigate({ to: '/admin/dashboard/scheduler' })
             }}
             className={activeConsoleClassName('scheduler')}
@@ -75,7 +58,6 @@ function RouteComponent() {
           <Button
             color="gray"
             onClick={() => {
-                setActiveConsole('collectionManager')
                 navigate({ to: '/admin/dashboard/collection' })
             }}
             className={activeConsoleClassName('collection')}
@@ -88,7 +70,6 @@ function RouteComponent() {
           <Button
             color="gray"
             onClick={() => {
-                setActiveConsole('packageManager')
                 navigate({ to: '/admin/dashboard/package' })
             }}
             className={activeConsoleClassName('package')}

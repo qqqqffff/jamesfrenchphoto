@@ -7,7 +7,7 @@ import { badgeColorThemeMap, formatFileSize, parsePathName, textInputTheme } fro
 import { FixedSizeList, ListChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createCollectionMutation, CreateCollectionParams, getPathsDataMapFromPathsQueryOptions, updateCollectionMutation, UpdateCollectionParams } from "../../services/collectionService";
 import useWindowDimensions from "../../hooks/windowDimensions";
 
@@ -83,6 +83,7 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     const [progress, setProgress] = useState<number | undefined>()
     const [loaded, setLoaded] = useState(false)
     const dimensions = useWindowDimensions()
+    const queryClient = useQueryClient()
 
     if(!loaded && collection){
       setName(collection.name)
@@ -93,6 +94,10 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
 
     const createCollection = useMutation({
       mutationFn: (params: CreateCollectionParams) => createCollectionMutation(params),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['photoPaths']})
+        queryClient.invalidateQueries({ queryKey: ['photoCollection']})
+      },
       onSettled: (data) => {
         //TODO: error handling
         if(data) {
@@ -103,12 +108,16 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     })
     const updateCollection = useMutation({
       mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params),
-      // onSettled: (data) => {
-      //   if(data){
-      //     onSubmit(data)
-      //     clearState()
-      //   }
-      // }
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['photoPaths']})
+        queryClient.invalidateQueries({ queryKey: ['photoCollection']})
+      },
+      onSettled: (data) => {
+        if(data){
+          onSubmit(data)
+          clearState()
+        }
+      }
     })
     if(filesUpload === undefined && initialFiles.data && initialFiles.data.size > 0){
       setFilesUpload(initialFiles.data)
@@ -145,7 +154,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
           collection: collection,
         }
         await updateCollection.mutateAsync(updateCollectionParams)
-        setSubmitting(false)
       }
       else{
         await createCollection.mutateAsync(createCollectionParams)
@@ -176,7 +184,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     }
 
     function clearState(){
-      onClose()
       setFilesUpload(undefined)
       setFilteredResult(undefined)
       setName('')
@@ -185,6 +192,8 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
       setProgress(undefined)
       setSort(undefined)
       setLoaded(false)
+      setSelectedTags([])
+      onClose()
     }
 
     return (
@@ -277,10 +286,10 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                     {filesUpload && cover !== null &&
                     [[...(filesUpload.entries() ?? [])]
                       .find((entry) => parsePathName(entry[1].file.name) === parsePathName(cover))]
-                      .map((entry) => {
+                      .map((entry, index) => {
                         if(!entry) return
                         return (
-                          <div className="flex flex-row justify-center items-center mb-2 relative bg-gray-200 w-full">
+                          <div  key={index} className="flex flex-row justify-center items-center mb-2 relative bg-gray-200 w-full">
                             <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
                               <p className="font-thin">{name}</p>
                             </div>
@@ -484,14 +493,22 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                               })
                               
                             const files = new Map<string, {file: File, order: number}>()
+                            const tempFilter = filteredResult !== undefined ? new Map<string, {file: File, order: number}>() : undefined
                             
                             newFiles.forEach((entry) => {
                               files.set(entry.key, {file: entry.file, order: entry.order})
                             })
+                            if(tempFilter !== undefined){
+                              Array.from(filteredResult!.entries()).map((entry) => {
+                                const result = files.get(entry[0])
+                                if(result !== undefined) tempFilter.set(entry[0], result)
+                              })
+                            }
+                            
                             
                             files.delete(key)
                             setFilesUpload(files)
-                            setFilteredResult(undefined)
+                            setFilteredResult(tempFilter)
                           },
                           cover,
                           setCover
