@@ -14,6 +14,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
   component: RouteComponent,
 })
 
+//TODO: refetch on update
 function RouteComponent() {
   const [activeDate, setActiveDate] = useState<Date>(currentDate)
   const timeslots = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
