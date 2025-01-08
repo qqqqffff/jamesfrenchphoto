@@ -33,7 +33,7 @@ const CheckoutForm: FC<Props> = ({}) => {
     }
 
     function handleBack(){
-        navigate({ to: '/service-form', params: { }})
+        navigate({ to: '/' })
     }
 
     function billingAddress(){

@@ -1,4 +1,4 @@
-import { QueryClient, useMutation } from '@tanstack/react-query'
+import { QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, Link, Outlet, useNavigate } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { HiOutlineCheckCircle } from "react-icons/hi2";
@@ -57,7 +57,7 @@ const UserProfileComponent: FC<{
                                 <Dropdown.Item key={index} 
                                     onClick={async () => {
                                         if(user.profile.activeParticipant?.id !== participant.id){
-                                            participantMutation.mutate(participant.id)
+                                            await participantMutation.mutateAsync(participant.id)
                                         }
                                     }}
                                 >
@@ -82,6 +82,8 @@ const UserProfileComponent: FC<{
 const RootComponent = () => {
     const auth = useAuth()
     const { width } = useWindowDimensions()
+    const queryClient = useQueryClient()
+    const navigate = useNavigate()
 
     function UserComponent(){
         if(auth.user == null) return (<LoginComponent />)
@@ -101,7 +103,13 @@ const RootComponent = () => {
             <UserProfileComponent 
                 user={auth.user} 
                 admin={auth.admin} 
-                changeParticipant={auth.changeParticipant}
+                changeParticipant={async (id: string) => {
+                    await auth.changeParticipant(id)
+                    await queryClient.invalidateQueries({
+                        queryKey: ['coverPath', 'photoPaths', 'photoCollection', 'watermark', 'timeslot', 'userProfile', 'userTags']
+                    })
+                    navigate({to: '/client/dashboard'})
+                }}
                 logout={auth.logout}
                 width={width}
             />

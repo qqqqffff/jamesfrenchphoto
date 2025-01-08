@@ -19,8 +19,6 @@ const component: FC<ParticipantFormParams> = ({width, participant, submit}) => {
   const [preferredName, setPreferredName] = useState(participant.preferredName)
   const [contact, setContact] = useState(participant.contact)
 
-  console.log(participant)
-
   const [submitting, setSubmitting] = useState(false)
 
   const updateParticipant = useMutation({

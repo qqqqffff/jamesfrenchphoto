@@ -5,7 +5,7 @@ import { HiArrowUturnLeft, HiOutlineCalendar, HiOutlineHome } from 'react-icons/
 import { badgeColorThemeMap } from '../../utils'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { UserProfile } from '../../types'
-import { getAllUserTagsQueryOptions, getUserProfileByEmailQueryOptions } from '../../services/userService'
+import { getAllUserTagsQueryOptions } from '../../services/userService'
 import { getAllTimeslotsByUserTagQueryOptions } from '../../services/timeslotService'
 
 export const Route = createFileRoute('/_auth/client/dashboard')({
@@ -22,11 +22,13 @@ function RouteComponent() {
     return
   }
 
-  const userProfile = useQuery(getUserProfileByEmailQueryOptions(auth.user!.attributes.email!))
-  const tags = useQuery(getAllUserTagsQueryOptions({ siCollections: false }))
+  const tags = useQuery({
+    ...getAllUserTagsQueryOptions({ siCollections: false }),
+    enabled: auth.admin ?? false
+  })
   const timeslots = useQueries({
     queries: (!auth.admin ? (
-      userProfile.data?.activeParticipant?.userTags ?? []
+      auth.user.profile.activeParticipant?.userTags ?? []
     ) : (
       tags.data ?? [])
     ).map((tag) => {
@@ -65,7 +67,7 @@ function RouteComponent() {
           <p className="font-semibold text-3xl mb-4 text-center">Welcome {structureFullname(auth.user.profile)}</p>
           <div className="flex flex-row gap-2 items-center mb-4">
               {
-                  userProfile.data?.activeParticipant?.userTags.map((tag, index) => {
+                  auth.user.profile.activeParticipant?.userTags.map((tag, index) => {
                       return (<Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 text-md">{tag.name}</Badge>)
                   })
               }

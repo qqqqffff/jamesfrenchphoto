@@ -111,6 +111,7 @@ export function AuthProvider({ children } : { children: ReactNode }) {
     const changeParticipant = useCallback(async (participantId: string) => {
         if(user){
             const foundParticipant = user.profile.participant.find((participant) => participant.id === participantId)
+            console.log(foundParticipant)
             if(foundParticipant === undefined) return
             const response = await client.models.UserProfile.update({
                 email: user.profile.email,
@@ -121,10 +122,7 @@ export function AuthProvider({ children } : { children: ReactNode }) {
                     ...user.profile,
                     activeParticipant: foundParticipant,
                 }
-                setUser({
-                    ...user,
-                    profile: tempProfile
-                })
+                updateProfile(tempProfile)
             }
         }
     }, [])

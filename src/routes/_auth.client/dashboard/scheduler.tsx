@@ -89,7 +89,7 @@ function RouteComponent() {
               setUnegisterConfirmationVisible(true)
               setSelectedTimeslot(timeslot)
             }
-          }} disabled={false} className={`${selected} rounded-lg enabled:hover:bg-gray-300 text-${color} ${disabledText}`}>
+          }} disabled={disabled} className={`${selected} rounded-lg enabled:hover:bg-gray-300 text-${color} ${disabledText}`}>
             <SlotComponent timeslot={timeslot} />
           </button>
         )
