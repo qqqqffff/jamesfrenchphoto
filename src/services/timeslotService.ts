@@ -75,6 +75,10 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
     return timeslots
 }
 
+async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag: UserTag) {
+    return []
+}
+
 export async function updateTimeslotMutation(timeslot: Timeslot){
     return client.models.Timeslot.update({
         id: timeslot.id,
@@ -86,4 +90,9 @@ export async function updateTimeslotMutation(timeslot: Timeslot){
 export const getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({
     queryKey: ['timeslot', client, date],
     queryFn: () => getAllTimeslotsByDate(client, date)
+})
+
+export const getAllTimeslotsByUserTagQueryOptions = (userTag: UserTag) => queryOptions({
+    queryKey: ['timeslot', client, userTag],
+    queryFn: () => getAllTimeslotsByUserTag(client, userTag)
 })

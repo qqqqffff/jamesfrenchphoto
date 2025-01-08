@@ -17,6 +17,7 @@ import { Route as IndexImport } from './routes/index'
 import { Route as AuthClientDashboardImport } from './routes/_auth.client/dashboard'
 import { Route as AuthAdminDashboardImport } from './routes/_auth.admin/dashboard'
 import { Route as AuthAdminDashboardIndexImport } from './routes/_auth.admin/dashboard/index'
+import { Route as AuthClientDashboardSchedulerImport } from './routes/_auth.client/dashboard/scheduler'
 import { Route as AuthAdminDashboardUserImport } from './routes/_auth.admin/dashboard/user'
 import { Route as AuthAdminDashboardSchedulerImport } from './routes/_auth.admin/dashboard/scheduler'
 import { Route as AuthAdminDashboardPackageImport } from './routes/_auth.admin/dashboard/package'
@@ -58,6 +59,13 @@ const AuthAdminDashboardIndexRoute = AuthAdminDashboardIndexImport.update({
   path: '/',
   getParentRoute: () => AuthAdminDashboardRoute,
 } as any)
+
+const AuthClientDashboardSchedulerRoute =
+  AuthClientDashboardSchedulerImport.update({
+    id: '/scheduler',
+    path: '/scheduler',
+    getParentRoute: () => AuthClientDashboardRoute,
+  } as any)
 
 const AuthAdminDashboardUserRoute = AuthAdminDashboardUserImport.update({
   id: '/user',
@@ -152,6 +160,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminDashboardUserImport
       parentRoute: typeof AuthAdminDashboardImport
     }
+    '/_auth/client/dashboard/scheduler': {
+      id: '/_auth/client/dashboard/scheduler'
+      path: '/scheduler'
+      fullPath: '/client/dashboard/scheduler'
+      preLoaderRoute: typeof AuthClientDashboardSchedulerImport
+      parentRoute: typeof AuthClientDashboardImport
+    }
     '/_auth/admin/dashboard/': {
       id: '/_auth/admin/dashboard/'
       path: '/'
@@ -183,14 +198,25 @@ const AuthAdminDashboardRouteChildren: AuthAdminDashboardRouteChildren = {
 const AuthAdminDashboardRouteWithChildren =
   AuthAdminDashboardRoute._addFileChildren(AuthAdminDashboardRouteChildren)
 
+interface AuthClientDashboardRouteChildren {
+  AuthClientDashboardSchedulerRoute: typeof AuthClientDashboardSchedulerRoute
+}
+
+const AuthClientDashboardRouteChildren: AuthClientDashboardRouteChildren = {
+  AuthClientDashboardSchedulerRoute: AuthClientDashboardSchedulerRoute,
+}
+
+const AuthClientDashboardRouteWithChildren =
+  AuthClientDashboardRoute._addFileChildren(AuthClientDashboardRouteChildren)
+
 interface AuthRouteChildren {
   AuthAdminDashboardRoute: typeof AuthAdminDashboardRouteWithChildren
-  AuthClientDashboardRoute: typeof AuthClientDashboardRoute
+  AuthClientDashboardRoute: typeof AuthClientDashboardRouteWithChildren
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthAdminDashboardRoute: AuthAdminDashboardRouteWithChildren,
-  AuthClientDashboardRoute: AuthClientDashboardRoute,
+  AuthClientDashboardRoute: AuthClientDashboardRouteWithChildren,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
@@ -200,11 +226,12 @@ export interface FileRoutesByFullPath {
   '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
-  '/client/dashboard': typeof AuthClientDashboardRoute
+  '/client/dashboard': typeof AuthClientDashboardRouteWithChildren
   '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
   '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
   '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
   '/admin/dashboard/user': typeof AuthAdminDashboardUserRoute
+  '/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
   '/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
 }
 
@@ -212,11 +239,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
-  '/client/dashboard': typeof AuthClientDashboardRoute
+  '/client/dashboard': typeof AuthClientDashboardRouteWithChildren
   '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
   '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
   '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
   '/admin/dashboard/user': typeof AuthAdminDashboardUserRoute
+  '/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
   '/admin/dashboard': typeof AuthAdminDashboardIndexRoute
 }
 
@@ -226,11 +254,12 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/_auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
-  '/_auth/client/dashboard': typeof AuthClientDashboardRoute
+  '/_auth/client/dashboard': typeof AuthClientDashboardRouteWithChildren
   '/_auth/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
   '/_auth/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
   '/_auth/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
   '/_auth/admin/dashboard/user': typeof AuthAdminDashboardUserRoute
+  '/_auth/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
   '/_auth/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
 }
 
@@ -246,6 +275,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard/package'
     | '/admin/dashboard/scheduler'
     | '/admin/dashboard/user'
+    | '/client/dashboard/scheduler'
     | '/admin/dashboard/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -257,6 +287,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard/package'
     | '/admin/dashboard/scheduler'
     | '/admin/dashboard/user'
+    | '/client/dashboard/scheduler'
     | '/admin/dashboard'
   id:
     | '__root__'
@@ -269,6 +300,7 @@ export interface FileRouteTypes {
     | '/_auth/admin/dashboard/package'
     | '/_auth/admin/dashboard/scheduler'
     | '/_auth/admin/dashboard/user'
+    | '/_auth/client/dashboard/scheduler'
     | '/_auth/admin/dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -326,7 +358,10 @@ export const routeTree = rootRoute
     },
     "/_auth/client/dashboard": {
       "filePath": "_auth.client/dashboard.tsx",
-      "parent": "/_auth"
+      "parent": "/_auth",
+      "children": [
+        "/_auth/client/dashboard/scheduler"
+      ]
     },
     "/_auth/admin/dashboard/collection": {
       "filePath": "_auth.admin/dashboard/collection.tsx",
@@ -343,6 +378,10 @@ export const routeTree = rootRoute
     "/_auth/admin/dashboard/user": {
       "filePath": "_auth.admin/dashboard/user.tsx",
       "parent": "/_auth/admin/dashboard"
+    },
+    "/_auth/client/dashboard/scheduler": {
+      "filePath": "_auth.client/dashboard/scheduler.tsx",
+      "parent": "/_auth/client/dashboard"
     },
     "/_auth/admin/dashboard/": {
       "filePath": "_auth.admin/dashboard/index.tsx",

@@ -142,7 +142,7 @@ export const getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => q
     queryFn: () => getAllUserTags(client, options)
 })
 
-export const getUserProfileQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({
+export const getUserProfileByEmailQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({
     queryKey: ['userProfile', client, email, options],
     queryFn: () => getUserProfileByEmail(client, email, options)
 })
