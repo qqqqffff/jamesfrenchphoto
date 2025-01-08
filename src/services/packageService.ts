@@ -2,7 +2,7 @@ import { Schema } from "../../amplify/data/resource";
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Package, UserTag } from "../types";
-import { getUrl } from "aws-amplify/storage";
+import { downloadData, getUrl } from "aws-amplify/storage";
 import { queryOptions } from "@tanstack/react-query";
 
 const client = generateClient<Schema>()
@@ -56,12 +56,29 @@ async function getAllPackages(client: V6Client<Schema>){
     return mappedPackages
 }
 
+async function getPackageDataFromPath(path: string){
+    console.log('api call')
+
+    const result = await downloadData({
+        path: path,
+    }).result
+
+    const file = new File([await result.body.blob()], path.substring(path.indexOf('_') + 1), { type: result.contentType })
+
+    return file
+}
+
 export const getPackagesByUserTagsQueryOptions = (tags: UserTag[]) => queryOptions({
     queryKey: ['package', client, tags],
     queryFn: () => getPackagesByUserTags(client, tags)
 })
 
-export const getAllPackagesQueryOptions = queryOptions({
+export const getAllPackagesQueryOptions = () => queryOptions({
     queryKey: ['package', client],
     queryFn: () => getAllPackages(client)
+})
+
+export const getPackageDataFromPathQueryOptions = (path: string) => queryOptions({
+    queryKey: ['packagePath', path],
+    queryFn: () => getPackageDataFromPath(path)
 })
