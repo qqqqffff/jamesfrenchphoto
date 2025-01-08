@@ -152,10 +152,34 @@ async function getAllCollectionsByEvent(client: V6Client<Schema>, eventId: strin
     return mappedCollections
 }
 
-async function getCoverPathFromCollection(collection: PhotoCollection): Promise<[string, string]> {
+async function getCoverPathFromCollection(collection: PhotoCollection): Promise<[string, string] | undefined> {
+    if(!collection.coverPath) return
     return [collection.id, (await getUrl({
-        path: collection.coverPath!
+        path: collection.coverPath
     })).url.toString()]
+}
+
+async function getWatermarkPathFromCollection(collection: PhotoCollection): Promise<[string, string] | undefined> {
+    if(!collection.watermarkPath) return
+    return [collection.id, (await getUrl({
+        path: collection.watermarkPath
+    })).url.toString()]
+}
+
+async function getCollectionById(collectionId: string): Promise<PhotoCollection | undefined> {
+    const collection = await client.models.PhotoCollection.get({ id: collectionId })
+    if(!collection || !collection.data) return
+    const mappedCollection: PhotoCollection = {
+        ...collection.data,
+        watermarkPath: collection.data.watermarkPath ?? undefined,
+        downloadable: collection.data.downloadable ?? false,
+        coverPath: collection.data.coverPath ?? undefined,
+        //unnecessary
+        paths: [],
+        //TODO: implement me
+        tags: []
+    }
+    return mappedCollection
 }
 
 export interface CreateCollectionParams {
@@ -416,4 +440,15 @@ export const getAllCollectionsByEventQueryOptions = (eventId: string, options?: 
 export const getCoverPathFromCollectionQueryOptions = (coverPath: PhotoCollection) => queryOptions({
     queryKey: ['coverPath', coverPath],
     queryFn: () => getCoverPathFromCollection(coverPath)
+})
+
+//TODO: deduplicate
+export const getWatermarkPathFromCollectionQueryOptions = (watermarkPath: PhotoCollection) => queryOptions({
+    queryKey: ['watermark', watermarkPath],
+    queryFn: () => getWatermarkPathFromCollection(watermarkPath)
+})
+
+export const getCollectionByIdQueryOptions = (collectionId: string) => queryOptions({
+    queryKey: ['photoCollection', client, collectionId],
+    queryFn: () => getCollectionById(collectionId)
 })
