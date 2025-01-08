@@ -16,7 +16,8 @@ export interface AuthContext {
     logout: () => Promise<void>,
     user: UserStorage | null,
     admin: boolean | null,
-    changeParticipant: (participantId: string) => Promise<void | undefined>
+    changeParticipant: (participantId: string) => Promise<void | undefined>,
+    updateProfile: (userProfile: UserProfile) => void
 }
 
 const AuthContext = createContext<AuthContext | null>(null)
@@ -57,10 +58,8 @@ export function AuthProvider({ children } : { children: ReactNode }) {
             !groups.includes('ADMINS') && groups.includes('USERS') ? {
                 siTags: true,
                 siTimeslot: true,
-            } : {
-                siTags: false,
-                siTimeslot: false
-            }
+                siCollections: true
+            } : {}
         )
         if(!profile) throw new Error('Failed to query profile')
         const userStorage: UserStorage = {
@@ -107,7 +106,7 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         }
     }, [])
 
-    const admin = user !== null ? (user.groups.includes('ADMINS') ? true : user.groups.includes('USERS')) : null
+    const admin = user !== null ? user.groups.includes('ADMINS') : null
 
     const changeParticipant = useCallback(async (participantId: string) => {
         if(user){
@@ -130,8 +129,23 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         }
     }, [])
 
+    const updateProfile = useCallback((userProfile: UserProfile) => {
+        if(user){
+            const tempUser = {...user}
+            tempUser.profile = userProfile
+
+            setStoredUser(tempUser)
+            setUser(tempUser)
+        }
+    }, [])
+
     useEffect(() => {
+        //TODO: implement me
+        // const collectionTagSubscriptions = createUserTagSubscription()
         setUser(getStoredUser())
+        return () => {
+
+        }
     }, [])
 
     return (
@@ -144,6 +158,7 @@ export function AuthProvider({ children } : { children: ReactNode }) {
                 user,
                 admin,
                 changeParticipant,
+                updateProfile,
             }}
         >
             {children}

@@ -1,11 +1,11 @@
-import { createFileRoute, useLocation, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useLocation, useNavigate } from '@tanstack/react-router'
 import { useAuth } from '../../auth'
 import { Badge, Button } from 'flowbite-react'
-import { HiOutlineCalendar, HiOutlineHome } from 'react-icons/hi2'
+import { HiArrowUturnLeft, HiOutlineCalendar, HiOutlineHome } from 'react-icons/hi2'
 import { badgeColorThemeMap } from '../../utils'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { UserProfile } from '../../types'
-import { getUserProfileByEmailQueryOptions } from '../../services/userService'
+import { getAllUserTagsQueryOptions, getUserProfileByEmailQueryOptions } from '../../services/userService'
 import { getAllTimeslotsByUserTagQueryOptions } from '../../services/timeslotService'
 
 export const Route = createFileRoute('/_auth/client/dashboard')({
@@ -23,8 +23,13 @@ function RouteComponent() {
   }
 
   const userProfile = useQuery(getUserProfileByEmailQueryOptions(auth.user!.attributes.email!))
+  const tags = useQuery(getAllUserTagsQueryOptions({ siCollections: false }))
   const timeslots = useQueries({
-    queries: userProfile.data!.activeParticipant!.userTags.map((tag) => {
+    queries: (!auth.admin ? (
+      userProfile.data?.activeParticipant?.userTags ?? []
+    ) : (
+      tags.data ?? [])
+    ).map((tag) => {
       return getAllTimeslotsByUserTagQueryOptions(tag)
     })
   })
@@ -43,12 +48,16 @@ function RouteComponent() {
     )
   }
 
-  function activeConsoleClassName(console: string) {
-    if (location.pathname.includes(console)) {
+  const activeConsoleClassName = (console: string) => {
+    if (location.pathname.substring(location.pathname.lastIndexOf('/') + 1) == console) {
       return 'border border-black'
     }
     return ''
   }
+
+  const schedulerEnabled = timeslots.find((data) => {
+    return (data.data ?? []).length > 0}
+  ) !== undefined
 
   return (
     <>
@@ -60,20 +69,26 @@ function RouteComponent() {
                       return (<Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 text-md">{tag.name}</Badge>)
                   })
               }
-              {/* {addClassComponent(adminView)} */}
+              {/* TODO: implement me {addClassComponent(adminView)} */}
           </div>
           <p className="font-medium text-xl mb-1">Quick Actions:</p>
           <Button.Group>
-              <Button color='gray' onClick={() => navigate({ to : '/client/dashboard' })} className={activeConsoleClassName('home')}>
+              <Button color='gray' onClick={() => navigate({ to : '/client/dashboard' })} className={activeConsoleClassName('dashboard')}>
                   <HiOutlineHome className="mt-1 me-1"/>Home
               </Button>
-              {timeslots.find((data) => (data.data ?? []).length > 0) !== undefined && (
+              {(schedulerEnabled || auth.admin) && (
                 <Button color='gray' onClick={() => navigate({ to: '/client/dashboard/scheduler' })} className={activeConsoleClassName('scheduler')}>
                   <HiOutlineCalendar className="mt-1 me-1"/>Scheduler
                 </Button>
               )}
+              {auth.admin && (
+                <Button color='gray' onClick={() => navigate({ to: '/admin/dashboard' })}>
+                  <HiArrowUturnLeft className="mt-1 me-1"/>Admin Console
+                </Button>
+              )}
           </Button.Group>
       </div>
+      <Outlet />
     </>
   )
 }

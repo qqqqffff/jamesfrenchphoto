@@ -120,20 +120,7 @@ const RootComponent = () => {
                     </a>
                 </div>
                 <div className='flex flex-row items-center lg:px-12 text-2xl w-full justify-end gap-10'>
-                {
-                    // dimensions.width > 800 ? 
-                    // (
-                        <>
-                            <UserComponent />
-                        </>
-                    // ) : (
-                    //     <Dropdown label={(<HiOutlineMenu className='text-xl' />)} color='light' arrowIcon={false} trigger='hover'>
-                    //         <Dropdown.Item><Link to="/contact-form">Contact Us</Link></Dropdown.Item>
-                    //         <Dropdown.Divider className='bg-gray-300'/>
-                    //         {renderHeaderItems()}
-                    //     </Dropdown>
-                    // )
-                }
+                    <UserComponent />
                 </div>
             </div>
             <Outlet />

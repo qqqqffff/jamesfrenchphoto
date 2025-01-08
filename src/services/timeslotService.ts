@@ -76,7 +76,33 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
 }
 
 async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag: UserTag) {
-    return []
+    console.log('api call')
+    const mappedTimeslots = (await Promise.all((await client.models.TimeslotTag
+        .listTimeslotTagByTagId({ tagId: userTag.id }))
+        .data.map(async (timeslotTag) => {
+            const timeslot = await timeslotTag.timeslot()
+            if(!timeslot || !timeslot.data) return
+            const participant = await timeslot.data.participant()
+            const mappedTimeslot: Timeslot = {
+                ...timeslot.data,
+                start: new Date(timeslot.data.start),
+                end: new Date(timeslot.data.end),
+                register: timeslot.data.register ?? undefined,
+                participant: participant && participant.data ? ({
+                    ...participant.data,
+                    middleName: participant.data.middleName ?? undefined,
+                    preferredName: participant.data.preferredName ?? undefined,
+                    email: participant.data.email ?? undefined,
+                    contact: participant.data.contact ?? false,
+                    //unnecessary
+                    userTags: [],
+                    timeslot: undefined,
+                }) : undefined
+            }
+            return mappedTimeslot
+        })
+    )).filter((timeslot) => timeslot !== undefined)
+    return mappedTimeslots
 }
 
 export async function updateTimeslotMutation(timeslot: Timeslot){
