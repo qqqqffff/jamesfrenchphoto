@@ -6,6 +6,7 @@ import { getAllCollectionsFromUserTags } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
+import { updateUserAttributes } from "aws-amplify/auth";
 
 const client = generateClient<Schema>()
 
@@ -236,6 +237,64 @@ export async function createParticipantMutation(params: CreateParticipantMutatio
         id: createResponse.data.id,
         ...params.participant
     }
+}
+
+export interface UpdateUserAttributesMutationParams{
+    email: string,
+    lastName?: string,
+    firstName?: string,
+    phoneNumber?: string,
+    accessToken?: string,
+    preferredContact?: 'EMAIL' | 'PHONE'
+}
+export async function updateUserAttributeMutation(params: UpdateUserAttributesMutationParams){
+    let updated = false
+    if(params.firstName && params.lastName){
+        await updateUserAttributes({
+            userAttributes: {
+                email: params.email,
+                family_name: params.lastName,
+                given_name: params.firstName,
+            }
+        })
+        updated = true
+    }
+    if(params.phoneNumber && params.accessToken){
+        await client.queries.UpdateUserPhoneNumber({
+            phoneNumber: `+1${params.phoneNumber.replace(/\D/g, "")}`,
+            accessToken: params.accessToken
+        })
+        updated = true
+    }
+    if(params.preferredContact !== undefined){
+        await client.models.UserProfile.update({
+            email: params.email,
+            preferredContact: params.preferredContact ? "PHONE" : 'EMAIL',
+        })
+        updated = true
+    }
+    return updated
+}
+
+export interface UpdateParticipantMutationParams{
+    firstName: string,
+    lastName: string,
+    preferredName?: string,
+    middleName?: string,
+    contact: boolean,
+    email?: string,
+    participant: Participant
+}
+export async function updateParticipantMutation(params: UpdateParticipantMutationParams){
+    return client.models.Participant.update({
+        id: params.participant.id,
+        email: params.email,
+        firstName: params.firstName,
+        lastName: params.lastName,
+        preferredName: params.preferredName,
+        middleName: params.middleName,
+        contact: params.contact
+    })
 }
 
 export const getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({

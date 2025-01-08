@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react"
 import { UserProfile, UserStorage } from "./types"
-import { confirmSignIn, fetchAuthSession, fetchUserAttributes, getCurrentUser, signIn, signOut } from "aws-amplify/auth"
+import { confirmSignIn, fetchAuthSession, fetchUserAttributes, FetchUserAttributesOutput, getCurrentUser, signIn, signOut } from "aws-amplify/auth"
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../amplify/data/resource";
 import { getUserProfileByEmail } from "./services/userService";
@@ -17,7 +17,7 @@ export interface AuthContext {
     user: UserStorage | null,
     admin: boolean | null,
     changeParticipant: (participantId: string) => Promise<void | undefined>,
-    updateProfile: (userProfile: UserProfile) => void
+    updateProfile: (userProfile: UserProfile, attributes?: FetchUserAttributesOutput) => void
 }
 
 const AuthContext = createContext<AuthContext | null>(null)
@@ -129,10 +129,11 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         }
     }, [])
 
-    const updateProfile = useCallback((userProfile: UserProfile) => {
+    const updateProfile = useCallback((userProfile: UserProfile, attributes?: FetchUserAttributesOutput) => {
         if(user){
             const tempUser = {...user}
             tempUser.profile = userProfile
+            tempUser.attributes = attributes ?? tempUser.attributes
 
             setStoredUser(tempUser)
             setUser(tempUser)

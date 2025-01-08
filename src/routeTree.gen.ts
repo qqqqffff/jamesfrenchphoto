@@ -15,6 +15,7 @@ import { Route as LoginImport } from './routes/login'
 import { Route as AuthImport } from './routes/_auth'
 import { Route as IndexImport } from './routes/index'
 import { Route as AuthPhotoCollectionIdImport } from './routes/_auth.photo-collection.$id'
+import { Route as AuthClientProfileImport } from './routes/_auth.client/profile'
 import { Route as AuthClientDashboardImport } from './routes/_auth.client/dashboard'
 import { Route as AuthAdminDashboardImport } from './routes/_auth.admin/dashboard'
 import { Route as AuthClientDashboardIndexImport } from './routes/_auth.client/dashboard/index'
@@ -47,6 +48,12 @@ const IndexRoute = IndexImport.update({
 const AuthPhotoCollectionIdRoute = AuthPhotoCollectionIdImport.update({
   id: '/photo-collection/$id',
   path: '/photo-collection/$id',
+  getParentRoute: () => AuthRoute,
+} as any)
+
+const AuthClientProfileRoute = AuthClientProfileImport.update({
+  id: '/client/profile',
+  path: '/client/profile',
   getParentRoute: () => AuthRoute,
 } as any)
 
@@ -146,6 +153,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthClientDashboardImport
       parentRoute: typeof AuthImport
     }
+    '/_auth/client/profile': {
+      id: '/_auth/client/profile'
+      path: '/client/profile'
+      fullPath: '/client/profile'
+      preLoaderRoute: typeof AuthClientProfileImport
+      parentRoute: typeof AuthImport
+    }
     '/_auth/photo-collection/$id': {
       id: '/_auth/photo-collection/$id'
       path: '/photo-collection/$id'
@@ -242,12 +256,14 @@ const AuthClientDashboardRouteWithChildren =
 interface AuthRouteChildren {
   AuthAdminDashboardRoute: typeof AuthAdminDashboardRouteWithChildren
   AuthClientDashboardRoute: typeof AuthClientDashboardRouteWithChildren
+  AuthClientProfileRoute: typeof AuthClientProfileRoute
   AuthPhotoCollectionIdRoute: typeof AuthPhotoCollectionIdRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthAdminDashboardRoute: AuthAdminDashboardRouteWithChildren,
   AuthClientDashboardRoute: AuthClientDashboardRouteWithChildren,
+  AuthClientProfileRoute: AuthClientProfileRoute,
   AuthPhotoCollectionIdRoute: AuthPhotoCollectionIdRoute,
 }
 
@@ -259,6 +275,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
   '/client/dashboard': typeof AuthClientDashboardRouteWithChildren
+  '/client/profile': typeof AuthClientProfileRoute
   '/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
   '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
   '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
@@ -273,6 +290,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
+  '/client/profile': typeof AuthClientProfileRoute
   '/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
   '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
   '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
@@ -290,6 +308,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
   '/_auth/client/dashboard': typeof AuthClientDashboardRouteWithChildren
+  '/_auth/client/profile': typeof AuthClientProfileRoute
   '/_auth/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
   '/_auth/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
   '/_auth/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
@@ -308,6 +327,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin/dashboard'
     | '/client/dashboard'
+    | '/client/profile'
     | '/photo-collection/$id'
     | '/admin/dashboard/collection'
     | '/admin/dashboard/package'
@@ -321,6 +341,7 @@ export interface FileRouteTypes {
     | '/'
     | ''
     | '/login'
+    | '/client/profile'
     | '/photo-collection/$id'
     | '/admin/dashboard/collection'
     | '/admin/dashboard/package'
@@ -336,6 +357,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_auth/admin/dashboard'
     | '/_auth/client/dashboard'
+    | '/_auth/client/profile'
     | '/_auth/photo-collection/$id'
     | '/_auth/admin/dashboard/collection'
     | '/_auth/admin/dashboard/package'
@@ -382,6 +404,7 @@ export const routeTree = rootRoute
       "children": [
         "/_auth/admin/dashboard",
         "/_auth/client/dashboard",
+        "/_auth/client/profile",
         "/_auth/photo-collection/$id"
       ]
     },
@@ -406,6 +429,10 @@ export const routeTree = rootRoute
         "/_auth/client/dashboard/scheduler",
         "/_auth/client/dashboard/"
       ]
+    },
+    "/_auth/client/profile": {
+      "filePath": "_auth.client/profile.tsx",
+      "parent": "/_auth"
     },
     "/_auth/photo-collection/$id": {
       "filePath": "_auth.photo-collection.$id.tsx",

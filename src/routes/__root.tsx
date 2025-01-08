@@ -25,7 +25,6 @@ const UserProfileComponent: FC<{
     
 
     let dashboardUrl = '/' +  (admin !== null && admin ? 'admin' : 'client') + '/dashboard'
-    let profileUrl = '/' + (admin !== null && admin ? 'admin' : 'client') + '/profile'
 
     function UserDropdownSkeleton({ children } : {children?: ReactNode}) {
         return (
@@ -43,7 +42,7 @@ const UserProfileComponent: FC<{
     function UserDropdown() {
         return (
             <UserDropdownSkeleton>
-                <Dropdown.Item href={profileUrl}>Profile</Dropdown.Item>
+                <Dropdown.Item onClick={() => navigate({ to: '/client/profile' })}>Profile</Dropdown.Item>
                 <Dropdown.Item as='div'>
                     <Dropdown
                         arrowIcon={false}
