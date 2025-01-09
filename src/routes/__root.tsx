@@ -30,7 +30,7 @@ const UserProfileComponent: FC<{
         return (
             <>
                 <Dropdown.Item href={dashboardUrl}>Dashboard</Dropdown.Item>
-                <Dropdown.Item onClick={() => navigate({to: '/register', search: { token: 'abc'}})}>Test</Dropdown.Item>
+                {/* <Dropdown.Item onClick={() => navigate({to: '/register', search: { token: 'abc'}})}>Test</Dropdown.Item> */}
                 {children}
                 <Dropdown.Item onClick={async () => {
                   await logout()
@@ -132,7 +132,7 @@ const RootComponent = () => {
                 </div>
             </div>
             <Outlet />
-            <TanStackRouterDevtools position='bottom-right' />
+            {/* <TanStackRouterDevtools position='bottom-right' /> */}
         </>
     )
 }
