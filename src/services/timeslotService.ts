@@ -75,6 +75,49 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
     return timeslots
 }
 
+async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag: UserTag) {
+    console.log('api call')
+    const mappedTimeslots = (await Promise.all((await client.models.TimeslotTag
+        .listTimeslotTagByTagId({ tagId: userTag.id }))
+        .data.map(async (timeslotTag) => {
+            const timeslot = await timeslotTag.timeslot()
+            if(!timeslot || !timeslot.data) return
+            const participant = await timeslot.data.participant()
+            const mappedTimeslot: Timeslot = {
+                ...timeslot.data,
+                start: new Date(timeslot.data.start),
+                end: new Date(timeslot.data.end),
+                register: timeslot.data.register ?? undefined,
+                participant: participant && participant.data ? ({
+                    ...participant.data,
+                    middleName: participant.data.middleName ?? undefined,
+                    preferredName: participant.data.preferredName ?? undefined,
+                    email: participant.data.email ?? undefined,
+                    contact: participant.data.contact ?? false,
+                    //unnecessary
+                    userTags: [],
+                    timeslot: undefined,
+                }) : undefined,
+                tag: userTag
+            }
+            return mappedTimeslot
+        })
+    )).filter((timeslot) => timeslot !== undefined)
+    return mappedTimeslots
+}
+
+async function getAllTimeslotsByUserTagList(client: V6Client<Schema>, userTags: UserTag[]){
+    const timeslots = (await Promise.all(userTags.map(async (tag) => {
+        const returnedTimeslots = await getAllTimeslotsByUserTag(client, tag)
+        return returnedTimeslots
+    }))).reduce((prev, cur) => {
+        prev.push(...cur)
+        return prev
+    }, [])
+
+    return timeslots
+}
+
 export async function updateTimeslotMutation(timeslot: Timeslot){
     return client.models.Timeslot.update({
         id: timeslot.id,
@@ -83,7 +126,36 @@ export async function updateTimeslotMutation(timeslot: Timeslot){
     })
 }
 
+export async function registerTimeslotMutation(timeslot: Timeslot, notify: boolean){
+    const response = await client.models.Timeslot.update({
+        id: timeslot.id,
+        register: timeslot.register ?? null,
+        participantId: timeslot.participant?.id ?? null
+    }, { authMode: 'userPool' })
+    if(!response.data) return false
+    if(notify && timeslot.register){
+        client.queries.SendTimeslotConfirmation({
+            email: timeslot.register,
+            start: timeslot.start.toISOString(),
+            end: timeslot.end.toISOString()
+        }, {
+            authMode: 'userPool'
+        })
+    }
+    return true
+}
+
 export const getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({
     queryKey: ['timeslot', client, date],
     queryFn: () => getAllTimeslotsByDate(client, date)
+})
+
+export const getAllTimeslotsByUserTagQueryOptions = (userTag: UserTag) => queryOptions({
+    queryKey: ['timeslot', client, userTag],
+    queryFn: () => getAllTimeslotsByUserTag(client, userTag)
+})
+
+export const getAllTimeslotsByUserTagListQueryOptions = (userTags: UserTag[]) => queryOptions({
+    queryKey: ['timeslot', client, userTags],
+    queryFn: () => getAllTimeslotsByUserTagList(client, userTags)
 })

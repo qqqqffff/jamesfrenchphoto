@@ -1,62 +1,76 @@
 import { FC, useState } from "react";
 import { ModalProps } from ".";
 import { Button, Label, Modal, TextInput } from "flowbite-react";
-import { Schema } from "../../../amplify/data/resource";
-import { generateClient } from "aws-amplify/api";
 import { Event } from "../../types";
-
-const client = generateClient<Schema>()
+import { useMutation } from "@tanstack/react-query";
+import { createEventMutation, CreateEventParams, updateEventMutation } from "../../services/eventService";
 
 interface CreateEventProps extends ModalProps {
-    onSubmit: (event?: Event) => void
+    onSubmit: (event?: Event) => void,
+    event?: Event,
 }
 
-export const CreateEventModal: FC<CreateEventProps> = ({ onClose, open, onSubmit }) => {
+export const CreateEventModal: FC<CreateEventProps> = ({ onClose, open, onSubmit, event }) => {
     const [submitting, setSubmitting] = useState(false)
-    const [eventName, setEventName] = useState<string>('')
+    const [eventName, setEventName] = useState<string | undefined>()
 
-    async function submit(){
-        setSubmitting(true)
-        let event: Event | undefined
-        if(eventName){
-            const response = await client.models.Events.create({
-                name: eventName!,
-            })
-            if(response && response.data){
-                event = {
-                    ...response.data,
-                    collections: []
-                }
-            }
-        }
-        setEventName('')
+    function manageState(data?: Event) {
+        setEventName(undefined)
         setSubmitting(false)
         onClose()
-        onSubmit(event)
+        onSubmit(data)
+        //TODO: error handling
     }
+    const updateEvent = useMutation({
+        mutationFn: (event: Event) => updateEventMutation(event),
+        onSettled: (data) => manageState(data ?? undefined)
+    })
+    const createEvent = useMutation({
+        mutationFn: (params: CreateEventParams) => createEventMutation(params),
+        onSettled: (data) => manageState(data ?? undefined)
+    })
+
+    function submit(){
+        setSubmitting(true)
+
+        if(eventName){
+            if(event !== undefined){
+                updateEvent.mutate({
+                    ...event,
+                    name: eventName,
+                })
+            }
+            else {
+                createEvent.mutate({
+                    name: eventName,
+                })
+            }
+        } 
+    }
+
     return (
-        <Modal show={open} onClose={() => {
-            onClose()
-        }}>
-            <Modal.Header>Create a new Event</Modal.Header>
+        <Modal show={open} onClose={() => manageState()}>
+            <Modal.Header>{event ? 'Rename Event' : 'Create a New Event'}</Modal.Header>
             <Modal.Body>
                 <div className="flex flex-col">
-                    <Label className="ms-2 font-semibold text-xl mb-4" htmlFor="name">Event Name:</Label>
-                    <TextInput sizing='lg' className="mb-6" placeholder="Event Name" type="name" id="name" name="name" 
+                    <Label className="ms-2 font-semibold text-xl mb-2" htmlFor="name">Event Name:</Label>
+                    <TextInput sizing='lg' className="mb-2" placeholder="Event Name" type="text" 
                         onChange={(event) => setEventName(event.target.value)}
-                        value={eventName}
+                        value={eventName ?? event?.name}
                     />
                 </div>
             </Modal.Body>
             <Modal.Footer className="flex flex-row justify-end border-t" >
-                <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="button" isProcessing={submitting} 
-                    disabled={eventName === undefined}
-                    onClick={async () => {
+                <Button 
+                    className="text-xl w-[40%] max-w-[8rem]" 
+                    type="button" 
+                    isProcessing={submitting} 
+                    disabled={eventName === undefined || event?.name === eventName}
+                    onClick={() => {
                         setSubmitting(true)
-                        await submit()
-                        setSubmitting(false)
+                        submit()
                     }}
-                >Create</Button>
+                >{event ? 'Rename' : 'Create'}</Button>
             </Modal.Footer>
         </Modal>
     )

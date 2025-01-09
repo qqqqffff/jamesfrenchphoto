@@ -26,7 +26,7 @@ export interface PrefilledParticipantFormElements {
     partialParticipant: Partial<Participant>
 }
 
-export const ParticipantCreator: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode, displayRequired, submit, prefilledElements }) => {
+const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode, displayRequired, submit, prefilledElements }) => {
     const [formErrors, setFormError] = useState<ParticipantFormError[]>(prefilledElements?.errors ?? [])
     
     const [email, setEmail] = useState<string | undefined>(prefilledElements?.partialParticipant?.email)
@@ -216,3 +216,5 @@ export const ParticipantCreator: FC<ParticipantCreatorProps> = ({ width, userEma
         </>
     )
 }
+
+export default component

@@ -1,17 +1,60 @@
+import { createFileRoute } from '@tanstack/react-router'
 import { generateClient } from "aws-amplify/api"
 import { confirmSignUp, resendSignUpCode, signUp } from "aws-amplify/auth"
 import { Accordion, Alert, Badge, Button, Checkbox, Dropdown, Label, Modal, TextInput } from "flowbite-react"
 import { FormEvent, useRef, useState } from "react"
-import { useLoaderData, useNavigate } from "react-router-dom"
-import { Schema } from "../../../amplify/data/resource"
-import { textInputTheme } from "../../utils"
-import { TermsAndConditionsModal } from "../modals/TermsAndConditions"
-import useWindowDimensions from "../../hooks/windowDimensions"
 import { HiOutlineCheckCircle, HiOutlineExclamationCircle, HiOutlineXCircle } from "react-icons/hi2";
 import validator from 'validator'
-import { Participant, UserTag } from "../../types"
 import { v4 } from 'uuid'
+import { useNavigate } from "@tanstack/react-router"
+import { Schema } from '../../amplify/data/resource'
+import { Participant, UserTag } from '../types'
+import useWindowDimensions from '../hooks/windowDimensions'
+import { TermsAndConditionsModal } from '../components/modals'
+import { textInputTheme } from '../utils'
 
+interface RegisterParams {
+  token: string,
+}
+
+export const Route = createFileRoute('/register')({
+  component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): RegisterParams => ({
+    token: (search.tags as string)
+  }),
+  beforeLoad: ({ search }) => {
+    return search
+  },
+  loader: async ({ context }) => {
+    const token = await client.models.TemporaryCreateUsersTokens.get({
+      id: context.token,
+    }, { authMode: 'iam' })
+
+    const tagMap: SignupAvailableTag[] = []
+
+    if(token && token.data){
+      tagMap.push(...(await Promise.all((token.data.tags ?? [])
+        .filter((tag) => tag !== undefined && tag !== null)
+        .map(async (tag) => {
+          const tagResponse = await client.models.UserTag.get({ id: tag }, { authMode: 'iam' })
+          if(!tagResponse || !tagResponse.data) return
+          const mappedTag: SignupAvailableTag = {
+            tag: {
+              ...tagResponse.data,
+              color: tagResponse.data.color ?? undefined,
+            },
+            selected: {
+              selected: true,
+              participantId: '1'
+            }
+          }
+          return mappedTag
+        }))).filter((tag) => tag !== undefined)
+      )
+    }
+    return tagMap
+  }
+})
 
 const client = generateClient<Schema>()
 
@@ -55,12 +98,14 @@ interface SignupParticipant extends Participant {
     sameDetails: boolean
 }
 
-export default function SignUp(){
+export function RouteComponent(){
     const [openModal, setOpenModal] = useState(false);
     const [termsAndConditionsVisible, setTermsAndConditionsVisible] = useState(false)
     const [preferredContact, setPreferredContact] = useState(false)
     const [termsAndConditions, setTermsAndConditions] = useState(false)
-    const [availableTags, setAvailableTags] = useState<SignupAvailableTag[]>(useLoaderData() as SignupAvailableTag[])
+    //TODO: fix me
+    const tags = Route.useLoaderData()
+    const [availableTags, setAvailableTags] = useState<SignupAvailableTag[]>(tags)
 
     const [password, setPassword] = useState<string>()
     const [confirmPassword, setConfirmPassword] = useState<string>()
@@ -96,9 +141,6 @@ export default function SignUp(){
     const [participants, setParticipants] = useState<SignupParticipant[]>([])
     const [activeParticipant, setActiveParticipant] = useState<SignupParticipant>()
     const [participantSubmitting, setParticipantSubmitting] = useState(false)
-
-    console.log(participantTags)
-    
 
     const [formErrors, setFormErrors] = useState<string[]>(() => {
         if(window.localStorage.getItem('user')){
@@ -210,11 +252,7 @@ export default function SignUp(){
             }
             else{
                 setFormSubmitting(false)
-                navigate('/login', {
-                    state: {
-                        createAccountSuccess: true
-                    }
-                })
+                navigate({ to: '/login', params: { createAccountSuccess: true }})
             }
 
         } catch(err: any) {
@@ -252,11 +290,7 @@ export default function SignUp(){
             })
 
             if(response.isSignUpComplete){
-                navigate('/login', {
-                    state: {
-                        createAccountSuccess: true
-                    }
-                })
+                navigate({ to: '/login', params: { createAccountSuccess: true }})
             }
         }catch(err){
             //todo error handling

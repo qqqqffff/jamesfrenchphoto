@@ -3,20 +3,20 @@ import { PhotoCollection, PicturePath, UserTag } from "../../types"
 import { ControlComponent } from "./ControlPannel";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
-import { getUrl, remove } from "aws-amplify/storage";
+import { remove } from "aws-amplify/storage";
 import { 
     HiOutlineBarsArrowDown, 
     HiOutlineBarsArrowUp, 
     HiOutlineTrash,
     HiOutlineStar
 } from "react-icons/hi2";
-import { Tooltip } from "flowbite-react";
-import { CreateCollectionModal, UploadImagesModal, WatermarkModal } from "../modals";
-import { useNavigate } from "react-router-dom";
+import { Button, Tooltip } from "flowbite-react";
+import { CreateCollectionModal, WatermarkModal } from "../modals";
 import { TbCircleLetterPFilled, TbCircleLetterLFilled } from "react-icons/tb";
 import { FixedSizeGrid, GridChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import useWindowDimensions from "../../hooks/windowDimensions";
+import { useNavigate } from "@tanstack/react-router";
 
 export type PhotoCollectionProps = {
     photoCollection: PhotoCollection;
@@ -25,7 +25,8 @@ export type PhotoCollectionProps = {
         path: string,
         url: string
     }[],
-    availableTags: UserTag[]
+    availableTags: UserTag[],
+    removeActiveCollection: () => void
 }
 
 const client = generateClient<Schema>()
@@ -50,7 +51,7 @@ interface RowProps extends GridChildComponentProps {
 
 const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
     const index = columnIndex + 4 * rowIndex
-    if(!data.data[index]) return (<>Failed to Load</>)
+    if(!data.data[index]) return
     const coverSelected = data.parseName(data.data[index].path) === data.parseName(data.cover ?? '')
     const coverSelectedStyle = `${coverSelected ? 'fill-yellow-300' : ''}`
 
@@ -159,22 +160,28 @@ const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
     )
 }
 
-export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths, watermarkObjects, availableTags }) => {
+export const PhotoCollectionPannel: FC<PhotoCollectionProps> = ({ photoCollection, photoPaths, watermarkObjects, availableTags, removeActiveCollection }) => {
     const [pictureCollection, setPictureCollection] = useState(photoCollection)
     const [picturePaths, setPicturePaths] = useState<PicturePath[]>(photoPaths)
     const [submitting, setSubmitting] = useState(false)
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>(([] as string[]))
     const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
-    const [uploadImagesVisible, setUploadImagesVisible] = useState(false)
     const [cover, setCover] = useState(photoCollection.coverPath ?? null)
-    const [changesToSave, setChangesToSave] = useState(false)
     const [watermarkVisible, setWatermarkVisible] = useState(false)
     const [watermarks, setWatermarks] = useState<{path: string, url: string }[]>(watermarkObjects)
     const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
     const [deleteSubmitting, setDeleteSubmitting] = useState(false)
-    const dimensions = useWindowDimensions()
     const [updateCollection, setUpdateCollection] = useState(false)
+
+    const [changesToSave, setChangesToSave] = useState(false)
+    const [update, setUpdate] = useState(false)
+    const dimensions = useWindowDimensions()
     const navigate = useNavigate()
+
+    if(!update && picturePaths.length !== photoPaths.length){
+        setPicturePaths(photoPaths)
+        setUpdate(true)
+    }
 
     function pictureStyle(url: string, cover: boolean){
         const conditionalBackground = selectedPhotos.includes(url) ? `bg-gray-100 ${cover ? 'border-yellow-300' : 'border-cyan-400'}` : `bg-transparent border-gray-500 ${cover ? 'border-yellow-300' : 'border-gray-500'}`
@@ -215,31 +222,8 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         setSubmitting(false)
     }
 
-    const gridClass = `w-full self-center`
-
     return (
     <>
-        <UploadImagesModal 
-            open={uploadImagesVisible} 
-            onClose={() => setUploadImagesVisible(false)} 
-            collection={pictureCollection}
-            onSubmit={async (collection) => {
-                const paths: PicturePath[] = await Promise.all(collection.paths.map(async (path) => {
-                    const mappedPath: PicturePath = {
-                        ...path,
-                        url: (await getUrl({
-                            path: path.path
-                        })).url.toString()
-                    }
-                    return mappedPath
-                }))
-                setPictureCollection({
-                    ...collection,
-                    paths: paths,
-                })
-                setPicturePaths(paths)
-            }}
-        />
         <WatermarkModal
             open={watermarkVisible}
             onClose={() => setWatermarkVisible(false)}
@@ -261,6 +245,7 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
             availableTags={availableTags}
             onSubmit={(collection) => {
                 setPictureCollection(collection)
+                setPicturePaths(collection.paths)
                 setUpdateCollection(false)
             }}
             onClose={() => setUpdateCollection(false)}
@@ -268,9 +253,15 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
         />
         <div className="grid grid-cols-6 gap-2">
             <div className="border-gray-400 border rounded-2xl p-4 col-span-5 flex flex-col items-center">
-                <span className="text-2xl mb-4">{pictureCollection.name}</span>
+                <div className="grid grid-cols-3 justify-items-center w-full">
+                    <div className="w-full flex flex-row">
+                        <Button onClick={() => removeActiveCollection()} color="light">Back</Button>
+                    </div>
+                    <span className="text-2xl mb-4">{pictureCollection.name}</span>
+                </div>
+                <div className="w-full border border-gray-200 my-2"></div>
                 {picturePaths.length > 0 ? 
-                    <AutoSizer className={gridClass} style={{ minHeight: `${dimensions.height - 350}px`}}>
+                    <AutoSizer className='w-full self-center' style={{ minHeight: `${dimensions.height - 350}px`}}>
                         {({ height, width }: { height: number; width: number }) => {
                         return (
                             <FixedSizeGrid
@@ -310,9 +301,8 @@ export const PhotoCollectionComponent: FC<PhotoCollectionProps> = ({ photoCollec
             <div className="flex flex-col col-span-1 border-gray-400 border rounded-2xl items-center gap-4 py-3 me-2">
                 <p className="text-2xl underline">Controls</p>
                 <ControlComponent name='Update Collection' fn={() => setUpdateCollection(true)} />
-                <ControlComponent name="Upload Picture" fn={() => setUploadImagesVisible(true)} />
                 <ControlComponent name="Save Changes" fn={() => saveCollection()} disabled={!changesToSave} isProcessing={submitting} />
-                <ControlComponent name="Preview" fn={() => navigate(`/photo-collection/${photoCollection.id}`, { state: { origin: 'admin' }})} />
+                <ControlComponent name="Preview" fn={() => navigate({ to: `/photo-collection/${photoCollection.id}`})} />
                 <ControlComponent name='Downloadable' fn={() => {
                     const temp = {...pictureCollection}
                     temp.downloadable = !temp.downloadable

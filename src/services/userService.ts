@@ -1,23 +1,31 @@
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from "../../amplify/data/resource";
-import { Participant, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { Participant, PhotoCollection, Timeslot, UserData, UserProfile, UserTag } from "../types";
 import { getAllCollectionsFromUserTags } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
+import { updateUserAttributes } from "aws-amplify/auth";
 
 const client = generateClient<Schema>()
 
-async function getAllUserTags(client: V6Client<Schema>): Promise<UserTag[]> {
+interface GetAllUserTagsOptions {
+    siCollections: boolean
+}
+async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
     console.log('api call')
     const userTagsResponse = await client.models.UserTag.list()
     const mappedTags = await Promise.all(userTagsResponse.data.map(async (tag) => {
-        const collections = await getAllCollectionsFromUserTags(client, [{
-            ...tag,
-            collections: [],
-            color: undefined,
-        }])
+        const collections: PhotoCollection[] = []
+        if(!options || options.siCollections) {
+            collections.push(...(await getAllCollectionsFromUserTags(client, [{
+                    ...tag,
+                    collections: [],
+                    color: undefined,
+                }])
+            ))
+        }
         const mappedTag: UserTag = {
             ...tag,
             collections: collections,
@@ -29,8 +37,9 @@ async function getAllUserTags(client: V6Client<Schema>): Promise<UserTag[]> {
 }
 
 interface GetUserProfileByEmailOptions {
-    siTags: boolean,
-    siTimeslot: boolean,
+    siTags?: boolean,
+    siTimeslot?: boolean,
+    siCollections?: boolean
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     console.log('api call')
@@ -44,25 +53,58 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
              tags.push(...(await Promise.all((participant.userTags ?? []).filter((tag) => tag !== null).map(async (tag) => {
                 const tagResponse = await client.models.UserTag.get({ id: tag })
                 if(!tagResponse || !tagResponse.data) return
+                const mappedCollections: PhotoCollection[] = []
+                if(!options || options.siCollections){
+                    mappedCollections.push(...(await Promise.all((await tagResponse.data.collectionTags()).data.map(async (colTag) => {
+                        const collection = await colTag.collection()
+                        if(!collection || !collection.data) return
+                        const mappedCollection: PhotoCollection = {
+                            ...collection.data,
+                            coverPath: collection.data.coverPath ?? undefined,
+                            watermarkPath: collection.data.watermarkPath ?? undefined,
+                            downloadable: collection.data.downloadable ?? false,
+                            //unnecessary
+                            paths: [],
+                            tags: [],
+                        }
+                        return mappedCollection
+                    }))).filter((item) => item !== undefined))
+                }
                 const mappedTag: UserTag = {
                     ...tagResponse.data,
-                    color: tagResponse.data.color ?? undefined
+                    color: tagResponse.data.color ?? undefined,
+                    collections: mappedCollections
                 }
                 return mappedTag
             }))).filter((tag) => tag !== undefined))
         }
         if(options === undefined || options.siTimeslot){
-            timeslots.push(...((await participant.timeslot()).data.map((timeslot) => {
+            timeslots.push(...(await Promise.all((await participant.timeslot()).data.map(async (timeslot) => {
+                const tag = await timeslot.timeslotTag()
+                let mappedTag: UserTag | undefined
+                if(options?.siTags){
+                    mappedTag = tags.find((userTag) => userTag.id === tag.data?.tagId)
+                }
+                else {
+                    const tagResponse = await tag.data?.tag()
+                    if(tagResponse && tagResponse.data){
+                        mappedTag = {
+                            ...tagResponse.data,
+                            color: tagResponse.data.color ?? undefined
+                        }
+                    }
+                }
                 const mappedTimeslot: Timeslot = {
                     ...timeslot,
                     start: new Date(timeslot.start),
                     end: new Date(timeslot.end),
+                    tag: mappedTag,
                     //unneccessary
                     register: undefined,
                     participant: undefined,
                 }
                 return mappedTimeslot
-            })))
+            }))))
         }
         
 
@@ -78,12 +120,44 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
         return mappedParticipant
     }))
 
-    //TODO: conditional create participant if no found participants
+    if(mappedParticipants.length === 0 && 
+        profileResponse.data.participantFirstName && 
+        profileResponse.data.participantLastName){
+        mappedParticipants.push(await createParticipantMutation({
+            participant: {
+                firstName: profileResponse.data.participantFirstName,
+                lastName: profileResponse.data.participantLastName,
+                middleName: profileResponse.data.participantMiddleName ?? undefined,
+                preferredName: profileResponse.data.participantPreferredName ?? undefined,
+                contact: profileResponse.data.participantContact ?? false,
+                email: profileResponse.data.participantEmail ?? undefined,
+                userTags: (await Promise.all((profileResponse.data.userTags ?? []).map(async (tagString) => {
+                    if(!tagString) return
+                    const mappedTag: UserTag = {
+                        id: tagString,
+                        name: '',
+                    }
+                    return mappedTag
+                }))).filter((tag) => tag !== undefined)
+            },
+            userEmail: email,
+        }))
+    }
+
+    //in theory there should be at least one participant upon reaching this point
+    let activeParticipant = mappedParticipants.find((participant) => participant.id === profileResponse.data?.activeParticipant)
+    if(!profileResponse.data.activeParticipant){
+        activeParticipant = mappedParticipants[0]
+        await client.models.UserProfile.update({
+            email: email,
+            activeParticipant: activeParticipant?.id
+        })
+    }
 
     const userProfile: UserProfile = {
         ...profileResponse.data,
         participant: mappedParticipants,
-        activeParticipant: mappedParticipants.find((participant) => participant.id === profileResponse.data!.activeParticipant),
+        activeParticipant: activeParticipant,
         preferredContact: profileResponse.data.preferredContact ?? 'EMAIL',
         //deprecated
         userTags: [],
@@ -130,14 +204,107 @@ async function getAuthUsers(client: V6Client<Schema>, filter?: string | null): P
     return parsedUsersData
 }
 
-export const getAllUserTagsQueryOptions = queryOptions({
-    queryKey: ['userTags', client],
-    queryFn: () => getAllUserTags(client)
+interface CreateParticipantMutationParams {
+    participant: Omit<Participant, 'id'>,
+    userEmail: string,
+    options?: {
+        logging: boolean
+    }
+}
+export async function createParticipantMutation(params: CreateParticipantMutationParams): Promise<Participant> {
+    const createResponse = await client.models.Participant.create({
+        userEmail: params.userEmail,
+        ...params.participant,
+        userTags: params.participant.userTags.map((tag) => tag.id),
+    })
+
+    if(!createResponse || !createResponse.data) throw new Error('Failed to create participant')
+
+    if(params.options?.logging) console.log(createResponse)
+        
+
+    const timeslotsUpdateResponse = await Promise.all((params.participant.timeslot ?? []).map(async (timeslot) => {
+        const timeslotResponse = await client.models.Timeslot.update({
+            id: timeslot.id,
+            participantId: createResponse.data?.id
+        })
+        return timeslotResponse
+    }))
+
+    if(params.options?.logging) console.log(timeslotsUpdateResponse)
+
+    return {
+        id: createResponse.data.id,
+        ...params.participant
+    }
+}
+
+export interface UpdateUserAttributesMutationParams{
+    email: string,
+    lastName?: string,
+    firstName?: string,
+    phoneNumber?: string,
+    accessToken?: string,
+    preferredContact?: 'EMAIL' | 'PHONE'
+}
+export async function updateUserAttributeMutation(params: UpdateUserAttributesMutationParams){
+    let updated = false
+    if(params.firstName && params.lastName){
+        await updateUserAttributes({
+            userAttributes: {
+                email: params.email,
+                family_name: params.lastName,
+                given_name: params.firstName,
+            }
+        })
+        updated = true
+    }
+    if(params.phoneNumber && params.accessToken){
+        await client.queries.UpdateUserPhoneNumber({
+            phoneNumber: `+1${params.phoneNumber.replace(/\D/g, "")}`,
+            accessToken: params.accessToken
+        })
+        updated = true
+    }
+    if(params.preferredContact !== undefined){
+        await client.models.UserProfile.update({
+            email: params.email,
+            preferredContact: params.preferredContact ? "PHONE" : 'EMAIL',
+        })
+        updated = true
+    }
+    return updated
+}
+
+export interface UpdateParticipantMutationParams{
+    firstName: string,
+    lastName: string,
+    preferredName?: string,
+    middleName?: string,
+    contact: boolean,
+    email?: string,
+    participant: Participant
+}
+export async function updateParticipantMutation(params: UpdateParticipantMutationParams){
+    return client.models.Participant.update({
+        id: params.participant.id,
+        email: params.email,
+        firstName: params.firstName,
+        lastName: params.lastName,
+        preferredName: params.preferredName,
+        middleName: params.middleName,
+        contact: params.contact
+    })
+}
+
+export const getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({
+    queryKey: ['userTags', client, options],
+    queryFn: () => getAllUserTags(client, options)
 })
 
-export const getUserProfileQueryOptions = (email: string) => queryOptions({
-    queryKey: ['userProfile', client, email],
-    queryFn: () => getUserProfileByEmail(client, email)
+export const getUserProfileByEmailQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({
+    queryKey: ['userProfile', client, email, options],
+    queryFn: () => getUserProfileByEmail(client, email, options)
 })
 
 export const getAuthUsersQueryOptions = (filter?: string | null) =>  queryOptions({

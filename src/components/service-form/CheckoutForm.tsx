@@ -1,7 +1,7 @@
 // import { useStripe } from "@stripe/react-stripe-js"
+import { useNavigate } from "@tanstack/react-router"
 import { Accordion, Button, Checkbox, Dropdown, Label, TextInput } from "flowbite-react"
 import { FC, FormEvent, useState } from "react"
-import { useNavigate } from "react-router-dom"
 
 interface CheckoutFormElements extends HTMLFormControlsCollection {
     eventType: HTMLButtonElement
@@ -33,9 +33,7 @@ const CheckoutForm: FC<Props> = ({}) => {
     }
 
     function handleBack(){
-        navigate('/service-form', {
-            state: { ...history.state.usr }
-        })
+        navigate({ to: '/' })
     }
 
     function billingAddress(){

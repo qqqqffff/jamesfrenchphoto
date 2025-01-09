@@ -13,7 +13,7 @@ export interface UserStorage {
     session: AuthSession
     attributes: FetchUserAttributesOutput
     groups: string
-    profile: any
+    profile: UserProfile
 } 
 
 export interface UserData {
