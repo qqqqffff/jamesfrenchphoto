@@ -1,6 +1,5 @@
 import { QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, Link, Outlet, useNavigate } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { HiOutlineCheckCircle } from "react-icons/hi2";
 import { AuthContext, useAuth } from '../auth'
 import { Dropdown } from 'flowbite-react'
