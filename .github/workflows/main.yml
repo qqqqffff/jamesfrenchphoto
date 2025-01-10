@@ -1,0 +1,16 @@
+on: [pull_request]
+
+jobs:
+  build:
+    name: Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      - name: Install Dependencies
+        run: npm ci 
+      - name: Stubbing amplify outputs
+        run: echo {} > amplify_outputs.json
+      - name: Run Build
+        run: npm run build
+    
