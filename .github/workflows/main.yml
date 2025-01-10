@@ -9,6 +9,8 @@ jobs:
       - uses: actions/setup-node@v3
       - name: Install Dependencies
         run: npm ci 
+      - name: Stubbing amplify outputs
+        run: touch amplify_outputs.json
       - name: Run Build
         run: npm run build
     
