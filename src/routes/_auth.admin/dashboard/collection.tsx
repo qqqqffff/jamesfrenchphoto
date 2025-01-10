@@ -11,7 +11,6 @@ import { Event } from '../../../types'
 import {
   ConfirmationModal,
   CreateCollectionModal,
-  CreateEventModal,
 } from '../../../components/modals'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
@@ -30,14 +29,10 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
 })
 
 function RouteComponent() {
-  const [createEventModalVisible, setCreateEventModalVisible] = useState(false)
-  const [
-    createPhotoCollectionModalVisible,
-    setCreatePhotoCollectionModalVisible,
-  ] = useState(false)
+  const [deleteConfirmationVisible, setDeleteConfirmationVisible] = useState(false)
+  const [createPhotoCollectionModalVisible, setCreatePhotoCollectionModalVisible] = useState(false)
+
   const [selectedEvent, setSelectedEvent] = useState<Event>()
-  const [deleteConfirmationVisible, setDeleteConfirmationVisible] =
-    useState(false)
   const [loading, setLoading] = useState(false)
   const [filteredItems, setFilteredItems] = useState<Event[]>()
 
@@ -86,22 +81,6 @@ function RouteComponent() {
 
   return (
     <>
-      <CreateEventModal
-        open={createEventModalVisible}
-        onClose={() => setCreateEventModalVisible(false)}
-        onSubmit={async (event) => {
-          if (event !== undefined) {
-            console.log(event)
-            setLoading(true)
-            await eventList.refetch()
-            setLoading(false)
-            setSelectedEvent(undefined)
-          } else {
-            //TODO: error handle
-          }
-        }}
-        event={selectedEvent}
-      />
       <CreateCollectionModal
         eventId={selectedEvent?.id ?? ''}
         open={createPhotoCollectionModalVisible}
@@ -137,7 +116,7 @@ function RouteComponent() {
         <div className="flex flex-col ms-5 border border-gray-400 rounded-2xl p-2">
           <button
             className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer"
-            onClick={() => setCreateEventModalVisible(true)}
+            onClick={() => {}}
           >
             <span className="text-xl ms-4 mb-1">Create New Event</span>
             <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2" />
@@ -182,7 +161,6 @@ function RouteComponent() {
                       >
                         <Dropdown.Item
                           onClick={() => {
-                            setCreateEventModalVisible(true)
                             setSelectedEvent(event)
                           }}
                         >

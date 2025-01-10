@@ -15,33 +15,36 @@ and "delete" any "Todo" records.
 =========================================================================*/
 
 const schema = a.schema({
-  Events: a
-    .model({
-      id: a.id().required(),
-      name: a.string().required(),
-      collections: a.hasMany('PhotoCollection', 'eventId')
-    })
-    .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS')]),
   PhotoCollection: a
     .model({
       id: a.id().required(),
-      eventId: a.id().required(),
-      event: a.belongsTo('Events', 'eventId'),
       coverPath: a.string(),
+      name: a.string().required(),
+      tags: a.hasMany('CollectionTag', 'collectionId'),
+      sets: a.hasMany('PhotoSet', 'collectionId'),
+      watermarkPath: a.string(),
+      downloadable: a.boolean().default(false),
+      items: a.integer(),
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  PhotoSet: a
+    .model({
+      id: a.id().required(),
+      coverPath: a.string().required(),
       coverText: a.customType({
         color: a.string(),
         opacity: a.string(),
         family: a.string()
       }),
       name: a.string().required(),
-      imagePaths: a.hasMany('PhotoPaths', 'collectionId'),
-      tags: a.hasMany('CollectionTag', 'collectionId'),
-      watermarkPath: a.string(),
-      downloadable: a.boolean().default(false),
+      paths: a.hasMany('PhotoPaths', 'setId'),
+      order: a.integer().required(),
+      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      collectionId: a.id().required()
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('eventId')])
+    .secondaryIndexes((index) => [index('collectionId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   Watermark: a
     .model({
@@ -55,12 +58,12 @@ const schema = a.schema({
       id: a.id().required(),
       path: a.string().required(),
       order: a.integer().required(),
-      collectionId: a.id().required(),
-      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      setId: a.id().required(),
+      set: a.belongsTo('PhotoSet', 'setId'),
       favorites: a.hasMany('UserFavorites', 'pathId')
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('collectionId')])
+    .secondaryIndexes((index) => [index('setId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserFavorites: a
     .model({
