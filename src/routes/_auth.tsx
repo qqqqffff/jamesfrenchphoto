@@ -1,7 +1,19 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/_auth')({
-  beforeLoad: ({ context, location }) => {
+  beforeLoad: async ({ context, location }) => {
+    //old code assistant
+    if(localStorage.getItem('user') !== null){
+      localStorage.removeItem('user')
+      await context.auth.logout()
+      await new Promise(resolve => setTimeout(resolve, 1))
+      throw redirect({
+        to: '/login',
+        search: {
+          relogin: true
+        }
+      })
+    }
     if(!context.auth.isAuthenticated){
       throw redirect({
         to: '/login',

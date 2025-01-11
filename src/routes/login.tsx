@@ -7,14 +7,16 @@ import { textInputTheme } from '../utils'
 
 interface LoginParams {
   createAccount?: boolean,
-  unauthorized?: boolean
+  unauthorized?: boolean,
+  relogin?: boolean,
 }
 
 export const Route = createFileRoute('/login')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): LoginParams => ({
     createAccount: (search.createAccount as boolean) || undefined,
-    unauthorized: (search.unauthorized as boolean) || undefined
+    unauthorized: (search.unauthorized as boolean) || undefined,
+    relogin: (search.relogin as boolean) || undefined,
   })
 })
 
@@ -95,6 +97,20 @@ function RouteComponent() {
               setNotifications(
                 notifications.map((notification) => {
                   if(notification.item === 'unauthorized') return {...notification, visible: false}
+                  return notification
+                })
+              )
+            }
+          )
+        }
+        {
+          notifications.find((item) => item.item === 'relogin')?.visible && 
+          notification('Session expired please relogin', 'green', 
+            () => {
+              navigate({ to: '.' })
+              setNotifications(
+                notifications.map((notification) => {
+                  if(notification.item === 'relogin') return {...notification, visible: false}
                   return notification
                 })
               )
