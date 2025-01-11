@@ -7,7 +7,6 @@ import { getUserProfileByEmail } from "./services/userService";
 
 const client = generateClient<Schema>()
 
-
 type LoginReturnType = 'fail' | 'admin' | 'client' | 'nextStep'
 export interface AuthContext {
     isAuthenticated: boolean,
