@@ -41,7 +41,8 @@ const schema = a.schema({
       paths: a.hasMany('PhotoPaths', 'setId'),
       order: a.integer().required(),
       collection: a.belongsTo('PhotoCollection', 'collectionId'),
-      collectionId: a.id().required()
+      collectionId: a.id().required(),
+      watermarkPath: a.string(),
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('collectionId')])

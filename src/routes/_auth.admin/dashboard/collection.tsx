@@ -7,22 +7,21 @@ import {
   HiOutlineMinusCircle,
   HiOutlinePencil,
 } from 'react-icons/hi2'
-import { Event } from '../../../types'
 import {
   ConfirmationModal,
   CreateCollectionModal,
 } from '../../../components/modals'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
+  deleteCollectionMutation,
+  DeleteCollectionParams,
+  getAllPhotoCollectionsQueryOptions,
   getAllWatermarkObjectsQueryOptions,
 } from '../../../services/collectionService'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { textInputTheme } from '../../../utils'
-import {
-  deleteEventMutation,
-  getAllEventsQueryOptions,
-} from '../../../services/eventService'
-import { EventPannel } from '../../../components/admin/EventPannel'
+import { EventPannel } from '../../../components/admin/PhotoCollectionPannel'
+import { PhotoCollection } from '../../../types'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   component: RouteComponent,
@@ -32,35 +31,35 @@ function RouteComponent() {
   const [deleteConfirmationVisible, setDeleteConfirmationVisible] = useState(false)
   const [createPhotoCollectionModalVisible, setCreatePhotoCollectionModalVisible] = useState(false)
 
-  const [selectedEvent, setSelectedEvent] = useState<Event>()
+  const [selectedCollection, setSelectedCollection] = useState<PhotoCollection>()
   const [loading, setLoading] = useState(false)
-  const [filteredItems, setFilteredItems] = useState<Event[]>()
+  const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
 
   const availableTags = useQuery(
     getAllUserTagsQueryOptions({ siCollections: false }),
   )
-  const eventList = useQuery(getAllEventsQueryOptions({ siCollections: false }))
+  const collectionList = useQuery(getAllPhotoCollectionsQueryOptions({ siTags: false, siSets: true }))
   const watermarkObjects = useQuery(getAllWatermarkObjectsQueryOptions())
-  const deleteEvent = useMutation({
-    mutationFn: (eventId: string) => deleteEventMutation(eventId),
+  const deleteCollection = useMutation({
+    mutationFn: (params: DeleteCollectionParams) => deleteCollectionMutation(params),
     onSettled: async (data) => {
       if (data) {
-        setSelectedEvent(undefined)
+        setSelectedCollection(undefined)
       }
-      await eventList.refetch()
+      await collectionList.refetch()
       setLoading(false)
     },
   })
 
   function filterItems(term: string): undefined | void {
-    if (!term || !eventList.data || eventList.data.length <= 0) {
+    if (!term || !collectionList.data || collectionList.data.length <= 0) {
       setFilteredItems(undefined)
       return
     }
 
     const normalSearchTerm = term.trim().toLocaleLowerCase()
 
-    const data: Event[] = eventList.data
+    const data: PhotoCollection[] = collectionList.data
       .filter((item) => {
         let filterResult = false
         try {
@@ -82,13 +81,12 @@ function RouteComponent() {
   return (
     <>
       <CreateCollectionModal
-        eventId={selectedEvent?.id ?? ''}
         open={createPhotoCollectionModalVisible}
         onClose={() => setCreatePhotoCollectionModalVisible(false)}
         onSubmit={async (collection) => {
           if (collection) {
             setLoading(true)
-            await eventList.refetch()
+            await collectionList.refetch()
             setLoading(false)
           }
           //TODO: error handle
@@ -96,15 +94,15 @@ function RouteComponent() {
         availableTags={availableTags.data ?? []}
       />
       <ConfirmationModal
-        title={'Delete Event'}
-        body={`Deleting Event <b>${selectedEvent?.name}</b> will delete <b>ALL</b> collections,\n and <b>ALL</b> associated photos. This action <b>CANNOT</b> be undone!`}
+        title={'Delete Collection'}
+        body={`Deleting Event <b>${selectedCollection?.name}</b> will delete <b>ALL</b> collections,\n and <b>ALL</b> associated photos. This action <b>CANNOT</b> be undone!`}
         denyText={'Cancel'}
         confirmText={'Delete'}
         confirmAction={async () => {
-          if (selectedEvent) {
+          if (selectedCollection) {
             setLoading(true)
-            deleteEvent.mutate(selectedEvent.id)
-            setSelectedEvent(undefined)
+            deleteCollection.mutate({ collection: selectedCollection})
+            setSelectedCollection(undefined)
           } else {
             //TODO: error handle
           }
@@ -131,77 +129,6 @@ function RouteComponent() {
           />
           <div className="w-full border border-gray-200 my-2"></div>
 
-          {!eventList.isLoading && !loading ? (
-            eventList.data && eventList.data.length > 0 ? (
-              (filteredItems ?? eventList.data).map((event, index) => {
-                const selectedEventClass = selectedEvent?.id === event.id ? 'bg-gray-200 hover:bg-gray-300 border-2 border-sky-300' : 'hover:bg-gray-100 border-2 border-transparent'
-                return (
-                  <div className="flex flex-col" key={index}>
-                    <div className="flex flex-row">
-                      <button
-                        type="button"
-                        className={`flex flex-row w-full items-center justify-start rounded-2xl py-1 bg-gray ${selectedEventClass}`}
-                        onClick={async () => {
-                          setSelectedEvent(undefined)
-                          await new Promise(resolve => setTimeout(resolve, 1))
-                          setSelectedEvent(event)
-                        }}
-                      >
-                        <span className="text-xl ms-4 mb-1">{event.name}</span>
-                      </button>
-                      <Dropdown
-                        label={
-                          <HiEllipsisHorizontal
-                            size={24}
-                            className="hover:border-gray-400 hover:border rounded-full"
-                          />
-                        }
-                        inline
-                        arrowIcon={false}
-                      >
-                        <Dropdown.Item
-                          onClick={() => {
-                            setSelectedEvent(event)
-                          }}
-                        >
-                          <HiOutlinePencil className="me-1" />
-                          Rename Event
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          onClick={() => {
-                            setCreatePhotoCollectionModalVisible(true)
-                            setSelectedEvent(event)
-                          }}
-                        >
-                          <HiOutlinePlusCircle className="me-1" />
-                          Create Photo Collection
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          onClick={() => {
-                            setDeleteConfirmationVisible(true)
-                            setSelectedEvent(event)
-                          }}
-                        >
-                          <HiOutlineMinusCircle className="me-1" />
-                          Delete Event
-                        </Dropdown.Item>
-                      </Dropdown>
-                    </div>
-                  </div>
-                )
-              })
-            ) : (
-              <span className="text-gray-400">No events</span>
-            )
-          ) : (
-            <Progress
-              progress={100}
-              textLabel="Loading..."
-              textLabelPosition="inside"
-              labelText
-              size="lg"
-            />
-          )}
         </div>
         <div className="col-span-5">
           {selectedEvent === undefined ? (

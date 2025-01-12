@@ -1,88 +1,83 @@
-import { Badge, Button, Dropdown, Label, Modal, Progress, TextInput, ToggleSwitch, Tooltip } from "flowbite-react"
+import { Badge, Button, Dropdown, Label, Modal, Progress, TextInput, ToggleSwitch } from "flowbite-react"
 import { FC, FormEvent, useState } from "react"
-import { HiOutlineXMark, HiOutlineStar, HiOutlineCheckCircle } from "react-icons/hi2"
+import { HiOutlineCheckCircle } from "react-icons/hi2"
 import { ModalProps } from "."
 import { PhotoCollection, UserTag } from "../../types";
-import { badgeColorThemeMap, formatFileSize, parsePathName, textInputTheme } from "../../utils";
-import { FixedSizeList, ListChildComponentProps } from "react-window";
-import AutoSizer from "react-virtualized-auto-sizer";
-import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCollectionMutation, CreateCollectionParams, getPathsDataMapFromPathsQueryOptions, updateCollectionMutation, UpdateCollectionParams } from "../../services/collectionService";
-import useWindowDimensions from "../../hooks/windowDimensions";
+import { badgeColorThemeMap, parsePathName, textInputTheme } from "../../utils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createCollectionMutation, CreateCollectionParams, updateCollectionMutation, UpdateCollectionParams } from "../../services/collectionService";
 
 interface CreateCollectionProps extends ModalProps {
-  eventId: string;
   onSubmit: (collection: PhotoCollection) => void;
   availableTags: UserTag[]
   collection?: PhotoCollection
 }
 
-interface RowProps extends ListChildComponentProps {
-  data: {
-    data: RowData[],
-    onDelete: (key: string) => void,
-    cover: string | null,
-    setCover: (cover: string | null) => void
-  }
-}
+// interface RowProps extends ListChildComponentProps {
+//   data: {
+//     data: RowData[],
+//     onDelete: (key: string) => void,
+//     cover: string | null,
+//     setCover: (cover: string | null) => void
+//   }
+// }
 
-type RowData = {
-  url: string,
-  file: File,
-  order: number
-}
+// type RowData = {
+//   url: string,
+//   file: File,
+//   order: number
+// }
 
-const Row: FC<RowProps> = ({ index, data, style }) => {
-    const starClass = `${data.cover == data.data[index].file.name ? 'fill-yellow-300' : ''}`
-    return (
-      <div key={index} className="flex flex-row justify-between" style={style}>
-        <Tooltip className='relative' content={<img src={data.data[index].url} loading='lazy' className="w-[200px] h-[300px] object-cover z-50"/>}>
-          <span>{data.data[index].file.name}</span>
-        </Tooltip>
-        <div className="flex flex-row items-center gap-2">
-          <span className="me-10">{data.data[index].order}</span>
-          <span className="min-w-[80px]">{formatFileSize(data.data[index].file.size)}</span>
-          <button 
-            type='button'
-            onClick={() => {
-              if(data.cover === data.data[index].file.name){
-                data.setCover(null)
-              }
-              else {
-                data.setCover(data.data[index].file.name)
-              }
-            }}
-          >
-            <HiOutlineStar className={starClass} size={20} />
-          </button>
-          <button className="hover:border-gray-500 border border-transparent rounded-full p-0.5" type='button' onClick={() => data.onDelete(data.data[index].url)}>
-            <HiOutlineXMark size={20}/>
-          </button>
-        </div>
-      </div>
-    )
-}
+// const Row: FC<RowProps> = ({ index, data, style }) => {
+//     const starClass = `${data.cover == data.data[index].file.name ? 'fill-yellow-300' : ''}`
+//     return (
+//       <div key={index} className="flex flex-row justify-between" style={style}>
+//         <Tooltip className='relative' content={<img src={data.data[index].url} loading='lazy' className="w-[200px] h-[300px] object-cover z-50"/>}>
+//           <span>{data.data[index].file.name}</span>
+//         </Tooltip>
+//         <div className="flex flex-row items-center gap-2">
+//           <span className="me-10">{data.data[index].order}</span>
+//           <span className="min-w-[80px]">{formatFileSize(data.data[index].file.size)}</span>
+//           <button 
+//             type='button'
+//             onClick={() => {
+//               if(data.cover === data.data[index].file.name){
+//                 data.setCover(null)
+//               }
+//               else {
+//                 data.setCover(data.data[index].file.name)
+//               }
+//             }}
+//           >
+//             <HiOutlineStar className={starClass} size={20} />
+//           </button>
+//           <button className="hover:border-gray-500 border border-transparent rounded-full p-0.5" type='button' onClick={() => data.onDelete(data.data[index].url)}>
+//             <HiOutlineXMark size={20}/>
+//           </button>
+//         </div>
+//       </div>
+//     )
+// }
 
-export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose, eventId, onSubmit, availableTags, collection }) => {
-    const initialFiles = useQuery({
-      ...getPathsDataMapFromPathsQueryOptions((collection?.paths ?? [])),
-      enabled: collection !== undefined,
-    })
-    const [filesUpload, setFilesUpload] = useState<Map<string, {file: File, order: number}> | undefined>(initialFiles.data)
+//TODO: transform me
+export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose, onSubmit, availableTags, collection }) => {
+    // const initialFiles = useQuery({
+    //   ...getPathsDataMapFromPathsQueryOptions((collection?.paths ?? [])),
+    //   enabled: collection !== undefined,
+    // })
+    // const [filesUpload, setFilesUpload] = useState<Map<string, {file: File, order: number}> | undefined>(initialFiles.data)
 
     const [name, setName] = useState('')
     const [cover, setCover] = useState<string | null>(null)
     const [downloadable, setDownloadable] = useState(false)
     const [selectedTags, setSelectedTags] = useState<UserTag[]>([])
 
-    const [filteredResult, setFilteredResult] = useState<Map<string, {file: File, order: number}> | undefined>()
-    const [sort, setSort] = useState<{col: 'file' | 'size' | 'order' | undefined, direction?: boolean, visible: boolean}>()
+    // const [filteredResult, setFilteredResult] = useState<Map<string, {file: File, order: number}> | undefined>()
+    // const [sort, setSort] = useState<{col: 'file' | 'size' | 'order' | undefined, direction?: boolean, visible: boolean}>()
 
     const [submitting, setSubmitting] = useState(false)
     const [progress, setProgress] = useState<number | undefined>()
     const [loaded, setLoaded] = useState(false)
-    const dimensions = useWindowDimensions()
     const queryClient = useQueryClient()
 
     if(!loaded && collection){
@@ -119,9 +114,9 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
         }
       }
     })
-    if(filesUpload === undefined && initialFiles.data && initialFiles.data.size > 0){
-      setFilesUpload(initialFiles.data)
-    }
+    // if(filesUpload === undefined && initialFiles.data && initialFiles.data.size > 0){
+    //   setFilesUpload(initialFiles.data)
+    // }
 
     async function handleUploadPhotos(event: FormEvent){
       event.preventDefault()
@@ -132,19 +127,17 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
         return
       }
 
-      const convertedMap = new Map<string, File>()
+      // const convertedMap = new Map<string, File>()
 
-      Array.from(((filesUpload ?? new Map<string, {file: File, order: number}>()).entries())).forEach((entry) => {
-        convertedMap.set(entry[0], entry[1].file)
-      })
+      // Array.from(((filesUpload ?? new Map<string, {file: File, order: number}>()).entries())).forEach((entry) => {
+      //   convertedMap.set(entry[0], entry[1].file)
+      // })
 
       const createCollectionParams: CreateCollectionParams = {
-        eventId,
         name,
         tags: selectedTags,
         cover,
         downloadable,
-        paths: convertedMap,
         setProgress,
       }
 
@@ -160,37 +153,37 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
       }
     }
 
-    function filterFiles(term: string): undefined | void {
-      if(!term) {
-        setFilteredResult(undefined)
-        return
-      }
-      const normalSearchTerm = term.trim().toLocaleLowerCase()
+    // function filterFiles(term: string): undefined | void {
+    //   if(!term) {
+    //     setFilteredResult(undefined)
+    //     return
+    //   }
+    //   const normalSearchTerm = term.trim().toLocaleLowerCase()
 
-      const data = [...(filesUpload?.entries() ?? [])].filter((item) => {
-          let filterResult = false
-          try{
-            filterResult = item[1].file.name.trim().toLocaleLowerCase().includes(normalSearchTerm)
-          } catch(err){
-            return false
-          }
-          return filterResult
-      })
-      const map = new Map<string, {file: File, order: number}>()
-      data.forEach((entry) => {
-        map.set(entry[0], entry[1])
-      })
-      setFilteredResult(map)
-    }
+    //   const data = [...(filesUpload?.entries() ?? [])].filter((item) => {
+    //       let filterResult = false
+    //       try{
+    //         filterResult = item[1].file.name.trim().toLocaleLowerCase().includes(normalSearchTerm)
+    //       } catch(err){
+    //         return false
+    //       }
+    //       return filterResult
+    //   })
+    //   const map = new Map<string, {file: File, order: number}>()
+    //   data.forEach((entry) => {
+    //     map.set(entry[0], entry[1])
+    //   })
+    //   setFilteredResult(map)
+    // }
 
     function clearState(){
-      setFilesUpload(undefined)
-      setFilteredResult(undefined)
+      // setFilesUpload(undefined)
+      // setFilteredResult(undefined)
       setName('')
       setCover(null)
       setSubmitting(false)
       setProgress(undefined)
-      setSort(undefined)
+      // setSort(undefined)
       setLoaded(false)
       setSelectedTags([])
       onClose()
@@ -251,7 +244,7 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                       })
                     }
                 </div>
-                <div className="grid grid-cols-2 justify-items-center">
+                {/* <div className="grid grid-cols-2 justify-items-center">
                   <div className="flex flex-col items-center justify-center w-full h-full">
                     <Label className="self-start ms-[20%] font-medium text-lg" htmlFor="name">Upload:</Label>
                     <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-[75%] h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
@@ -298,9 +291,9 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                         )
                     })}
                   </div>
-                </div>
+                </div> */}
                 
-                <div className="relative flex flex-row items-center justify-between mt-6 border-b-gray-100 border-b">
+                {/* <div className="relative flex flex-row items-center justify-between mt-6 border-b-gray-100 border-b">
                     <div 
                       className="flex flex-row items-center gap-2" 
                       onMouseEnter={() => 
@@ -521,8 +514,8 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
                   </div>
                 ) : (
                   <span className=" italic text-sm ms-6">Upload files to preview them here!</span>
-                )}
-              </div>
+                )} */}
+              </div> 
               {progress ? (
                 <div className="flex flex-col gap-1 mt-2">
                   <Label className="ms-2 text-lg">Upload Progress</Label>

@@ -64,7 +64,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                             watermarkPath: collection.data.watermarkPath ?? undefined,
                             downloadable: collection.data.downloadable ?? false,
                             //unnecessary
-                            paths: [],
+                            sets: [], //TODO: implement si for sets
                             tags: [],
                         }
                         return mappedCollection

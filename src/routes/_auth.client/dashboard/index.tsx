@@ -6,7 +6,7 @@ import PDFViewer from '../../../components/common/PDFViewer'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { useQueries } from '@tanstack/react-query'
-import { getCoverPathFromCollectionQueryOptions } from '../../../services/collectionService'
+import { getPathQueryOptions } from '../../../services/collectionService'
 
 interface PackagePDFModalProps {
     pdf: File,
@@ -53,7 +53,7 @@ function RouteComponent() {
 
   const collectionCovers = useQueries({
     queries: collections.map((collection) => 
-      getCoverPathFromCollectionQueryOptions(collection))
+      getPathQueryOptions(collection.coverPath ?? ''))
   })
 
   

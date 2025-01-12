@@ -1,30 +1,45 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { getAllPicturePathsQueryOptions, getCollectionByIdQueryOptions, getCoverPathFromCollectionQueryOptions, getWatermarkPathFromCollectionQueryOptions } from '../services/collectionService'
-import { PhotoCollection, PicturePath } from '../types'
+import { getAllPicturePathsByPhotoSetQueryOptions, getCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
+import { PhotoCollection, PhotoSet, PicturePath } from '../types'
 import { useEffect, useRef } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Button } from 'flowbite-react'
 
+interface PhotoCollectionParams {
+  set?: string
+}
+//TODO: fix me
 export const Route = createFileRoute('/_auth/photo-collection/$id')({
   component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): PhotoCollectionParams => ({
+    set: (search.set as string) || undefined
+  }),
+  beforeLoad: ({ search }) => search,
   loader: async ({ context, params }) => {
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(!params.id) throw redirect({ to: destination })
     const collection = await context.queryClient.ensureQueryData(getCollectionByIdQueryOptions(params.id))
-    if(!collection) throw redirect({ to: destination })
-    const coverUrl = (await context.queryClient.ensureQueryData(getCoverPathFromCollectionQueryOptions(collection)))?.[1]
-    const watermarkUrl = (await context.queryClient.ensureQueryData(getWatermarkPathFromCollectionQueryOptions(collection)))?.[1]
-    const paths = (await context.queryClient.ensureQueryData(getAllPicturePathsQueryOptions(collection.id)))
+    if(!collection || collection.sets.length === 0) throw redirect({ to: destination })
+    const set = collection.sets.find((set) => set.id === context.set)
+    const coverUrl = (await context.queryClient.ensureQueryData(getPathQueryOptions(set?.coverPath ?? collection.sets[0].coverPath)))?.[1]
+    const watermarkUrl = collection.watermarkPath ?  (await context.queryClient.ensureQueryData(getPathQueryOptions(set?.watermarkPath ?? collection.watermarkPath)))?.[1] : undefined
+    const paths = (await context.queryClient.ensureQueryData(getAllPicturePathsByPhotoSetQueryOptions(set?.id ?? collection.sets[0].id)))
+    if(!coverUrl) throw redirect({ to: destination })
 
     const mappedCollection: PhotoCollection = {
       ...collection,
-      coverPath: coverUrl,
       watermarkPath: watermarkUrl,
-      paths: paths ?? []
+    }
+
+    const mappedSet: PhotoSet = {
+      ...(set ?? collection.sets[0]),
+      coverPath: coverUrl,
+      paths: paths ?? [],
     }
 
     return {
       collection: mappedCollection,
+      set: mappedSet,
       auth: context.auth
     }
   },
@@ -34,11 +49,9 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
 function RouteComponent() {
   const data = Route.useLoaderData()
   const collection = data.collection
+  const set = data.set
 
-  const coverPath = {
-    url: collection.coverPath ??
-      (collection.paths.length > 0 ? collection.paths[0].url : undefined) 
-  }
+  const coverPath = { url: set.coverPath }
 
   const navigate = useNavigate()
   const coverPhotoRef = useRef<HTMLImageElement | null>(null)
@@ -58,7 +71,7 @@ function RouteComponent() {
   }
 
   let curIndex = 0
-  collection.paths
+  set.paths
     .sort((a, b) => a.order - b.order)
     .forEach((picture) => {
       formattedCollection[curIndex].push(picture)
