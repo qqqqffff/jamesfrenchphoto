@@ -32,6 +32,7 @@ interface GetAllCollectionsOptions {
     siSets: boolean
 }
 async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAllCollectionsOptions): Promise<PhotoCollection[]> {
+    console.log('api call')
     const mappedCollections: PhotoCollection[] = await Promise.all(
         (await client.models.PhotoCollection.list()).data.map(async (collection) => {
             const setsResponse = await collection.sets()
@@ -72,6 +73,8 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
                 watermarkPath: collection.watermarkPath ?? undefined,
                 tags: mappedTags,
                 sets: mappedSets,
+                items: collection.items ?? 0,
+                published: collection.published ?? false,
             }
 
             return mappedCollection
@@ -113,6 +116,8 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
                 downloadable: collectionResponse.data.downloadable ?? false,
                 watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
                 tags: tags,
+                items: collectionResponse.data.items ?? 0,
+                published: collectionResponse.data.published ?? false,
                 //unnecessary
                 sets: [], //TODO: implement me
             }
@@ -134,6 +139,7 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
 }
 
 async function getAllWatermarkObjects(client: V6Client<Schema>): Promise<Watermark[]> {
+    console.log('api call')
     const watermarksResponse = await client.models.Watermark.list()
     return Promise.all(watermarksResponse
         .data.map(async (watermark) => {
@@ -150,6 +156,7 @@ async function getAllWatermarkObjects(client: V6Client<Schema>): Promise<Waterma
 }
 
 async function getPathsDataMapFromPaths(paths: PicturePath[]): Promise<Map<string,  {file: File, order: number}>>{
+    console.log('api call')
     const map = new Map<string,  {file: File, order: number}>()
 
     const mappedFiles: Record<string,  {file: File, order: number}> = Object.fromEntries((await Promise.all(paths.map(async (path) => {
@@ -170,12 +177,14 @@ async function getPathsDataMapFromPaths(paths: PicturePath[]): Promise<Map<strin
 }
 
 async function getPath(path: string, id?: string): Promise<[string | undefined, string] | undefined> {
+    console.log('api call')
     return [id, (await getUrl({
         path: path
     })).url.toString()]
 }
 
 async function getCollectionById(collectionId: string): Promise<PhotoCollection | undefined> {
+    console.log('api call')
     const collection = await client.models.PhotoCollection.get({ id: collectionId })
     if(!collection || !collection.data) return
     const mappedCollection: PhotoCollection = {
@@ -183,9 +192,11 @@ async function getCollectionById(collectionId: string): Promise<PhotoCollection 
         watermarkPath: collection.data.watermarkPath ?? undefined,
         downloadable: collection.data.downloadable ?? false,
         coverPath: collection.data.coverPath ?? undefined,
+        items: collection.data.items ?? 0,
+        published: collection.data.published ?? false,
         //TODO: implement me
         sets: [],
-        tags: []
+        tags: [],
     }
     return mappedCollection
 }
@@ -201,9 +212,11 @@ export interface CreateCollectionParams {
     setProgress: (progress: number) => void
 }
 export async function createCollectionMutation(params: CreateCollectionParams) {
+    console.log('api call')
     const collectionResponse = await client.models.PhotoCollection.create({
         name: params.name,
         downloadable: params.downloadable,
+        items: 0
     })
     if(params.options?.logging) console.log(collectionResponse)
 
@@ -265,14 +278,16 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
         tags: params.tags,
         downloadable: params.downloadable,
         watermarkPath: undefined,
-        sets: []
+        sets: [],
+        items: collectionResponse.data.items ?? 0,
+        published: collectionResponse.data.published ?? false
     }
 
     return returnedCollection
 }
 
 export interface UploadImagesMutationParams {
-    collectionId: string,
+    collection: PhotoCollection,
     set: PhotoSet,
     files: Map<string, File>
     progressStep: (progress: number) => void,
@@ -281,11 +296,12 @@ export interface UploadImagesMutationParams {
     }
 }
 export async function uploadImagesMutation(params: UploadImagesMutationParams){
-    (await Promise.all(
+    console.log('api call')
+    const response = (await Promise.all(
         (await Promise.all(
             [...params.files.values()].map(async (file, index, arr) => {
                 const result = await uploadData({
-                    path: `photo-collections/${params.collectionId}/${params.set.id}/${v4()}_${file.name}`,
+                    path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.name}`,
                     data: file,
                     options: {
                         onProgress: (event) => {
@@ -303,8 +319,17 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
                 setId: params.set.id,
             })
             if(params.options?.logging) console.log(response)
+            if(!response || !response.data || response.errors !== undefined) return false
+            return true
         })
-    ))
+    )).filter((item) => item).length
+
+    const updateCollectionItemsResponse = await client.models.PhotoCollection.update({
+        id: params.collection.id,
+        items: response + params.collection.items
+    })
+
+    if(params.options?.logging) console.log(updateCollectionItemsResponse)
 }
 
 export interface UpdateCollectionParams extends CreateCollectionParams {

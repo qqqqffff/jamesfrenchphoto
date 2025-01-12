@@ -24,7 +24,8 @@ const schema = a.schema({
       sets: a.hasMany('PhotoSet', 'collectionId'),
       watermarkPath: a.string(),
       downloadable: a.boolean().default(false),
-      items: a.integer(),
+      items: a.integer().default(0),
+      published: a.boolean().default(false),
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),

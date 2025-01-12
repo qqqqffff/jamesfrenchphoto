@@ -2,7 +2,7 @@ import { Button, Label, Modal, Tooltip } from "flowbite-react"
 import { FC, FormEvent, useState } from "react"
 import { HiOutlineXMark } from "react-icons/hi2"
 import { ModalProps } from "."
-import { PhotoSet } from "../../types";
+import { PhotoCollection, PhotoSet } from "../../types";
 import { formatFileSize } from "../../utils";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -11,7 +11,7 @@ import { uploadImagesMutation, UploadImagesMutationParams } from "../../services
 
 
 interface UploadImagesProps extends ModalProps {
-    collectionId: string,
+    collection: PhotoCollection,
     set: PhotoSet;
     onSubmit: () => void,
     progressStep: (progress: number) => void
@@ -41,7 +41,7 @@ const Row: FC<RowProps> = ({ index, data, style }) => {
     )
 }
 
-export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collectionId, set, onSubmit, progressStep }) => {
+export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collection, set, onSubmit, progressStep }) => {
     const [filesUpload, setFilesUpload] = useState<Map<string, File> | undefined>()
 
     const uploadImages = useMutation({
@@ -55,7 +55,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
         //TODO: preform form validation
         if(filesUpload) {
             uploadImages.mutate({
-                collectionId: collectionId,
+                collection: collection,
                 set: set,
                 files: filesUpload,
                 progressStep: progressStep,

@@ -60,19 +60,6 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
 
     return (
         <>
-            <CreateCollectionModal
-                availableTags={availableTags}
-                onSubmit={(collection) => {
-                    if(collection){
-                        setSelectedCollection(collection)
-                    }
-                    else{
-                        //TODO: error handle
-                    }
-                }}
-                onClose={() => setCreateCollectionVisible(false)}
-                open={createCollectionVisible}
-            />
             <TextInput
                 className="self-center w-[80%]"
                 theme={textInputTheme}
