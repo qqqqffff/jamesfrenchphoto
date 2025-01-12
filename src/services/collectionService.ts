@@ -3,8 +3,9 @@ import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
-import { downloadData, getUrl, remove } from "aws-amplify/storage";
+import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
+import { v4 } from 'uuid'
 
 const client = generateClient<Schema>()
 
@@ -268,6 +269,42 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
     }
 
     return returnedCollection
+}
+
+export interface UploadImagesMutationParams {
+    collectionId: string,
+    set: PhotoSet,
+    files: Map<string, File>
+    progressStep: (progress: number) => void,
+    options?: {
+        logging: boolean
+    }
+}
+export async function uploadImagesMutation(params: UploadImagesMutationParams){
+    (await Promise.all(
+        (await Promise.all(
+            [...params.files.values()].map(async (file, index, arr) => {
+                const result = await uploadData({
+                    path: `photo-collections/${params.collectionId}/${params.set.id}/${v4()}_${file.name}`,
+                    data: file,
+                    options: {
+                        onProgress: (event) => {
+                            params.progressStep((index + (event.transferredBytes / file.size)) / (arr.length - 1))
+                        }
+                    }
+                }).result
+                if(params.options?.logging) console.log(result)
+                return result.path
+            })
+        )).map(async (path, index) => {
+            const response = await client.models.PhotoPaths.create({
+                path: path,
+                order: index + params.set.paths.length,
+                setId: params.set.id,
+            })
+            if(params.options?.logging) console.log(response)
+        })
+    ))
 }
 
 export interface UpdateCollectionParams extends CreateCollectionParams {

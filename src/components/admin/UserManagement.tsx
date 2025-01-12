@@ -101,7 +101,7 @@ export default function UserManagement(){
                         downloadable: collectionData.downloadable ?? false, 
                         watermarkPath: collectionData.watermarkPath ?? undefined,
                         tags: [],
-                        paths: [],
+                        sets: [],
                     }
                     return collection
                 }))).filter((item) => item !== undefined)

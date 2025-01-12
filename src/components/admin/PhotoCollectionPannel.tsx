@@ -2,18 +2,18 @@ import { FC, useState } from "react"
 import { UserTag, Watermark, PhotoCollection } from "../../types"
 import { useQueries, useQuery } from "@tanstack/react-query"
 import PhotoSetPannel from "./PhotoSetPannel"
-import { Progress } from "flowbite-react"
+import { Progress, TextInput } from "flowbite-react"
 import { ControlComponent } from "./ControlPannel"
 import { CreateCollectionModal } from "../modals"
-import { getAllPhotoCollectionsQueryOptions, getPathQueryOptions } from "../../services/collectionService"
+import { getAllPhotoCollectionsQueryOptions, getAllPicturePathsByPhotoSetQueryOptions, getPathQueryOptions } from "../../services/collectionService"
+import { textInputTheme } from "../../utils"
 
-interface EventPannelProps {
-    event: Event
+interface PhotoCollectionPannelProps {
     watermarkObjects: Watermark[],
     availableTags: UserTag[],
 }
 
-const component: FC<EventPannelProps> = ({ event, watermarkObjects, availableTags, }) => {
+const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, }) => {
     const collections = useQuery(getAllPhotoCollectionsQueryOptions({ siTags: false, siSets: false }))
     const coverPaths = useQueries({
         queries: (collections.data ?? [])
@@ -24,7 +24,39 @@ const component: FC<EventPannelProps> = ({ event, watermarkObjects, availableTag
     })
     const [selectedCollection, setSelectedCollection] = useState<PhotoCollection>()
 
+    const paths = useQuery(getAllPicturePathsByPhotoSetQueryOptions(selectedCollection?.sets[0].id))
+
+
     const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
+
+    const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
+
+    function filterItems(term: string): undefined | void {
+        if (!term || !collections.data || collections.data.length <= 0) {
+          setFilteredItems(undefined)
+          return
+        }
+    
+        const normalSearchTerm = term.trim().toLocaleLowerCase()
+    
+        const data: PhotoCollection[] = collections.data
+          .filter((item) => {
+            let filterResult = false
+            try {
+              filterResult = item.name
+                .trim()
+                .toLocaleLowerCase()
+                .includes(normalSearchTerm)
+            } catch (err) {
+              return false
+            }
+            return filterResult
+          })
+          .filter((item) => item !== undefined)
+    
+        console.log(data)
+        setFilteredItems(data)
+    }
 
     return (
         <>
@@ -40,6 +72,13 @@ const component: FC<EventPannelProps> = ({ event, watermarkObjects, availableTag
                 }}
                 onClose={() => setCreateCollectionVisible(false)}
                 open={createCollectionVisible}
+            />
+            <TextInput
+                className="self-center w-[80%]"
+                theme={textInputTheme}
+                sizing="sm"
+                placeholder="Search"
+                onChange={(event) => filterItems(event.target.value)}
             />
             {
                 !selectedCollection ? (
@@ -58,22 +97,47 @@ const component: FC<EventPannelProps> = ({ event, watermarkObjects, availableTag
                                 </div>
                             ) : (
                                 collections.data && collections.data.length > 0 ? (
-                                    collections.data.map((collection, index) => {
-                                        return (
-                                            <button 
-                                                className="flex flex-row justify-center items-center relative rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] hover:bg-gray-300 hover:text-gray-500"
-                                                onClick={() => {
-                                                    setSelectedCollection(collection)
-                                                }}
-                                                key={index}
-                                            >
-                                                <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
-                                                    <p className={`font-thin opacity-90 text-2xl`}>{collection.name}</p>
-                                                </div>
-                                                <img src={coverPaths.find((path) => path.data?.[0] === collection.id)?.data?.[1]} className="max-h-[240px] max-w-[360px]"/>
-                                            </button>
+                                    filteredItems ? (
+                                        filteredItems.length > 0 ? (
+                                            filteredItems.map((collection, index) => {
+                                                return (
+                                                    <button 
+                                                        className="flex flex-row justify-center items-center relative rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] hover:bg-gray-300 hover:text-gray-500"
+                                                        onClick={() => {
+                                                            setSelectedCollection(collection)
+                                                        }}
+                                                        key={index}
+                                                    >
+                                                        <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
+                                                            <p className={`font-thin opacity-90 text-2xl`}>{collection.name}</p>
+                                                        </div>
+                                                        <img src={coverPaths.find((path) => path.data?.[0] === collection.id)?.data?.[1]} className="max-h-[240px] max-w-[360px]"/>
+                                                    </button>
+                                                )
+                                            })
+                                        ) : (
+                                            <div className="self-center col-start-2 flex flex-row items-center justify-center">
+                                                <span >No results yet!</span>
+                                            </div>
                                         )
-                                    })
+                                    ) : (
+                                        collections.data.map((collection, index) => {
+                                            return (
+                                                <button 
+                                                    className="flex flex-row justify-center items-center relative rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] hover:bg-gray-300 hover:text-gray-500"
+                                                    onClick={() => {
+                                                        setSelectedCollection(collection)
+                                                    }}
+                                                    key={index}
+                                                >
+                                                    <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
+                                                        <p className={`font-thin opacity-90 text-2xl`}>{collection.name}</p>
+                                                    </div>
+                                                    <img src={coverPaths.find((path) => path.data?.[0] === collection.id)?.data?.[1]} className="max-h-[240px] max-w-[360px]"/>
+                                                </button>
+                                            )
+                                        })
+                                    )
                                 ) : (
                                     <div className="self-center col-start-2 flex flex-row items-center justify-center">
                                         <span >No collections yet!</span>
@@ -93,6 +157,7 @@ const component: FC<EventPannelProps> = ({ event, watermarkObjects, availableTag
                         watermarkObjects={watermarkObjects} 
                         availableTags={availableTags} 
                         removeActiveCollection={() => setSelectedCollection(undefined)}
+                        photoPaths={paths.data ?? []}
                     />
                 )
                 
