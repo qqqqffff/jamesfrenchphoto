@@ -102,6 +102,8 @@ export default function UserManagement(){
                         watermarkPath: collectionData.watermarkPath ?? undefined,
                         tags: [],
                         sets: [],
+                        items: 0,
+                        published: false
                     }
                     return collection
                 }))).filter((item) => item !== undefined)

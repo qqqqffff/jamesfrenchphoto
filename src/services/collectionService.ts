@@ -183,10 +183,38 @@ async function getPath(path: string, id?: string): Promise<[string | undefined, 
     })).url.toString()]
 }
 
-async function getCollectionById(collectionId: string): Promise<PhotoCollection | undefined> {
+interface GetPhotoCollectionByIdOptions {
+    siTags: boolean,
+    siSets: boolean,
+}
+async function getCollectionById(collectionId: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | undefined> {
     console.log('api call')
     const collection = await client.models.PhotoCollection.get({ id: collectionId })
     if(!collection || !collection.data) return
+    const sets: PhotoSet[] = []
+    if(!options || options.siSets){
+        sets.push(...(await collection.data.sets()).data.map((set) => {
+            const mappedSet: PhotoSet = {
+                ...set,
+                coverText: undefined, //TODO: implement me
+                watermarkPath: set.watermarkPath ?? undefined,
+                paths: [],
+            }
+            return mappedSet
+        }))
+    }
+    const tags: UserTag[] = []
+    if(!options || options.siTags){
+        tags.push(...(await Promise.all((await collection.data.tags()).data.map(async (colTag) => {
+            const tag = (await colTag.tag()).data
+            if(!tag) return
+            const mappedTag: UserTag = {
+                ...tag,
+                color: tag.color ?? undefined,
+            }
+            return mappedTag
+        }))).filter((tag) => tag !== undefined))
+    }
     const mappedCollection: PhotoCollection = {
         ...collection.data,
         watermarkPath: collection.data.watermarkPath ?? undefined,
@@ -194,9 +222,8 @@ async function getCollectionById(collectionId: string): Promise<PhotoCollection 
         coverPath: collection.data.coverPath ?? undefined,
         items: collection.data.items ?? 0,
         published: collection.data.published ?? false,
-        //TODO: implement me
-        sets: [],
-        tags: [],
+        sets: sets,
+        tags: tags,
     }
     return mappedCollection
 }
@@ -514,6 +541,32 @@ export async function deleteCollectionMutation(params: DeleteCollectionParams) {
     if(params.options?.logging) console.log(response)
 }
 
+export interface CreateSetParams {
+    collection: PhotoCollection,
+    name: string,
+    options?: {
+        logging: boolean
+    }
+}
+export async function createSetMutation(params: CreateSetParams) {
+    const response = await client.models.PhotoSet.create({
+        collectionId: params.collection.id,
+        name: params.name,
+        coverPath: '',
+        order: params.collection.sets.length,
+    })
+    if(params.options?.logging) console.log(response)
+    if(!response || !response.data) return
+    const mappedSet: PhotoSet = {
+        id: response.data.id,
+        coverPath: '',
+        paths: [],
+        order: params.collection.sets.length,
+        name: params.collection.name,
+    }
+    return mappedSet
+}
+
 export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string) => queryOptions({
     queryKey: ['photoPaths', client, setId],
     queryFn: () => getAllPicturePathsByPhotoSet(client, setId),
@@ -542,9 +595,9 @@ export const getPathQueryOptions = (path: string, id?: string) => queryOptions({
     queryFn: () => getPath(path, id)
 })
 
-export const getCollectionByIdQueryOptions = (collectionId: string) => queryOptions({
-    queryKey: ['photoCollection', client, collectionId],
-    queryFn: () => getCollectionById(collectionId)
+export const getPhotoCollectionByIdQueryOptions = (collectionId: string, options?: GetPhotoCollectionByIdOptions) => queryOptions({
+    queryKey: ['photoCollection', client, collectionId, options],
+    queryFn: () => getCollectionById(collectionId, options)
 })
 
 export const getAllPhotoCollectionsQueryOptions = (options?: GetAllCollectionsOptions) => queryOptions({

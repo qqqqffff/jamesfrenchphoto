@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { getAllPicturePathsByPhotoSetQueryOptions, getCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
+import { getAllPicturePathsByPhotoSetQueryOptions, getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
 import { PhotoCollection, PhotoSet, PicturePath } from '../types'
 import { useEffect, useRef } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
   loader: async ({ context, params }) => {
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(!params.id) throw redirect({ to: destination })
-    const collection = await context.queryClient.ensureQueryData(getCollectionByIdQueryOptions(params.id))
+    const collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(params.id))
     if(!collection || collection.sets.length === 0) throw redirect({ to: destination })
     const set = collection.sets.find((set) => set.id === context.set)
     const coverUrl = (await context.queryClient.ensureQueryData(getPathQueryOptions(set?.coverPath ?? collection.sets[0].coverPath)))?.[1]

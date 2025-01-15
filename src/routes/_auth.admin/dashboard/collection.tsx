@@ -1,8 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
   getAllPhotoCollectionsQueryOptions,
   getAllWatermarkObjectsQueryOptions,
   getPathQueryOptions,
+  getPhotoCollectionByIdQueryOptions,
 } from '../../../services/collectionService'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import PhotoCollectionPannel from '../../../components/admin/PhotoCollectionPannel'
@@ -15,25 +16,38 @@ import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
 import CollectionThumbnail from '../../../components/admin/CollectionThumbnail'
 
+interface CollectionSearchParams {
+  collection?: string,
+}
+
 export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): CollectionSearchParams => ({
+    collection: (search.collection as string) || undefined
+  }),
+  beforeLoad: ({ search }) => search,
   loader: async ({ context }) => {
     const availableTags = await context.queryClient.ensureQueryData(getAllUserTagsQueryOptions({ siCollections: false }))
     const watermarkObjects = await context.queryClient.ensureQueryData(getAllWatermarkObjectsQueryOptions())
-
+    let collection: PhotoCollection | undefined
+    if(context.collection){
+      collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(context.collection))
+    }
     return {
       availableTags,
-      watermarkObjects
+      watermarkObjects,
+      collection,
     }
   }
 })
 
 function RouteComponent() {
-  const { availableTags, watermarkObjects} = Route.useLoaderData()
+  const { availableTags, watermarkObjects, collection } = Route.useLoaderData()
+  const navigate = useNavigate()
 
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
   const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
-  const [selectedCollection, setSelectedCollection] = useState<PhotoCollection>()
+  const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>(collection)
 
   const collections = useQuery(getAllPhotoCollectionsQueryOptions({siTags: false, siSets: false}))
   const coverPaths = useQueries({
@@ -101,18 +115,6 @@ function RouteComponent() {
         open={deleteConfirmationVisible}
         onClose={() => setDeleteConfirmationVisible(false)}
       /> */}
-      {/* <div className="flex flex-col ms-5 border border-gray-400 rounded-2xl p-2">
-          <button
-            className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer"
-            onClick={() => {}}
-          >
-            <span className="text-xl ms-4 mb-1">Create New Event</span>
-            <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2" />
-          </button>
-
-          <div className="w-full border border-gray-200 my-2"></div>
-
-        </div> */}
       {!selectedCollection ? (
         <div className="flex flex-col w-full items-center justify-center mt-2">
           <div className="w-[80%] flex flex-col">
@@ -155,7 +157,10 @@ function RouteComponent() {
                             <CollectionThumbnail 
                               collection={collection}
                               coverPath={coverPaths.find((path) => path.data?.[0] === collection.id)?.data?.[1]}
-                              onClick={() => setSelectedCollection(collection)}
+                              onClick={() => {
+                                navigate({to: '.', search: { collection: collection.id }})
+                                setSelectedCollection(collection)
+                              }}
                               key={index}
                             />
                           )
@@ -173,7 +178,10 @@ function RouteComponent() {
                           <CollectionThumbnail 
                             collection={collection}
                             coverPath={coverPaths.find((path) => path.data?.[0] === collection.id)?.data?.[1]}
-                            onClick={() => setSelectedCollection(collection)}
+                            onClick={() => {
+                              navigate({to: '.', search: { collection: collection.id }})
+                              setSelectedCollection(collection)
+                            }}
                             key={index}
                           />
                         )
@@ -190,6 +198,8 @@ function RouteComponent() {
         </div>
       ) : (
         <PhotoCollectionPannel 
+          coverPath={coverPaths.find((path) => path.data?.[0] === selectedCollection.id)?.data?.[1]}
+          collection={selectedCollection}
           watermarkObjects={watermarkObjects}
           availableTags={availableTags}
         />

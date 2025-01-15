@@ -5,7 +5,7 @@ import { Tooltip } from "flowbite-react"
 interface CollectionThumbnailProps {
     collection: PhotoCollection,
     coverPath?: string,
-    onClick: () => void,
+    onClick?: () => void,
     key?: Key
 }
 
@@ -13,8 +13,8 @@ const component: FC<CollectionThumbnailProps> = ({ collection, coverPath, onClic
     return (
         <div className="flex flex-col">
             <button 
-                className="flex flex-row relative justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] hover:bg-gray-300 hover:text-gray-500"
-                onClick={() => onClick()}
+                className={`flex flex-row relative justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] ${onClick !== undefined ? 'hover:bg-gray-300 hover:text-gray-500' : 'pointer-events-none cursor-default'}`}
+                onClick={() => {if(onClick !== undefined) onClick()}}
                 key={key}
             >
                 {coverPath ? (
