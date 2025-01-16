@@ -1,12 +1,8 @@
 import { FC, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../types"
-import { useMutation, useQueries, useQuery } from "@tanstack/react-query"
-import PhotoSetPannel from "./PhotoSetPannel"
-import { Button, Label, Progress, TextInput } from "flowbite-react"
-import { ControlComponent } from "./ControlPannel"
-import { CreateCollectionModal } from "../modals"
-import { createSetMutation, CreateSetParams, getAllPhotoCollectionsQueryOptions, getAllPicturePathsByPhotoSetQueryOptions, getPathQueryOptions } from "../../services/collectionService"
-import { textInputTheme } from "../../utils"
+import { useMutation } from "@tanstack/react-query"
+import { Button, Label } from "flowbite-react"
+import { createSetMutation, CreateSetParams } from "../../services/collectionService"
 import CollectionThumbnail from "./CollectionThumbnail"
 import { HiOutlineCheckCircle, HiOutlinePlusCircle, HiOutlineXCircle } from "react-icons/hi2"
 import { HiOutlineMenu } from "react-icons/hi"
@@ -65,14 +61,10 @@ const CreateSetComponent: FC<CreateSetComponentParams> = ({ collection, callback
 }
 
 const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, coverPath, collection }) => {
-    const [activeSet, setActiveSet] = useState<PhotoSet | undefined>(collection.sets[0])
-    const paths = useQuery(getAllPicturePathsByPhotoSetQueryOptions(activeSet?.id))
-
     const [createSetVisible, setCreateSetVisible] = useState(false)
     
     return (
         <>
-
             <div className="grid grid-cols-3 mx-4 mt-4">
                 <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px]">
                     <CollectionThumbnail 

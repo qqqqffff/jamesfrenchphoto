@@ -44,6 +44,8 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                     sets: [], //TODO: implement me
                     downloadable: photoCollection.downloadable ?? false,
                     watermarkPath: photoCollection.watermarkPath ?? undefined,
+                    items: 0,
+                    published: false
                 }
                 return mappedCollection
             })

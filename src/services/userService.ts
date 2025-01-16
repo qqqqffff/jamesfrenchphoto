@@ -1,7 +1,7 @@
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from "../../amplify/data/resource";
-import { Participant, PhotoCollection, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { Participant, PhotoCollection, PhotoSet, Timeslot, UserData, UserProfile, UserTag } from "../types";
 import { getAllCollectionsFromUserTags } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
@@ -39,7 +39,8 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
 interface GetUserProfileByEmailOptions {
     siTags?: boolean,
     siTimeslot?: boolean,
-    siCollections?: boolean
+    siCollections?: boolean,
+    siSets?: boolean
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     console.log('api call')
@@ -58,13 +59,27 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                     mappedCollections.push(...(await Promise.all((await tagResponse.data.collectionTags()).data.map(async (colTag) => {
                         const collection = await colTag.collection()
                         if(!collection || !collection.data) return
+                        const sets: PhotoSet[] = []
+                        if(!options || options.siSets){
+                            sets.push(...(await collection.data.sets()).data.map((set) => {
+                                const mappedSet: PhotoSet = {
+                                    ...set,
+                                    watermarkPath: set.watermarkPath ?? undefined,
+                                    coverText: undefined, //TODO: implement me
+                                    paths: [],
+                                }
+                                return mappedSet
+                            }))
+                        }
                         const mappedCollection: PhotoCollection = {
                             ...collection.data,
                             coverPath: collection.data.coverPath ?? undefined,
                             watermarkPath: collection.data.watermarkPath ?? undefined,
                             downloadable: collection.data.downloadable ?? false,
+                            items: collection.data.items ?? 0,
+                            published: collection.data.published ?? false,
                             //unnecessary
-                            sets: [], //TODO: implement si for sets
+                            sets: sets,
                             tags: [],
                         }
                         return mappedCollection
