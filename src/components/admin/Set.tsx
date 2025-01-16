@@ -1,138 +1,148 @@
-import { attachClosestEdge, extractClosestEdge, type Edge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge'
-import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine'
-import { FC, HTMLAttributes, useEffect, useRef, useState } from 'react'
-import { PhotoSet } from '../../types'
-import { invariant } from '@tanstack/react-router'
 import {
-    draggable,
-    dropTargetForElements,
-  } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+  draggable,
+  dropTargetForElements,
+} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
 import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview';
-import { HiOutlineMenu } from 'react-icons/hi'
-import DropIndicator from '../common/DropIndicator'
-import { createPortal } from 'react-dom'
+import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
+import { FC, type HTMLAttributes, useEffect, useRef, useState } from 'react';
+import invariant from 'tiny-invariant';
+import { createPortal } from 'react-dom';
+import {
+  attachClosestEdge,
+  type Edge,
+  extractClosestEdge,
+} from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
+import { getSetData, isSetData } from './SetData';
+import { DropIndicator } from '../common/DropIndicator';
+import { HiOutlineMenu } from 'react-icons/hi';
+import { PhotoSet } from '../../types';
 
-type SetState = |
-{
-    type: 'idle'
-} | {
-    type: 'preview'
-    container: HTMLElement,
-} | {
-    type: 'is-dragging'
-} | {
-    type: 'is-dragging-over',
-    closestEdge: Edge | null,
-}
+type SetState =
+  | {
+      type: 'idle';
+    }
+  | {
+      type: 'preview';
+      container: HTMLElement;
+    }
+  | {
+      type: 'is-dragging';
+    }
+  | {
+      type: 'is-dragging-over';
+      closestEdge: Edge | null;
+    };
 
-const stateStyle: { [Key in SetState['type']]?: HTMLAttributes<HTMLDivElement>['className'] } = {
-    'is-dragging': 'opacity-40'
-}
+const stateStyles: { [Key in SetState['type']]?: HTMLAttributes<HTMLDivElement>['className'] } = {
+  'is-dragging': 'opacity-40',
+};
 
-const idle: SetState = { type: 'idle' }
+const idle: SetState = { type: 'idle' };
 
-function isSetData(data: Record<string | symbol, unknown>): data is PhotoSet {
-    return data[Symbol('photoset')] === true
-}
+const component: FC<{set: PhotoSet}> = ({ set }) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [state, setState] = useState<SetState>(idle);
 
-const component: FC<{set: PhotoSet }> = ({ set }) => {
-    const ref = useRef<HTMLDivElement | null>(null)
-    const [state, setState] = useState<SetState>(idle)
-
-    useEffect(() => {
-        const element = ref.current
-        invariant(element)
-
-        return combine(
-            draggable({
-                element,
-                getInitialData() {
-                    return set
-                },
-                onGenerateDragPreview({ nativeSetDragImage }){
-                    setCustomNativeDragPreview({
-                        nativeSetDragImage,
-                        getOffset: pointerOutsideOfPreview({
-                            x: '16px',
-                            y: '8px'
-                        }),
-                        render({ container }) {
-                            setState({ type: 'preview', container })
-                        }
-                    })
-                },
-                onDragStart() {
-                    setState({ type: 'is-dragging' })
-                },
-                onDrop() {
-                    setState(idle)
-                },
+  useEffect(() => {
+    const element = ref.current;
+    invariant(element);
+    return combine(
+      draggable({
+        element,
+        getInitialData() {
+          return getSetData(set);
+        },
+        onGenerateDragPreview({ nativeSetDragImage }) {
+          setCustomNativeDragPreview({
+            nativeSetDragImage,
+            getOffset: pointerOutsideOfPreview({
+              x: '16px',
+              y: '8px',
             }),
-            dropTargetForElements({
-                element,
-                canDrop({ source }) {
-                    if(source.element === element){
-                        return false
-                    }
-                    return isSetData(source.data) 
-                },
-                getData({ input }) {
-                    const data = set
-                    return attachClosestEdge(data, {
-                        element,
-                        input,
-                        allowedEdges: ['top', 'bottom']
-                    })
-                },
-                getIsSticky(){
-                    return true
-                },
-                onDragEnter({ self }){
-                    const closestEdge = extractClosestEdge(self.data)
+            render({ container }) {
+              setState({ type: 'preview', container });
+            },
+          });
+        },
+        onDragStart() {
+          setState({ type: 'is-dragging' });
+        },
+        onDrop() {
+          setState(idle);
+        },
+      }),
+      dropTargetForElements({
+        element,
+        canDrop({ source }) {
+          // not allowing dropping on yourself
+          if (source.element === element) {
+            return false;
+          }
+          // only allowing tasks to be dropped on me
+          return isSetData(source.data);
+        },
+        getData({ input }) {
+          const data = getSetData(set);
+          return attachClosestEdge(data, {
+            element,
+            input,
+            allowedEdges: ['top', 'bottom'],
+          });
+        },
+        getIsSticky() {
+          return true;
+        },
+        onDragEnter({ self }) {
+          const closestEdge = extractClosestEdge(self.data);
+          setState({ type: 'is-dragging-over', closestEdge });
+        },
+        onDrag({ self }) {
+          const closestEdge = extractClosestEdge(self.data);
 
-                    setState((current) => {
-                        if(current.type === 'is-dragging-over' && current.closestEdge === closestEdge){
-                            return current
-                        }
-                        return { type: 'is-dragging-over', closestEdge }
-                    })
-                },
-                onDragLeave(){
-                    setState(idle)
-                },
-                onDrop(){
-                    setState(idle)
-                }
-            })
-        )
-    }, [set])
+          // Only need to update react state if nothing has changed.
+          // Prevents re-rendering.
+          setState((current) => {
+            if (current.type === 'is-dragging-over' && current.closestEdge === closestEdge) {
+              return current;
+            }
+            return { type: 'is-dragging-over', closestEdge };
+          });
+        },
+        onDragLeave() {
+          setState(idle);
+        },
+        onDrop() {
+          setState(idle);
+        },
+      }),
+    );
+  }, [set]);
 
-    return (
-        <>
-            <div className='relative'>
-                <div
-                    data-set-id={set.id}
-                    ref={ref}
-                    className={`flex text-sm bg-white flex-row items-center border border-solid rounded p-2 pl-0
-                         hover:bg-slate-100 hover:cursor-grab ${stateStyle[state.type] ?? ''}`}
-                >
-                    <div className="w-6 flex justify-center">
-                        <HiOutlineMenu size={10} />
-                    </div>
-                    <span className="truncate flex-grow flex-shrink">{set.name}</span>
-                    {state.type === 'is-dragging-over' && state.closestEdge && (
-                        <DropIndicator edge={state.closestEdge} gap={'8px'} />
-                    )}
-                </div>
-            </div>
-            {state.type === 'preview' && createPortal(<DragPreview set={set} />, state.container)}
-        </>
-    )
+  return (
+    <>
+      <div className="relative">
+        <div
+          data-task-id={set.id}
+          ref={ref}
+          className={`flex text-sm bg-white flex-row items-center border border-solid rounded p-2 pl-0 hover:bg-slate-100 hover:cursor-grab ${stateStyles[state.type] ?? ''}`}
+        >
+          <div className="w-6 flex justify-center">
+            <HiOutlineMenu size={10} />
+          </div>
+          <span className="truncate flex-grow flex-shrink">{set.name}</span>
+        </div>
+        {state.type === 'is-dragging-over' && state.closestEdge ? (
+          <DropIndicator edge={state.closestEdge} gap={'8px'} />
+        ) : null}
+      </div>
+      {state.type === 'preview' ? createPortal(<DragPreview set={set} />, state.container) : null}
+    </>
+  );
 }
 
-const DragPreview: FC<{set: PhotoSet}> = ({ set }) => {
-    return <div className="border-solid rounded p-2 bg-white">{set.name}</div>;
+function DragPreview({ set }: { set: PhotoSet }) {
+  return <div className="border-solid rounded p-2 bg-white">{set.name}</div>;
 }
 
 export default component

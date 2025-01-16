@@ -6,7 +6,7 @@ import { createSetMutation, CreateSetParams } from "../../services/collectionSer
 import CollectionThumbnail from "./CollectionThumbnail"
 import { HiOutlineCheckCircle, HiOutlinePlusCircle, HiOutlineXCircle } from "react-icons/hi2"
 import { HiOutlineMenu } from "react-icons/hi"
-import Set from './Set'
+import SetList from "./SetList"
 
 interface PhotoCollectionPannelProps {
     watermarkObjects: Watermark[],
@@ -22,7 +22,7 @@ interface CreateSetComponentParams {
     close: () => void
 }
 
-const CreateSetComponent: FC<CreateSetComponentParams> = ({ collection, callback, close, order }) => {
+const CreateSetComponent: FC<CreateSetComponentParams> = ({ collection, callback, close }) => {
     const [name, setName] = useState<string>('')
     const [loading, setLoading] = useState(false)
 
@@ -82,12 +82,8 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                         </button>
                     </div>
                     <div className="border w-full"></div>
-                    <div className="rounded-2xl border border-gray-400 w-full">
-                        {collection.sets.map((set, index) => {
-                            return (
-                                <Set set={set} key={index}/>
-                            )
-                        })}
+                    <div className="w-full">
+                        <SetList setList={collection.sets} />
                         {createSetVisible && (
                             <CreateSetComponent 
                                 collection={collection}
