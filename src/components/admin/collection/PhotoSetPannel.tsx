@@ -15,6 +15,7 @@ import useWindowDimensions from "../../../hooks/windowDimensions";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { deleteImagesMutation, DeleteImagesMutationParams, getAllPicturePathsByPhotoSetQueryOptions, reorderPathsMutation, ReorderPathsParams, updateSetMutation, UpdateSetParams } from "../../../services/photoSetService";
 import { DynamicStringEnumKeysOf } from "../../../utils";
+import UploadImagePlaceholder from "./UploadImagePlaceholder";
 
 export type PhotoCollectionProps = {
     photoCollection: PhotoCollection;
@@ -42,7 +43,10 @@ interface RowProps extends GridChildComponentProps {
 
 const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
     const index = columnIndex + 4 * rowIndex
-    if(!data.data[index]) return
+    if(!data.data[index]) {
+        if(data.data[index - 1] !== undefined || index == 0) return (<UploadImagePlaceholder />)
+        return undefined
+    }
     const coverSelected = data.parseName(data.data[index].path) === data.parseName(data.cover ?? '')
     const coverSelectedStyle = `${coverSelected ? 'fill-yellow-300' : ''}`
 
@@ -158,7 +162,7 @@ const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
 const component: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, watermarkObjects }) => {
     const photoPaths = useQuery(getAllPicturePathsByPhotoSetQueryOptions(photoSet.id))
 
-    const [picturePaths, setPicturePaths] = useState(photoPaths.data)
+    const [picturePaths, setPicturePaths] = useState(photoPaths.data ?? [])
     const [pictureCollection, setPictureCollection] = useState(photoCollection)
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>(([] as string[]))
     const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
@@ -224,7 +228,7 @@ const component: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, waterm
                         <Alert color={notification.color} className="text-lg w-[90%] absolute" onDismiss={() => setNotification(undefined)}>{notification.text}</Alert>
                     )}
                 </div>
-                {picturePaths && (picturePaths ?? []).length > 0 ? (
+                {picturePaths ? (
                     <AutoSizer className='w-full self-center' style={{ minHeight: `${dimensions.height - 350}px`}}>
                         {({ height, width }: { height: number; width: number }) => {
                         return (
