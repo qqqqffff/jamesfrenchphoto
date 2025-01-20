@@ -6,7 +6,7 @@ import {
   getPhotoCollectionByIdQueryOptions,
 } from '../../../services/collectionService'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
-import PhotoCollectionPannel from '../../../components/admin/PhotoCollectionPannel'
+import PhotoCollectionPannel from '../../../components/admin/collection/PhotoCollectionPannel'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
 import { useState } from 'react'
@@ -14,7 +14,7 @@ import { PhotoCollection } from '../../../types'
 import { Progress, TextInput } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
-import CollectionThumbnail from '../../../components/admin/CollectionThumbnail'
+import CollectionThumbnail from '../../../components/admin/collection/CollectionThumbnail'
 
 interface CollectionSearchParams {
   collection?: string,
@@ -32,6 +32,8 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
     let collection: PhotoCollection | undefined
     if(context.collection){
       collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(context.collection))
+    }else{
+      collection = undefined
     }
     return {
       availableTags,
@@ -49,7 +51,7 @@ function RouteComponent() {
   const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
   const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>(collection)
 
-  const collections = useQuery(getAllPhotoCollectionsQueryOptions({siTags: false, siSets: false}))
+  const collections = useQuery(getAllPhotoCollectionsQueryOptions({siTags: false, siSets: true}))
   const coverPaths = useQueries({
     queries: (collections.data ?? [])
         .filter((collection) => collection.coverPath !== undefined)

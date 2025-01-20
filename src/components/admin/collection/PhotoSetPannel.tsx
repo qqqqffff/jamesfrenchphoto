@@ -1,8 +1,8 @@
 import { FC, useState } from "react"
-import { PhotoCollection, PicturePath, UserTag } from "../../types"
-import { ControlComponent } from "./ControlPannel";
+import { PhotoCollection, PicturePath, UserTag } from "../../../types"
+import { ControlComponent } from "../ControlPannel";
 import { generateClient } from "aws-amplify/api";
-import { Schema } from "../../../amplify/data/resource";
+import { Schema } from "../../../../amplify/data/resource";
 import { remove } from "aws-amplify/storage";
 import { 
     HiOutlineBarsArrowDown, 
@@ -11,11 +11,11 @@ import {
     HiOutlineStar
 } from "react-icons/hi2";
 import { Button, Tooltip } from "flowbite-react";
-import { CreateCollectionModal, WatermarkModal } from "../modals";
+import { CreateCollectionModal, WatermarkModal } from "../../modals";
 import { TbCircleLetterPFilled, TbCircleLetterLFilled } from "react-icons/tb";
 import { FixedSizeGrid, GridChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import useWindowDimensions from "../../hooks/windowDimensions";
+import useWindowDimensions from "../../../hooks/windowDimensions";
 import { useNavigate } from "@tanstack/react-router";
 
 export type PhotoCollectionProps = {

@@ -1,12 +1,14 @@
 import { FC, useState } from "react"
-import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../types"
-import { useMutation } from "@tanstack/react-query"
+import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../../types"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button, Label } from "flowbite-react"
-import { createSetMutation, CreateSetParams } from "../../services/collectionService"
+import { createSetMutation, CreateSetParams } from "../../../services/collectionService"
 import CollectionThumbnail from "./CollectionThumbnail"
 import { HiOutlineCheckCircle, HiOutlinePlusCircle, HiOutlineXCircle } from "react-icons/hi2"
 import { HiOutlineMenu } from "react-icons/hi"
 import SetList from "./SetList"
+import { CreateCollectionModal, WatermarkModal } from "../../modals"
+import { useRouter } from "@tanstack/react-router"
 
 interface PhotoCollectionPannelProps {
     watermarkObjects: Watermark[],
@@ -62,9 +64,45 @@ const CreateSetComponent: FC<CreateSetComponentParams> = ({ collection, callback
 
 const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, coverPath, collection }) => {
     const [createSetVisible, setCreateSetVisible] = useState(false)
+    const [watermarkVisible, setWatermarkVisible] = useState(false)
+    const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
+    const client = useQueryClient()
+    const router = useRouter()
     
     return (
         <>
+            <WatermarkModal 
+                collection={collection} 
+                onCollectionSubmit={(collection) => {
+                    if(collection){
+                        client.invalidateQueries({ queryKey: ['photoCollection']})
+                    }
+                } } 
+                onWatermarkUpload={(watermarks) => {
+                    if(watermarks) {
+                        client.invalidateQueries({
+                            queryKey: ['watermarks', 'photoCollection'],
+                        })
+                        router.invalidate()
+                    }
+                }} 
+                paths={[]} 
+                watermarks={watermarkObjects} 
+                open={watermarkVisible} 
+                onClose={() => setWatermarkVisible(false)} 
+            />
+            <CreateCollectionModal
+                collection={collection}
+                onSubmit={(collection) => {
+                    if(collection){
+                        client.invalidateQueries({ queryKey: ['photoPaths']})
+                        client.invalidateQueries({ queryKey: ['photoCollection']})
+                    }
+                }} 
+                availableTags={availableTags} 
+                open={updateCollectionVisible} 
+                onClose={() => setUpdateCollectionVisible(false)}
+            />
             <div className="grid grid-cols-3 mx-4 mt-4">
                 <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px]">
                     <CollectionThumbnail 

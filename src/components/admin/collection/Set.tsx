@@ -14,9 +14,9 @@ import {
   extractClosestEdge,
 } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { getSetData, isSetData } from './SetData';
-import { DropIndicator } from '../common/DropIndicator';
+import { DropIndicator } from '../../common/DropIndicator';
 import { HiOutlineMenu } from 'react-icons/hi';
-import { PhotoSet } from '../../types';
+import { PhotoSet } from '../../../types';
 
 type SetState =
   | {
@@ -43,6 +43,7 @@ const idle: SetState = { type: 'idle' };
 const component: FC<{set: PhotoSet}> = ({ set }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<SetState>(idle);
+  const [allowDragging, setAllowDragging] = useState(false)
 
   useEffect(() => {
     const element = ref.current;
@@ -53,6 +54,7 @@ const component: FC<{set: PhotoSet}> = ({ set }) => {
         getInitialData() {
           return getSetData(set);
         },
+        canDrag: () => allowDragging,
         onGenerateDragPreview({ nativeSetDragImage }) {
           setCustomNativeDragPreview({
             nativeSetDragImage,
@@ -70,6 +72,7 @@ const component: FC<{set: PhotoSet}> = ({ set }) => {
         },
         onDrop() {
           setState(idle);
+          setAllowDragging(false)
         },
       }),
       dropTargetForElements({
@@ -117,7 +120,7 @@ const component: FC<{set: PhotoSet}> = ({ set }) => {
         },
       }),
     );
-  }, [set]);
+  }, [set, allowDragging]);
 
   return (
     <>
@@ -125,11 +128,14 @@ const component: FC<{set: PhotoSet}> = ({ set }) => {
         <div
           data-task-id={set.id}
           ref={ref}
-          className={`flex text-sm bg-white flex-row items-center border border-solid rounded p-2 pl-0 hover:bg-slate-100 hover:cursor-grab ${stateStyles[state.type] ?? ''}`}
+          className={`flex text-sm bg-white flex-row items-center border border-solid rounded p-2 pl-0 ${stateStyles[state.type] ?? ''}`}
         >
-          <div className="w-6 flex justify-center">
-            <HiOutlineMenu size={10} />
-          </div>
+          <button className="w-6 flex justify-center hover:cursor-grab" 
+            onMouseEnter={() => setAllowDragging(true) }
+            onMouseLeave={() => setAllowDragging(false) }
+          >
+            <HiOutlineMenu size={14} />
+          </button>
           <span className="truncate flex-grow flex-shrink">{set.name}</span>
         </div>
         {state.type === 'is-dragging-over' && state.closestEdge ? (

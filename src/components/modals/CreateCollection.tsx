@@ -103,10 +103,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     })
     const updateCollection = useMutation({
       mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params),
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['photoPaths']})
-        queryClient.invalidateQueries({ queryKey: ['photoCollection']})
-      },
       onSettled: (data) => {
         if(data){
           onSubmit(data)
@@ -145,6 +141,7 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
         const updateCollectionParams: UpdateCollectionParams = {
           ...createCollectionParams,
           collection: collection,
+          published: collection.published,
         }
         await updateCollection.mutateAsync(updateCollectionParams)
       }

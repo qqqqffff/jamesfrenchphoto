@@ -1,5 +1,5 @@
 import { FC, Key } from "react"
-import { PhotoCollection } from "../../types"
+import { PhotoCollection } from "../../../types"
 import { Tooltip } from "flowbite-react"
 
 interface CollectionThumbnailProps {

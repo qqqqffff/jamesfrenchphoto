@@ -1,4 +1,4 @@
-import { PhotoSet } from "../../types";
+import { PhotoSet } from "../../../types";
 
 
 const setDataKey = Symbol('set');

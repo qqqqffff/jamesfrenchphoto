@@ -6,7 +6,7 @@ import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish
 import { flushSync } from 'react-dom';
 import { isSetData } from './SetData';
 import Set from './Set';
-import { PhotoSet } from '../../types';
+import { PhotoSet } from '../../../types';
 
 const component: FC<{setList: PhotoSet[]}> = ({ setList }) => {
   const [sets, setSets] = useState<PhotoSet[]>(setList);

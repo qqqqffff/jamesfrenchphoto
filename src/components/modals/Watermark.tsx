@@ -2,18 +2,15 @@ import { Button, ButtonGroup, Dropdown, Label, Modal, Progress, Tooltip } from "
 import { FC, FormEvent, useState } from "react"
 import { HiOutlineXMark } from "react-icons/hi2"
 import { ModalProps } from "."
-import { getUrl, uploadData } from "aws-amplify/storage";
-import { generateClient } from "aws-amplify/api";
-import { Schema } from "../../../amplify/data/resource";
 import { PhotoCollection, PicturePath, Watermark } from "../../types";
-import { v4 } from 'uuid'
 import { formatFileSize } from "../../utils";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { HiOutlineArrowLeft, HiOutlineArrowRight } from "react-icons/hi2";
 import testPhoto from '../../assets/home-carousel/carousel-1.jpg'
-
-const client = generateClient<Schema>()
+import { useMutation } from "@tanstack/react-query";
+import { uploadWatermarksMutation, WatermarkUploadParams } from "../../services/watermarkService";
+import { updateCollectionMutation, UpdateCollectionParams } from "../../services/collectionService";
 
 interface WatermarkProps extends ModalProps {
     collection: PhotoCollection;
@@ -47,6 +44,7 @@ const Row: FC<RowProps> = ({ index, data, style }) => {
     )
 }
 
+//TODO: convert paths to covers, and implement individual set watermarking
 export const WatermarkModal: FC<WatermarkProps> = ({ open, onClose, collection, paths, onCollectionSubmit, onWatermarkUpload, watermarks }) => {
     const [pictureCollection, setPictureCollection] = useState(collection)
     const [filesUpload, setFilesUpload] = useState<Map<string, File> | undefined>()
@@ -58,39 +56,37 @@ export const WatermarkModal: FC<WatermarkProps> = ({ open, onClose, collection, 
         watermarks.find((watermark) => collection.watermarkPath === watermark.path)
     )
 
+    const uploadWatermarks = useMutation({
+        mutationFn: (params: WatermarkUploadParams) => uploadWatermarksMutation(params),
+        onSettled: () => {
+            setSubmitting(false)
+        }
+    })
+
+    const updateCollection = useMutation({
+        mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params),
+        onSettled: (collection) => {
+            if(collection){
+                setPictureCollection(collection)
+                onCollectionSubmit(collection)
+            }
+            setSubmitting(false)
+            //TODO: error handling
+        }
+    })
+
     async function handleUploadPhotos(event: FormEvent){
         event.preventDefault()
         setSubmitting(true)
 
         let watermarks: Watermark[] = []
         if(filesUpload) {
-            watermarks = (await Promise.all((await Promise.all(
-                [...filesUpload.values()].map(async (file, index, arr) => {
-                    const result = await uploadData({
-                        path: `watermarks/${v4()}_${file.name}`,
-                        data: file,
-                        options: {
-                            onProgress: () => {
-                                console.log(index, arr, ((index + 1) / arr.length) * 100)
-                                setProgress(((index + 1) / arr.length) * 100)
-                            }
-                        }
-                    }).result
-                    console.log(result)
-                    return result.path
-                })
-            )).map(async (path) => {
-                const response = await client.models.Watermark.create({
-                    path: path,
-                })
-                console.log(response)
-                return { 
-                    url: (await getUrl({
-                        path: path,
-                    })).url.toString(), 
-                    path: path
-                }
-            }))).filter((path) => path !== undefined)
+            uploadWatermarks.mutate({
+                filesUpload,
+                progressStep(number){
+                    setProgress(number)
+                },
+            })
         }
 
         const changedPaths = [...watermarkUrls, ...watermarks]
@@ -249,12 +245,12 @@ export const WatermarkModal: FC<WatermarkProps> = ({ open, onClose, collection, 
                                 className="object-cover rounded-lg w-[200px] h-[300px] justify-self-center"
                                 
                             />
-                            {selectedWatermark ? (
+                            {selectedWatermark && (
                                 <img 
                                     src={selectedWatermark.url}
                                     className="absolute inset-0 max-w-[200px] max-h-[300px] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-75"
                                 />
-                            ) : (<></>)}
+                            )}
                         </div>
                         <div className="flex flex-row w-full justify-end border-t mt-4 gap-2">
                             <Button className="text-xl mt-4" isProcessing={submitting}
@@ -262,19 +258,11 @@ export const WatermarkModal: FC<WatermarkProps> = ({ open, onClose, collection, 
                                 onClick={async () => {
                                     setSubmitting(true)
 
-                                    const response = await client.models.PhotoCollection.update({
-                                        id: collection.id,
-                                        watermarkPath: selectedWatermark ? selectedWatermark.path : null
-                                    })
-
-                                    console.log(response)
-                                    const col: PhotoCollection = {
-                                        ...pictureCollection,
-                                        watermarkPath: selectedWatermark?.path
-                                    }
-                                    setPictureCollection(col)
-                                    onCollectionSubmit(col)
-                                    setSubmitting(false)
+                                    updateCollection.mutate({
+                                        watermark: selectedWatermark ?? null,
+                                        published: collection.published,
+                                        collection: collection,
+                                    })                                    
                                 }}
                             >Select</Button>
                             <Button className="text-xl mt-4" type="button" onClick={() => {
