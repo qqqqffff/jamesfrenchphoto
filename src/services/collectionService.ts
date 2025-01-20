@@ -3,29 +3,10 @@ import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
-import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
+import { downloadData, getUrl, remove } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
-import { v4 } from 'uuid'
 
 const client = generateClient<Schema>()
-
-async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: string): Promise<PicturePath[] | null> {
-    console.log('api call')
-    if(!setId) return null
-    const pathResponse = await client.models.PhotoPaths.listPhotoPathsBySetId({
-        setId: setId
-    })
-    const mappedPaths: PicturePath[] = await Promise.all(pathResponse.data.map(async (path) => {
-        const mappedPath: PicturePath = {
-            ...path,
-            url: (await getUrl({
-                path: path.path,
-            })).url.toString()
-        }
-        return mappedPath
-    }))
-    return mappedPaths
-}
 
 interface GetAllCollectionsOptions {
     siTags: boolean
@@ -323,16 +304,6 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
         ...params.collection
     }
 
-    // TODO: move this logic
-    // const newPaths = Array.from((params.paths ?? new Map<string, File>()).entries())
-    //         .filter((entry) => entry[0].includes('blob'))
-    // const fileNamesMap = Array.from(params.paths?.values() ?? []).map((file) => {
-    //     return file.name
-    // })
-    // const removedPaths = params.collection.paths
-    //     .filter((path) => 
-    //         fileNamesMap.find((fn) => fn === parsePathName(path.path)) === undefined)
-
     const newTags = (params.tags ?? []).filter((tag) => 
         (params.collection.tags.find((colTag) => colTag.id === tag.id)) === undefined)
 
@@ -367,45 +338,6 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
     //     }
     //     return mappedPath
     // }))).filter((item) => item !== undefined)
-
-    // updatedCollection.paths.push(...createPathsResponse)
-    // updatedCollection.paths = updatedCollection.paths
-    //     .filter((item) => removedPaths.find((path) => path.id === item.id) === undefined)
-    //     .sort((a, b) => a.order - b.order)
-    //     .map((path, index) => ({
-    //         ...path,
-    //         order: index
-    //     }))
-
-    // if(params.options?.logging) console.log(updatedCollection.paths)
-
-    // const updatedPathsResponse = await Promise.all(updatedCollection.paths
-    //     .filter((path) => createPathsResponse.find((createPath) => createPath.id === path.id) === undefined)
-    //     .map(async (path) => {
-    //         const response = await client.models.PhotoPaths.update({
-    //             id: path.id,
-    //             order: path.order,
-    //         })
-    //         return response
-    //     })
-    // )
-    // if(params.options?.logging) console.log(updatedPathsResponse)
-
-    // const removePathResponse = await Promise.all(removedPaths.map(async (path) => {
-    //     const s3response = await remove({
-    //         path: path.path
-    //     })
-
-    //     const dynamoResponse = await client.models.PhotoPaths.delete({
-    //         id: path.id,
-    //     })
-
-    //     return {
-    //         s3: s3response,
-    //         dynamo: dynamoResponse,
-    //     }
-    // }))
-    // if(params.options?.logging) console.log(removePathResponse)
 
 
     updatedCollection.tags.push(...newTags)
@@ -504,85 +436,6 @@ export async function deleteCollectionMutation(params: DeleteCollectionParams) {
     })
     if(params.options?.logging) console.log(response)
 }
-
-export interface CreateSetParams {
-    collection: PhotoCollection,
-    name: string,
-    options?: {
-        logging: boolean
-    }
-}
-export async function createSetMutation(params: CreateSetParams) {
-    const response = await client.models.PhotoSet.create({
-        collectionId: params.collection.id,
-        name: params.name,
-        coverPath: '',
-        order: params.collection.sets.length,
-    })
-    if(params.options?.logging) console.log(response)
-    if(!response || !response.data) return
-    const mappedSet: PhotoSet = {
-        id: response.data.id,
-        coverPath: '',
-        paths: [],
-        order: params.collection.sets.length,
-        name: params.collection.name,
-    }
-    return mappedSet
-}
-
-export interface UploadImagesMutationParams {
-    collection: PhotoCollection,
-    set: PhotoSet,
-    files: Map<string, File>
-    progressStep: (progress: number) => void,
-    options?: {
-        logging: boolean
-    }
-}
-export async function uploadImagesMutation(params: UploadImagesMutationParams){
-    console.log('api call')
-    const response = (await Promise.all(
-        (await Promise.all(
-            [...params.files.values()].map(async (file, index, arr) => {
-                const result = await uploadData({
-                    path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.name}`,
-                    data: file,
-                    options: {
-                        onProgress: (event) => {
-                            params.progressStep((index + (event.transferredBytes / file.size)) / (arr.length - 1))
-                        }
-                    }
-                }).result
-                if(params.options?.logging) console.log(result)
-                return result.path
-            })
-        )).map(async (path, index) => {
-            const response = await client.models.PhotoPaths.create({
-                path: path,
-                order: index + params.set.paths.length,
-                setId: params.set.id,
-            })
-            if(params.options?.logging) console.log(response)
-            if(!response || !response.data || response.errors !== undefined) return false
-            return true
-        })
-    )).filter((item) => item).length
-
-    const updateCollectionItemsResponse = await client.models.PhotoCollection.update({
-        id: params.collection.id,
-        items: response + params.collection.items
-    })
-
-    if(params.options?.logging) console.log(updateCollectionItemsResponse)
-}
-
-
-export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string) => queryOptions({
-    queryKey: ['photoPaths', client, setId],
-    queryFn: () => getAllPicturePathsByPhotoSet(client, setId),
-    gcTime: 1000 * 15 * 60 //15 minutes
-})
 
 export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOptions({
     queryKey: ['photoCollection', client, tags],

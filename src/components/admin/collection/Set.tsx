@@ -40,7 +40,7 @@ const stateStyles: { [Key in SetState['type']]?: HTMLAttributes<HTMLDivElement>[
 
 const idle: SetState = { type: 'idle' };
 
-const component: FC<{set: PhotoSet}> = ({ set }) => {
+const component: FC<{set: PhotoSet, onClick: () => void}> = ({ set, onClick }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<SetState>(idle);
   const [allowDragging, setAllowDragging] = useState(false)
@@ -128,7 +128,8 @@ const component: FC<{set: PhotoSet}> = ({ set }) => {
         <div
           data-task-id={set.id}
           ref={ref}
-          className={`flex text-sm bg-white flex-row items-center border border-solid rounded p-2 pl-0 ${stateStyles[state.type] ?? ''}`}
+          className={`flex text-sm bg-white flex-row items-center border border-solid rounded p-2 pl-0 hover:bg-gray-100 ${stateStyles[state.type] ?? ''}`}
+          onClick={onClick}
         >
           <button className="w-6 flex justify-center hover:cursor-grab" 
             onMouseEnter={() => setAllowDragging(true) }
@@ -136,7 +137,7 @@ const component: FC<{set: PhotoSet}> = ({ set }) => {
           >
             <HiOutlineMenu size={14} />
           </button>
-          <span className="truncate flex-grow flex-shrink">{set.name}</span>
+          <span className="truncate flex-grow flex-shrink w-full text-start h-full hover:cursor-pointer">{set.name}</span>
         </div>
         {state.type === 'is-dragging-over' && state.closestEdge ? (
           <DropIndicator edge={state.closestEdge} gap={'8px'} />

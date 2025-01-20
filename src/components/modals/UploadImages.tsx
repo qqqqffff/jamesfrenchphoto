@@ -7,7 +7,7 @@ import { formatFileSize } from "../../utils";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { useMutation } from "@tanstack/react-query";
-import { uploadImagesMutation, UploadImagesMutationParams } from "../../services/collectionService";
+import { uploadImagesMutation, UploadImagesMutationParams } from "../../services/photoSetService";
 
 
 interface UploadImagesProps extends ModalProps {

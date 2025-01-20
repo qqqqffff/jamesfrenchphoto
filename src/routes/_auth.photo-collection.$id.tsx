@@ -1,5 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { getAllPicturePathsByPhotoSetQueryOptions, getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
+import { getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
+import { getAllPicturePathsByPhotoSetQueryOptions } from '../services/photoSetService'
 import { PhotoCollection, PhotoSet, PicturePath } from '../types'
 import { useEffect, useRef } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'

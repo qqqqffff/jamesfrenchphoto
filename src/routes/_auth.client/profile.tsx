@@ -26,8 +26,6 @@ interface ProfileNotification {
     color: DynamicStringEnumKeysOf<FlowbiteColors>,
 }
 
-
-
 function RouteComponent() {
   const {
     userStorage,

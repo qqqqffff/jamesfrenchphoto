@@ -8,7 +8,7 @@ import { isSetData } from './SetData';
 import Set from './Set';
 import { PhotoSet } from '../../../types';
 
-const component: FC<{setList: PhotoSet[]}> = ({ setList }) => {
+const component: FC<{setList: PhotoSet[], setSelectedSet: (set: PhotoSet) => void}> = ({ setList, setSelectedSet }) => {
   const [sets, setSets] = useState<PhotoSet[]>(setList);
 
   useEffect(() => {
@@ -61,8 +61,10 @@ const component: FC<{setList: PhotoSet[]}> = ({ setList }) => {
   return (
     <div className="pt-6 my-0 mx-auto">
       <div className="flex flex-col gap-2 border border-solid rounded p-2">
-        {sets.map((set) => (
-          <Set key={set.id} set={set} />
+        {sets
+          .sort((a, b) => a.order - b.order)
+          .map((set) => (
+            <Set key={set.id} set={set} onClick={() => setSelectedSet(set)}/>
         ))}
       </div>
     </div>

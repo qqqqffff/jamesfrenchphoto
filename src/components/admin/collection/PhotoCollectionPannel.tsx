@@ -2,13 +2,14 @@ import { FC, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../../types"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button, Label } from "flowbite-react"
-import { createSetMutation, CreateSetParams } from "../../../services/collectionService"
+import { createSetMutation, CreateSetParams } from "../../../services/photoSetService"
 import CollectionThumbnail from "./CollectionThumbnail"
 import { HiOutlineCheckCircle, HiOutlinePlusCircle, HiOutlineXCircle } from "react-icons/hi2"
 import { HiOutlineMenu } from "react-icons/hi"
 import SetList from "./SetList"
 import { CreateCollectionModal, WatermarkModal } from "../../modals"
 import { useRouter } from "@tanstack/react-router"
+import PhotoSetPannel from "./PhotoSetPannel"
 
 interface PhotoCollectionPannelProps {
     watermarkObjects: Watermark[],
@@ -65,6 +66,7 @@ const CreateSetComponent: FC<CreateSetComponentParams> = ({ collection, callback
 const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, coverPath, collection }) => {
     const [createSetVisible, setCreateSetVisible] = useState(false)
     const [watermarkVisible, setWatermarkVisible] = useState(false)
+    const [selectedSet, setSelectedSet] = useState<PhotoSet>()
     const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
     const client = useQueryClient()
     const router = useRouter()
@@ -103,7 +105,7 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                 open={updateCollectionVisible} 
                 onClose={() => setUpdateCollectionVisible(false)}
             />
-            <div className="grid grid-cols-3 mx-4 mt-4">
+            <div className="flex flex-row mx-4 mt-4 gap-4">
                 <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px]">
                     <CollectionThumbnail 
                         collection={collection}
@@ -121,7 +123,10 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                     </div>
                     <div className="border w-full"></div>
                     <div className="w-full">
-                        <SetList setList={collection.sets} />
+                        <SetList 
+                            setList={collection.sets} 
+                            setSelectedSet={setSelectedSet}
+                        />
                         {createSetVisible && (
                             <CreateSetComponent 
                                 collection={collection}
@@ -133,6 +138,13 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                             />)}
                     </div>
                 </div>
+                {selectedSet && (
+                    <PhotoSetPannel 
+                        photoCollection={collection} 
+                        photoSet={selectedSet} 
+                        watermarkObjects={watermarkObjects} 
+                    />
+                )}
             </div>
         </>
     )
