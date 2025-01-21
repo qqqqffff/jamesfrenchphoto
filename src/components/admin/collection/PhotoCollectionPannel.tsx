@@ -1,14 +1,14 @@
 import { FC, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../../types"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Button, Label } from "flowbite-react"
+import { Button, Dropdown, Label } from "flowbite-react"
 import { createSetMutation, CreateSetParams } from "../../../services/photoSetService"
 import CollectionThumbnail from "./CollectionThumbnail"
-import { HiOutlineCheckCircle, HiOutlinePlusCircle, HiOutlineXCircle } from "react-icons/hi2"
+import { HiOutlineCheckCircle, HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineXCircle } from "react-icons/hi2"
 import { HiOutlineMenu } from "react-icons/hi"
 import SetList from "./SetList"
 import { CreateCollectionModal, WatermarkModal } from "../../modals"
-import { useRouter } from "@tanstack/react-router"
+import { useNavigate, useRouter } from "@tanstack/react-router"
 import PhotoSetPannel from "./PhotoSetPannel"
 
 interface PhotoCollectionPannelProps {
@@ -16,13 +16,14 @@ interface PhotoCollectionPannelProps {
     availableTags: UserTag[],
     coverPath?: string,
     collection: PhotoCollection,
+    set?: PhotoSet
 }
 
 interface CreateSetComponentParams {
     collection: PhotoCollection,
     order?: number,
     callback: (set: PhotoSet) => void
-    close: () => void
+    close: () => void,
 }
 
 const CreateSetComponent: FC<CreateSetComponentParams> = ({ collection, callback, close }) => {
@@ -63,13 +64,14 @@ const CreateSetComponent: FC<CreateSetComponentParams> = ({ collection, callback
     )
 }
 
-const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, coverPath, collection }) => {
+const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, coverPath, collection, set }) => {
     const [createSetVisible, setCreateSetVisible] = useState(false)
     const [watermarkVisible, setWatermarkVisible] = useState(false)
-    const [selectedSet, setSelectedSet] = useState<PhotoSet>()
+    const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
     const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
     const client = useQueryClient()
     const router = useRouter()
+    const navigate = useNavigate()
     
     return (
         <>
@@ -110,6 +112,13 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                     <CollectionThumbnail 
                         collection={collection}
                         coverPath={coverPath}
+                        allowUpload
+                        onClick={() => {}}
+                        contentChildren={(
+                            <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
+                                
+                            </Dropdown>
+                        )}
                     />
                     <div className="flex flex-row items-center justify-between w-full">
                         <Label className="text-lg ms-2">Photo Sets</Label>
@@ -125,7 +134,13 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                     <div className="w-full">
                         <SetList 
                             setList={collection.sets} 
-                            setSelectedSet={setSelectedSet}
+                            setSelectedSet={(set) => {
+                                navigate({to: '.', search: {
+                                    collection: collection.id,
+                                    set: set.id
+                                }})
+                                setSelectedSet(set)
+                            }}
                         />
                         {createSetVisible && (
                             <CreateSetComponent 

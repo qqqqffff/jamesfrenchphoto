@@ -10,7 +10,7 @@ import PhotoCollectionPannel from '../../../components/admin/collection/PhotoCol
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
 import { useState } from 'react'
-import { PhotoCollection } from '../../../types'
+import { PhotoCollection, PhotoSet } from '../../../types'
 import { Progress, TextInput } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
@@ -18,20 +18,26 @@ import CollectionThumbnail from '../../../components/admin/collection/Collection
 
 interface CollectionSearchParams {
   collection?: string,
+  set?: string,
 }
 
 export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): CollectionSearchParams => ({
-    collection: (search.collection as string) || undefined
+    collection: (search.collection as string) || undefined,
+    set: (search.set as string) || undefined
   }),
   beforeLoad: ({ search }) => search,
   loader: async ({ context }) => {
     const availableTags = await context.queryClient.ensureQueryData(getAllUserTagsQueryOptions({ siCollections: false }))
     const watermarkObjects = await context.queryClient.ensureQueryData(getAllWatermarkObjectsQueryOptions())
     let collection: PhotoCollection | undefined
+    let set: PhotoSet | undefined
     if(context.collection){
       collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(context.collection))
+      if(collection && context.set) {
+        set = collection.sets.find((set) => context.set === set.id)
+      }
     }else{
       collection = undefined
     }
@@ -39,12 +45,13 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
       availableTags,
       watermarkObjects,
       collection,
+      set
     }
   }
 })
 
 function RouteComponent() {
-  const { availableTags, watermarkObjects, collection } = Route.useLoaderData()
+  const { availableTags, watermarkObjects, collection, set } = Route.useLoaderData()
   const navigate = useNavigate()
 
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
@@ -202,6 +209,7 @@ function RouteComponent() {
         <PhotoCollectionPannel 
           coverPath={coverPaths.find((path) => path.data?.[0] === selectedCollection.id)?.data?.[1]}
           collection={selectedCollection}
+          set={set}
           watermarkObjects={watermarkObjects}
           availableTags={availableTags}
         />
