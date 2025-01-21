@@ -32,7 +32,7 @@ const component: FC = () => {
                             </span>
                         )}
                     </p>
-                    <p className="text-xs text-gray-500">Image Files Supported</p>
+                    <p className="text-xs text-gray-500 text-center">Image Files Supported (jpg, jpeg, png)</p>
                 </div>
                 <input id="dropzone-file" type="file" className="hidden" {...getInputProps()} multiple />
             </label>

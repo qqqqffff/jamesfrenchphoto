@@ -10,6 +10,7 @@ import SetList from "./SetList"
 import { CreateCollectionModal, WatermarkModal } from "../../modals"
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import PhotoSetPannel from "./PhotoSetPannel"
+import { deleteCoverMutation, DeleteCoverParams } from "../../../services/collectionService"
 
 interface PhotoCollectionPannelProps {
     watermarkObjects: Watermark[],
@@ -72,6 +73,13 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
     const client = useQueryClient()
     const router = useRouter()
     const navigate = useNavigate()
+
+    const deleteImage = useMutation({
+        mutationFn: (params: DeleteCoverParams) => deleteCoverMutation(params),
+        onSettled: () => {
+            router.invalidate()
+        }
+    })
     
     return (
         <>
@@ -114,9 +122,16 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                         coverPath={coverPath}
                         allowUpload
                         onClick={() => {}}
+                        parentLoading={deleteImage.isPending}
                         contentChildren={(
                             <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
-                                
+                                <Dropdown.Item 
+                                    disabled={collection.coverPath === undefined}
+                                    onClick={() => deleteImage.mutate({
+                                        collectionId: collection.id,
+                                        cover: collection.coverPath
+                                    })}
+                                >Remove Cover Photo</Dropdown.Item>
                             </Dropdown>
                         )}
                     />

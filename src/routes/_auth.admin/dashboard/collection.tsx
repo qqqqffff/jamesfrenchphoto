@@ -63,7 +63,7 @@ function RouteComponent() {
     queries: (collections.data ?? [])
         .filter((collection) => collection.coverPath !== undefined)
         .map((collection) => {
-            return getPathQueryOptions(collection.coverPath!)
+            return getPathQueryOptions(collection.coverPath!, collection.id)
         })
   })
   function filterItems(term: string): undefined | void {
@@ -89,9 +89,9 @@ function RouteComponent() {
         })
         .filter((item) => item !== undefined)
   
-      console.log(data)
       setFilteredItems(data)
   }
+
   return (
     <>
       <CreateCollectionModal

@@ -3,7 +3,7 @@ import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
-import { downloadData, getUrl, remove } from "aws-amplify/storage";
+import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
 
 const client = generateClient<Schema>()
@@ -171,6 +171,7 @@ interface GetPhotoCollectionByIdOptions {
 async function getCollectionById(collectionId: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | undefined> {
     console.log('api call')
     const collection = await client.models.PhotoCollection.get({ id: collectionId })
+    console.log(collection)
     if(!collection || !collection.data) return
     const sets: PhotoSet[] = []
     if(!options || options.siSets){
@@ -435,6 +436,47 @@ export async function deleteCollectionMutation(params: DeleteCollectionParams) {
         id: params.collection.id
     })
     if(params.options?.logging) console.log(response)
+}
+
+export interface DeleteCoverParams {
+    cover?: string,
+    collectionId: string,
+    options?: {
+        logging: boolean,
+    }
+}
+export async function deleteCoverMutation(params: DeleteCoverParams){
+    if(!params.cover) return
+    const s3response = await remove({
+        path: params.cover,
+    })
+    const dynamoResponse = await client.models.PhotoCollection.update({
+        id: params.collectionId,
+        coverPath: null,
+    })
+
+    if(params.options?.logging) console.log(s3response, dynamoResponse)
+}
+
+export interface UploadCoverParams {
+    cover: File,
+    collectionId: string,
+    options?: {
+        logging: boolean
+    }
+}
+export async function uploadCoverMutation(params: UploadCoverParams){
+    const s3response = await uploadData({
+        path: `photo-collections/${params.collectionId}/cover_${params.cover.name}`,
+        data: params.cover,
+    }).result
+    
+    const dynamoResponse = await client.models.PhotoCollection.update({
+        id: params.collectionId,
+        coverPath: s3response.path,
+    })
+
+    if(params.options?.logging) console.log(s3response, dynamoResponse)
 }
 
 export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOptions({
