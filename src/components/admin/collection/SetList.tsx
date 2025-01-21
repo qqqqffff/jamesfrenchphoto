@@ -7,9 +7,15 @@ import { flushSync } from 'react-dom';
 import { isSetData } from './SetData';
 import Set from './Set';
 import { PhotoSet } from '../../../types';
+import { useMutation } from '@tanstack/react-query';
+import { reorderSetsMutation, ReorderSetsParams } from '../../../services/collectionService';
 
-const component: FC<{setList: PhotoSet[], setSelectedSet: (set: PhotoSet) => void}> = ({ setList, setSelectedSet }) => {
+const component: FC<{setList: PhotoSet[], setSelectedSet: (set: PhotoSet) => void, collectionId: string}> = ({ setList, setSelectedSet, collectionId }) => {
   const [sets, setSets] = useState<PhotoSet[]>(setList);
+
+  const reorderSets = useMutation({
+    mutationFn: (params: ReorderSetsParams) => reorderSetsMutation(params)
+  })
 
   useEffect(() => {
     return monitorForElements({
@@ -36,12 +42,28 @@ const component: FC<{setList: PhotoSet[], setSelectedSet: (set: PhotoSet) => voi
           return;
         }
 
+        reorderSets.mutate({
+          collectionId: collectionId,
+          sets: sets,
+          options: {
+            logging: true
+          }
+        })
+
         const closestEdgeOfTarget = extractClosestEdge(targetData);
 
         flushSync(() => {
           setSets(
             reorderWithEdge({
-              list: sets,
+              list: sets.map((set) => {
+                if(set.id === sourceData.setId){
+                  set.order = indexOfTarget
+                }
+                else if(set.id === targetData.setId){
+                  set.order = indexOfSource
+                }
+                return set
+              }),
               startIndex: indexOfSource,
               indexOfTarget,
               closestEdgeOfTarget,

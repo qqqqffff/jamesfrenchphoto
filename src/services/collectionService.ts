@@ -171,7 +171,6 @@ interface GetPhotoCollectionByIdOptions {
 async function getCollectionById(collectionId: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | undefined> {
     console.log('api call')
     const collection = await client.models.PhotoCollection.get({ id: collectionId })
-    console.log(collection)
     if(!collection || !collection.data) return
     const sets: PhotoSet[] = []
     if(!options || options.siSets){
@@ -477,6 +476,25 @@ export async function uploadCoverMutation(params: UploadCoverParams){
     })
 
     if(params.options?.logging) console.log(s3response, dynamoResponse)
+}
+
+export interface ReorderSetsParams {
+    collectionId: string,
+    sets: PhotoSet[],
+    options?: {
+        logging: boolean
+    }
+}
+export async function reorderSetsMutation(params: ReorderSetsParams){
+    const response = await Promise.all(params.sets.map(async (set) => {
+        const dynamoResponse = await client.models.PhotoSet.update({
+            id: set.id,
+            order: set.order,
+        })
+        return dynamoResponse
+    }))
+
+    if(params.options?.logging) console.log(response)
 }
 
 export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOptions({

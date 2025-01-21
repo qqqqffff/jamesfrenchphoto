@@ -207,70 +207,70 @@ const component: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, waterm
             }}
             watermarks={watermarks}
         />
-            <div className="border-gray-400 border rounded-2xl p-4 flex flex-col items-center w-full">
-                <div className="flex flex-row items-center justify-between w-full">
-                    <span className="text-2xl ms-4 mb-2">Photo Set: <span className="font-thin">{photoSet.name}</span></span>
-                    <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={24} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
-                        <Dropdown.Item 
-                            onClick={() => setDisplayTitleOverride(!displayTitleOverride)}
-                        >
-                            <ToggleSwitch 
-                                checked={displayTitleOverride} 
-                                onChange={() => setDisplayTitleOverride(!displayTitleOverride)}
-                                label="Display Photo Titles"
-                            />
-                        </Dropdown.Item>
-                    </Dropdown>
-                </div>
-                <div className="w-full border border-gray-200 my-2"></div>
-                <div className="relative">
-                    {notification && (
-                        <Alert color={notification.color} className="text-lg w-[90%] absolute" onDismiss={() => setNotification(undefined)}>{notification.text}</Alert>
-                    )}
-                </div>
-                {picturePaths ? (
-                    <AutoSizer className='w-full self-center' style={{ minHeight: `${dimensions.height - 350}px`}}>
-                        {({ height, width }: { height: number; width: number }) => {
-                        return (
-                            <FixedSizeGrid
-                                style={{
-                                    left: -(940 / 2),
-                                }}
-                                height={height - 50}
-                                rowCount={Number(Number(picturePaths.length / 4).toFixed(1)) + 1}
-                                columnCount={4}
-                                rowHeight={400}
-                                width={width - (width - 940 - ((width - 940)/2 + 10))}
-                                columnWidth={240}
-                                itemData={{
-                                    set: photoSet,
-                                    data: picturePaths
-                                        .sort((a, b) => a.order - b.order)
-                                        .filter((path) => path.url && path.path && path.id),
-                                    cover,
-                                    parseName,
-                                    pictureStyle,
-                                    selectedPhotos,
-                                    setSelectedPhotos,
-                                    setDisplayPhotoControls,
-                                    controlsEnabled,
-                                    setCover,
-                                    setPicturePaths,
-                                    displayTitleOverride,
-                                    notify: (text, color) => setNotification({text, color}),
-                                }}
-                            >
-                                {Row}
-                            </FixedSizeGrid>)}}
-                    </AutoSizer>
-                ) : (
-                    <p 
-                        className="hover:underline underline-offset-2 hover:text-gray-600 hover:cursor-pointer" 
-                        onClick={() => {}}
-                        //TODO: max this do something (connect the uploader)
-                    >Upload Pictures to Start!</p>
+        <div className="border-gray-400 border rounded-2xl p-4 flex flex-col items-center w-full">
+            <div className="flex flex-row items-center justify-between w-full">
+                <span className="text-2xl ms-4 mb-2">Photo Set: <span className="font-thin">{photoSet.name}</span></span>
+                <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={24} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
+                    <Dropdown.Item 
+                        onClick={() => setDisplayTitleOverride(!displayTitleOverride)}
+                    >
+                        <ToggleSwitch 
+                            checked={displayTitleOverride} 
+                            onChange={() => setDisplayTitleOverride(!displayTitleOverride)}
+                            label="Display Photo Titles"
+                        />
+                    </Dropdown.Item>
+                </Dropdown>
+            </div>
+            <div className="w-full border border-gray-200 my-2"></div>
+            <div className="relative">
+                {notification && (
+                    <Alert color={notification.color} className="text-lg w-[90%] absolute" onDismiss={() => setNotification(undefined)}>{notification.text}</Alert>
                 )}
             </div>
+            {picturePaths ? (
+                <AutoSizer className='w-full self-center' style={{ minHeight: `${dimensions.height - 350}px`}}>
+                    {({ height, width }: { height: number; width: number }) => {
+                    return (
+                        <FixedSizeGrid
+                            style={{
+                                left: -(940 / 2),
+                            }}
+                            height={height - 50}
+                            rowCount={Number(Number(picturePaths.length / 4).toFixed(1)) + 1}
+                            columnCount={4}
+                            rowHeight={400}
+                            width={width - (width - 940 - ((width - 940)/2 + 10))}
+                            columnWidth={240}
+                            itemData={{
+                                set: photoSet,
+                                data: picturePaths
+                                    .sort((a, b) => a.order - b.order)
+                                    .filter((path) => path.url && path.path && path.id),
+                                cover,
+                                parseName,
+                                pictureStyle,
+                                selectedPhotos,
+                                setSelectedPhotos,
+                                setDisplayPhotoControls,
+                                controlsEnabled,
+                                setCover,
+                                setPicturePaths,
+                                displayTitleOverride,
+                                notify: (text, color) => setNotification({text, color}),
+                            }}
+                        >
+                            {Row}
+                        </FixedSizeGrid>)}}
+                </AutoSizer>
+            ) : (
+                <p 
+                    className="hover:underline underline-offset-2 hover:text-gray-600 hover:cursor-pointer" 
+                    onClick={() => {}}
+                    //TODO: max this do something (connect the uploader)
+                >Upload Pictures to Start!</p>
+            )}
+        </div>
         
             
             {/* <div className="flex flex-col col-span-1 border-gray-400 border rounded-2xl items-center gap-4 py-3 me-2">

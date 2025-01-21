@@ -156,6 +156,7 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                                 }})
                                 setSelectedSet(set)
                             }}
+                            collectionId={collection.id}
                         />
                         {createSetVisible && (
                             <CreateSetComponent 
@@ -168,12 +169,18 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                             />)}
                     </div>
                 </div>
-                {selectedSet && (
+                {selectedSet ? (
                     <PhotoSetPannel 
                         photoCollection={collection} 
                         photoSet={selectedSet} 
                         watermarkObjects={watermarkObjects} 
                     />
+                ) : (
+                    <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+                        <div className="flex flex-row items-center justify-center">
+                            <p>Click a set to view it here!</p>
+                        </div>
+                    </div>
                 )}
             </div>
         </>
