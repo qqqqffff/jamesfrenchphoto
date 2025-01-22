@@ -44,7 +44,7 @@ interface RowProps extends GridChildComponentProps {
 const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
     const index = columnIndex + 4 * rowIndex
     if(!data.data[index]) {
-        if(data.data[index - 1] !== undefined || index == 0) return (<UploadImagePlaceholder />)
+        if(data.data[index - 1] !== undefined || index == 0) return (<UploadImagePlaceholder setId={data.set.id}/>)
         return undefined
     }
     const coverSelected = data.parseName(data.data[index].path) === data.parseName(data.cover ?? '')
