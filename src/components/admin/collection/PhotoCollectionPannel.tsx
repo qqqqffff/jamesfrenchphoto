@@ -1,16 +1,17 @@
 import { FC, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../../types"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button, Dropdown, Label } from "flowbite-react"
-import { createSetMutation, CreateSetParams } from "../../../services/photoSetService"
+import { createSetMutation, CreateSetParams, getAllPicturePathsByPhotoSetQueryOptions } from "../../../services/photoSetService"
 import CollectionThumbnail from "./CollectionThumbnail"
 import { HiOutlineCheckCircle, HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineXCircle } from "react-icons/hi2"
 import { HiOutlineMenu } from "react-icons/hi"
 import SetList from "./SetList"
 import { CreateCollectionModal, WatermarkModal } from "../../modals"
 import { useNavigate, useRouter } from "@tanstack/react-router"
-import PhotoSetPannel from "./PhotoSetPannel"
+import { PhotoSetPannel } from "./PhotoSetPannel"
 import { deleteCoverMutation, DeleteCoverParams } from "../../../services/collectionService"
+import Loading from "../../common/Loading"
 
 interface PhotoCollectionPannelProps {
     watermarkObjects: Watermark[],
@@ -65,7 +66,7 @@ const CreateSetComponent: FC<CreateSetComponentParams> = ({ collection, callback
     )
 }
 
-const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, coverPath, collection, set }) => {
+export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, coverPath, collection, set }) => {
     const [createSetVisible, setCreateSetVisible] = useState(false)
     const [watermarkVisible, setWatermarkVisible] = useState(false)
     const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
@@ -80,6 +81,13 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
             router.invalidate()
         }
     })
+
+    const paths = useQuery({
+        ...getAllPicturePathsByPhotoSetQueryOptions(selectedSet?.id, { resolveUrls: false}),
+        enabled: selectedSet !== undefined
+    })
+
+    console.log(paths.data)
     
     return (
         <>
@@ -116,7 +124,7 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                 onClose={() => setUpdateCollectionVisible(false)}
             />
             <div className="flex flex-row mx-4 mt-4 gap-4">
-                <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px]">
+                <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
                     <CollectionThumbnail 
                         collection={collection}
                         coverPath={coverPath}
@@ -154,6 +162,7 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                                     collection: collection.id,
                                     set: set.id
                                 }})
+                                paths.refetch()
                                 setSelectedSet(set)
                             }}
                             collectionId={collection.id}
@@ -170,11 +179,21 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
                     </div>
                 </div>
                 {selectedSet ? (
-                    <PhotoSetPannel 
-                        photoCollection={collection} 
-                        photoSet={selectedSet} 
-                        watermarkObjects={watermarkObjects} 
-                    />
+                    paths.isLoading || paths.isRefetching ? (
+                        <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+                            <div className="flex flex-row items-center justify-center">
+                                <p>Loading</p>
+                                <Loading />
+                            </div>
+                        </div>
+                    ) : (
+                        <PhotoSetPannel 
+                            photoCollection={collection} 
+                            photoSet={selectedSet} 
+                            watermarkObjects={watermarkObjects}
+                            paths={paths.data ?? []}
+                        />
+                    )
                 ) : (
                     <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
                         <div className="flex flex-row items-center justify-center">
@@ -186,5 +205,3 @@ const component: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, available
         </>
     )
 }
-
-export default component

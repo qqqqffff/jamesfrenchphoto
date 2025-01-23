@@ -6,7 +6,7 @@ import {
   getPhotoCollectionByIdQueryOptions,
 } from '../../../services/collectionService'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
-import PhotoCollectionPannel from '../../../components/admin/collection/PhotoCollectionPannel'
+import { PhotoCollectionPannel } from '../../../components/admin/collection/PhotoCollectionPannel'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
 import { useState } from 'react'
@@ -35,6 +35,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
     let set: PhotoSet | undefined
     if(context.collection){
       collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(context.collection))
+      console.log(collection)
       if(collection && context.set) {
         set = collection.sets.find((set) => context.set === set.id)
       }

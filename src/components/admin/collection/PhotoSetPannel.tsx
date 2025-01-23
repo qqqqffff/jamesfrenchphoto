@@ -1,182 +1,40 @@
-import { FC, useState } from "react"
+import { FC, useRef, useState } from "react"
 import { PhotoCollection, PhotoSet, PicturePath, Watermark } from "../../../types"
-import { 
-    HiOutlineBarsArrowDown, 
-    HiOutlineBarsArrowUp, 
-    HiOutlineTrash,
-    HiOutlineStar,
-    HiOutlineCog6Tooth
-} from "react-icons/hi2";
-import { Alert, Dropdown, FlowbiteColors, ToggleSwitch, Tooltip } from "flowbite-react";
+import { HiOutlineCog6Tooth } from "react-icons/hi2";
+import { Alert, Dropdown, FlowbiteColors, ToggleSwitch } from "flowbite-react";
 import { WatermarkModal } from "../../modals";
-import { FixedSizeGrid, GridChildComponentProps } from "react-window";
+import { FixedSizeGrid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import useWindowDimensions from "../../../hooks/windowDimensions";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { deleteImagesMutation, DeleteImagesMutationParams, getAllPicturePathsByPhotoSetQueryOptions, reorderPathsMutation, ReorderPathsParams, updateSetMutation, UpdateSetParams } from "../../../services/photoSetService";
 import { DynamicStringEnumKeysOf } from "../../../utils";
-import UploadImagePlaceholder from "./UploadImagePlaceholder";
+import { SetControls } from "./SetControls";
+import { SetRow } from "./SetRow";
 
 export type PhotoCollectionProps = {
     photoCollection: PhotoCollection;
     photoSet: PhotoSet;
     watermarkObjects: Watermark[],
+    paths: PicturePath[]
 }
 
-interface RowProps extends GridChildComponentProps {
-    data: {
-        set: PhotoSet,
-        data: PicturePath[],
-        cover: string,
-        parseName: (path: string) => string 
-        pictureStyle: (path: string, selected: boolean) => string
-        selectedPhotos: string[]
-        setSelectedPhotos: (photos: string[]) => void
-        setDisplayPhotoControls: (id: string | undefined) => void
-        controlsEnabled: (id: string, override: boolean) => string
-        setCover: (path: string) => void
-        setPicturePaths: (picturePaths: PicturePath[]) => void,
-        displayTitleOverride: boolean,
-        notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void
-    }
-}
-
-const Row: FC<RowProps> = ({ columnIndex, rowIndex, data, style }) => {
-    const index = columnIndex + 4 * rowIndex
-    if(!data.data[index]) {
-        if(data.data[index - 1] !== undefined || index == 0) return (<UploadImagePlaceholder setId={data.set.id}/>)
-        return undefined
-    }
-    const coverSelected = data.parseName(data.data[index].path) === data.parseName(data.cover ?? '')
-    const coverSelectedStyle = `${coverSelected ? 'fill-yellow-300' : ''}`
-
-    const deleteMutation = useMutation({
-        mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
-    })
-
-    const updateSet = useMutation({
-        mutationFn: (params: UpdateSetParams) => updateSetMutation(params)
-    })
-
-    const rerorderPaths = useMutation({
-        mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
-    })
-
-    return (
-        <button 
-            style={{
-                ...style,
-                width: Number(style.width ?? 0) - 20,
-                height: Number(style.height ?? 0) - 20,
-            }}
-            key={index} 
-            className={data.pictureStyle(data.data[index].url, coverSelected)} id='image-container'
-            onClick={(event) => {
-                if((event.target as HTMLElement).id.includes('image')){
-                    if(data.selectedPhotos.includes(data.data[index].url)){
-                        data.setSelectedPhotos(data.selectedPhotos.filter((url) => url != data.data[index].url))
-                    }
-                    else{
-                        const temp = [...data.selectedPhotos]
-                        temp.push(data.data[index].url)
-                        data.setSelectedPhotos(temp)
-                    }
-                }
-            }}
-            onMouseEnter={() => {
-                data.setDisplayPhotoControls(data.data[index].id)
-            }}  
-            onMouseLeave={() => {
-                data.setDisplayPhotoControls(undefined)
-            }}
-        >
-            <img src={data.data[index].url} className="object-cover rounded-lg w-[200px] h-[300px] justify-self-center " id='image'/>
-            <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${data.controlsEnabled(data.data[index].id, false)}`}>
-                <Tooltip content={(<p>Set as cover</p>)} placement="bottom" className="w-[110px]">
-                    <button className="" onClick={async () => {
-                        if(!coverSelected) {
-                            data.setCover(data.data[index].path)
-                            updateSet.mutate({
-                                set: data.set,
-                                paths: data.data,
-                                coverPath: data.data[index].path,
-                                name: data.set.name,
-                                order: data.set.order,
-                            })
-                        }
-                        else{
-                            data.notify('Cover Photo is required!', 'red')
-                        }
-                    }}>
-                        <HiOutlineStar className={coverSelectedStyle} size={20} />
-                    </button>
-                </Tooltip>
-                <Tooltip content={(<p>Move to Top</p>)} placement="bottom" className="w-[110px]">
-                    <button className="" onClick={() => {
-                        const temp = [data.data[index], ...data.data.filter((p) => p.id !== data.data[index].id)].map((path, index) => {
-                            return {
-                                ...path,
-                                order: index,
-                            }
-                        })
-                        data.setPicturePaths(temp)
-                        rerorderPaths.mutate({
-                            paths: temp,
-                        })
-                    }}>
-                        <HiOutlineBarsArrowUp size={20} />
-                    </button>
-                </Tooltip>
-                <Tooltip content={(<p>Move to Bottom</p>)} placement="bottom" className="w-[130px]">
-                    <button className="" onClick={() => {
-                        const temp = [...data.data.filter((p) => p.id !== data.data[index].id), data.data[index]].map((path, index) => {
-                            return {
-                                ...path,
-                                order: index,
-                            }
-                        })
-                        data.setPicturePaths(temp)
-                        rerorderPaths.mutate({
-                            paths: temp,
-                        })
-                    }}><HiOutlineBarsArrowDown size={20} /></button>
-                </Tooltip>
-                <Tooltip content='Delete' placement="bottom">
-                    <button className="" onClick={() => {
-                        data.setPicturePaths(data.data.filter((path) => path.id !== data.data[index].id))
-                        deleteMutation.mutate({
-                            picturePaths: [data.data[index]]
-                        })
-                    }}>
-                        <HiOutlineTrash size={20} />
-                    </button>
-                </Tooltip>
-            </div>
-            <div className={`absolute top-1 inset-x-0 justify-center flex-row ${data.controlsEnabled(data.data[index].id, data.displayTitleOverride)}`}>
-                <p id="image-name">{data.parseName(data.data[index].path)}</p>
-            </div>
-        </button>
-    )
-}
-
-const component: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, watermarkObjects }) => {
-    const photoPaths = useQuery(getAllPicturePathsByPhotoSetQueryOptions(photoSet.id))
-
-    const [picturePaths, setPicturePaths] = useState(photoPaths.data ?? [])
+export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, watermarkObjects, paths }) => {
+    const gridRef = useRef<FixedSizeGrid>(null)
+    const [picturePaths, setPicturePaths] = useState(paths)
     const [pictureCollection, setPictureCollection] = useState(photoCollection)
-    const [selectedPhotos, setSelectedPhotos] = useState<string[]>(([] as string[]))
+    const [selectedPhotos, setSelectedPhotos] = useState<PicturePath[]>([])
     const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
     const [cover, setCover] = useState(photoSet.coverPath)
     const [watermarkVisible, setWatermarkVisible] = useState(false)
-    const [watermarks, setWatermarks] = useState<{path: string, url: string }[]>(watermarkObjects)
+    const [watermarks, setWatermarks] = useState<Watermark[]>(watermarkObjects)
     const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
     const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
 
     const dimensions = useWindowDimensions()
 
-    function pictureStyle(url: string, cover: boolean){
-        const conditionalBackground = selectedPhotos.includes(url) ? `bg-gray-100 ${cover ? 'border-yellow-300' : 'border-cyan-400'}` : `bg-transparent border-gray-500 ${cover ? 'border-yellow-300' : 'border-gray-500'}`
-        return 'relative px-2 py-8 border hover:bg-gray-200 rounded-lg ' + conditionalBackground
+    function pictureStyle(id: string, cover: boolean){
+        const conditionalBackground = selectedPhotos.find((path) => path.id === id) !== undefined ? 
+        `bg-gray-100 ${cover ? 'border-yellow-300' : 'border-cyan-400'}` : `bg-transparent border-gray-500 ${cover ? 'border-yellow-300' : 'border-gray-500'}`
+        return 'relative px-2 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent ' + conditionalBackground
     }
 
     function controlsEnabled(id: string, override: boolean){
@@ -207,6 +65,15 @@ const component: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, waterm
             }}
             watermarks={watermarks}
         />
+        {selectedPhotos.length > 0 && (
+            <SetControls 
+                collection={pictureCollection}
+                photos={picturePaths}
+                setPhotos={setPicturePaths}
+                selectedPhotos={selectedPhotos} 
+                setSelectedPhotos={setSelectedPhotos}
+            />
+        )}
         <div className="border-gray-400 border rounded-2xl p-4 flex flex-col items-center w-full">
             <div className="flex flex-row items-center justify-between w-full">
                 <span className="text-2xl ms-4 mb-2">Photo Set: <span className="font-thin">{photoSet.name}</span></span>
@@ -223,53 +90,47 @@ const component: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, waterm
                 </Dropdown>
             </div>
             <div className="w-full border border-gray-200 my-2"></div>
-            <div className="relative">
+            <div className="relative z-10 w-full flex flex-row items-center justify-center">
                 {notification && (
-                    <Alert color={notification.color} className="text-lg w-[90%] absolute" onDismiss={() => setNotification(undefined)}>{notification.text}</Alert>
+                    <Alert color={notification.color} className="text-lg w-[90%] absolute mt-16" onDismiss={() => setNotification(undefined)}>{notification.text}</Alert>
                 )}
             </div>
-            {picturePaths ? (
-                <AutoSizer className='w-full self-center' style={{ minHeight: `${dimensions.height - 350}px`}}>
-                    {({ height, width }: { height: number; width: number }) => {
-                    return (
-                        <FixedSizeGrid
-                            style={{
-                                left: -(940 / 2),
-                            }}
-                            height={height - 50}
-                            rowCount={Number(Number(picturePaths.length / 4).toFixed(1)) + 1}
-                            columnCount={4}
-                            rowHeight={400}
-                            width={width - (width - 940 - ((width - 940)/2 + 10))}
-                            columnWidth={240}
-                            itemData={{
-                                set: photoSet,
-                                data: picturePaths
-                                    .sort((a, b) => a.order - b.order)
-                                    .filter((path) => path.url && path.path && path.id),
-                                cover,
-                                parseName,
-                                pictureStyle,
-                                selectedPhotos,
-                                setSelectedPhotos,
-                                setDisplayPhotoControls,
-                                controlsEnabled,
-                                setCover,
-                                setPicturePaths,
-                                displayTitleOverride,
-                                notify: (text, color) => setNotification({text, color}),
-                            }}
-                        >
-                            {Row}
-                        </FixedSizeGrid>)}}
-                </AutoSizer>
-            ) : (
-                <p 
-                    className="hover:underline underline-offset-2 hover:text-gray-600 hover:cursor-pointer" 
-                    onClick={() => {}}
-                    //TODO: max this do something (connect the uploader)
-                >Upload Pictures to Start!</p>
-            )}
+            <AutoSizer className='w-full self-center' style={{ minHeight: `${dimensions.height - 350}px`}}>
+                {({ height, width }: { height: number; width: number }) => {
+                return (
+                    <FixedSizeGrid
+                        ref={gridRef}
+                        style={{
+                            left: -(940 / 2),
+                        }}
+                        height={height - 50}
+                        rowCount={Number(Number(picturePaths.length / 4).toFixed(1)) + 1}
+                        columnCount={4}
+                        rowHeight={400}
+                        width={width - (width - 940 - ((width - 940)/2 + 10))}
+                        columnWidth={240}
+                        itemData={{
+                            collection: photoCollection,
+                            set: photoSet,
+                            data: picturePaths
+                                .sort((a, b) => a.order - b.order)
+                                .filter((path) => path.path && path.id),
+                            cover,
+                            parseName,
+                            pictureStyle,
+                            selectedPhotos,
+                            setSelectedPhotos,
+                            setDisplayPhotoControls,
+                            controlsEnabled,
+                            setCover,
+                            setPicturePaths,
+                            displayTitleOverride,
+                            notify: (text, color) => setNotification({text, color}),
+                        }}
+                    >
+                        {SetRow}
+                    </FixedSizeGrid>)}}
+            </AutoSizer>
         </div>
         
             
@@ -336,7 +197,5 @@ const component: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, waterm
     </>
 )
 }
-
-export default component
 
 

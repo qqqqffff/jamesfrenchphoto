@@ -86,7 +86,7 @@ const component: FC<CollectionThumbnailProps> = ({ collection, coverPath, onClic
                     </button>
                 ) : (
                     <label 
-                        htmlFor="dropzone-file"
+                        htmlFor="dropzone-collection-thumbnail"
                         className={`flex flex-row relative justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] ${onClick !== undefined ? 'hover:bg-gray-300 hover:text-gray-500' : 'pointer-events-none cursor-default'}`}
                         {...dropzone?.getRootProps()}
                     >
@@ -99,7 +99,7 @@ const component: FC<CollectionThumbnailProps> = ({ collection, coverPath, onClic
                                 <p className="text-xs text-gray-500">Image Files Supported (jpg, jpeg, png)</p>
                             </div>
                         )}
-                        <input id='dropzone-file' type="file" className="hidden" {...dropzone?.getInputProps()}/>
+                        <input id='dropzone-collection-thumbnail' type="file" className="hidden" {...dropzone?.getInputProps()}/>
                     </label>
                 )
             )}

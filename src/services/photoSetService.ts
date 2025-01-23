@@ -8,7 +8,10 @@ import { queryOptions } from '@tanstack/react-query'
 
 const client = generateClient<Schema>()
 
-async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: string): Promise<PicturePath[] | null> {
+interface GetAllPicturePathsByPhotoSetOptions {
+    resolveUrls?: boolean
+} 
+async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: string, options?: GetAllPicturePathsByPhotoSetOptions): Promise<PicturePath[] | null> {
     console.log('api call')
     if(!setId) return null
     const pathResponse = await client.models.PhotoPaths.listPhotoPathsBySetId({
@@ -17,9 +20,9 @@ async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: st
     const mappedPaths: PicturePath[] = await Promise.all(pathResponse.data.map(async (path) => {
         const mappedPath: PicturePath = {
             ...path,
-            url: (await getUrl({
+            url: options?.resolveUrls ? (await getUrl({
                 path: path.path,
-            })).url.toString()
+            })).url.toString() : ''
         }
         return mappedPath
     }))
@@ -161,15 +164,25 @@ export interface UploadImagesMutationParams {
 }
 export async function uploadImagesMutation(params: UploadImagesMutationParams){
     console.log('api call')
+    const totalUpload = [...params.files.values()].reduce((prev, cur) => prev + cur.size, 0)
+    let currentUpload = 0
+    console.log(totalUpload)
     const response = (await Promise.all(
         (await Promise.all(
-            [...params.files.values()].map(async (file, index, arr) => {
+            [...params.files.values()].map(async (file) => {
+                let prevUploadAmount = -1
                 const result = await uploadData({
                     path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.name}`,
                     data: file,
                     options: {
                         onProgress: (event) => {
-                            params.progressStep((index + (event.transferredBytes / file.size)) / (arr.length - 1))
+                            currentUpload += event.transferredBytes
+                            if(prevUploadAmount !== -1){
+                                currentUpload -= prevUploadAmount
+                            }
+                            prevUploadAmount = event.transferredBytes
+                            console.log(currentUpload, prevUploadAmount)
+                            params.progressStep(currentUpload / totalUpload)
                         }
                     }
                 }).result
@@ -197,6 +210,7 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
 }
 
 export interface DeleteImagesMutationParams {
+    collection: PhotoCollection,
     picturePaths: PicturePath[],
     progress?: (paths: PicturePath[]) => void,
     options?: {
@@ -217,10 +231,17 @@ export async function deleteImagesMutation(params: DeleteImagesMutationParams){
         return [s3response, pathsresponse]
     }))
     if(params.options?.logging) console.log(response)
+    
+    const adjustItemsResponse = await client.models.PhotoCollection.update({
+        id: params.collection.id,
+        items: params.collection.items - params.picturePaths.length
+    })
+
+    if(params.options?.logging) console.log(adjustItemsResponse)
 }
 
-export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string) => queryOptions({
-    queryKey: ['photoPaths', client, setId],
-    queryFn: () => getAllPicturePathsByPhotoSet(client, setId),
+export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string, options?: GetAllPicturePathsByPhotoSetOptions) => queryOptions({
+    queryKey: ['photoPaths', client, setId, options],
+    queryFn: () => getAllPicturePathsByPhotoSet(client, setId, options),
     gcTime: 1000 * 15 * 60 //15 minutes
 })
