@@ -2,7 +2,6 @@ import { GridChildComponentProps } from "react-window"
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
 import { DynamicStringEnumKeysOf } from "../../../utils"
 import { FlowbiteColors, Tooltip } from "flowbite-react"
-import { FC } from "react"
 import { UploadImagePlaceholder } from "./UploadImagePlaceholder"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { getPathQueryOptions } from "../../../services/collectionService"
@@ -21,7 +20,7 @@ import {
   HiOutlineStar,
 } from "react-icons/hi2";
 
-interface SetRowProps extends GridChildComponentProps {
+export interface SetRowProps extends GridChildComponentProps {
   data: {
     collection: PhotoCollection,
     set: PhotoSet,
@@ -40,7 +39,7 @@ interface SetRowProps extends GridChildComponentProps {
   }
 }
 
-export const SetRow: FC<SetRowProps> = ({ columnIndex, rowIndex, data, style }) => {
+export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
   const index = columnIndex + 4 * rowIndex
   if(!data.data[index]) {
     if(data.data[index - 1] !== undefined || index == 0) {
