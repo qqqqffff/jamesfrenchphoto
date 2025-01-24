@@ -1,17 +1,19 @@
-import { HiOutlineCheckCircle, HiOutlineXCircle } from "react-icons/hi";
+import { HiOutlineCheckCircle } from "react-icons/hi";
 import { Tooltip } from "flowbite-react"
-import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp } from "react-icons/hi2";
-import { ComponentProps } from "react";
+import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash } from "react-icons/hi2";
+import { ComponentProps, RefObject } from "react";
 import { PhotoCollection, PicturePath } from "../../../types";
 import { useMutation } from "@tanstack/react-query";
 import { deleteImagesMutation, DeleteImagesMutationParams, reorderPathsMutation, ReorderPathsParams } from "../../../services/photoSetService";
+import { FixedSizeGrid } from "react-window";
 
 interface SetControlsProps extends ComponentProps<'div'> {
   collection: PhotoCollection
   photos: PicturePath[],
   setPhotos: (photos: PicturePath[]) => void
   selectedPhotos: PicturePath[],
-  setSelectedPhotos: (photos: PicturePath[]) => void
+  setSelectedPhotos: (photos: PicturePath[]) => void,
+  gridRef: RefObject<FixedSizeGrid>
 }
 
 export const SetControls = (props: SetControlsProps) => {
@@ -58,7 +60,7 @@ export const SetControls = (props: SetControlsProps) => {
             props.setSelectedPhotos([])
           }}
         >
-          <HiOutlineXCircle size={24} />
+          <HiOutlineTrash size={24} />
         </button>
       </Tooltip>
       <Tooltip content={'Move to top'}>
@@ -84,6 +86,9 @@ export const SetControls = (props: SetControlsProps) => {
             })
 
             props.setPhotos(updatedPhotos)
+            props.gridRef.current?.scrollToItem({
+              rowIndex: 0
+            })
           }}
         >
           <HiOutlineBarsArrowUp size={24} />
@@ -115,6 +120,9 @@ export const SetControls = (props: SetControlsProps) => {
             })
 
             props.setPhotos(updatedPhotos)
+            props.gridRef.current?.scrollToItem({
+              rowIndex: props.photos.length / 4
+            })
           }}
         >
           <HiOutlineBarsArrowDown size={24} />

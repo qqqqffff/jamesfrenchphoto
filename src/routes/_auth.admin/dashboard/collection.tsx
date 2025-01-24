@@ -14,7 +14,7 @@ import { PhotoCollection, PhotoSet } from '../../../types'
 import { Progress, TextInput } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
-import CollectionThumbnail from '../../../components/admin/collection/CollectionThumbnail'
+import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
 
 interface CollectionSearchParams {
   collection?: string,
@@ -35,7 +35,6 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
     let set: PhotoSet | undefined
     if(context.collection){
       collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(context.collection))
-      console.log(collection)
       if(collection && context.set) {
         set = collection.sets.find((set) => context.set === set.id)
       }

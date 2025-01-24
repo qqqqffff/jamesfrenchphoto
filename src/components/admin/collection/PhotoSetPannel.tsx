@@ -1,7 +1,11 @@
 import { FC, useRef, useState } from "react"
 import { PhotoCollection, PhotoSet, PicturePath, Watermark } from "../../../types"
-import { HiOutlineCog6Tooth } from "react-icons/hi2";
-import { Alert, Dropdown, FlowbiteColors, ToggleSwitch } from "flowbite-react";
+import { 
+    HiOutlineCog6Tooth,
+    HiOutlineInformationCircle,
+    HiOutlineTrash
+} from "react-icons/hi2";
+import { Alert, Dropdown, FlowbiteColors, ToggleSwitch, Tooltip } from "flowbite-react";
 import { WatermarkModal } from "../../modals";
 import { FixedSizeGrid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -9,15 +13,20 @@ import useWindowDimensions from "../../../hooks/windowDimensions";
 import { DynamicStringEnumKeysOf } from "../../../utils";
 import { SetControls } from "./SetControls";
 import { SetRow } from "./SetRow";
+import { EditableTextField } from "../../common/EditableTextField";
+import { useMutation, useQueries } from "@tanstack/react-query";
+import { deleteImagesMutation, DeleteImagesMutationParams, updateSetMutation, UpdateSetParams } from "../../../services/photoSetService";
+import { getPathQueryOptions } from "../../../services/collectionService";
 
 export type PhotoCollectionProps = {
     photoCollection: PhotoCollection;
     photoSet: PhotoSet;
     watermarkObjects: Watermark[],
-    paths: PicturePath[]
+    paths: PicturePath[],
+    parentUpdateSet: (updatedSet: PhotoSet) => void
 }
 
-export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, watermarkObjects, paths }) => {
+export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, watermarkObjects, paths, parentUpdateSet }) => {
     const gridRef = useRef<FixedSizeGrid>(null)
     const [picturePaths, setPicturePaths] = useState(paths)
     const [pictureCollection, setPictureCollection] = useState(photoCollection)
@@ -30,6 +39,10 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
     const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
 
     const dimensions = useWindowDimensions()
+
+    const updateSet = useMutation({
+        mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
+    })
 
     function pictureStyle(id: string, cover: boolean){
         const conditionalBackground = selectedPhotos.find((path) => path.id === id) !== undefined ? 
@@ -45,6 +58,32 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
     function parseName(path: string){
         return path.substring(path.indexOf('_') + 1)
     }
+
+    let activeTimeout: NodeJS.Timeout | undefined
+
+    const pathUrls = useQueries({
+        queries: picturePaths.map((path) => {
+            return getPathQueryOptions(path.path)
+        })
+    })
+
+    const duplicates = (() => {
+        const temp: string[] = []
+        const duplicates: PicturePath[] = []
+        picturePaths.forEach((path) => {
+            if(temp.includes(parseName(path.path))){
+                duplicates.push(path)
+            }
+            else{
+                temp.push(parseName(path.path))
+            }
+        })
+        return duplicates
+    })()
+
+    const deleteImages = useMutation({
+        mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
+    })
 
     return (
     <>
@@ -72,22 +111,96 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
                 setPhotos={setPicturePaths}
                 selectedPhotos={selectedPhotos} 
                 setSelectedPhotos={setSelectedPhotos}
+                gridRef={gridRef}
             />
         )}
         <div className="border-gray-400 border rounded-2xl p-4 flex flex-col items-center w-full">
             <div className="flex flex-row items-center justify-between w-full">
-                <span className="text-2xl ms-4 mb-2">Photo Set: <span className="font-thin">{photoSet.name}</span></span>
-                <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={24} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
-                    <Dropdown.Item 
-                        onClick={() => setDisplayTitleOverride(!displayTitleOverride)}
-                    >
-                        <ToggleSwitch 
-                            checked={displayTitleOverride} 
-                            onChange={() => setDisplayTitleOverride(!displayTitleOverride)}
-                            label="Display Photo Titles"
-                        />
-                    </Dropdown.Item>
-                </Dropdown>
+                <EditableTextField 
+                    label={(<span>{`Photo Set: `}</span>)} 
+                    text={photoSet.name} 
+                    onSubmitText={(text) => {
+                        updateSet.mutate({
+                            set: photoSet,
+                            coverPath: photoSet.coverPath,
+                            name: text,
+                            order: photoSet.order,
+                            options: {
+                                logging: true
+                            }
+                        })
+                        parentUpdateSet({
+                            ...photoSet,
+                            name: text
+                        })
+                    }} 
+                    onSubmitError={(message) => {
+                        setNotification({text: message, color: 'red'})
+                        if(!notification) {
+                            clearTimeout(activeTimeout)
+                            activeTimeout = setTimeout(() => {
+                                setNotification(undefined)
+                                activeTimeout = undefined
+                            }, 5000)
+                        }
+                    }}
+                />
+                <div className="flex flex-row items-center gap-3">
+                    <Tooltip style='light' content={(
+                        <div className="flex flex-col">
+                            <span>Items: {photoSet.paths.length}</span>
+                            {duplicates.length > 0 && (
+                                <span className="text-yellow-400 flex flex-row items-center">
+                                    Found Duplicate(s)
+                                    <Tooltip content='Delete Duplicates'>
+                                        <button
+                                            onClick={() => {
+                                                deleteImages.mutate({
+                                                    collection: photoCollection,
+                                                    picturePaths: duplicates
+                                                })
+                                                setPicturePaths(picturePaths.filter((path) => {
+                                                    return (duplicates.find((dup) => dup.id === path.id) === undefined)
+                                                }))
+                                            }}
+                                        >
+                                            <HiOutlineTrash size={16} className="mt-1.5"/>
+                                        </button>
+                                    </Tooltip>
+                                </span>
+                            )}
+                        </div>
+                    )}>
+                        <HiOutlineInformationCircle size={24}/>
+                    </Tooltip>
+                    <Tooltip content="Photo Set Settings">
+                        <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={24} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
+                            <Dropdown.Item 
+                                onClick={() => setDisplayTitleOverride(!displayTitleOverride)}
+                            >
+                                <ToggleSwitch 
+                                    checked={displayTitleOverride} 
+                                    onChange={() => setDisplayTitleOverride(!displayTitleOverride)}
+                                    label="Display Photo Titles"
+                                />
+                            </Dropdown.Item>
+                            <Dropdown.Item 
+                                onClick={() => {
+                                    const index = picturePaths.findIndex((path) => {
+                                        return path.path === cover
+                                    })
+                                    gridRef.current?.scrollToItem({
+                                        rowIndex: (index / 4)
+                                    })
+                                }}
+                            >
+                                Go To Cover
+                            </Dropdown.Item>
+                        </Dropdown>
+                    </Tooltip>
+                    
+                </div>
+                
             </div>
             <div className="w-full border border-gray-200 my-2"></div>
             <div className="relative z-10 w-full flex flex-row items-center justify-center">
@@ -115,6 +228,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
                             data: picturePaths
                                 .sort((a, b) => a.order - b.order)
                                 .filter((path) => path.path && path.id),
+                            urls: pathUrls,
                             cover,
                             parseName,
                             pictureStyle,
@@ -125,7 +239,16 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
                             setCover,
                             setPicturePaths,
                             displayTitleOverride,
-                            notify: (text, color) => setNotification({text, color}),
+                            notify: (text, color) => {
+                                setNotification({text, color})
+                                if(!notification) {
+                                    clearTimeout(activeTimeout)
+                                    activeTimeout = setTimeout(() => {
+                                        setNotification(undefined)
+                                        activeTimeout = undefined
+                                    }, 5000)
+                                }
+                            },
                         }}
                     >
                         {SetRow}

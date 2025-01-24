@@ -2,6 +2,7 @@ import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { Button } from 'flowbite-react'
 import {
   HiOutlineCalendar,
+  // HiOutlineCalendar,
   // HiOutlineChat,
   HiOutlineClipboardList,
   HiOutlineDocumentText,
@@ -45,7 +46,7 @@ function RouteComponent() {
           Welcome {structureFullname()}
         </p>
         <p className="font-medium text-xl mb-1">Management Consoles:</p>
-        <Button.Group outline>
+        <Button.Group>
           <Button
             color="gray"
             onClick={() => {

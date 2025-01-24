@@ -30,6 +30,37 @@ async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: st
 }
 
 
+interface GetPhotoSetByIdOptions extends GetAllPicturePathsByPhotoSetOptions {
+
+}
+async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options?: GetPhotoSetByIdOptions): Promise<PhotoSet | null> {
+    if(!setId) return null
+    const setResponse = await client.models.PhotoSet.get({
+        id: setId,
+    })
+
+    if(!setResponse || !setResponse.data) return null
+
+    const pathsResponse = await setResponse.data.paths()
+    const mappedPaths: PicturePath[] = await Promise.all(pathsResponse.data.map(async (path) => {
+        const mappedPath: PicturePath = {
+            ...path,
+            url: options?.resolveUrls ? (await getUrl({
+                path: path.path,
+            })).url.toString() : ''
+        }
+        return mappedPath
+    }))
+    
+    return {
+        ...setResponse.data,
+        coverText: undefined, //TODO: implement me
+        watermarkPath: setResponse.data.watermarkPath ?? undefined,
+        paths: mappedPaths,
+    }
+}
+
+
 export interface CreateSetParams {
     collection: PhotoCollection,
     name: string,
@@ -62,52 +93,12 @@ export interface UpdateSetParams {
     watermarkPath?: string,
     name: string,
     order: number,
-    paths: PicturePath[],
     options?: {
         logging: boolean
     }
 }
 export async function updateSetMutation(params: UpdateSetParams) {
     const updatedSet = {...params.set}
-    const removedPaths = params.set.paths
-        .filter((path) => 
-            params.paths.find((newPath) => path.id === newPath.id) === undefined
-        )
-
-    updatedSet.paths = updatedSet.paths
-        .filter((item) => removedPaths.find((path) => path.id === item.id) === undefined)
-        .sort((a, b) => a.order - b.order)
-        .map((path, index) => ({
-            ...path,
-            order: index,
-        }))
-
-    const updatedPathsResponse = await Promise.all(updatedSet.paths
-        .map(async (path) => {
-            const response = await client.models.PhotoPaths.update({
-                id: path.id,
-                order: path.order,
-            })
-            return response
-        })
-    )
-    if(params.options?.logging) console.log(updatedPathsResponse)
-
-    const removePathResponse = await Promise.all(removedPaths.map(async (path) => {
-        const s3response = await remove({
-            path: path.path
-        })
-
-        const dynamoResponse = await client.models.PhotoPaths.delete({
-            id: path.id,
-        })
-
-        return {
-            s3: s3response,
-            dynamo: dynamoResponse,
-        }
-    }))
-    if(params.options?.logging) console.log(removePathResponse)
 
     if(
         params.set.name !== params.name ||
@@ -134,6 +125,7 @@ export async function updateSetMutation(params: UpdateSetParams) {
     return updatedSet
 }
 
+//TODO: optimize me
 export interface ReorderPathsParams{
     paths: PicturePath[],
     options?: {
@@ -244,4 +236,9 @@ export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string, options
     queryKey: ['photoPaths', client, setId, options],
     queryFn: () => getAllPicturePathsByPhotoSet(client, setId, options),
     gcTime: 1000 * 15 * 60 //15 minutes
+})
+
+export const getPhotoSetByIdQueryOptions = (setId?: string, options?: GetPhotoSetByIdOptions) => queryOptions({
+    queryKey: ['photoSet', client, setId, options],
+    queryFn: () => getPhotoSetById(client, setId, options),
 })

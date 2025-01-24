@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from 'react';
+import { ComponentProps, useEffect, useState } from 'react';
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { reorderWithEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge';
@@ -10,14 +10,24 @@ import { PhotoSet } from '../../../types';
 import { useMutation } from '@tanstack/react-query';
 import { reorderSetsMutation, ReorderSetsParams } from '../../../services/collectionService';
 
-const component: FC<{setList: PhotoSet[], setSelectedSet: (set: PhotoSet) => void, collectionId: string}> = ({ setList, setSelectedSet, collectionId }) => {
-  const [sets, setSets] = useState<PhotoSet[]>(setList);
+interface SetListProps extends ComponentProps<'div'> {
+  setList: PhotoSet[],
+  setSelectedSet: (set: PhotoSet) => void, 
+  collectionId: string,
+  updateSetList: (set: PhotoSet[]) => void,
+}
+
+export const SetList = (props: SetListProps) => {
+  const [sets, setSets] = useState<PhotoSet[]>(props.setList);
 
   const reorderSets = useMutation({
     mutationFn: (params: ReorderSetsParams) => reorderSetsMutation(params)
   })
 
   useEffect(() => {
+    if(props.setList !== sets){
+      setSets(props.setList)
+    }
     return monitorForElements({
       canMonitor({ source }) {
         return isSetData(source.data);
@@ -43,7 +53,7 @@ const component: FC<{setList: PhotoSet[], setSelectedSet: (set: PhotoSet) => voi
         }
 
         reorderSets.mutate({
-          collectionId: collectionId,
+          collectionId: props.collectionId,
           sets: sets,
           options: {
             logging: true
@@ -53,23 +63,23 @@ const component: FC<{setList: PhotoSet[], setSelectedSet: (set: PhotoSet) => voi
         const closestEdgeOfTarget = extractClosestEdge(targetData);
 
         flushSync(() => {
-          setSets(
-            reorderWithEdge({
-              list: sets.map((set) => {
-                if(set.id === sourceData.setId){
-                  set.order = indexOfTarget
-                }
-                else if(set.id === targetData.setId){
-                  set.order = indexOfSource
-                }
-                return set
-              }),
-              startIndex: indexOfSource,
-              indexOfTarget,
-              closestEdgeOfTarget,
-              axis: 'vertical',
+          const newSets = reorderWithEdge({
+            list: sets.map((set) => {
+              if(set.id === sourceData.setId){
+                set.order = indexOfTarget
+              }
+              else if(set.id === targetData.setId){
+                set.order = indexOfSource
+              }
+              return set
             }),
-          );
+            startIndex: indexOfSource,
+            indexOfTarget,
+            closestEdgeOfTarget,
+            axis: 'vertical',
+          })
+          setSets(newSets);
+          props.updateSetList(newSets)
         });
 
         const element = document.querySelector(`[data-task-id="${sourceData.setId}"]`);
@@ -78,7 +88,7 @@ const component: FC<{setList: PhotoSet[], setSelectedSet: (set: PhotoSet) => voi
         }
       },
     });
-  }, [sets]);
+  }, [sets, props.setList]);
 
   return (
     <div className="pt-6 my-0 mx-auto">
@@ -86,11 +96,9 @@ const component: FC<{setList: PhotoSet[], setSelectedSet: (set: PhotoSet) => voi
         {sets
           .sort((a, b) => a.order - b.order)
           .map((set) => (
-            <Set key={set.id} set={set} onClick={() => setSelectedSet(set)}/>
+            <Set key={set.id} set={set} onClick={() => props.setSelectedSet(set)}/>
         ))}
       </div>
     </div>
   );
 }
-
-export default component

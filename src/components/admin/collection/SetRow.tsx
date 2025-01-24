@@ -3,8 +3,7 @@ import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
 import { DynamicStringEnumKeysOf } from "../../../utils"
 import { FlowbiteColors, Tooltip } from "flowbite-react"
 import { UploadImagePlaceholder } from "./UploadImagePlaceholder"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { getPathQueryOptions } from "../../../services/collectionService"
+import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import { 
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
@@ -25,6 +24,7 @@ export interface SetRowProps extends GridChildComponentProps {
     collection: PhotoCollection,
     set: PhotoSet,
     data: PicturePath[],
+    urls: UseQueryResult<[string | undefined, string] | undefined>[],
     cover: string,
     parseName: (path: string) => string 
     pictureStyle: (id: string, selected: boolean) => string
@@ -59,8 +59,6 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
     return undefined
   }
 
-  const url = useQuery(getPathQueryOptions(data.data[index].path))
-
   const coverSelected = data.parseName(data.data[index].path) === data.parseName(data.cover ?? '')
   const coverSelectedStyle = `${coverSelected ? 'fill-yellow-300' : ''}`
 
@@ -77,7 +75,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
   })
 
   return (
-    <button 
+    <div 
         style={{
             ...style,
             width: Number(style.width ?? 0) - 20,
@@ -107,7 +105,6 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
                 }
               }
               minIndex = index < minIndex ? index : minIndex
-              console.log(minIndex, maxIndex)
               if(minIndex > -1){
                 data.setSelectedPhotos(data.data.filter((_, i) => i >= minIndex && i <= maxIndex))
               }
@@ -125,27 +122,26 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
           data.setDisplayPhotoControls(undefined)
         }}
     >
-      {url.isLoading ? (
+      {data.urls[index].isLoading ? (
         <div className="flex items-center justify-center w-[200px] h-[300px] bg-gray-300 rounded sm:w-96">
           <svg className="w-10 h-10 text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
             <path d="M18 0H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2Zm-5.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm4.376 10.481A1 1 0 0 1 16 15H4a1 1 0 0 1-.895-1.447l3.5-7A1 1 0 0 1 7.468 6a.965.965 0 0 1 .9.5l2.775 4.757 1.546-1.887a1 1 0 0 1 1.618.1l2.541 4a1 1 0 0 1 .028 1.011Z"/>
           </svg>
         </div>
       ) : (
-        url.data ? (
-          <img src={url.data[1]} className="object-cover rounded-lg w-[200px] h-[300px] justify-self-center " id='image'/>
+        data.urls[index].data ? (
+          <img src={data.urls[index].data[1]} className="object-cover rounded-lg w-[200px] h-[300px] justify-self-center " id='image'/>
         ) : (
           <span>Failed to retrieve data</span>
         )
       )}
       <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${data.controlsEnabled(data.data[index].id, false)}`}>
         <Tooltip content={(<p>Set as cover</p>)} placement="bottom" className="w-[110px]">
-          <button className="" onClick={async () => {
+          <button className="" onClick={() => {
             if(!coverSelected) {
               data.setCover(data.data[index].path)
               updateSet.mutate({
                 set: data.set,
-                paths: data.data,
                 coverPath: data.data[index].path,
                 name: data.set.name,
                 order: data.set.order,
@@ -205,6 +201,6 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
       <div className={`absolute top-1 inset-x-0 justify-center flex-row ${data.controlsEnabled(data.data[index].id, data.displayTitleOverride)}`}>
           <p id="image-name">{data.parseName(data.data[index].path)}</p>
       </div>
-    </button>
+    </div>
   )
 }

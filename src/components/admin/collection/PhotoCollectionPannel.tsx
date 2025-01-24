@@ -1,12 +1,12 @@
 import { FC, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../../types"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Button, Dropdown, Label } from "flowbite-react"
-import { createSetMutation, CreateSetParams, getAllPicturePathsByPhotoSetQueryOptions } from "../../../services/photoSetService"
-import CollectionThumbnail from "./CollectionThumbnail"
+import { Button, Dropdown, Label, Tooltip } from "flowbite-react"
+import { createSetMutation, CreateSetParams, getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
+import { CollectionThumbnail } from "./CollectionThumbnail"
 import { HiOutlineCheckCircle, HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineXCircle } from "react-icons/hi2"
 import { HiOutlineMenu } from "react-icons/hi"
-import SetList from "./SetList"
+import { SetList } from "./SetList"
 import { CreateCollectionModal, WatermarkModal } from "../../modals"
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import { PhotoSetPannel } from "./PhotoSetPannel"
@@ -70,6 +70,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
     const [createSetVisible, setCreateSetVisible] = useState(false)
     const [watermarkVisible, setWatermarkVisible] = useState(false)
     const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
+    const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
     const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
     const client = useQueryClient()
     const router = useRouter()
@@ -82,13 +83,11 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
         }
     })
 
-    const paths = useQuery({
-        ...getAllPicturePathsByPhotoSetQueryOptions(selectedSet?.id, { resolveUrls: false}),
+    const setQuery = useQuery({
+        ...getPhotoSetByIdQueryOptions(selectedSet?.id, { resolveUrls: false}),
         enabled: selectedSet !== undefined
     })
 
-    console.log(paths.data)
-    
     return (
         <>
             <WatermarkModal 
@@ -132,15 +131,18 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                         onClick={() => {}}
                         parentLoading={deleteImage.isPending}
                         contentChildren={(
-                            <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
-                                <Dropdown.Item 
-                                    disabled={collection.coverPath === undefined}
-                                    onClick={() => deleteImage.mutate({
-                                        collectionId: collection.id,
-                                        cover: collection.coverPath
-                                    })}
-                                >Remove Cover Photo</Dropdown.Item>
-                            </Dropdown>
+                            <Tooltip content="Photo Collection Settings">
+                                <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
+                                    <Dropdown.Item 
+                                        disabled={collection.coverPath === undefined}
+                                        onClick={() => deleteImage.mutate({
+                                            collectionId: collection.id,
+                                            cover: collection.coverPath
+                                        })}
+                                    >Remove Cover Photo</Dropdown.Item>
+                                </Dropdown>
+                            </Tooltip>
+                            
                         )}
                     />
                     <div className="flex flex-row items-center justify-between w-full">
@@ -156,16 +158,19 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                     <div className="border w-full"></div>
                     <div className="w-full">
                         <SetList 
-                            setList={collection.sets} 
-                            setSelectedSet={(set) => {
-                                navigate({to: '.', search: {
-                                    collection: collection.id,
-                                    set: set.id
-                                }})
-                                paths.refetch()
+                            setList={setList}
+                            setSelectedSet={(set: PhotoSet) => {
+                                navigate({
+                                    to: '.', search: {
+                                        collection: collection.id,
+                                        set: set.id
+                                    }
+                                })
+                                setQuery.refetch()
                                 setSelectedSet(set)
-                            }}
-                            collectionId={collection.id}
+                            } }
+                            collectionId={collection.id} 
+                            updateSetList={setSetList}                            
                         />
                         {createSetVisible && (
                             <CreateSetComponent 
@@ -179,7 +184,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                     </div>
                 </div>
                 {selectedSet ? (
-                    paths.isLoading || paths.isRefetching ? (
+                    setQuery.isLoading || setQuery.isRefetching ? (
                         <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
                             <div className="flex flex-row items-center justify-center">
                                 <p>Loading</p>
@@ -189,9 +194,19 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                     ) : (
                         <PhotoSetPannel 
                             photoCollection={collection} 
-                            photoSet={selectedSet} 
+                            photoSet={setQuery.data ?? selectedSet} 
                             watermarkObjects={watermarkObjects}
-                            paths={paths.data ?? []}
+                            paths={setQuery.data?.paths ?? []}
+                            parentUpdateSet={(updatedSet) => {
+                                const temp = setList.map((set) => {
+                                    if(set.id === updatedSet.id){
+                                        return updatedSet
+                                    }
+                                    return set
+                                })
+                                setSetList(temp)
+                                setSelectedSet(updatedSet)
+                            }}
                         />
                     )
                 ) : (
