@@ -84,7 +84,7 @@ export const CollectionThumbnail= ({
                         onMouseLeave={() => setHovering(false)}
                     >
                         {coverPath ? (
-                            <img src={coverPath} className="max-h-[240px] max-w-[360px] object-cover"/>
+                            <img src={coverPath} className="h-[238px] w-[358px] rounded-lg"/>
                         ) : (
                             <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
                                 <p className={`font-thin opacity-90 text-2xl`}>No Cover</p>

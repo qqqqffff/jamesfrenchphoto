@@ -5,20 +5,32 @@ import { reorderWithEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/r
 import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
 import { flushSync } from 'react-dom';
 import { isSetData } from './SetData';
-import Set from './Set';
-import { PhotoSet } from '../../../types';
+import { Set } from './Set';
+import { PhotoCollection, PhotoSet } from '../../../types';
 import { useMutation } from '@tanstack/react-query';
 import { reorderSetsMutation, ReorderSetsParams } from '../../../services/collectionService';
 
 interface SetListProps extends ComponentProps<'div'> {
   setList: PhotoSet[],
   setSelectedSet: (set: PhotoSet) => void, 
-  collectionId: string,
+  collection: PhotoCollection,
   updateSetList: (set: PhotoSet[]) => void,
+  creatingSet: boolean,
+  doneCreatingSet: () => void,
 }
 
 export const SetList = (props: SetListProps) => {
   const [sets, setSets] = useState<PhotoSet[]>(props.setList);
+
+  if(props.creatingSet && sets.find((set) => set.id === 'creating') === undefined){
+    setSets([...sets, {
+      id: 'creating',
+      name: '',
+      paths: [],
+      coverPath: '',
+      order: props.setList.length,
+    }])
+  }
 
   const reorderSets = useMutation({
     mutationFn: (params: ReorderSetsParams) => reorderSetsMutation(params)
@@ -26,6 +38,9 @@ export const SetList = (props: SetListProps) => {
 
   useEffect(() => {
     if(props.setList !== sets){
+      if(props.creatingSet){
+
+      }
       setSets(props.setList)
     }
     return monitorForElements({
@@ -53,7 +68,7 @@ export const SetList = (props: SetListProps) => {
         }
 
         reorderSets.mutate({
-          collectionId: props.collectionId,
+          collectionId: props.collection.id,
           sets: sets,
           options: {
             logging: true
@@ -96,7 +111,49 @@ export const SetList = (props: SetListProps) => {
         {sets
           .sort((a, b) => a.order - b.order)
           .map((set) => (
-            <Set key={set.id} set={set} onClick={() => props.setSelectedSet(set)}/>
+            <Set 
+              key={set.id} 
+              set={set} 
+              onClick={() => {
+                if(set.id !== 'creating'){
+                  props.setSelectedSet(set)
+                }
+              }} 
+              collection={set.id === 'creating' ? props.collection : undefined}
+              onSubmit={(submittedSet) => {
+                if(set.id === 'creating'){
+                  const updatedSets = sets.map((set) => {
+                    if(set.id === 'creating'){
+                      return submittedSet
+                    }
+                    return set
+                  })
+
+                  props.setSelectedSet(submittedSet)
+                  props.doneCreatingSet()
+                  setSets(updatedSets)
+                  props.updateSetList(updatedSets)
+                }
+              }}
+              onCancel={() => {
+                if(set.id === 'creating'){
+                  setSets(sets.filter((set) => set.id !== 'creating'))
+                  props.doneCreatingSet()
+                }
+              }}
+              updateParent={(name) => {
+                const updatedSets = sets.map((set) => {
+                  if(set.id === 'creating'){
+                    return {
+                      ...set,
+                      name: name,
+                    }
+                  }
+                  return set
+                })
+                setSets(updatedSets)
+              }}
+            />
         ))}
       </div>
     </div>

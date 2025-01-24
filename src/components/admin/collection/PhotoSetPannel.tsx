@@ -17,6 +17,7 @@ import { EditableTextField } from "../../common/EditableTextField";
 import { useMutation, useQueries } from "@tanstack/react-query";
 import { deleteImagesMutation, DeleteImagesMutationParams, updateSetMutation, UpdateSetParams } from "../../../services/photoSetService";
 import { getPathQueryOptions } from "../../../services/collectionService";
+import { detectDuplicates } from "./utils";
 
 export type PhotoCollectionProps = {
     photoCollection: PhotoCollection;
@@ -55,10 +56,6 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
         return 'hidden'
     }
 
-    function parseName(path: string){
-        return path.substring(path.indexOf('_') + 1)
-    }
-
     let activeTimeout: NodeJS.Timeout | undefined
 
     const pathUrls = useQueries({
@@ -67,19 +64,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
         })
     })
 
-    const duplicates = (() => {
-        const temp: string[] = []
-        const duplicates: PicturePath[] = []
-        picturePaths.forEach((path) => {
-            if(temp.includes(parseName(path.path))){
-                duplicates.push(path)
-            }
-            else{
-                temp.push(parseName(path.path))
-            }
-        })
-        return duplicates
-    })()
+    const duplicates = detectDuplicates(picturePaths)
 
     const deleteImages = useMutation({
         mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
@@ -136,13 +121,11 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
                     }} 
                     onSubmitError={(message) => {
                         setNotification({text: message, color: 'red'})
-                        if(!notification) {
-                            clearTimeout(activeTimeout)
-                            activeTimeout = setTimeout(() => {
-                                setNotification(undefined)
-                                activeTimeout = undefined
-                            }, 5000)
-                        }
+                        clearTimeout(activeTimeout)
+                        activeTimeout = setTimeout(() => {
+                            setNotification(undefined)
+                            activeTimeout = undefined
+                        }, 5000)
                     }}
                 />
                 <div className="flex flex-row items-center gap-3">
@@ -189,6 +172,15 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
                                     const index = picturePaths.findIndex((path) => {
                                         return path.path === cover
                                     })
+                                    if(index === -1) {
+                                        setNotification({text: 'No Cover Photo', color: 'red'})
+                                        clearTimeout(activeTimeout)
+                                        activeTimeout = setTimeout(() => {
+                                            setNotification(undefined)
+                                            activeTimeout = undefined
+                                        }, 5000)
+                                        return
+                                    }
                                     gridRef.current?.scrollToItem({
                                         rowIndex: (index / 4)
                                     })
@@ -230,7 +222,6 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
                                 .filter((path) => path.path && path.id),
                             urls: pathUrls,
                             cover,
-                            parseName,
                             pictureStyle,
                             selectedPhotos,
                             setSelectedPhotos,
@@ -241,13 +232,11 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
                             displayTitleOverride,
                             notify: (text, color) => {
                                 setNotification({text, color})
-                                if(!notification) {
-                                    clearTimeout(activeTimeout)
-                                    activeTimeout = setTimeout(() => {
-                                        setNotification(undefined)
-                                        activeTimeout = undefined
-                                    }, 5000)
-                                }
+                                clearTimeout(activeTimeout)
+                                activeTimeout = setTimeout(() => {
+                                    setNotification(undefined)
+                                    activeTimeout = undefined
+                                }, 5000)
                             },
                         }}
                     >

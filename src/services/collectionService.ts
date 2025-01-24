@@ -165,8 +165,10 @@ async function getPath(path: string, id?: string): Promise<[string | undefined, 
 }
 
 interface GetPhotoCollectionByIdOptions {
-    siTags: boolean,
-    siSets: boolean,
+    siTags?: boolean,
+    siSets?: boolean,
+    siPaths?: boolean,
+    resolveUrls?: boolean
 }
 async function getCollectionById(collectionId: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | undefined> {
     console.log('api call')
@@ -174,15 +176,28 @@ async function getCollectionById(collectionId: string, options?: GetPhotoCollect
     if(!collection || !collection.data) return
     const sets: PhotoSet[] = []
     if(!options || options.siSets){
-        sets.push(...(await collection.data.sets()).data.map((set) => {
+        sets.push(...await Promise.all((await collection.data.sets()).data.map((async (set) => {
+            const paths = await set.paths()
+            const mappedPaths: PicturePath[] = []
+            if(!options || options?.siPaths) {
+                mappedPaths.push(...await Promise.all(paths.data.map(async (path) => {
+                    const mappedPath: PicturePath = {
+                        ...path,
+                        url: options?.resolveUrls ? (await getUrl({
+                            path: path.path,
+                        })).url.toString() : ''
+                    }
+                    return mappedPath
+                })))
+            }
             const mappedSet: PhotoSet = {
                 ...set,
                 coverText: undefined, //TODO: implement me
                 watermarkPath: set.watermarkPath ?? undefined,
-                paths: [],
+                paths: mappedPaths,
             }
             return mappedSet
-        }))
+        }))))
     }
     const tags: UserTag[] = []
     if(!options || options.siTags){

@@ -1,17 +1,18 @@
 import { FC, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../../types"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Button, Dropdown, Label, Tooltip } from "flowbite-react"
-import { createSetMutation, CreateSetParams, getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
+import { Dropdown, Label, Tooltip } from "flowbite-react"
+import { getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
 import { CollectionThumbnail } from "./CollectionThumbnail"
-import { HiOutlineCheckCircle, HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineXCircle } from "react-icons/hi2"
-import { HiOutlineMenu } from "react-icons/hi"
+import { HiOutlineCog6Tooth, HiOutlinePlusCircle } from "react-icons/hi2"
 import { SetList } from "./SetList"
 import { CreateCollectionModal, WatermarkModal } from "../../modals"
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import { PhotoSetPannel } from "./PhotoSetPannel"
 import { deleteCoverMutation, DeleteCoverParams } from "../../../services/collectionService"
 import Loading from "../../common/Loading"
+import { detectDuplicates } from "./utils"
+import { PublishableItems } from "./PublishableItems"
 
 interface PhotoCollectionPannelProps {
     watermarkObjects: Watermark[],
@@ -21,53 +22,14 @@ interface PhotoCollectionPannelProps {
     set?: PhotoSet
 }
 
-interface CreateSetComponentParams {
-    collection: PhotoCollection,
-    order?: number,
-    callback: (set: PhotoSet) => void
-    close: () => void,
-}
-
-const CreateSetComponent: FC<CreateSetComponentParams> = ({ collection, callback, close }) => {
-    const [name, setName] = useState<string>('')
-    const [loading, setLoading] = useState(false)
-
-    const createSet = useMutation({
-        mutationFn: (params: CreateSetParams) => createSetMutation(params),
-        onSettled: (data) => {
-            setLoading(false)
-            if(data){
-                setName('')
-                callback(data)
-            }
-        }
-    })
-    return (
-        <div className="flex flex-row border rounded-2xl py-1 px-4 gap-4">
-            <button><HiOutlineMenu/></button>
-            <input autoFocus className="focus:outline-none border-b-black border-b w-full" onChange={(event) => setName(event.target.value)} value={name}/>
-            <Button size='sm' outline pill isProcessing={loading} 
-            onClick={() => {
-                setLoading(true)
-                createSet.mutate({
-                    collection: collection,
-                    name: name,
-                    options: {
-                        logging: true
-                    }
-                }
-            )}}>
-                {!loading && <HiOutlineCheckCircle className="text-3xl text-green-400"/>}
-            </Button>
-            <Button size='sm' outline pill onClick={() => close()}>
-                {!loading && <HiOutlineXCircle className="text-3xl text-red-500" />}
-            </Button>
-        </div>
-    )
+interface Publishable {
+    status: boolean, 
+    reason?: string[], 
+    warning?: string[]
 }
 
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, coverPath, collection, set }) => {
-    const [createSetVisible, setCreateSetVisible] = useState(false)
+    const [createSet, setCreateSet] = useState(false)
     const [watermarkVisible, setWatermarkVisible] = useState(false)
     const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
     const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
@@ -87,6 +49,40 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
         ...getPhotoSetByIdQueryOptions(selectedSet?.id, { resolveUrls: false}),
         enabled: selectedSet !== undefined
     })
+
+    //all cover paths, each set has paths, warn if less than 20 and if has duplicates
+    const publishable: Publishable = (() => {
+        let publishable: Publishable = { status: true }
+        const updatePublishable = (a: Publishable, warning?: string, reason?: string) => {
+            if(reason){
+                a.reason = [reason, ...(a.reason ?? [])]
+                a.status = false
+            }
+            if(warning){
+                a.warning = [warning, ...(a.warning ?? [])]
+            }
+            return a
+        }
+        publishable = collection.coverPath === undefined ? updatePublishable(publishable, undefined, 'Collection has No Cover Photo'): publishable
+
+        const tempSetList = setList.sort((a, b) => b.order - a.order)
+        for(let i = 0; i < tempSetList.length; i++) {
+            publishable = tempSetList[i].coverPath === '' ? updatePublishable(publishable, `${tempSetList[i].name} has No Cover Photo`) : publishable,
+            publishable = tempSetList[i].paths.length > 0 ? (
+                tempSetList[i].paths.length < 20 ? (
+                    updatePublishable(publishable, `${tempSetList[i].name} has Few Pictures`)
+                ) : (
+                    publishable
+                )
+            ) : (
+                updatePublishable(publishable, undefined, `${tempSetList[i].name} has a No Pictures`)
+            )
+            const duplicates = detectDuplicates(tempSetList[i].paths)
+            publishable = duplicates.length > 0 ? updatePublishable(publishable, `${tempSetList[i].name} has Duplicates`) : publishable
+        }
+
+        return publishable
+    })()
 
     return (
         <>
@@ -131,25 +127,48 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                         onClick={() => {}}
                         parentLoading={deleteImage.isPending}
                         contentChildren={(
-                            <Tooltip content="Photo Collection Settings">
-                                <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
-                                    <Dropdown.Item 
-                                        disabled={collection.coverPath === undefined}
-                                        onClick={() => deleteImage.mutate({
-                                            collectionId: collection.id,
-                                            cover: collection.coverPath
-                                        })}
-                                    >Remove Cover Photo</Dropdown.Item>
-                                </Dropdown>
-                            </Tooltip>
-                            
+                            <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
+                                <Dropdown.Item 
+                                    disabled={collection.coverPath === undefined}
+                                    onClick={() => deleteImage.mutate({
+                                        collectionId: collection.id,
+                                        cover: collection.coverPath
+                                    })}
+                                >Remove Cover Photo</Dropdown.Item>
+                                <Tooltip
+                                        className={`${publishable.status ? 'hidden' : ''}`}
+                                        content={(
+                                            <div className="flex flex-col gap-1 justify-start max-h-[200px] overflow-y-scroll z-20">
+                                                {publishable.reason?.map((reason, index) => {
+                                                    return (
+                                                        <PublishableItems key={index} item="error" message={reason} />
+                                                    )
+                                                })}
+                                                {publishable.warning?.map((warning, index) => {
+                                                    return (
+                                                        <PublishableItems key={index} item="warning" message={warning} />
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                    >
+                                    <Dropdown.Item
+                                        onClick={() => {
+                                            
+                                        }}
+                                        disabled={!publishable.status}
+                                    >
+                                        <span className={`${!publishable.status ? 'text-gray-500' : ''}`}>{!collection.published ? 'Publish' : 'Unpublish'}</span>
+                                    </Dropdown.Item>
+                                </Tooltip>
+                            </Dropdown>
                         )}
                     />
                     <div className="flex flex-row items-center justify-between w-full">
                         <Label className="text-lg ms-2">Photo Sets</Label>
                         <button
                             className="flex flex-row gap-2 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-1 px-2 me-2"
-                            onClick={() => {setCreateSetVisible(true)}}
+                            onClick={() => {setCreateSet(true)}}
                         >
                             <span className="">Create New Set</span>
                             <HiOutlinePlusCircle className="text-2xl text-gray-600" />
@@ -169,18 +188,11 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                                 setQuery.refetch()
                                 setSelectedSet(set)
                             } }
-                            collectionId={collection.id} 
-                            updateSetList={setSetList}                            
+                            collection={collection}
+                            updateSetList={setSetList}
+                            creatingSet={createSet}
+                            doneCreatingSet={() => setCreateSet(false)}
                         />
-                        {createSetVisible && (
-                            <CreateSetComponent 
-                                collection={collection}
-                                callback={(set) => {
-                                    collection.sets.push(set)
-                                    setCreateSetVisible(false)
-                                }}
-                                close={() => setCreateSetVisible(false)}
-                            />)}
                     </div>
                 </div>
                 {selectedSet ? (

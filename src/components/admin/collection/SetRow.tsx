@@ -1,6 +1,6 @@
 import { GridChildComponentProps } from "react-window"
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
-import { DynamicStringEnumKeysOf } from "../../../utils"
+import { DynamicStringEnumKeysOf, parsePathName } from "../../../utils"
 import { FlowbiteColors, Tooltip } from "flowbite-react"
 import { UploadImagePlaceholder } from "./UploadImagePlaceholder"
 import { useMutation, UseQueryResult } from "@tanstack/react-query"
@@ -26,7 +26,6 @@ export interface SetRowProps extends GridChildComponentProps {
     data: PicturePath[],
     urls: UseQueryResult<[string | undefined, string] | undefined>[],
     cover: string,
-    parseName: (path: string) => string 
     pictureStyle: (id: string, selected: boolean) => string
     selectedPhotos: PicturePath[]
     setSelectedPhotos: (photos: PicturePath[]) => void
@@ -59,7 +58,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
     return undefined
   }
 
-  const coverSelected = data.parseName(data.data[index].path) === data.parseName(data.cover ?? '')
+  const coverSelected = parsePathName(data.data[index].path) === parsePathName(data.cover ?? '')
   const coverSelectedStyle = `${coverSelected ? 'fill-yellow-300' : ''}`
 
   const deleteMutation = useMutation({
@@ -199,7 +198,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
         </Tooltip>
       </div>
       <div className={`absolute top-1 inset-x-0 justify-center flex-row ${data.controlsEnabled(data.data[index].id, data.displayTitleOverride)}`}>
-          <p id="image-name">{data.parseName(data.data[index].path)}</p>
+          <p id="image-name">{parsePathName(data.data[index].path)}</p>
       </div>
     </div>
   )

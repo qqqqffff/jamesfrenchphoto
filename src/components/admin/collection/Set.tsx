@@ -16,7 +16,10 @@ import {
 import { getSetData, isSetData } from './SetData';
 import { DropIndicator } from '../../common/DropIndicator';
 import { HiOutlineMenu } from 'react-icons/hi';
-import { PhotoSet } from '../../../types';
+import { PhotoCollection, PhotoSet } from '../../../types';
+import { useMutation } from '@tanstack/react-query';
+import { createSetMutation, CreateSetParams } from '../../../services/photoSetService';
+import { HiOutlineCheckCircle, HiOutlineXCircle } from 'react-icons/hi2';
 
 type SetState =
   | {
@@ -40,10 +43,20 @@ const stateStyles: { [Key in SetState['type']]?: HTMLAttributes<HTMLDivElement>[
 
 const idle: SetState = { type: 'idle' };
 
-const component: FC<{set: PhotoSet, onClick: () => void}> = ({ set, onClick }) => {
+interface SetProps {
+  set: PhotoSet, 
+  onClick: () => void, 
+  collection?: PhotoCollection,
+  onSubmit: (set: PhotoSet) => void,
+  onCancel: () => void,
+  updateParent: (name: string) => void
+}
+
+export const Set: FC<SetProps> = ({ set, onClick, collection, onSubmit, onCancel, updateParent }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<SetState>(idle);
   const [allowDragging, setAllowDragging] = useState(false)
+  const [name, setName] = useState(set.name)
 
   useEffect(() => {
     const element = ref.current;
@@ -122,6 +135,15 @@ const component: FC<{set: PhotoSet, onClick: () => void}> = ({ set, onClick }) =
     );
   }, [set, allowDragging]);
 
+  const createSet = useMutation({
+    mutationFn: (params: CreateSetParams) => createSetMutation(params),
+    onSettled: (set) => {
+      if(set){
+        onSubmit(set)
+      }
+    }
+  })
+
   return (
     <>
       <div className="relative">
@@ -137,7 +159,49 @@ const component: FC<{set: PhotoSet, onClick: () => void}> = ({ set, onClick }) =
           >
             <HiOutlineMenu size={14} />
           </button>
-          <span className="truncate flex-grow flex-shrink w-full text-start h-full hover:cursor-pointer">{set.name}</span>
+          {collection === undefined ? (
+            <span className="truncate flex-grow flex-shrink w-full text-start h-full hover:cursor-pointer">{set.name}</span>
+          ) : (
+            <div className='flex flex-row justify-between w-full'>
+              <input
+                autoFocus
+                className='focus:outline-none border-b-black border-b'
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value)
+                  updateParent(event.target.value)
+                }}
+                onKeyDown={(event) => {
+                  if(event.key === 'Enter'){
+                    createSet.mutate({
+                      name: name,
+                      collection: collection
+                    })
+                  }
+                  else if(event.key === 'Escape'){
+                    onCancel()
+                  }
+                }}
+              />
+              <div className='flex flex-row gap-4'>
+                <button 
+                  onClick={() => {
+                    createSet.mutate({
+                      collection: collection,
+                      name: name,
+                      options: {
+                        logging: true
+                      }
+                    }
+                    )}}>
+                  <HiOutlineCheckCircle className="text-3xl text-green-400"/>
+                </button>
+                <button onClick={() => close()}>
+                  <HiOutlineXCircle className="text-3xl text-red-500" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         {state.type === 'is-dragging-over' && state.closestEdge ? (
           <DropIndicator edge={state.closestEdge} gap={'8px'} />
@@ -151,5 +215,3 @@ const component: FC<{set: PhotoSet, onClick: () => void}> = ({ set, onClick }) =
 function DragPreview({ set }: { set: PhotoSet }) {
   return <div className="border-solid rounded p-2 bg-white">{set.name}</div>;
 }
-
-export default component
