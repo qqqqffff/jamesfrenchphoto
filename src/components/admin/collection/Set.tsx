@@ -150,7 +150,7 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, onSubmit, onCancel
         <div
           data-task-id={set.id}
           ref={ref}
-          className={`flex text-sm bg-white flex-row items-center border border-solid rounded p-2 pl-0 hover:bg-gray-100 ${stateStyles[state.type] ?? ''}`}
+          className={`flex text-sm bg-white flex-row items-center border border-solid rounded p-2 pl-0 ${collection === undefined ? 'hover:bg-gray-100' : ''} ${stateStyles[state.type] ?? ''}`}
           onClick={onClick}
         >
           <button className="w-6 flex justify-center hover:cursor-grab" 
@@ -194,10 +194,10 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, onSubmit, onCancel
                       }
                     }
                     )}}>
-                  <HiOutlineCheckCircle className="text-3xl text-green-400"/>
+                  <HiOutlineCheckCircle className="text-3xl text-green-400 hover:text-green-600"/>
                 </button>
-                <button onClick={() => close()}>
-                  <HiOutlineXCircle className="text-3xl text-red-500" />
+                <button onClick={() => onCancel()}>
+                  <HiOutlineXCircle className="text-3xl text-red-500 hover:text-red-700" />
                 </button>
               </div>
             </div>
