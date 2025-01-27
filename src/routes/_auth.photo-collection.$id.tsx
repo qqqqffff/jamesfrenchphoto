@@ -7,23 +7,26 @@ import useWindowDimensions from '../hooks/windowDimensions'
 import { Button } from 'flowbite-react'
 
 interface PhotoCollectionParams {
-  set?: string
+  set?: string,
 }
-//TODO: fix me
+//TODO: validation on route
 export const Route = createFileRoute('/_auth/photo-collection/$id')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): PhotoCollectionParams => ({
-    set: (search.set as string) || undefined
+    set: (search.set as string) || undefined,
   }),
   beforeLoad: ({ search }) => search,
   loader: async ({ context, params }) => {
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(!params.id) throw redirect({ to: destination })
     const collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(params.id))
-    if(!collection || collection.sets.length === 0) throw redirect({ to: destination })
+    if(!collection || collection.sets.length === 0 || !collection.published) throw redirect({ to: destination })
     const set = collection.sets.find((set) => set.id === context.set)
-    const coverUrl = (await context.queryClient.ensureQueryData(getPathQueryOptions(set?.coverPath ?? collection.sets[0].coverPath)))?.[1]
-    const watermarkUrl = collection.watermarkPath ?  (await context.queryClient.ensureQueryData(getPathQueryOptions(set?.watermarkPath ?? collection.watermarkPath)))?.[1] : undefined
+    const coverUrl = (await context.queryClient.ensureQueryData(getPathQueryOptions(set?.coverPath ?? collection.coverPath ?? '')))?.[1]
+    const watermarkUrl = (collection.watermarkPath !== undefined || set?.watermarkPath !== undefined) ?  (
+      await context.queryClient.ensureQueryData(
+        getPathQueryOptions(set?.watermarkPath ?? collection.watermarkPath ?? '')))?.[1] : undefined
+    
     const paths = (await context.queryClient.ensureQueryData(getAllPicturePathsByPhotoSetQueryOptions(set?.id ?? collection.sets[0].id)))
     if(!coverUrl) throw redirect({ to: destination })
 
@@ -41,7 +44,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     return {
       collection: mappedCollection,
       set: mappedSet,
-      auth: context.auth
+      auth: context.auth,
     }
   },
   wrapInSuspense: true
@@ -66,7 +69,10 @@ function RouteComponent() {
   }, [coverPhotoRef.current])    
 
   const formattedCollection: PicturePath[][] = []
-  let maxIndex = (dimensions.width > 1600 ? 5 : (dimensions.width > 800 ? 3 : 1))
+  let maxIndex = (dimensions.width > 1600 ? 5 : (
+    dimensions.width > 800 ? 
+      3 : 1
+  ))
   for(let i = 0; i < maxIndex; i++){
     formattedCollection.push([] as PicturePath[])
   }

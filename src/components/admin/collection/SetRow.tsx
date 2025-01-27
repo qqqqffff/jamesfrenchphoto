@@ -18,6 +18,8 @@ import {
   HiOutlineTrash,
   HiOutlineStar,
 } from "react-icons/hi2";
+import { CgArrowsExpandRight } from "react-icons/cg";
+import { useNavigate } from "@tanstack/react-router"
 
 export interface SetRowProps extends GridChildComponentProps {
   data: {
@@ -57,6 +59,8 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
     }
     return undefined
   }
+
+  const navigate = useNavigate()
 
   const coverSelected = parsePathName(data.data[index].path) === parsePathName(data.cover ?? '')
   const coverSelectedStyle = `${coverSelected ? 'fill-yellow-300' : ''}`
@@ -135,7 +139,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
         )
       )}
       <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${data.controlsEnabled(data.data[index].id, false)}`}>
-        <Tooltip content={(<p>Set as cover</p>)} placement="bottom" className="w-[110px]">
+        <Tooltip content={(<p>Set as cover</p>)} placement="bottom" className="w-[110px]" style='light'>
           <button className="" onClick={() => {
             if(!coverSelected) {
               data.setCover(data.data[index].path)
@@ -153,7 +157,22 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
             <HiOutlineStar className={coverSelectedStyle} size={20} />
           </button>
         </Tooltip>
-        <Tooltip content={(<p>Move to Top</p>)} placement="bottom" className="w-[110px]">
+        <Tooltip content={(<p>Preview Fullscreen</p>)} placement="bottom" className="w-[140px]" style='light'>
+          <button
+            onClick={() => {
+              navigate({
+                to: `/photo-fullscreen`,
+                search: {
+                  set: data.set.id,
+                  path: data.data[index].id
+                }
+              })
+            }}
+          >
+            <CgArrowsExpandRight size={20} />
+          </button>
+        </Tooltip>
+        <Tooltip content={(<p>Move to Top</p>)} placement="bottom" className="w-[110px]" style='light'>
           <button className="" onClick={() => {
             const temp = [data.data[index], ...data.data.filter((p) => p.id !== data.data[index].id)].map((path, index) => {
               return {
@@ -169,7 +188,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
             <HiOutlineBarsArrowUp size={20} />
           </button>
         </Tooltip>
-        <Tooltip content={(<p>Move to Bottom</p>)} placement="bottom" className="w-[130px]">
+        <Tooltip content={(<p>Move to Bottom</p>)} placement="bottom" className="w-[130px]" style='light'>
           <button className="" onClick={() => {
             const temp = [...data.data.filter((p) => p.id !== data.data[index].id), data.data[index]].map((path, index) => {
               return {
@@ -185,7 +204,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
             <HiOutlineBarsArrowDown size={20} />
           </button>
         </Tooltip>
-        <Tooltip content='Delete' placement="bottom">
+        <Tooltip content={(<p>Delete</p>)} placement="bottom">
           <button className="" onClick={() => {
             data.setPicturePaths(data.data.filter((path) => path.id !== data.data[index].id))
             deleteMutation.mutate({

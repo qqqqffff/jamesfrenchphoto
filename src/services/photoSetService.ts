@@ -42,7 +42,7 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
     if(!setResponse || !setResponse.data) return null
 
     const pathsResponse = await setResponse.data.paths()
-    const mappedPaths: PicturePath[] = await Promise.all(pathsResponse.data.map(async (path) => {
+    const mappedPaths: PicturePath[] = (await Promise.all(pathsResponse.data.map(async (path) => {
         const mappedPath: PicturePath = {
             ...path,
             url: options?.resolveUrls ? (await getUrl({
@@ -50,7 +50,7 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
             })).url.toString() : ''
         }
         return mappedPath
-    }))
+    }))).sort((a, b) => a.order - b.order)
     
     return {
         ...setResponse.data,

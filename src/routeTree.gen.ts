@@ -15,6 +15,7 @@ import { Route as RegisterImport } from './routes/register'
 import { Route as LoginImport } from './routes/login'
 import { Route as AuthImport } from './routes/_auth'
 import { Route as IndexImport } from './routes/index'
+import { Route as AuthPhotoFullscreenImport } from './routes/_auth.photo-fullscreen'
 import { Route as AuthPhotoCollectionIdImport } from './routes/_auth.photo-collection.$id'
 import { Route as AuthClientProfileImport } from './routes/_auth.client/profile'
 import { Route as AuthClientDashboardImport } from './routes/_auth.client/dashboard'
@@ -50,6 +51,12 @@ const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRoute,
+} as any)
+
+const AuthPhotoFullscreenRoute = AuthPhotoFullscreenImport.update({
+  id: '/photo-fullscreen',
+  path: '/photo-fullscreen',
+  getParentRoute: () => AuthRoute,
 } as any)
 
 const AuthPhotoCollectionIdRoute = AuthPhotoCollectionIdImport.update({
@@ -152,6 +159,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/register'
       preLoaderRoute: typeof RegisterImport
       parentRoute: typeof rootRoute
+    }
+    '/_auth/photo-fullscreen': {
+      id: '/_auth/photo-fullscreen'
+      path: '/photo-fullscreen'
+      fullPath: '/photo-fullscreen'
+      preLoaderRoute: typeof AuthPhotoFullscreenImport
+      parentRoute: typeof AuthImport
     }
     '/_auth/admin/dashboard': {
       id: '/_auth/admin/dashboard'
@@ -268,6 +282,7 @@ const AuthClientDashboardRouteWithChildren =
   AuthClientDashboardRoute._addFileChildren(AuthClientDashboardRouteChildren)
 
 interface AuthRouteChildren {
+  AuthPhotoFullscreenRoute: typeof AuthPhotoFullscreenRoute
   AuthAdminDashboardRoute: typeof AuthAdminDashboardRouteWithChildren
   AuthClientDashboardRoute: typeof AuthClientDashboardRouteWithChildren
   AuthClientProfileRoute: typeof AuthClientProfileRoute
@@ -275,6 +290,7 @@ interface AuthRouteChildren {
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthPhotoFullscreenRoute: AuthPhotoFullscreenRoute,
   AuthAdminDashboardRoute: AuthAdminDashboardRouteWithChildren,
   AuthClientDashboardRoute: AuthClientDashboardRouteWithChildren,
   AuthClientProfileRoute: AuthClientProfileRoute,
@@ -288,6 +304,7 @@ export interface FileRoutesByFullPath {
   '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
   '/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
   '/client/dashboard': typeof AuthClientDashboardRouteWithChildren
   '/client/profile': typeof AuthClientProfileRoute
@@ -306,6 +323,7 @@ export interface FileRoutesByTo {
   '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
   '/client/profile': typeof AuthClientProfileRoute
   '/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
   '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
@@ -323,6 +341,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/_auth/photo-fullscreen': typeof AuthPhotoFullscreenRoute
   '/_auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
   '/_auth/client/dashboard': typeof AuthClientDashboardRouteWithChildren
   '/_auth/client/profile': typeof AuthClientProfileRoute
@@ -343,6 +362,7 @@ export interface FileRouteTypes {
     | ''
     | '/login'
     | '/register'
+    | '/photo-fullscreen'
     | '/admin/dashboard'
     | '/client/dashboard'
     | '/client/profile'
@@ -360,6 +380,7 @@ export interface FileRouteTypes {
     | ''
     | '/login'
     | '/register'
+    | '/photo-fullscreen'
     | '/client/profile'
     | '/photo-collection/$id'
     | '/admin/dashboard/collection'
@@ -375,6 +396,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/login'
     | '/register'
+    | '/_auth/photo-fullscreen'
     | '/_auth/admin/dashboard'
     | '/_auth/client/dashboard'
     | '/_auth/client/profile'
@@ -425,6 +447,7 @@ export const routeTree = rootRoute
     "/_auth": {
       "filePath": "_auth.tsx",
       "children": [
+        "/_auth/photo-fullscreen",
         "/_auth/admin/dashboard",
         "/_auth/client/dashboard",
         "/_auth/client/profile",
@@ -436,6 +459,10 @@ export const routeTree = rootRoute
     },
     "/register": {
       "filePath": "register.tsx"
+    },
+    "/_auth/photo-fullscreen": {
+      "filePath": "_auth.photo-fullscreen.tsx",
+      "parent": "/_auth"
     },
     "/_auth/admin/dashboard": {
       "filePath": "_auth.admin/dashboard.tsx",
