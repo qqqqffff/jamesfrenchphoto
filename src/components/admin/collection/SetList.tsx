@@ -29,6 +29,7 @@ export const SetList = (props: SetListProps) => {
       paths: [],
       coverPath: '',
       order: props.setList.length,
+      collectionId: props.collection.id
     }])
   }
 

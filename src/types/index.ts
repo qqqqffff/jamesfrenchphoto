@@ -87,6 +87,7 @@ export type PhotoSet = {
     name: string,
     paths: PicturePath[],
     order: number,
+    collectionId: string;
 }
 
 export type Timeslot = {

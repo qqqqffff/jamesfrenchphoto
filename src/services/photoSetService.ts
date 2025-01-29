@@ -83,6 +83,7 @@ export async function createSetMutation(params: CreateSetParams) {
         paths: [],
         order: params.collection.sets.length,
         name: params.collection.name,
+        collectionId: params.collection.id
     }
     return mappedSet
 }
