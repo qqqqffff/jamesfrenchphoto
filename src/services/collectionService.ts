@@ -218,7 +218,7 @@ async function getCollectionById(collectionId: string, options?: GetPhotoCollect
         coverPath: collection.data.coverPath ?? undefined,
         items: collection.data.items ?? 0,
         published: collection.data.published ?? false,
-        sets: sets,
+        sets: sets.sort((a, b) => a.order - b.order),
         tags: tags,
     }
     return mappedCollection

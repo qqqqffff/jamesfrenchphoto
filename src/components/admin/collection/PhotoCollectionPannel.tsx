@@ -161,6 +161,11 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                                         <span className={`${!publishable.status ? 'text-gray-500' : ''}`}>{!collection.published ? 'Publish' : 'Unpublish'}</span>
                                     </Dropdown.Item>
                                 </Tooltip>
+                                <Dropdown.Item
+                                    onClick={() => navigate({ to: `/photo-collection/${collection.id}`, search: { set: selectedSet?.id }})}
+                                >
+                                    Preview Collection
+                                </Dropdown.Item>
                             </Dropdown>
                         )}
                     />
