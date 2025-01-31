@@ -17,6 +17,7 @@ interface UploadComponentProps extends ComponentProps<'div'> {
 export const UploadImagePlaceholder = (props: UploadComponentProps) => {
     const [displayProgress, setDisplayProgress] = useState(false)
     const [totalUpload, setTotalUpload] = useState<number>()
+    const [totalItems, setTotalItems] = useState<{items: number, total: number}>()
     const [uploadProgress, setUploadProgress] = useState<number>(0)
 
     const uploadImages = useMutation({
@@ -34,7 +35,6 @@ export const UploadImagePlaceholder = (props: UploadComponentProps) => {
             totalUpload += file.size
         })
 
-        console.log(totalUpload, 'totalUpload')
         setTotalUpload(totalUpload)
 
         uploadImages.mutate({
@@ -42,6 +42,8 @@ export const UploadImagePlaceholder = (props: UploadComponentProps) => {
             collection: props.collection,
             files: filesMap,
             progressStep: (progress) => setUploadProgress(progress),
+            totalUpload: totalUpload,
+            updateItems: setTotalItems,
             options: {
                 logging: true
             }

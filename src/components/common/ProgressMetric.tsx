@@ -17,7 +17,7 @@ export const ProgressMetric = (props: ProgressMetricProps) => {
 
     if(timeDiff > 0) {
       const speed = (bytesDiff / 1024 / 1024) / timeDiff
-      console.log(timeDiff, bytesDiff, speed, new Date(lastUpdateTime.current), new Date(now))
+      // console.log(timeDiff, bytesDiff, speed, new Date(lastUpdateTime.current), new Date(now))
 
       setSpeed(speed)
     }
