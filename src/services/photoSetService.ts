@@ -175,46 +175,46 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
         }
     })
     
-    // const response = (await Promise.all(
-    //     (await Promise.all(
-    //         [...params.files.values()].map(async (file) => {
-    //             let prevUploadAmount = -1
-    //             const result = await uploadData({
-    //                 path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.name}`,
-    //                 data: file,
-    //                 options: {
-    //                     onProgress: (event) => {
-    //                         currentUpload += event.transferredBytes
-    //                         if(prevUploadAmount !== -1){
-    //                             currentUpload -= prevUploadAmount
-    //                         }
-    //                         prevUploadAmount = event.transferredBytes
-    //                         console.log(currentUpload, prevUploadAmount)
-    //                         params.progressStep(currentUpload / totalUpload)
-    //                     }
-    //                 }
-    //             }).result
-    //             if(params.options?.logging) console.log(result)
-    //             return result.path
-    //         })
-    //     )).map(async (path, index) => {
-    //         const response = await client.models.PhotoPaths.create({
-    //             path: path,
-    //             order: index + params.set.paths.length,
-    //             setId: params.set.id,
-    //         })
-    //         if(params.options?.logging) console.log(response)
-    //         if(!response || !response.data || response.errors !== undefined) return false
-    //         return true
-    //     })
-    // )).filter((item) => item).length
+    const response = (await Promise.all(
+        (await Promise.all(
+            [...params.files.values()].map(async (file) => {
+                let prevUploadAmount = -1
+                const result = await uploadData({
+                    path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.name}`,
+                    data: file,
+                    options: {
+                        onProgress: (event) => {
+                            currentUpload += event.transferredBytes
+                            if(prevUploadAmount !== -1){
+                                currentUpload -= prevUploadAmount
+                            }
+                            prevUploadAmount = event.transferredBytes
+                            console.log(currentUpload, prevUploadAmount)
+                            params.progressStep(currentUpload / params.totalUpload)
+                        }
+                    }
+                }).result
+                if(params.options?.logging) console.log(result)
+                return result.path
+            })
+        )).map(async (path, index) => {
+            const response = await client.models.PhotoPaths.create({
+                path: path,
+                order: index + params.set.paths.length,
+                setId: params.set.id,
+            })
+            if(params.options?.logging) console.log(response)
+            if(!response || !response.data || response.errors !== undefined) return false
+            return true
+        })
+    )).filter((item) => item).length
 
-    // const updateCollectionItemsResponse = await client.models.PhotoCollection.update({
-    //     id: params.collection.id,
-    //     items: response + params.collection.items
-    // })
+    const updateCollectionItemsResponse = await client.models.PhotoCollection.update({
+        id: params.collection.id,
+        items: response + params.collection.items
+    })
 
-    // if(params.options?.logging) console.log(updateCollectionItemsResponse)
+    if(params.options?.logging) console.log(updateCollectionItemsResponse)
 }
 
 export interface DeleteImagesMutationParams {
