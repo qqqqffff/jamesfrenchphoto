@@ -527,7 +527,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                       accept="image/*"
                       onChange={async (event) => {
                         if(event.target.files){
-                          const issues: UploadIssue[] = []
+                          const issues: UploadIssue[] = [...uploadIssues]
                           const filesArray = Array.from(event.target.files).reduce((prev, cur) => {
                             if(cur.type.includes('image')){
                               prev.push(cur)
@@ -635,6 +635,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                           setFilesPreview(previews)
                           setFilesUpload(files)
                           setTotalUpload(total)
+                          setUploadIssues(issues)
                         }
                       }}
                     />
