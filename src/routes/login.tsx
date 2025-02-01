@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Alert, Button, Label, Modal, TextInput } from 'flowbite-react'
 import { textInputTheme } from '../utils'
+import { HiOutlineEyeSlash, HiOutlineEye } from "react-icons/hi2";
 
 interface LoginParams {
   createAccount?: boolean,
@@ -56,6 +57,8 @@ function RouteComponent() {
   const [passwordMinCharacters, setPasswordMinCharacters] = useState(false)
   const [passwordUpperCharacter, setPasswordUpperCharacter] = useState(false)
   const [passwordLowerCharacter, setPasswordLowerCharacter] = useState(false)
+
+  const [passwordVisible, setPasswordVisible] = useState(false)
   
   function NotificationComponent() {
     return (
@@ -251,7 +254,20 @@ function RouteComponent() {
             <Label className="ms-2 font-semibold text-xl" htmlFor="email">Email:</Label>
             <TextInput sizing='lg' className="mb-4 w-full" placeholder="Email" type="email" onChange={(event) => setUsername(event.target.value)} value={username} />
             <Label className="ms-2 font-semibold text-xl" htmlFor="password">Password:</Label>
-            <TextInput sizing='lg' className="mb-4 w-full" placeholder="Password" type="password" onChange={(event) => setPassword(event.target.value)} value={password} />
+            <div className='w-full relative h-auto'>
+              <TextInput sizing='lg' className="mb-4 w-full" placeholder="Password" type={passwordVisible ? 'text' : 'password'} onChange={(event) => setPassword(event.target.value)} value={password} />
+              <button 
+                type='button' 
+                onClick={() => setPasswordVisible(!passwordVisible)}
+                className='absolute inset-y-0 right-3 mb-4'
+              >
+                {passwordVisible ? (
+                  <HiOutlineEyeSlash size={24} className='fill-white'/>
+                ) : (
+                  <HiOutlineEye size={24} className='fill-white'/>
+                )}
+              </button>
+            </div>
             <div className="flex justify-end">
               <Button isProcessing={submitting} className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" disabled={!validate()}>Login</Button>
             </div>

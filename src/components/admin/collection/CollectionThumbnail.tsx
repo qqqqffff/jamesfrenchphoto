@@ -1,4 +1,4 @@
-import { ComponentProps, Key, useCallback, useState } from "react"
+import { ComponentProps, useCallback, useState } from "react"
 import { PhotoCollection } from "../../../types"
 import { Tooltip } from "flowbite-react"
 import { useDropzone } from "react-dropzone"
@@ -11,7 +11,6 @@ interface CollectionThumbnailProps extends ComponentProps<'div'> {
     collection: PhotoCollection,
     coverPath?: string,
     onClick?: () => void,
-    key?: Key,
     allowUpload?: boolean,
     contentChildren?: JSX.Element,
     parentLoading?: boolean

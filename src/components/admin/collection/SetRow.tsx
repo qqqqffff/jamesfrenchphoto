@@ -20,6 +20,7 @@ import {
 } from "react-icons/hi2";
 import { CgArrowsExpandRight } from "react-icons/cg";
 import { useNavigate } from "@tanstack/react-router"
+import { Dispatch, SetStateAction } from "react"
 
 export interface SetRowProps extends GridChildComponentProps {
   data: {
@@ -36,7 +37,8 @@ export interface SetRowProps extends GridChildComponentProps {
     setCover: (path: string) => void
     setPicturePaths: (picturePaths: PicturePath[]) => void,
     displayTitleOverride: boolean,
-    notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void
+    notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
+    setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
   }
 }
 
@@ -45,15 +47,14 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
   if(!data.data[index]) {
     if(data.data[index - 1] !== undefined || index == 0) {
       return (
-        <UploadImagePlaceholder 
+        <UploadImagePlaceholder
+          setFilesUploading={data.setFilesUploading}
           key={index} 
           style={{
             ...style,
             width: Number(style.width ?? 0) - 20,
             height: Number(style.height ?? 0) - 20,
           }}
-          set={data.set}
-          collection={data.collection}
         />
       )
     }
