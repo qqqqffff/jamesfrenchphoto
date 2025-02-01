@@ -265,10 +265,6 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
                 ref={gridRef}
                 style={{
                     left: ((width - 940) / 2),
-                    // border: 'thick solid #32a1ce'
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    placeItems: 'center'
                 }}
                 height={height}
                 rowCount={Number(Number(picturePaths.length / 4).toFixed(1)) + 1}
