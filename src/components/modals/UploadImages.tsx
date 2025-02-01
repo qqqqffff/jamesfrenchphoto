@@ -194,7 +194,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
         const now = new Date().getTime()
         const issues: UploadIssue[] = []
         const filesArray = [...files.values()].reduce((prev, cur) => {
-          console.log(cur.type)
           if(cur.type.includes('image')){
             prev.push(cur)
           }
@@ -221,8 +220,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
           }
           return prev
         }, [] as File[])
-
-        console.log(filesArray)
 
         const previews = new Map<string, File>()
         const previewsMap = await Promise.all(filesArray.map(async (file) => {
@@ -292,8 +289,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
           }  
         }))
   
+        let total = 0
+
         previewsMap.forEach((preview) => {
           previews.set(preview.url, preview.file)
+          total += preview.file.size
         })
 
         const done = new Date(new Date().getTime() - now)
@@ -302,6 +302,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
         setFilesPreview(previews)
         setUploadIssues(issues)
         setLoadingPreviews(false)
+        setTotalUpload(total)
       })()
     }
   }, [files])
@@ -504,9 +505,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                         foundIssueSet.forEach((id) => {
                           tempUpload.delete(id)
                         })
+                        const tempIssues = [...uploadIssues].filter((issue) => issue.type !== 'duplicate')
 
                         setFilesPreview(tempPreview)
                         setFilesUpload(tempUpload)
+                        setUploadIssues(tempIssues)
                       }}
                     >
                       Delete All
@@ -524,12 +527,103 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                       accept="image/*"
                       onChange={async (event) => {
                         if(event.target.files){
-                          const previewsMap = await Promise.all(Array.from(event.target.files).map(async (file) => {
+                          const issues: UploadIssue[] = []
+                          const filesArray = Array.from(event.target.files).reduce((prev, cur) => {
+                            if(cur.type.includes('image')){
+                              prev.push(cur)
+                            }
+                            else {
+                              const fileTypeIssue = issues.findIndex((issue) => issue.type === 'invalid-file')
+                              if(fileTypeIssue === -1){
+                                issues.push({
+                                  type: 'invalid-file',
+                                  message: 'Invalid files have been automatically removed!',
+                                  color: 'red',
+                                  id: [cur.name],
+                                  visible: true
+                                })
+                              }
+                              else {
+                                issues[fileTypeIssue] = {
+                                  ...issues[fileTypeIssue],
+                                  id: [
+                                    ...issues[fileTypeIssue].id,
+                                    cur.name
+                                  ]
+                                }
+                              }
+                            }
+                            return prev
+                          }, [] as File[])
+                  
+                          
+                          const previewsMap = await Promise.all(filesArray.map(async (file) => {
+                            const url = URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type}))
+                            const dimensions = await new Promise(
+                              (resolve: (item: {width: number, height: number}) => void) => {
+                                const image: HTMLImageElement = document.createElement('img')
+                                image.src = url
+                                image.onload = () => {
+                                  resolve({
+                                    width: image.naturalWidth, 
+                                    height: image.naturalHeight
+                                  })
+                                }
+                              }
+                            )
+                  
+                            if(dimensions.width < 1280 || dimensions.height < 720){
+                              const dimensionIssue = issues.findIndex((issue) => issue.type === 'small-file')
+                              if(dimensionIssue === -1){
+                                issues.push({
+                                  type: 'small-file',
+                                  message: 'Uploaded image(s) may be small and display poorly',
+                                  color: 'yellow',
+                                  id: [file.name],
+                                  visible: true
+                                })
+                              }
+                              else {
+                                issues[dimensionIssue] = {
+                                  ...issues[dimensionIssue],
+                                  id: [
+                                    ...issues[dimensionIssue].id,
+                                    file.name,
+                                  ]
+                                }
+                              }
+                            }
+                  
+                            const duplicate = set.paths.findIndex((path) => parsePathName(path.path) === file.name)
+                  
+                            if(duplicate !== -1){
+                              const duplicateIssue = issues.findIndex((issue) => issue.type === 'duplicate')
+                              if(duplicateIssue === -1){
+                                issues.push({
+                                  type: 'duplicate',
+                                  message: 'Duplicate files uploaded',
+                                  color: 'red',
+                                  id: [file.name],
+                                  visible: true
+                                })
+                              }
+                              else {
+                                issues[duplicateIssue] = {
+                                  ...issues[duplicateIssue],
+                                  id: [
+                                    ...issues[duplicateIssue].id,
+                                    file.name
+                                  ]
+                                }
+                              }
+                            }
+                  
                             return {
-                              url: URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type})),
+                              url: url,
                               file: file
                             }  
                           }))
+
                           const previews = new Map<string, File>(filesPreview)
                           const files = new Map<string, File>(filesUpload)
                           previewsMap.forEach((preview) => {
