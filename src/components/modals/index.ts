@@ -1,4 +1,4 @@
-import { UploadImagesModal as uploadImages } from './UploadImages'
+import { UploadImagesModal as uploadImages } from './UploadImages/UploadImages'
 import { CreateUserModal as createUser } from './CreateUser';
 import { ConfirmationModal as confirmation } from './Confirmation'
 import { CreateTagModal as createTag } from './CreateTag'
