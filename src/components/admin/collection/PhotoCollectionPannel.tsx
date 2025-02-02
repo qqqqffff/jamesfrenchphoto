@@ -28,12 +28,14 @@ interface Publishable {
     warning?: string[]
 }
 
-export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, coverPath, collection, set }) => {
+export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermarkObjects, availableTags, collection, set }) => {
     const [createSet, setCreateSet] = useState(false)
     const [watermarkVisible, setWatermarkVisible] = useState(false)
     const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
     const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
     const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
+    const [coverPath, setCoverPath] = useState(collection.coverPath)
+
     const client = useQueryClient()
     const router = useRouter()
     const navigate = useNavigate()
@@ -122,10 +124,10 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                 <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
                     <CollectionThumbnail 
                         collection={collection}
-                        coverPath={coverPath}
+                        collectionId={collection.id}
+                        cover={coverPath}
                         allowUpload
                         onClick={() => {}}
-                        parentLoading={deleteImage.isPending}
                         contentChildren={(
                             <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
                                 <Dropdown.Item 
@@ -168,6 +170,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                                 </Dropdown.Item>
                             </Dropdown>
                         )}
+                        parentLoading={deleteImage.isPending}
+                        setCover={setCoverPath}
                     />
                     <div className="flex flex-row items-center justify-between w-full">
                         <Label className="text-lg ms-2">Photo Sets</Label>

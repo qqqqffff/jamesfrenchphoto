@@ -165,7 +165,8 @@ function RouteComponent() {
                           return (
                             <CollectionThumbnail 
                               collection={collection}
-                              coverPath={coverPaths.find((path) => path.data?.[0] === collection.id)?.data?.[1]}
+                              collectionId={collection.id}
+                              cover={collection.coverPath}
                               onClick={() => {
                                 navigate({to: '.', search: { collection: collection.id }})
                                 setSelectedCollection(collection)
@@ -186,7 +187,8 @@ function RouteComponent() {
                         return (
                           <CollectionThumbnail 
                             collection={collection}
-                            coverPath={coverPaths.find((path) => path.data?.[0] === collection.id)?.data?.[1]}
+                            collectionId={collection.id}
+                            cover={collection.coverPath}
                             onClick={() => {
                               navigate({to: '.', search: { collection: collection.id }})
                               setSelectedCollection(collection)

@@ -491,6 +491,8 @@ export async function uploadCoverMutation(params: UploadCoverParams){
     })
 
     if(params.options?.logging) console.log(s3response, dynamoResponse)
+    
+    return s3response.path
 }
 
 export interface ReorderSetsParams {
@@ -540,6 +542,6 @@ export const getPhotoCollectionByIdQueryOptions = (collectionId: string, options
 })
 
 export const getAllPhotoCollectionsQueryOptions = (options?: GetAllCollectionsOptions) => queryOptions({
-    queryKey: ['photoCollection', client, options],
+    queryKey: ['photoCollections', client, options],
     queryFn: () => getAllPhotoCollections(client, options)
 })
