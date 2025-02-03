@@ -1,9 +1,9 @@
-import { Button, Label, Modal, Progress } from "flowbite-react"
+import { Button, Label, Modal, Progress, TextInput } from "flowbite-react"
 import { Dispatch, FC, FormEvent, SetStateAction, useEffect, useState } from "react"
 import { HiOutlineXMark } from "react-icons/hi2"
 import { ModalProps } from ".."
 import { PhotoCollection, PhotoSet } from "../../../types";
-import { formatFileSize, parsePathName } from "../../../utils";
+import { formatFileSize, parsePathName, textInputTheme } from "../../../utils";
 import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { useMutation } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ import { ProgressMetric } from "../../common/ProgressMetric";
 import { invariant } from "@tanstack/react-router";
 import { ImagesRow } from "./ImagesRow";
 import { IssueNotifications, UploadIssue } from "./IssueNotifications";
+import { GoTriangleDown, GoTriangleUp } from "react-icons/go";
 
 
 //TODO: add updating live
@@ -83,7 +84,7 @@ async function validateFiles(
       }
     )
 
-    if(dimensions.width < 1280 || dimensions.height < 720){
+    if(dimensions.width < 600 || dimensions.height < 400){
       const dimensionIssue = issues.findIndex((issue) => issue.type === 'small-file')
       if(dimensionIssue === -1){
         issues.push({
@@ -182,6 +183,14 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
   const [uploadIssues, setUploadIssues] = useState<UploadIssue[]>([])
   const [loadingPreviews, setLoadingPreviews] = useState(false)
 
+  const [filteredPreviews, setFilteredPreviews] = useState<{url: string, file: File}[]>()
+  const [filterText, setFilterText] = useState<string>('')
+  const [sort, setSort] = useState<{
+    type: 'name' | 'size',
+    visible: boolean,
+    order?: 'ASC' | 'DSC', 
+  }>()
+  
   useEffect(() => {
     if(open){
       validateFiles(
@@ -229,6 +238,57 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
       setTotalUpload(totalUpload)
       onClose()
     }
+  }
+
+  function sortPreviews(text?: string){
+    const tempPreviews = new Map<string, File>(filesPreview)
+    const tempFilter: {url: string, file: File}[] = []
+    
+    if(filterText || text){
+      const trimmedText = (text ?? filterText).trim().toLocaleLowerCase()
+      console.log(trimmedText)
+
+      Array.from(tempPreviews.entries()).forEach((entry) => {
+        try{
+          const filtered = entry[1]
+            .name
+            .trim()
+            .toLowerCase()
+            .includes(trimmedText)
+          
+          if(filtered){
+            tempFilter.push({
+              url: entry[0],
+              file: entry[1]
+            })
+          }
+        } catch(err) {
+          
+        }
+      })
+    }
+    else {
+      Array.from(tempPreviews.entries()).forEach((entry) => tempFilter.push({ url: entry[0], file: entry[1] }))
+    }
+
+    console.log(tempFilter)
+
+    if(sort && sort.order){
+      if(sort.type === 'name'){
+        tempFilter.sort((a, b) => {
+          if(sort.order === 'DSC') return b.file.name.localeCompare(a.file.name)
+          return a.file.name.localeCompare(b.file.name)
+        })
+      }
+      else {
+        tempFilter.sort((a, b) => {
+          if(sort.order === 'DSC') return b.file.size - a.file.size
+          return a.file.size - b.file.size
+        })
+      }
+    }
+
+    setFilteredPreviews(tempFilter)
   }
 
   return (
@@ -308,13 +368,118 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
             </div>
             <form onSubmit={handleUploadPhotos}>
               <div className="flex flex-col">
-                <div className="flex flex-row items-center justify-between">
-                  <Label className="ms-2 font-semibold text-xl" htmlFor="name">Files:</Label>
-                  <div className="flex flex-row gap-2 items-center text-xl">
+                <div className="grid grid-cols-3 mb-1">
+                  <div 
+                    className="flex flex-row items-center justify-start"
+                    onMouseEnter={() => setSort((prev) => {
+                      if(prev?.type == 'size'){
+                        return {
+                          type: 'name',
+                          order: undefined,
+                          visible: true
+                        }
+                      }
+                      return {...sort, type: 'name', visible: true}
+                    })}
+                    onMouseLeave={() => setSort({...sort, type: 'name', visible: false})}
+                  >
+                    <Label className="font-semibold text-xl" htmlFor="name">Files:</Label>
+                    <div className="mt-1">
+                      {(sort?.visible && sort.type === 'name') ? (
+                        (sort.order === 'ASC' || sort.order === undefined) ? (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setSort({
+                                ...sort,
+                                order: 'DSC'
+                              })
+                              sortPreviews()
+                            }}
+                          >
+                            <GoTriangleDown size={16}/>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSort({
+                                ...sort,
+                                order: 'ASC'
+                              })
+                              sortPreviews()
+                            }}
+                          >
+                            <GoTriangleUp size={16}/>
+                          </button>
+                        )
+                      ) : (
+                        <GoTriangleDown size={16} className="text-transparent" />
+                      )}
+                    </div>
+                  </div>
+                  <TextInput 
+                    theme={textInputTheme} 
+                    sizing="sm" 
+                    className="mt-1 text-opacity-90" 
+                    placeholder="Search Files..."
+                    onChange={(event) => {
+                      setFilterText(event.target.value)
+                      sortPreviews(event.target.value)
+                    }}
+                    value={filterText}
+                  />
+                  <div 
+                    className="flex flex-row gap-2 items-center text-xl justify-end"
+                    onMouseEnter={() => setSort((prev) => {
+                      if(prev?.type == 'name'){
+                        return {
+                          type: 'size',
+                          order: undefined,
+                          visible: true
+                        }
+                      }
+                      return {...sort, type: 'size', visible: true}
+                    })}
+                    onMouseLeave={() => setSort({...sort, type: 'size', visible: false})}
+                  >
                     {filesUpload && filesUpload.size > 0 && (
                       <>
                         <span className="font-semibold">Total:</span>
                         <span>{formatFileSize(totalUpload, 2)}</span>
+                        <div className="-ml-2">
+                          {(sort?.visible && sort.type === 'size') ? (
+                            (sort.order === 'ASC' || sort.order === undefined) ? (
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setSort({
+                                    ...sort,
+                                    order: 'DSC'
+                                  })
+                                  sortPreviews()
+                                }}
+                              >
+                                <GoTriangleDown size={16}/>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSort({
+                                    ...sort,
+                                    order: 'ASC'
+                                  })
+                                  sortPreviews()
+                                }}
+                              >
+                                <GoTriangleUp size={16}/>
+                              </button>
+                            )
+                          ) : (
+                            <GoTriangleDown size={16} className="text-transparent" />
+                          )}
+                        </div>
                       </>
                     )}
                   </div>
@@ -325,11 +490,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                     {({ height, width }: { height: number; width: number }) => (
                       <FixedSizeList
                         height={height}
-                        itemCount={filesPreview?.size ?? 0}
+                        itemCount={filteredPreviews?.length ?? filesPreview?.size ?? 0}
                         itemSize={35}
                         width={width}
                         itemData={{
-                          data: [...filesPreview.entries()].map(([url, file]) => ({url: url, file: file})),
+                          data: filteredPreviews ?? [...filesPreview.entries()].map(([url, file]) => ({url: url, file: file})),
                           onDelete: (key, fileName) => {
                             const previews = new Map<string, File>([...filesPreview.entries()].filter((entry) => entry[0] !== fileName))
                             const files = new Map<string, File>([...filesUpload.entries()].filter((entry) => entry[0] !== key))
@@ -398,11 +563,15 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                         foundIssueSet.forEach((id) => {
                           tempUpload.delete(id)
                         })
+
+                        let total = Array.from(tempPreview.values()).reduce((prev, cur) => prev += cur.size, 0)
+                        
                         const tempIssues = [...uploadIssues].filter((issue) => issue.type !== 'duplicate')
 
                         setFilesPreview(tempPreview)
                         setFilesUpload(tempUpload)
                         setUploadIssues(tempIssues)
+                        setTotalUpload(total)
                       }}
                     >
                       Delete All
@@ -433,12 +602,21 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                             true,
                             filesPreview,
                           )
+                          setFilterText('')
+                          setSort(undefined)
                         }
                       }}
                     />
                   </label>
                 </Button>
-                <Button className="text-xl mt-4" type="submit">Upload</Button>
+                <Button 
+                  className="text-xl mt-4" 
+                  type="submit" 
+                  disabled={uploadIssues.some((issue) => 
+                    issue.type === 'duplicate' || issue.type === 'invalid-file')}
+                >
+                  Upload
+                </Button>
               </div>
             </form>
           </Modal.Body>

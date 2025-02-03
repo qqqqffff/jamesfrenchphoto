@@ -13,25 +13,29 @@ export interface UploadIssue {
 
 export const IssueNotifications = (props: {issues: UploadIssue[], setIssues: Dispatch<SetStateAction<UploadIssue[]>>}) => {
   return (
-    <div className="relative z-10 w-full flex flex-col gap-2 items-center justify-center mt-2">
-      {props.issues.map((issue) => {
-        if(!issue.visible) return undefined
-        return (
-          <Alert 
-            color={issue.color} 
-            className="w-[90%] absolute opacity-75"
-            onDismiss={() => {
-              const foundIssue = props.issues.findIndex((i) => i.type === issue.type)
-              invariant(foundIssue !== -1)
-              const tempIssues = [...props.issues]
-              tempIssues[foundIssue].visible = false
-              props.setIssues(tempIssues)
-            }}
-          >
-            {issue.message}
-          </Alert>
-        )
-      })}
+    <div className="flex relative w-full -top-6">
+      <div className="absolute z-10 w-full flex flex-col gap-2 items-center justify-center mt-2">
+        {props.issues.map((issue) => {
+          if(!issue.visible) return undefined
+          return (
+            <Alert 
+              key={issue.type}
+              color={issue.color} 
+              className="w-[90%] opacity-75"
+              onDismiss={() => {
+                const foundIssue = props.issues.findIndex((i) => i.type === issue.type)
+                invariant(foundIssue !== -1)
+                const tempIssues = [...props.issues]
+                tempIssues[foundIssue].visible = false
+                props.setIssues(tempIssues)
+              }}
+            >
+              {issue.message}
+            </Alert>
+          )
+        })}
+      </div>
     </div>
+    
   )
 }

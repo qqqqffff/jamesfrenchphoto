@@ -116,8 +116,9 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
       <div className="justify-end items-center flex flex-row gap-2 -ml-[10%]">
         <span className="text-nowrap">{formatFileSize(data.data[index].file.size, 0)}</span>
         <button 
-          className="hover:text-gray-500 py-0.5 px-1.5 mt-0.5" 
+          className={`${duplicate ? 'text-transparent cursor-default' : 'hover:text-gray-500'} py-0.5 px-1.5 mt-0.5`}
           type='button' 
+          disabled={duplicate}
           onClick={() => data.onDelete(data.data[index].url, data.data[index].file.name)}
         >
           <HiOutlineXMark size={16}/>

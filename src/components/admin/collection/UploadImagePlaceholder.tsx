@@ -27,7 +27,7 @@ export const UploadImagePlaceholder = (props: UploadComponentProps) => {
             type="file" 
             className="hidden" 
             multiple 
-            accept="image/jpg, image/png, image/avif"
+            accept="image/*"
             onChange={(event) => {
               if(event.target.files){
                 const filesMap = new Map<string, File>()
