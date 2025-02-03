@@ -19,11 +19,14 @@ import {
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
   updateSetMutation, 
-  UpdateSetParams 
+  UpdateSetParams, 
+  uploadImagesMutation, 
+  UploadImagesMutationParams
 } from "../../../services/photoSetService";
 import { getPathQueryOptions } from "../../../services/collectionService";
 import { detectDuplicates } from "./utils";
 import { useDropzone } from "react-dropzone";
+import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
 
 export type PhotoCollectionProps = {
   photoCollection: PhotoCollection;
@@ -45,6 +48,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
   const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
   const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
   const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
+  const [uploads, setUploads] = useState<UploadData[]>([])
 
   const dimensions = useWindowDimensions()
 
@@ -77,6 +81,10 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
     mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
   })
 
+  const uploadImages = useMutation({
+    mutationFn: (params: UploadImagesMutationParams) => uploadImagesMutation(params),
+  })
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     //TODO: duplication detection
     const fileMap = new Map<string, File>()
@@ -103,10 +111,28 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
         collection={photoCollection}
         set={photoSet}
         files={filesUploading}
+        createUpload={(upload) => {
+          const temp: UploadData[] = [...uploads, {
+            id: upload.uploadId,
+            state: 'inprogress',
+            progress: 0,
+            currentItems: 0,
+            totalItems: upload.files.size,
+            totalSize: upload.totalUpload,
+            display: true,
+          }]
+          uploadImages.mutate(upload)
+          setUploads(temp)
+        }}
+        updateUpload={setUploads}
         onClose={() => setFilesUploading(undefined)}
         open={filesUploading !== undefined}
       />
     }
+    <UploadToast 
+      uploads={uploads}
+      setUploads={setUploads}
+    />
     <WatermarkModal
       open={watermarkVisible}
       onClose={() => setWatermarkVisible(false)}

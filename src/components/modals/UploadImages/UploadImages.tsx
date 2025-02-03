@@ -1,20 +1,18 @@
-import { Button, Label, Modal, Progress, TextInput } from "flowbite-react"
+import { Button, Label, Modal, TextInput } from "flowbite-react"
 import { Dispatch, FC, FormEvent, SetStateAction, useEffect, useState } from "react"
-import { HiOutlineXMark } from "react-icons/hi2"
 import { ModalProps } from ".."
 import { PhotoCollection, PhotoSet } from "../../../types";
 import { formatFileSize, parsePathName, textInputTheme } from "../../../utils";
 import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import { useMutation } from "@tanstack/react-query";
-import { uploadImagesMutation, UploadImagesMutationParams } from "../../../services/photoSetService";
-import { HiOutlineUpload } from "react-icons/hi";
+import { UploadImagesMutationParams } from "../../../services/photoSetService";
 import Loading from "../../common/Loading";
-import { ProgressMetric } from "../../common/ProgressMetric";
 import { invariant } from "@tanstack/react-router";
 import { ImagesRow } from "./ImagesRow";
 import { IssueNotifications, UploadIssue } from "./IssueNotifications";
 import { GoTriangleDown, GoTriangleUp } from "react-icons/go";
+import { UploadData } from "./UploadToast";
+import { v4 } from 'uuid'
 
 
 //TODO: add updating live
@@ -22,7 +20,9 @@ import { GoTriangleDown, GoTriangleUp } from "react-icons/go";
 interface UploadImagesProps extends ModalProps {
   collection: PhotoCollection,
   set: PhotoSet;
-  files: Map<string, File>
+  files: Map<string, File>,
+  createUpload: (params: UploadImagesMutationParams) => void,
+  updateUpload: Dispatch<SetStateAction<UploadData[]>>
 }
 
 async function validateFiles(
@@ -171,15 +171,16 @@ async function validateFiles(
   }  
 }
 
-export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collection, set, files }) => {
+export const UploadImagesModal: FC<UploadImagesProps> = ({ 
+  open, onClose, collection, set, files, 
+  createUpload, updateUpload,
+}) => {
   const [filesUpload, setFilesUpload] = useState<Map<string, File>>(files)
   const [filesPreview, setFilesPreview] = useState<Map<string, File>>()
-  const [uploading, setUploading] = useState<'inprogress' | 'done' | 'paused' | 'idle'>('idle')
-  const [uploadProgress, setUploadProgress] = useState<number>(0)
   const [totalUpload, setTotalUpload] = useState<number>(
     [...filesUpload.values()].reduce((prev, cur) => prev += cur.size, 0)
   )
-  const [totalItems, setTotalItems] = useState<{items: number, total: number}>()
+  
   const [uploadIssues, setUploadIssues] = useState<UploadIssue[]>([])
   const [loadingPreviews, setLoadingPreviews] = useState(false)
 
@@ -209,33 +210,26 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
     }
   }, [files])
 
-  const uploadImages = useMutation({
-    mutationFn: (params: UploadImagesMutationParams) => uploadImagesMutation(params),
-    onSettled: () => {
-      setUploading('done')
-    }
-  })
-
   async function handleUploadPhotos(event: FormEvent){
     event.preventDefault()
 
-    //TODO: preform form validation
     if(filesUpload) {
-      uploadImages.mutate({
+      createUpload({
+        uploadId: v4(),
         collection: collection,
         set: set,
         files: filesUpload,
-        progressStep: setUploadProgress,
+        updateUpload: updateUpload,
         totalUpload: totalUpload,
-        updateItems: setTotalItems,
+        duplicates: set.paths
+          .filter((path) => filesUpload.get(parsePathName(path.path)) !== undefined)
+          .map((path) => path.id),
         options: {
           logging: true
         }
       })
 
-      setTotalItems({ items: 0, total: filesUpload.size })
-      setUploading('inprogress')
-      setTotalUpload(totalUpload)
+      
       onClose()
     }
   }
@@ -292,100 +286,105 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
   }
 
   return (
-    <>
-      {(uploading === 'inprogress' || uploading === 'done' || uploading === 'paused') && (
-        <div className="fixed p-4 rounded-lg shadow right-5 bottom-5 flex flex-row items-center justify-between z-20 bg-white border border-gray-300">
-          <div className='flex flex-row items-center relative'>
-            <HiOutlineUpload className={`${uploading === 'done' ? 'text-green-400' : 'animate-pulse'}`} size={24}/>
-            <div className="flex flex-col justify-start min-w-[200px] ms-4 me-4">
-              <div className="flex flex-row items-center justify-between">
-                { uploading === 'inprogress' || uploading === 'paused' ? (
-                  <>
-                    <span className="text-sm">Uploading</span>
-                    <Loading className="text-lg"/>
-                  </>
-                ) : (
-                  <span className="text-sm text-green-600">Done</span>
-                )}
-                <div className={`flex flex-row gap-1 text-xs ${uploading === 'done' ? 'text-green-600' : ''}`}>
-                  <span>
-                    {`${formatFileSize(totalUpload * uploadProgress, 0)} / ${formatFileSize(totalUpload, 0)}`}
-                  </span>
-                  {totalItems && (
-                    <>
-                      <span>&bull;</span>
-                      <span>
-                        {`${totalItems.items} / ${totalItems.total}`}
-                      </span>
-                    </>
-                  )}
-                  { uploading === 'inprogress' && (
-                    <>
-                      <span>&bull;</span>
-                      <ProgressMetric currentAmount={uploadProgress * totalUpload}/>
-                    </>
+    <Modal 
+      size='xl' 
+      show={open} 
+      className='font-main' 
+      onClose={() => {
+        onClose()
+      }}
+    >
+      <Modal.Header>Upload Picture(s)</Modal.Header>
+      <Modal.Body className="overflow-x-hidden">
+        <div className="relative z-10 w-full flex flex-row items-center justify-center">
+          <IssueNotifications 
+            issues={uploadIssues}
+            setIssues={setUploadIssues}
+          />
+        </div>
+        <form onSubmit={handleUploadPhotos}>
+          <div className="flex flex-col">
+            <div className="grid grid-cols-3 mb-1">
+              <div 
+                className="flex flex-row items-center justify-start"
+                onMouseEnter={() => setSort((prev) => {
+                  if(prev?.type == 'size'){
+                    return {
+                      type: 'name',
+                      order: undefined,
+                      visible: true
+                    }
+                  }
+                  return {...sort, type: 'name', visible: true}
+                })}
+                onMouseLeave={() => setSort({...sort, type: 'name', visible: false})}
+              >
+                <Label className="font-semibold text-xl" htmlFor="name">Files:</Label>
+                <div className="mt-1">
+                  {(sort?.visible && sort.type === 'name') ? (
+                    (sort.order === 'ASC' || sort.order === undefined) ? (
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setSort({
+                            ...sort,
+                            order: 'DSC'
+                          })
+                          sortPreviews()
+                        }}
+                      >
+                        <GoTriangleDown size={16}/>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSort({
+                            ...sort,
+                            order: 'ASC'
+                          })
+                          sortPreviews()
+                        }}
+                      >
+                        <GoTriangleUp size={16}/>
+                      </button>
+                    )
+                  ) : (
+                    <GoTriangleDown size={16} className="text-transparent" />
                   )}
                 </div>
               </div>
-              {(uploading === 'inprogress' || uploading === 'paused') && (
-                <Progress 
-                  progress={uploadProgress * 100}
-                  size="sm"
-                />
-              )}
-            </div>
-          </div>
-          <button 
-            className="absolute right-2 top-2"
-            onClick={() => {
-              setUploading((prev) => {
-                if(prev === 'done') {
-                  return 'idle'
-                }
-                return prev
-              })
-            }}
-          >
-            <HiOutlineXMark size={16} />
-          </button>
-        </div>
-      )}
-      <Modal 
-        size='xl' 
-        show={open} 
-        className='font-main' 
-        onClose={() => {
-          onClose()
-        }}
-      >
-          <Modal.Header>Upload Picture(s)</Modal.Header>
-          <Modal.Body className="overflow-x-hidden">
-            <div className="relative z-10 w-full flex flex-row items-center justify-center">
-              <IssueNotifications 
-                issues={uploadIssues}
-                setIssues={setUploadIssues}
+              <TextInput 
+                theme={textInputTheme} 
+                sizing="sm" 
+                className="mt-1 text-opacity-90" 
+                placeholder="Search Files..."
+                onChange={(event) => {
+                  setFilterText(event.target.value)
+                  sortPreviews(event.target.value)
+                }}
+                value={filterText}
               />
-            </div>
-            <form onSubmit={handleUploadPhotos}>
-              <div className="flex flex-col">
-                <div className="grid grid-cols-3 mb-1">
-                  <div 
-                    className="flex flex-row items-center justify-start"
-                    onMouseEnter={() => setSort((prev) => {
-                      if(prev?.type == 'size'){
-                        return {
-                          type: 'name',
-                          order: undefined,
-                          visible: true
-                        }
-                      }
-                      return {...sort, type: 'name', visible: true}
-                    })}
-                    onMouseLeave={() => setSort({...sort, type: 'name', visible: false})}
-                  >
-                    <Label className="font-semibold text-xl" htmlFor="name">Files:</Label>
-                    <div className="mt-1">
-                      {(sort?.visible && sort.type === 'name') ? (
+              <div 
+                className="flex flex-row gap-2 items-center text-xl justify-end"
+                onMouseEnter={() => setSort((prev) => {
+                  if(prev?.type == 'name'){
+                    return {
+                      type: 'size',
+                      order: undefined,
+                      visible: true
+                    }
+                  }
+                  return {...sort, type: 'size', visible: true}
+                })}
+                onMouseLeave={() => setSort({...sort, type: 'size', visible: false})}
+              >
+                {filesUpload && filesUpload.size > 0 && (
+                  <>
+                    <span className="font-semibold">Total:</span>
+                    <span>{formatFileSize(totalUpload, 2)}</span>
+                    <div className="-ml-2">
+                      {(sort?.visible && sort.type === 'size') ? (
                         (sort.order === 'ASC' || sort.order === undefined) ? (
                           <button 
                             type="button"
@@ -417,210 +416,146 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({ open, onClose, collec
                         <GoTriangleDown size={16} className="text-transparent" />
                       )}
                     </div>
-                  </div>
-                  <TextInput 
-                    theme={textInputTheme} 
-                    sizing="sm" 
-                    className="mt-1 text-opacity-90" 
-                    placeholder="Search Files..."
-                    onChange={(event) => {
-                      setFilterText(event.target.value)
-                      sortPreviews(event.target.value)
-                    }}
-                    value={filterText}
-                  />
-                  <div 
-                    className="flex flex-row gap-2 items-center text-xl justify-end"
-                    onMouseEnter={() => setSort((prev) => {
-                      if(prev?.type == 'name'){
-                        return {
-                          type: 'size',
-                          order: undefined,
-                          visible: true
-                        }
-                      }
-                      return {...sort, type: 'size', visible: true}
-                    })}
-                    onMouseLeave={() => setSort({...sort, type: 'size', visible: false})}
-                  >
-                    {filesUpload && filesUpload.size > 0 && (
-                      <>
-                        <span className="font-semibold">Total:</span>
-                        <span>{formatFileSize(totalUpload, 2)}</span>
-                        <div className="-ml-2">
-                          {(sort?.visible && sort.type === 'size') ? (
-                            (sort.order === 'ASC' || sort.order === undefined) ? (
-                              <button 
-                                type="button"
-                                onClick={() => {
-                                  setSort({
-                                    ...sort,
-                                    order: 'DSC'
-                                  })
-                                  sortPreviews()
-                                }}
-                              >
-                                <GoTriangleDown size={16}/>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSort({
-                                    ...sort,
-                                    order: 'ASC'
-                                  })
-                                  sortPreviews()
-                                }}
-                              >
-                                <GoTriangleUp size={16}/>
-                              </button>
-                            )
-                          ) : (
-                            <GoTriangleDown size={16} className="text-transparent" />
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {filesPreview && filesPreview.size > 0 ? (
-                  <div className="h-full">
-                    <AutoSizer className="min-h-[340px] z-0">
-                    {({ height, width }: { height: number; width: number }) => (
-                      <FixedSizeList
-                        height={height}
-                        itemCount={filteredPreviews?.length ?? filesPreview?.size ?? 0}
-                        itemSize={35}
-                        width={width}
-                        itemData={{
-                          data: filteredPreviews ?? [...filesPreview.entries()].map(([url, file]) => ({url: url, file: file})),
-                          onDelete: (key, fileName) => {
-                            const previews = new Map<string, File>([...filesPreview.entries()].filter((entry) => entry[0] !== fileName))
-                            const files = new Map<string, File>([...filesUpload.entries()].filter((entry) => entry[0] !== key))
-                            
-                            previews.delete(key)
-                            files.delete(fileName)
-
-                            const totalUpload = [...files.values()].reduce((prev, cur) => prev += cur.size, 0)
-
-                            setFilesUpload(files)
-                            setFilesPreview(previews)
-                            setTotalUpload(totalUpload)
-                          },
-                          issues: uploadIssues,
-                          updateIssues: setUploadIssues,
-                        }}
-                      >
-                        {ImagesRow}
-                      </FixedSizeList>
-                    )}
-                    </AutoSizer>
-                  </div>
-                ) : (
-                  loadingPreviews ? (
-                    <Loading />
-                  ) : (
-                    <span className=" italic text-sm ms-6">Uploaded files will preview here!</span>
-                  )
-                )}
-              </div>
-              <div className="flex flex-row justify-end border-t mt-4 gap-4">
-                { uploadIssues.some((issue) => issue.type === 'duplicate') && 
-                  filesPreview !== undefined &&(
-                  <>
-                    <Button 
-                      type='button' 
-                      className="text-xl mt-4" 
-                      color="light"
-                      onClick={() => {
-                        const tempIssues = [...uploadIssues].filter((issue) => issue.type !== 'duplicate')
-                        setUploadIssues(tempIssues)
-                      }}
-                    >
-                      Replace All
-                    </Button>
-                    <Button 
-                      type="button" 
-                      className="text-xl mt-4" 
-                      color='red'
-                      onClick={() => {
-                        const foundIssueSet = uploadIssues.find((issue) => issue.type === 'duplicate')?.id
-                        invariant(foundIssueSet)
-                        const tempPreview = new Map<string, File>(filesPreview)
-                        const tempUpload = new Map<string, File>(filesUpload)
-                        const previewKeys = [...filesPreview.entries()]
-                          .map((entry) => {
-                            if(foundIssueSet.some((id) => id === entry[1].name)){
-                              return entry[0]
-                            }
-                            return undefined
-                          })
-                          .filter((item) => item !== undefined)
-                        previewKeys.forEach((preview) => {
-                          tempPreview.delete(preview)
-                        })
-                        foundIssueSet.forEach((id) => {
-                          tempUpload.delete(id)
-                        })
-
-                        let total = Array.from(tempPreview.values()).reduce((prev, cur) => prev += cur.size, 0)
-                        
-                        const tempIssues = [...uploadIssues].filter((issue) => issue.type !== 'duplicate')
-
-                        setFilesPreview(tempPreview)
-                        setFilesUpload(tempUpload)
-                        setUploadIssues(tempIssues)
-                        setTotalUpload(total)
-                      }}
-                    >
-                      Delete All
-                    </Button>
                   </>
                 )}
-                <Button type="button" className="text-xl mt-4" color="light">
-                  <label htmlFor="modal-upload-file">
-                    Add Files
-                    <input 
-                      id='modal-upload-file' 
-                      className="hidden"
-                      multiple
-                      type="file"
-                      accept="image/*"
-                      onChange={async (event) => {
-                        if(event.target.files){
-                          validateFiles(
-                            Array.from(event.target.files),
-                            filesUpload,
-                            uploadIssues,
-                            set,
-                            setFilesPreview,
-                            setFilesUpload,
-                            setUploadIssues,
-                            setTotalUpload,
-                            setLoadingPreviews,
-                            true,
-                            filesPreview,
-                          )
-                          setFilterText('')
-                          setSort(undefined)
-                        }
-                      }}
-                    />
-                  </label>
+              </div>
+            </div>
+            {filesPreview && filesPreview.size > 0 ? (
+              <div className="h-full">
+                <AutoSizer className="min-h-[340px] z-0">
+                {({ height, width }: { height: number; width: number }) => (
+                  <FixedSizeList
+                    height={height}
+                    itemCount={filteredPreviews?.length ?? filesPreview?.size ?? 0}
+                    itemSize={35}
+                    width={width}
+                    itemData={{
+                      data: filteredPreviews ?? [...filesPreview.entries()].map(([url, file]) => ({url: url, file: file})),
+                      onDelete: (key, fileName) => {
+                        const previews = new Map<string, File>([...filesPreview.entries()].filter((entry) => entry[0] !== fileName))
+                        const files = new Map<string, File>([...filesUpload.entries()].filter((entry) => entry[0] !== key))
+                        
+                        previews.delete(key)
+                        files.delete(fileName)
+
+                        const totalUpload = [...files.values()].reduce((prev, cur) => prev += cur.size, 0)
+
+                        setFilesUpload(files)
+                        setFilesPreview(previews)
+                        setTotalUpload(totalUpload)
+                      },
+                      issues: uploadIssues,
+                      updateIssues: setUploadIssues,
+                    }}
+                  >
+                    {ImagesRow}
+                  </FixedSizeList>
+                )}
+                </AutoSizer>
+              </div>
+            ) : (
+              loadingPreviews ? (
+                <Loading />
+              ) : (
+                <span className=" italic text-sm ms-6">Uploaded files will preview here!</span>
+              )
+            )}
+          </div>
+          <div className="flex flex-row justify-end border-t mt-4 gap-4">
+            { uploadIssues.some((issue) => issue.type === 'duplicate') && 
+              filesPreview !== undefined &&(
+              <>
+                <Button 
+                  type='button' 
+                  className="text-xl mt-4" 
+                  color="light"
+                  onClick={() => {
+                    const tempIssues = [...uploadIssues].filter((issue) => issue.type !== 'duplicate')
+                    setUploadIssues(tempIssues)
+                  }}
+                >
+                  Replace All
                 </Button>
                 <Button 
+                  type="button" 
                   className="text-xl mt-4" 
-                  type="submit" 
-                  disabled={uploadIssues.some((issue) => 
-                    issue.type === 'duplicate' || issue.type === 'invalid-file')}
+                  color='red'
+                  onClick={() => {
+                    const foundIssueSet = uploadIssues.find((issue) => issue.type === 'duplicate')?.id
+                    invariant(foundIssueSet)
+                    const tempPreview = new Map<string, File>(filesPreview)
+                    const tempUpload = new Map<string, File>(filesUpload)
+                    const previewKeys = [...filesPreview.entries()]
+                      .map((entry) => {
+                        if(foundIssueSet.some((id) => id === entry[1].name)){
+                          return entry[0]
+                        }
+                        return undefined
+                      })
+                      .filter((item) => item !== undefined)
+                    previewKeys.forEach((preview) => {
+                      tempPreview.delete(preview)
+                    })
+                    foundIssueSet.forEach((id) => {
+                      tempUpload.delete(id)
+                    })
+
+                    let total = Array.from(tempPreview.values()).reduce((prev, cur) => prev += cur.size, 0)
+                    
+                    const tempIssues = [...uploadIssues].filter((issue) => issue.type !== 'duplicate')
+
+                    setFilesPreview(tempPreview)
+                    setFilesUpload(tempUpload)
+                    setUploadIssues(tempIssues)
+                    setTotalUpload(total)
+                  }}
                 >
-                  Upload
+                  Delete All
                 </Button>
-              </div>
-            </form>
-          </Modal.Body>
-        </Modal>
-      </>
+              </>
+            )}
+            <Button type="button" className="text-xl mt-4" color="light">
+              <label htmlFor="modal-upload-file">
+                Add Files
+                <input 
+                  id='modal-upload-file' 
+                  className="hidden"
+                  multiple
+                  type="file"
+                  accept="image/*"
+                  onChange={async (event) => {
+                    if(event.target.files){
+                      validateFiles(
+                        Array.from(event.target.files),
+                        filesUpload,
+                        uploadIssues,
+                        set,
+                        setFilesPreview,
+                        setFilesUpload,
+                        setUploadIssues,
+                        setTotalUpload,
+                        setLoadingPreviews,
+                        true,
+                        filesPreview,
+                      )
+                      setFilterText('')
+                      setSort(undefined)
+                    }
+                  }}
+                />
+              </label>
+            </Button>
+            <Button 
+              className="text-xl mt-4" 
+              type="submit" 
+              disabled={uploadIssues.some((issue) => 
+                issue.type === 'duplicate' || issue.type === 'invalid-file')}
+            >
+              Upload
+            </Button>
+          </div>
+        </form>
+      </Modal.Body>
+    </Modal>
   )
 }
