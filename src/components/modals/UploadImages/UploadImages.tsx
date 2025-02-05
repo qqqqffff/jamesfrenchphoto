@@ -1,7 +1,7 @@
 import { Button, Label, Modal, TextInput } from "flowbite-react"
 import { Dispatch, FC, FormEvent, SetStateAction, useEffect, useState } from "react"
 import { ModalProps } from ".."
-import { PhotoCollection, PhotoSet } from "../../../types";
+import { PhotoCollection, PhotoSet, PicturePath } from "../../../types";
 import { formatFileSize, parsePathName, textInputTheme } from "../../../utils";
 import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -23,6 +23,7 @@ interface UploadImagesProps extends ModalProps {
   files: Map<string, File>,
   createUpload: (params: UploadImagesMutationParams) => void,
   updateUpload: Dispatch<SetStateAction<UploadData[]>>
+  updatePicturePaths: Dispatch<SetStateAction<PicturePath[]>>
 }
 
 async function validateFiles(
@@ -173,7 +174,7 @@ async function validateFiles(
 
 export const UploadImagesModal: FC<UploadImagesProps> = ({ 
   open, onClose, collection, set, files, 
-  createUpload, updateUpload,
+  createUpload, updateUpload, updatePicturePaths
 }) => {
   const [filesUpload, setFilesUpload] = useState<Map<string, File>>(files)
   const [filesPreview, setFilesPreview] = useState<Map<string, File>>()
@@ -220,6 +221,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
         set: set,
         files: filesUpload,
         updateUpload: updateUpload,
+        updatePaths: updatePicturePaths,
         totalUpload: totalUpload,
         duplicates: set.paths
           .filter((path) => filesUpload.get(parsePathName(path.path)) !== undefined)

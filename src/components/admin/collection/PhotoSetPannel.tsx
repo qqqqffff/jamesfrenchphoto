@@ -125,6 +125,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
           setUploads(temp)
         }}
         updateUpload={setUploads}
+        updatePicturePaths={setPicturePaths}
         onClose={() => setFilesUploading(undefined)}
         open={filesUploading !== undefined}
       />
