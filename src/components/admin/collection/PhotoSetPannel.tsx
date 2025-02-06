@@ -5,16 +5,16 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineTrash
 } from "react-icons/hi2";
-import { Alert, Dropdown, FlowbiteColors, ToggleSwitch, Tooltip } from "flowbite-react";
+import { Alert, Dropdown, FlowbiteColors, TextInput, ToggleSwitch, Tooltip } from "flowbite-react";
 import { ConfirmationModal, UploadImagesModal, WatermarkModal } from "../../modals";
 import { FixedSizeGrid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import useWindowDimensions from "../../../hooks/windowDimensions";
-import { DynamicStringEnumKeysOf } from "../../../utils";
+import { DynamicStringEnumKeysOf, parsePathName, textInputTheme } from "../../../utils";
 import { SetControls } from "./SetControls";
 import { SetRow } from "./SetRow";
 import { EditableTextField } from "../../common/EditableTextField";
-import { useMutation, useQueries } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { 
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
@@ -48,6 +48,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
   const gridRef = useRef<FixedSizeGrid>(null)
   const [picturePaths, setPicturePaths] = useState(paths)
   const [pictureCollection, setPictureCollection] = useState(photoCollection)
+  const [searchText, setSearchText] = useState<string>('')
   const [selectedPhotos, setSelectedPhotos] = useState<PicturePath[]>([])
   const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
   const [cover, setCover] = useState(photoSet.coverPath)
@@ -78,11 +79,14 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
 
   let activeTimeout: NodeJS.Timeout | undefined
 
-  const pathUrls = useQueries({
-    queries: picturePaths.map((path) => {
-      return getPathQueryOptions(path.path)
+  const pathUrls = picturePaths
+    .sort((a, b) => a.order - b.order)
+    .map((path) => {
+      return ({
+        id: path.id,
+        url: useQuery(getPathQueryOptions(path.path))
+      })
     })
-  })
 
   const duplicates = detectDuplicates(picturePaths)
 
@@ -133,6 +137,24 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
       'image/avif': ['.avif']
     }
   })
+
+  const filteredPhotos = (() => {
+    let tempFiles = [...picturePaths]
+
+    if(searchText){
+      const trimmedText = searchText.trim().toLocaleLowerCase()
+
+      return tempFiles.filter((path) => {
+        console.log(parsePathName(path.path), trimmedText)
+        return parsePathName(path.path)
+          .trim()
+          .toLocaleLowerCase()
+          .includes(trimmedText)
+      })
+    }
+
+    return tempFiles
+  })()
 
   return (
   <>
@@ -211,7 +233,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
       />
     )}
     <div className="border-gray-400 border rounded-2xl p-4 flex flex-col items-center w-full">
-      <div className="flex flex-row items-center justify-between w-full">
+      <div className="grid grid-cols-3 w-full">
         <EditableTextField 
           label={(<span>{`Photo Set: `}</span>)} 
           text={photoSet.name} 
@@ -239,7 +261,17 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
               }, 5000)
           }}
         />
-        <div className="flex flex-row items-center gap-3">
+        <TextInput 
+          theme={textInputTheme} 
+          sizing="sm" 
+          className="w-full max-w-[400px] place-self-center" 
+          placeholder="Search"
+          onChange={(event) => {
+            setSearchText(event.target.value)
+          }}
+          value={searchText}
+        />
+        <div className="flex flex-row items-center gap-3 place-self-end h-full">
           <span>Items: {photoSet.paths.length}</span>
           {duplicates.length > 0 && (
             <Tooltip style='light' content={(
@@ -256,6 +288,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                         setPicturePaths(picturePaths.filter((path) => {
                           return (duplicates.find((dup) => dup.id === path.id) === undefined)
                         }))
+                        setSearchText('')
                       }}
                     >
                       <HiOutlineTrash size={16} className="mt-1.5"/>
@@ -349,7 +382,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                     left: ((width - 940) / 2),
                 }}
                 height={height}
-                rowCount={Number(Number(picturePaths.length / 4).toFixed(1)) + 1}
+                rowCount={Number(Number(filteredPhotos.length / 4).toFixed(1)) + 1}
                 columnCount={4}
                 rowHeight={400}
                 width={width - ((width - 940) / 2)}
@@ -357,10 +390,13 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                 itemData={{
                     collection: photoCollection,
                     set: photoSet,
-                    data: picturePaths
+                    data: filteredPhotos
                       .sort((a, b) => a.order - b.order)
                       .filter((path) => path.path && path.id),
-                    urls: pathUrls,
+                    urls: pathUrls
+                      .filter((path) => {
+                        return filteredPhotos.find((filteredPath) => path.id === filteredPath.id) !== undefined
+                      }),
                     cover,
                     pictureStyle,
                     selectedPhotos,

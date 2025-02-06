@@ -242,7 +242,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
     
     if(filterText || text){
       const trimmedText = (text ?? filterText).trim().toLocaleLowerCase()
-      console.log(trimmedText)
 
       Array.from(tempPreviews.entries()).forEach((entry) => {
         try{

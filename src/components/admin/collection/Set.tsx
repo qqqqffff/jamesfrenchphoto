@@ -139,7 +139,10 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, onSubmit, onCancel
     mutationFn: (params: CreateSetParams) => createSetMutation(params),
     onSettled: (set) => {
       if(set){
-        onSubmit(set)
+        onSubmit({
+          ...set,
+          name: name
+        })
       }
     }
   })
