@@ -18,6 +18,8 @@ import { useMutation, useQueries } from "@tanstack/react-query";
 import { 
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
+  deleteSetMutation, 
+  DeleteSetMutationParams, 
   updateSetMutation, 
   UpdateSetParams, 
   uploadImagesMutation, 
@@ -33,10 +35,14 @@ export type PhotoCollectionProps = {
   photoSet: PhotoSet;
   watermarkObjects: Watermark[],
   paths: PicturePath[],
+  deleteParentSet: (setId: string) => void,
   parentUpdateSet: (updatedSet: PhotoSet) => void
 }
 
-export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, photoSet, watermarkObjects, paths, parentUpdateSet }) => {
+export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ 
+  photoCollection, photoSet, watermarkObjects, 
+  paths, deleteParentSet, parentUpdateSet 
+}) => {
   const gridRef = useRef<FixedSizeGrid>(null)
   const [picturePaths, setPicturePaths] = useState(paths)
   const [pictureCollection, setPictureCollection] = useState(photoCollection)
@@ -83,6 +89,10 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
 
   const uploadImages = useMutation({
     mutationFn: (params: UploadImagesMutationParams) => uploadImagesMutation(params),
+  })
+
+  const deleteSet = useMutation({
+    mutationFn: (params: DeleteSetMutationParams) => deleteSetMutation(params)
   })
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -266,6 +276,20 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ photoCollection, phot
                     }
                   }}
                 />Upload Pictures
+              </Dropdown.Item>
+              <Dropdown.Item 
+                onClick={() => {
+                  deleteParentSet(photoSet.id)
+                  deleteSet.mutate({
+                    collection: photoCollection,
+                    set: photoSet,
+                    options: {
+                      logging: true
+                    }
+                  })
+                }}
+              >
+                Delete Set
               </Dropdown.Item>
             </Dropdown>
           </Tooltip>

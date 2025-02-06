@@ -7,7 +7,6 @@ import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { Dispatch, SetStateAction } from 'react'
 import { UploadData } from '../components/modals/UploadImages/UploadToast'
-import { invariant } from '@tanstack/react-router'
 
 const client = generateClient<Schema>()
 
@@ -157,7 +156,7 @@ export interface UploadImagesMutationParams {
     updateUpload: Dispatch<SetStateAction<UploadData[]>>
     updatePaths: Dispatch<SetStateAction<PicturePath[]>>
     totalUpload: number,
-    duplicates: string[],
+    duplicates: Record<string, PicturePath>,
     options?: {
         logging?: boolean,
         preview?: boolean
@@ -202,6 +201,13 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
     const response = (await Promise.all(
         (await Promise.all(
             [...params.files.values()].map(async (file, index) => {
+                if(params.duplicates[file.name]){
+                    const result = await remove({
+                        path: params.duplicates[file.name].path
+                    })
+
+                    if(params.options?.logging) console.log(result)
+                }
                 let prevUploadAmount = -1
                 const result = await uploadData({
                     path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.name}`,
@@ -233,23 +239,39 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
                         }
                     }
                 }).result
+
+                let mappedPath: PicturePath | undefined
                 if(params.options?.logging) console.log(result)
 
-                const response = await client.models.PhotoPaths.create({
-                    path: result.path,
-                    order: index + params.set.paths.length,
-                    setId: params.set.id,
-                })
-                if(params.options?.logging) console.log(response)
-                if(!response || !response.data || response.errors !== undefined) return false
-
-                params.updatePaths((prev) => {
-                    invariant(response.data)
-                    const newPath: PicturePath = {
+                if(params.duplicates[file.name]){
+                    const response = await client.models.PhotoPaths.update({
+                        id: params.duplicates[file.name].id,
+                        path: result.path,
+                    })
+                    if(params.options?.logging) console.log(response)
+                    if(!response || !response.data || response.errors !== undefined) return false
+                    mappedPath = {
                         ...response.data,
                         url: ''
                     }
-                    return [...prev, newPath]
+                } else {
+                    const response = await client.models.PhotoPaths.create({
+                        path: result.path,
+                        order: index + params.set.paths.length,
+                        setId: params.set.id,
+                    })
+                    if(params.options?.logging) console.log(response)
+                    if(!response || !response.data || response.errors !== undefined) return false
+                    mappedPath = {
+                        ...response.data,
+                        url: ''
+                    }
+                }
+                
+                if(!mappedPath) return false
+
+                params.updatePaths((prev) => {
+                    return [...prev, mappedPath]
                 })
                 params.updateUpload((prev) => {
                     return prev.map((upload) => {
@@ -292,7 +314,7 @@ export interface DeleteImagesMutationParams {
     picturePaths: PicturePath[],
     progress?: (paths: PicturePath[]) => void,
     options?: {
-        logging: boolean,
+        logging?: boolean,
     }
 }
 export async function deleteImagesMutation(params: DeleteImagesMutationParams){
@@ -316,6 +338,25 @@ export async function deleteImagesMutation(params: DeleteImagesMutationParams){
     })
 
     if(params.options?.logging) console.log(adjustItemsResponse)
+}
+
+export interface DeleteSetMutationParams {
+    collection: PhotoCollection
+    set: PhotoSet
+    options?: {
+        logging?: boolean
+    }
+}
+export async function deleteSetMutation(params: DeleteSetMutationParams){
+    await deleteImagesMutation({
+        collection: params.collection,
+        picturePaths: params.set.paths,
+        options: params.options,
+    })
+
+    const deleteSetResponse = await client.models.PhotoSet.delete({ id: params.set.id })
+
+    if(params.options?.logging) console.log(deleteSetResponse)
 }
 
 export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string, options?: GetAllPicturePathsByPhotoSetOptions) => queryOptions({

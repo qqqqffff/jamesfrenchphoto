@@ -218,6 +218,10 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ watermar
                             photoSet={setQuery.data ?? selectedSet} 
                             watermarkObjects={watermarkObjects}
                             paths={setQuery.data?.paths ?? []}
+                            deleteParentSet={(setId) => {
+                                setSetList(setList.filter((set) => set.id !== setId))
+                                setSelectedSet(undefined)
+                            }}
                             parentUpdateSet={(updatedSet) => {
                                 const temp = setList.map((set) => {
                                     if(set.id === updatedSet.id){

@@ -223,9 +223,9 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
         updateUpload: updateUpload,
         updatePaths: updatePicturePaths,
         totalUpload: totalUpload,
-        duplicates: set.paths
+        duplicates: Object.fromEntries(set.paths
           .filter((path) => filesUpload.get(parsePathName(path.path)) !== undefined)
-          .map((path) => path.id),
+          .map((path) => [parsePathName(path.path), path])),
         options: {
           logging: true
         }
