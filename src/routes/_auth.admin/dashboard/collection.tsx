@@ -211,6 +211,7 @@ function RouteComponent() {
         <PhotoCollectionPannel 
           coverPath={coverPaths.find((path) => path.data?.[0] === selectedCollection.id)?.data?.[1]}
           collection={selectedCollection}
+          updateParentCollection={setSelectedCollection}
           set={set}
           watermarkObjects={watermarkObjects}
           availableTags={availableTags}

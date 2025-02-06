@@ -1,4 +1,4 @@
-import { FC, useCallback, useRef, useState } from "react"
+import { Dispatch, FC, SetStateAction, useCallback, useRef, useState } from "react"
 import { PhotoCollection, PhotoSet, PicturePath, Watermark } from "../../../types"
 import { 
   HiOutlineCog6Tooth,
@@ -6,7 +6,7 @@ import {
   HiOutlineTrash
 } from "react-icons/hi2";
 import { Alert, Dropdown, FlowbiteColors, ToggleSwitch, Tooltip } from "flowbite-react";
-import { UploadImagesModal, WatermarkModal } from "../../modals";
+import { ConfirmationModal, UploadImagesModal, WatermarkModal } from "../../modals";
 import { FixedSizeGrid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import useWindowDimensions from "../../../hooks/windowDimensions";
@@ -36,12 +36,14 @@ export type PhotoCollectionProps = {
   watermarkObjects: Watermark[],
   paths: PicturePath[],
   deleteParentSet: (setId: string) => void,
-  parentUpdateSet: (updatedSet: PhotoSet) => void
+  parentUpdateSet: (updatedSet: PhotoSet) => void,
+  updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
 }
 
 export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ 
   photoCollection, photoSet, watermarkObjects, 
-  paths, deleteParentSet, parentUpdateSet 
+  paths, deleteParentSet, parentUpdateSet,
+  updateParentCollection
 }) => {
   const gridRef = useRef<FixedSizeGrid>(null)
   const [picturePaths, setPicturePaths] = useState(paths)
@@ -55,6 +57,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
   const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
   const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
   const [uploads, setUploads] = useState<UploadData[]>([])
+  const [deleteConfirmation, setDeleteConfirmation] = useState(false)
 
   const dimensions = useWindowDimensions()
 
@@ -89,6 +92,24 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
 
   const uploadImages = useMutation({
     mutationFn: (params: UploadImagesMutationParams) => uploadImagesMutation(params),
+    onSettled: () => updateParentCollection({
+      ...photoCollection,
+      items: photoCollection.sets.reduce((prev, cur) => {
+        if(cur.id === photoSet.id){
+          return prev += picturePaths.length
+        }
+        return prev += cur.paths.length
+      }, 0),
+      sets: photoCollection.sets.map((set) => {
+        if(set.id === photoSet.id){
+          return {
+            ...set,
+            paths: picturePaths
+          }
+        }
+        return set
+      })
+    })
   })
 
   const deleteSet = useMutation({
@@ -96,7 +117,6 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
   })
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    //TODO: duplication detection
     const fileMap = new Map<string, File>()
     acceptedFiles.forEach((file) => {
       fileMap.set(file.name, file)
@@ -160,6 +180,25 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
         setWatermarks(temp)
       }}
       watermarks={watermarks}
+    />
+    <ConfirmationModal 
+      title='Delete Set'
+      body='This action will <b>DELETE</b> this set <b>AND</b> any associated pictures. This action cannot be undone!'
+      denyText="Cancel"
+      confirmText="Delete"
+      confirmAction={() => {
+        deleteParentSet(photoSet.id)
+        setDeleteConfirmation(false)
+        deleteSet.mutate({
+          collection: photoCollection,
+          set: photoSet,
+          options: {
+            logging: true
+          }
+        })
+      }}
+      onClose={() => setDeleteConfirmation(false)}
+      open={deleteConfirmation}
     />
     {selectedPhotos.length > 0 && (
       <SetControls 
@@ -240,7 +279,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                     label="Display Photo Titles"
                 />
               </Dropdown.Item>
-              <Dropdown.Item 
+              {/* <Dropdown.Item 
                 onClick={() => {
                   const index = picturePaths.findIndex((path) => {
                     return path.path === cover
@@ -260,7 +299,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                 }}
               >
                 Go To Cover
-              </Dropdown.Item>
+              </Dropdown.Item> */}
               <Dropdown.Item as='label' htmlFor="setting-upload-file" className="">
                 <input 
                   id='setting-upload-file' 
@@ -278,16 +317,8 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                 />Upload Pictures
               </Dropdown.Item>
               <Dropdown.Item 
-                onClick={() => {
-                  deleteParentSet(photoSet.id)
-                  deleteSet.mutate({
-                    collection: photoCollection,
-                    set: photoSet,
-                    options: {
-                      logging: true
-                    }
-                  })
-                }}
+                onClick={() => setDeleteConfirmation(true)}
+                className="text-red-400"
               >
                 Delete Set
               </Dropdown.Item>

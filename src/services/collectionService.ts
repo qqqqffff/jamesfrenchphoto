@@ -232,7 +232,6 @@ export interface CreateCollectionParams {
     options?: {
         logging: boolean
     },
-    setProgress: (progress: number) => void
 }
 export async function createCollectionMutation(params: CreateCollectionParams) {
     console.log('api call')
@@ -256,44 +255,6 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
     if(params.options?.logging) console.log(taggingResponse)
 
     let coverPath: string | undefined
-
-    //TODO: move this logic
-    // if(params.paths && params.paths.size > 0) {
-    //     paths = (await Promise.all((await Promise.all(
-    //         [...params.paths.values()].map(async (file, index, arr) => {
-    //             const result = await uploadData({
-    //                 path: `photo-collections/${params.eventId}/${collectionResponse.data!.id}/${v4()}_${file.name}`,
-    //                 data: file,
-    //             }).result
-    //             if(params.options?.logging) console.log(result)
-
-    //             params.setProgress((index + 1 / arr.length) * 100)
-    //             //updating cover
-    //             if(params.cover !== null && file.name === parsePathName(params.cover)){
-    //                 const collectionUpdate = await client.models.PhotoCollection.update({
-    //                     id: collectionResponse.data!.id,
-    //                     coverPath: result.path
-    //                 })
-    //                 coverPath = result.path
-    //                 if(params.options?.logging) console.log(collectionUpdate)
-    //             }
-    //             return result.path
-    //         })
-    //     )).map(async (path, index) => {
-    //         const response = await client.models.PhotoPaths.create({
-    //             path: path,
-    //             order: index,
-    //             collectionId: collectionResponse.data!.id
-    //         })
-    //         if(params.options?.logging) console.log(response)
-    //         if(!response || !response.data) return
-    //         const returnPath: PicturePath = {
-    //             ...response.data,
-    //             url: ''
-    //         }
-    //         return returnPath
-    //     }))).filter((item) => item !== undefined)
-    // }
 
     const returnedCollection: PhotoCollection = {
         ...collectionResponse.data,
@@ -326,34 +287,6 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
         ((params.tags ?? []).find((tag) => tag.id === colTag.id) === undefined))
 
     if(params.options?.logging) console.log(newTags, removedTags)
-    // TODO: move this logic
-    // const createPathsResponse = (await Promise.all((await Promise.all(newPaths.map(async (path, index, arr) => {
-    //     const result = await uploadData({
-    //         path: `photo-collections/${params.eventId}/${params.collection.id}/${v4()}_${path[1].name}`,
-    //         data: path[1],
-    //     }).result
-
-    //     if(params.options?.logging) console.log(result)
-
-    //     params.setProgress((index + 1 / arr.length) * 100)
-
-    //     return result.path
-    // }))).map(async (path, index) => {
-    //     const offset = newPaths.length - removedPaths.length + params.collection.paths.length
-    //     const response = await client.models.PhotoPaths.create({
-    //         path: path,
-    //         order: offset + index,
-    //         collectionId: params.collection.id,
-    //     })
-    //     if(params.options?.logging) console.log(response)
-    //     if(!response || !response.data) return
-    //     const mappedPath: PicturePath = {
-    //         ...response.data,
-    //         url: '',
-    //     }
-    //     return mappedPath
-    // }))).filter((item) => item !== undefined)
-
 
     updatedCollection.tags.push(...newTags)
     updatedCollection.tags = updatedCollection.tags
