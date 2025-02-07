@@ -5,9 +5,13 @@ interface UploadComponentProps extends ComponentProps<'div'> {
 }
 
 export const UploadImagePlaceholder = (props: UploadComponentProps) => {
-  // const rootProps: Omit<UploadComponentProps, 'setFilesUploading'> = {...props} 
+  const rootProps: Partial<UploadComponentProps> = {
+    ...props,
+  }
+  delete(rootProps.setFilesUploading)
+  
   return (
-    <div>
+    <div {...rootProps}>
       <div 
         className="flex items-center justify-center w-full h-full rounded-lg " 
       >

@@ -21,6 +21,7 @@ import {
 import { CgArrowsExpandRight } from "react-icons/cg";
 import { useNavigate } from "@tanstack/react-router"
 import { Dispatch, SetStateAction } from "react"
+import { UploadImagePlaceholder } from "./UploadImagePlaceholder"
 
 export interface SetRowProps extends GridChildComponentProps {
   data: {
@@ -44,25 +45,23 @@ export interface SetRowProps extends GridChildComponentProps {
 
 export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
   const index = columnIndex + 4 * rowIndex
-  //TODO: reenable me
+  
   if(!data.data[index]) {
     return undefined
   }
-  //   if(data.data[index - 1] !== undefined || index == 0) {
-  //     return (
-  //       <UploadImagePlaceholder
-  //         setFilesUploading={data.setFilesUploading}
-  //         key={index} 
-  //         style={{
-  //           ...style,
-  //           width: Number(style.width ?? 0) - 20,
-  //           height: Number(style.height ?? 0) - 20,
-  //         }}
-  //       />
-  //     )
-  //   }
-  //   return undefined
-  // }
+  else if(data.data[index].id === 'upload'){
+    return (
+      <UploadImagePlaceholder
+        setFilesUploading={data.setFilesUploading}
+        key={index} 
+        style={{
+          ...style,
+          width: Number(style.width ?? 0) - 20,
+          height: Number(style.height ?? 0) - 20,
+        }}
+      />
+    )
+  }
 
   const navigate = useNavigate()
 

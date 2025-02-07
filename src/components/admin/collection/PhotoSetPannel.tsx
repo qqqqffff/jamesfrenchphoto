@@ -14,7 +14,7 @@ import { DynamicStringEnumKeysOf, parsePathName, textInputTheme } from "../../..
 import { SetControls } from "./SetControls";
 import { SetRow } from "./SetRow";
 import { EditableTextField } from "../../common/EditableTextField";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries } from "@tanstack/react-query";
 import { 
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
@@ -79,12 +79,20 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
 
   let activeTimeout: NodeJS.Timeout | undefined
 
+  const urls = useQueries({
+    queries: picturePaths
+      .sort((a, b) => a.order - b.order)
+      .map((path) => {
+        return getPathQueryOptions(path.path)
+      })
+  })
+
   const pathUrls = picturePaths
     .sort((a, b) => a.order - b.order)
-    .map((path) => {
+    .map((path, index) => {
       return ({
         id: path.id,
-        url: useQuery(getPathQueryOptions(path.path))
+        url: urls[index]
       })
     })
 
@@ -144,7 +152,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
     if(searchText){
       const trimmedText = searchText.trim().toLocaleLowerCase()
 
-      return tempFiles.filter((path) => {
+      tempFiles = tempFiles.filter((path) => {
         console.log(parsePathName(path.path), trimmedText)
         return parsePathName(path.path)
           .trim()
@@ -152,6 +160,13 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
           .includes(trimmedText)
       })
     }
+
+    tempFiles.push({
+      id: 'upload',
+      path: '1',
+      url: '',
+      order: tempFiles.length,
+    })
 
     return tempFiles
   })()
