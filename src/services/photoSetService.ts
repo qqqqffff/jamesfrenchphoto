@@ -362,6 +362,20 @@ export async function deleteSetMutation(params: DeleteSetMutationParams){
     const deleteSetResponse = await client.models.PhotoSet.delete({ id: params.set.id })
 
     if(params.options?.logging) console.log(deleteSetResponse)
+
+    const setUpdatesResponses = await Promise.all(params.collection.sets
+        .filter((set) => set.id !== params.set.id)
+        .sort((a, b) => a.order - b.order)
+        .map(async (set, index) => {
+            const response = await client.models.PhotoSet.update({
+                id: set.id,
+                order: index
+            })
+            return response
+        })
+    )
+
+    if(params.options?.logging) console.log(setUpdatesResponses)
 }
 
 export interface FavoriteImageMutationParams {

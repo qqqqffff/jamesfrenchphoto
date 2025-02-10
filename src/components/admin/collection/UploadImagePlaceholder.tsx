@@ -5,7 +5,11 @@ interface UploadComponentProps extends ComponentProps<'div'> {
 }
 
 export const UploadImagePlaceholder = (props: UploadComponentProps) => {
-  const rootProps: ComponentProps<'div'> = {...props} 
+  const rootProps: Partial<UploadComponentProps> = {
+    ...props,
+  }
+  delete(rootProps.setFilesUploading)
+  
   return (
     <div {...rootProps}>
       <div 
