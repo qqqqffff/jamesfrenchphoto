@@ -1,9 +1,9 @@
 import { createFileRoute, invariant, redirect, useNavigate } from '@tanstack/react-router'
-import { getPhotoSetByIdQueryOptions } from '../services/photoSetService'
-import { useQueries } from '@tanstack/react-query'
+import { favoriteImageMutation, FavoriteImageMutationParams, getPhotoSetByIdQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
+import { useMutation, useQueries } from '@tanstack/react-query'
 import { getPathQueryOptions } from '../services/collectionService'
 import useWindowDimensions from '../hooks/windowDimensions'
-import { HiOutlineArrowLeft, HiOutlineArrowRight } from "react-icons/hi";
+import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart, HiOutlineDownload } from "react-icons/hi";
 import { useState } from 'react'
 import { parsePathName } from '../utils'
 import { PhotoCarousel } from '../components/admin/collection/PhotoCarousel'
@@ -55,6 +55,22 @@ function RouteComponent() {
     ))
   })
 
+  const favorite = useMutation({
+    mutationFn: (params: FavoriteImageMutationParams) => favoriteImageMutation(params),
+    onSettled: (id) => {
+      if(id){
+        setCurrent({
+          ...current,
+          favorite: id,
+        })
+      }
+    }
+  })
+
+  const unfavorite = useMutation({
+    mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params),
+  })
+
   return (
     <div className="bg-white flex flex-col items-center justify-center" style={{ height: dimensions.height }}>
       <div className='h-[50px] flex flex-row justify-between items-center px-4 text-gray-700 w-full border-b-gray-300 border-b-2'>
@@ -71,7 +87,38 @@ function RouteComponent() {
           Back
         </button>
         <div>{parsePathName(current.path)}</div>
-        <div>heart</div>
+        <div className='flex flex-row gap-4'>
+          <button onClick={() => {
+            if(current.favorite !== undefined && current.favorite !== 'temp'){
+              unfavorite.mutate({
+                id: current.favorite,
+                options: {
+                  logging: true
+                }
+              })
+              setCurrent({
+                ...current,
+                favorite: undefined
+              })
+            }
+            else if(current.favorite === undefined && data.auth.user?.profile.email !== undefined){
+              favorite.mutate({
+                pathId: current.id,
+                user: data.auth.user.profile.email
+              })
+              setCurrent({
+                ...current,
+                favorite: 'temp'
+              })
+            }
+            
+          }}>
+            <HiOutlineHeart size={24} className={`${current.favorite !== undefined ? 'fill-red-400' : ''}`}/>
+          </button>
+          <button>
+            <HiOutlineDownload size={24} />
+          </button>
+        </div>
       </div>
       <img src={paths.find((path) => path.data?.[0] === current.id)?.data?.[1]} style={{ height: dimensions.height - 200 }} />
       <PhotoCarousel 

@@ -6,6 +6,7 @@ import { addCreateUserQueue } from '../functions/add-create-user-queue/resource'
 import { verifyContactChallenge } from '../functions/verify-contact-challenge/resource';
 import { sendTimeslotConfirmation } from '../functions/send-timeslot-confirmation/resource';
 import { updateUserAttribute } from '../auth/update-user-attribute/resource';
+import { downloadImages } from '../functions/download-images/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -19,6 +20,7 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       coverPath: a.string(),
+      coverType: a.enum(['default']),
       name: a.string().required(),
       tags: a.hasMany('CollectionTag', 'collectionId'),
       sets: a.hasMany('PhotoSet', 'collectionId'),
@@ -32,12 +34,6 @@ const schema = a.schema({
   PhotoSet: a
     .model({
       id: a.id().required(),
-      coverPath: a.string().required(),
-      coverText: a.customType({
-        color: a.string(),
-        opacity: a.string(),
-        family: a.string()
-      }),
       name: a.string().required(),
       paths: a.hasMany('PhotoPaths', 'setId'),
       order: a.integer().required(),
@@ -259,6 +255,14 @@ const schema = a.schema({
     .handler(a.handler.function(sendTimeslotConfirmation))
     .authorization((allow) => [allow.authenticated()])
     .returns(a.json()),
+  DownloadImages: a
+    .query()
+    .arguments({
+      paths: a.string().required().array()
+    })
+    .handler(a.handler.function(downloadImages))
+    .authorization((allow) => [allow.authenticated()])
+    .returns(a.string())
 })
 .authorization((allow) => [allow.resource(postConfirmation), allow.resource(addCreateUserQueue)]);
 

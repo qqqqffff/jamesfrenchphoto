@@ -54,6 +54,7 @@ export type PicturePath = {
     url: string;
     path: string;
     order: number;
+    favorite?: string;
 }
 
 export type Watermark = {
@@ -77,12 +78,6 @@ export type PhotoCollection = {
 
 export type PhotoSet = {
     id: string;
-    coverPath: string,
-    coverText?: {
-        color?: string,
-        opacity?: string,
-        family?: string,
-    },
     watermarkPath?: string,
     name: string,
     paths: PicturePath[],

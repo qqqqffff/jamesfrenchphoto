@@ -8,15 +8,12 @@ import {
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
   reorderPathsMutation, 
-  ReorderPathsParams, 
-  updateSetMutation, 
-  UpdateSetParams 
+  ReorderPathsParams,
 } from "../../../services/photoSetService"
 import { 
   HiOutlineBarsArrowDown, 
   HiOutlineBarsArrowUp, 
   HiOutlineTrash,
-  HiOutlineStar,
 } from "react-icons/hi2";
 import { CgArrowsExpandRight } from "react-icons/cg";
 import { useNavigate } from "@tanstack/react-router"
@@ -28,13 +25,11 @@ export interface SetRowProps extends GridChildComponentProps {
     set: PhotoSet,
     data: PicturePath[],
     urls: UseQueryResult<[string | undefined, string] | undefined>[],
-    cover: string,
-    pictureStyle: (id: string, selected: boolean) => string
+    pictureStyle: (id: string) => string
     selectedPhotos: PicturePath[]
     setSelectedPhotos: (photos: PicturePath[]) => void
     setDisplayPhotoControls: (id: string | undefined) => void
     controlsEnabled: (id: string, override: boolean) => string
-    setCover: (path: string) => void
     setPicturePaths: (picturePaths: PicturePath[]) => void,
     displayTitleOverride: boolean,
     notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
@@ -63,15 +58,8 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
 
   const navigate = useNavigate()
 
-  const coverSelected = parsePathName(data.data[index].path) === parsePathName(data.cover ?? '')
-  const coverSelectedStyle = `${coverSelected ? 'fill-yellow-300' : ''}`
-
   const deleteMutation = useMutation({
     mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
-  })
-
-  const updateSet = useMutation({
-    mutationFn: (params: UpdateSetParams) => updateSetMutation(params)
   })
 
   const rerorderPaths = useMutation({
@@ -86,7 +74,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
             height: Number(style.height ?? 0) - 20,
         }}
         key={index} 
-        className={data.pictureStyle(data.data[index].id, coverSelected)} id='image-container'
+        className={data.pictureStyle(data.data[index].id)} id='image-container'
         onClick={(event) => {
           const temp = [...data.selectedPhotos]
           if((event.target as HTMLElement).id.includes('image')){
@@ -140,24 +128,6 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
         )
       )}
       <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${data.controlsEnabled(data.data[index].id, false)}`}>
-        <Tooltip content={(<p>Set as cover</p>)} placement="bottom" className="w-[110px]" style='light'>
-          <button className="" onClick={() => {
-            if(!coverSelected) {
-              data.setCover(data.data[index].path)
-              updateSet.mutate({
-                set: data.set,
-                coverPath: data.data[index].path,
-                name: data.set.name,
-                order: data.set.order,
-              })
-            }
-            else{
-              data.notify('Cover Photo is required!', 'red')
-            }
-          }}>
-            <HiOutlineStar className={coverSelectedStyle} size={20} />
-          </button>
-        </Tooltip>
         <Tooltip content={(<p>Preview Fullscreen</p>)} placement="bottom" className="w-[140px]" style='light'>
           <button
             onClick={() => {

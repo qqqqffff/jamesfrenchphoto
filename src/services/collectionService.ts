@@ -23,11 +23,6 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
                 mappedSets.push(...setsResponse.data.map((set) => {
                     const mappedSet: PhotoSet = {
                         ...set,
-                        coverText: {
-                            color: set.coverText?.color ?? undefined,
-                            opacity: set.coverText?.opacity ?? undefined,
-                            family: set.coverText?.family ?? undefined
-                        },
                         watermarkPath: set.watermarkPath ?? undefined,
                         paths: [],
                     }
@@ -168,7 +163,8 @@ interface GetPhotoCollectionByIdOptions {
     siTags?: boolean,
     siSets?: boolean,
     siPaths?: boolean,
-    resolveUrls?: boolean
+    resolveUrls?: boolean,
+    user?: string,
 }
 async function getCollectionById(collectionId: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | undefined> {
     console.log('api call')
@@ -181,18 +177,22 @@ async function getCollectionById(collectionId: string, options?: GetPhotoCollect
             const mappedPaths: PicturePath[] = []
             if(!options || options?.siPaths) {
                 mappedPaths.push(...await Promise.all(paths.data.map(async (path) => {
+                    let favorite: undefined | string
+                    if(options?.user){
+                        favorite = (await path.favorites()).data.find((favorite) => favorite.userEmail === options.user)?.id
+                    }
                     const mappedPath: PicturePath = {
                         ...path,
                         url: options?.resolveUrls ? (await getUrl({
                             path: path.path,
-                        })).url.toString() : ''
+                        })).url.toString() : '',
+                        favorite: favorite
                     }
                     return mappedPath
                 })))
             }
             const mappedSet: PhotoSet = {
                 ...set,
-                coverText: undefined, //TODO: implement me
                 watermarkPath: set.watermarkPath ?? undefined,
                 paths: mappedPaths,
             }

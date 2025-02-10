@@ -11,7 +11,8 @@ import { UploadData } from '../components/modals/UploadImages/UploadToast'
 const client = generateClient<Schema>()
 
 interface GetAllPicturePathsByPhotoSetOptions {
-    resolveUrls?: boolean
+    resolveUrls?: boolean,
+    user?: string
 } 
 async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: string, options?: GetAllPicturePathsByPhotoSetOptions): Promise<PicturePath[] | null> {
     console.log('api call')
@@ -20,11 +21,16 @@ async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: st
         setId: setId
     })
     const mappedPaths: PicturePath[] = await Promise.all(pathResponse.data.map(async (path) => {
+        let favorite: undefined | string
+        if(options?.user){
+            favorite = (await path.favorites()).data.find((favorite) => favorite.userEmail === options.user)?.id
+        }
         const mappedPath: PicturePath = {
             ...path,
             url: options?.resolveUrls ? (await getUrl({
                 path: path.path,
-            })).url.toString() : ''
+            })).url.toString() : '',
+            favorite: favorite,
         }
         return mappedPath
     }))
@@ -33,7 +39,7 @@ async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: st
 
 
 interface GetPhotoSetByIdOptions extends GetAllPicturePathsByPhotoSetOptions {
-
+    user?: string
 }
 async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options?: GetPhotoSetByIdOptions): Promise<PhotoSet | null> {
     if(!setId) return null
@@ -45,18 +51,22 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
 
     const pathsResponse = await setResponse.data.paths()
     const mappedPaths: PicturePath[] = (await Promise.all(pathsResponse.data.map(async (path) => {
+        let favorite: undefined | string
+        if(options?.user){
+            favorite = (await path.favorites()).data.find((favorite) => favorite.userEmail === options.user)?.id
+        }
         const mappedPath: PicturePath = {
             ...path,
             url: options?.resolveUrls ? (await getUrl({
                 path: path.path,
-            })).url.toString() : ''
+            })).url.toString() : '',
+            favorite: favorite
         }
         return mappedPath
     }))).sort((a, b) => a.order - b.order)
     
     return {
         ...setResponse.data,
-        coverText: undefined, //TODO: implement me
         watermarkPath: setResponse.data.watermarkPath ?? undefined,
         paths: mappedPaths,
     }
@@ -74,14 +84,12 @@ export async function createSetMutation(params: CreateSetParams) {
     const response = await client.models.PhotoSet.create({
         collectionId: params.collection.id,
         name: params.name,
-        coverPath: '',
         order: params.collection.sets.length,
     })
     if(params.options?.logging) console.log(response)
     if(!response || !response.data) return
     const mappedSet: PhotoSet = {
         id: response.data.id,
-        coverPath: '',
         paths: [],
         order: params.collection.sets.length,
         name: params.collection.name,
@@ -92,7 +100,6 @@ export async function createSetMutation(params: CreateSetParams) {
 
 export interface UpdateSetParams {
     set: PhotoSet,
-    coverPath: string,
     watermarkPath?: string,
     name: string,
     order: number,
@@ -105,14 +112,12 @@ export async function updateSetMutation(params: UpdateSetParams) {
 
     if(
         params.set.name !== params.name ||
-        params.set.coverPath !== params.coverPath ||
         params.set.watermarkPath !== params.watermarkPath ||
         params.set.order !== params.order
     ) {
         const response = await client.models.PhotoSet.update({
             id: params.set.id,
             name: params.name,
-            coverPath: params.coverPath,
             watermarkPath: params.watermarkPath ?? params.set.watermarkPath,
             order: params.order,
         })
@@ -120,7 +125,6 @@ export async function updateSetMutation(params: UpdateSetParams) {
         if(params.options?.logging) console.log(response)
 
         updatedSet.name = params.name
-        updatedSet.coverPath = params.coverPath,
         updatedSet.watermarkPath = params.watermarkPath ?? params.set.watermarkPath
         updatedSet.order = params.order
     }
@@ -252,6 +256,7 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
                     if(!response || !response.data || response.errors !== undefined) return false
                     mappedPath = {
                         ...response.data,
+                        favorite: params.duplicates[file.name].favorite,
                         url: ''
                     }
                 } else {
@@ -357,6 +362,35 @@ export async function deleteSetMutation(params: DeleteSetMutationParams){
     const deleteSetResponse = await client.models.PhotoSet.delete({ id: params.set.id })
 
     if(params.options?.logging) console.log(deleteSetResponse)
+}
+
+export interface FavoriteImageMutationParams {
+    pathId: string,
+    user: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function favoriteImageMutation(params: FavoriteImageMutationParams) {
+    const response = await client.models.UserFavorites.create({
+        pathId: params.pathId,
+        userEmail: params.user
+    })
+    if(params.options?.logging) console.log(response)
+    return response.data?.id
+}
+
+export interface UnfavoriteImageMutationParams {
+    id: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function unfavoriteImageMutation(params: UnfavoriteImageMutationParams){
+    const response = await client.models.UserFavorites.delete({
+        id: params.id,
+    })
+    if(params.options?.logging) console.log(response)
 }
 
 export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string, options?: GetAllPicturePathsByPhotoSetOptions) => queryOptions({

@@ -50,7 +50,6 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
   const [pictureCollection, setPictureCollection] = useState(photoCollection)
   const [selectedPhotos, setSelectedPhotos] = useState<PicturePath[]>([])
   const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
-  const [cover, setCover] = useState(photoSet.coverPath)
   const [watermarkVisible, setWatermarkVisible] = useState(false)
   const [watermarks, setWatermarks] = useState<Watermark[]>(watermarkObjects)
   const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
@@ -65,9 +64,9 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
     mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
   })
 
-  function pictureStyle(id: string, cover: boolean){
+  function pictureStyle(id: string){
     const conditionalBackground = selectedPhotos.find((path) => path.id === id) !== undefined ? 
-    `bg-gray-100 ${cover ? 'border-yellow-300' : 'border-cyan-400'}` : `bg-transparent border-gray-500 ${cover ? 'border-yellow-300' : 'border-gray-500'}`
+    `bg-gray-100 border-cyan-400` : `bg-transparent border-gray-500 border-gray-500`
     return 'relative px-2 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent ' + conditionalBackground
   }
 
@@ -218,7 +217,6 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
           onSubmitText={(text) => {
             updateSet.mutate({
               set: photoSet,
-              coverPath: photoSet.coverPath,
               name: text,
               order: photoSet.order,
               options: {
@@ -361,13 +359,11 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                       .sort((a, b) => a.order - b.order)
                       .filter((path) => path.path && path.id),
                     urls: pathUrls,
-                    cover,
                     pictureStyle,
                     selectedPhotos,
                     setSelectedPhotos,
                     setDisplayPhotoControls,
                     controlsEnabled,
-                    setCover,
                     setPicturePaths,
                     displayTitleOverride,
                     notify: (text, color) => {
