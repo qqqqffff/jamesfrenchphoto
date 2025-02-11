@@ -20,7 +20,7 @@ interface CollectionThumbnailProps extends ComponentProps<'div'> {
 
 export const CollectionThumbnail= ({ 
   collection, collectionId, onClick, 
-  cover, key, allowUpload, 
+  cover, allowUpload, 
   contentChildren, parentLoading,
   setCover
 }: CollectionThumbnailProps) => {
@@ -107,7 +107,7 @@ export const CollectionThumbnail= ({
         onClose={() => setConfirmationOpen(false)}
         open={confirmationOpen}
       />
-      <div className="flex flex-col" key={key}>
+      <div className="flex flex-col">
         {(loading || coverPath.isLoading) ? (
             <div className="flex flex-col justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] cursor-wait">
                 <CgSpinner size={64} className="animate-spin text-gray-600"/>

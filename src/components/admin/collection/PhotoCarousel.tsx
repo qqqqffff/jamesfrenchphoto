@@ -1,10 +1,11 @@
 import { UseQueryResult } from "@tanstack/react-query"
 import { PicturePath } from "../../../types"
-import { invariant } from "@tanstack/react-router"
+import { invariant, useNavigate } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react"
 
 interface PhotoCarouselProps {
-  paths: PicturePath[]
+  paths: PicturePath[],
+  setId: string,
   data: UseQueryResult<[string | undefined, string] | undefined>[]
   setSelectedPath: (path: PicturePath) => void,
   selectedPath: PicturePath,
@@ -13,6 +14,9 @@ interface PhotoCarouselProps {
 export const PhotoCarousel = (props: PhotoCarouselProps) => {
   const imageRefs = useRef<(HTMLImageElement | null)[]>([])
   const [averageWidth, setAverageWidth] = useState(90)
+  const navigate = useNavigate()
+
+  const currentIndex = props.paths.findIndex((path) => path.id === props.selectedPath.id)
 
   useEffect(() => {
     setAverageWidth((imageRefs.current
@@ -20,10 +24,8 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
     ) / imageRefs.current.length)
   }, [props.data])
 
-  const currentIndex = props.paths.findIndex((path) => path.id === props.selectedPath.id)
-
   return (
-    <div className="relative w-screen overflow-hidden">
+    <div className="relative w-screen overflow-hidden border-t-gray-300 border-t-2">
       <div className='h-[150px] relative'>
         <div 
           className="flex transition-transform duration-500 ease-out h-full"
@@ -49,6 +51,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                         invariant(foundItem)
 
                         props.setSelectedPath(foundItem)
+                        navigate({ to: '.', search: { set: props.setId, path: foundItem.id }})
                       }}
                       src={url.data[1]} 
                       className='rounded-sm hover:border-gray-300 border-2 border-transparent

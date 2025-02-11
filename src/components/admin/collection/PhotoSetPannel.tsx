@@ -29,6 +29,7 @@ import { getPathQueryOptions } from "../../../services/collectionService";
 import { detectDuplicates } from "./utils";
 import { useDropzone } from "react-dropzone";
 import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
+import { AuthContext } from "../../../auth";
 
 export type PhotoCollectionProps = {
   photoCollection: PhotoCollection;
@@ -37,13 +38,14 @@ export type PhotoCollectionProps = {
   paths: PicturePath[],
   deleteParentSet: (setId: string) => void,
   parentUpdateSet: (updatedSet: PhotoSet) => void,
-  updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
+  updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
+  auth: AuthContext
 }
 
 export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ 
   photoCollection, photoSet, watermarkObjects, 
   paths, deleteParentSet, parentUpdateSet,
-  updateParentCollection
+  updateParentCollection, auth
 }) => {
   const gridRef = useRef<FixedSizeGrid>(null)
   const [picturePaths, setPicturePaths] = useState(paths)
@@ -406,11 +408,11 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                     data: filteredPhotos
                       .sort((a, b) => a.order - b.order)
                       .filter((path) => path.path && path.id),
+                    updateData: setPicturePaths,
                     urls: pathUrls
                       .filter((path) => {
                         return filteredPhotos.find((filteredPath) => path.id === filteredPath.id) !== undefined
                       }),
-                    cover,
                     pictureStyle,
                     selectedPhotos,
                     setSelectedPhotos,
@@ -427,6 +429,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                       }, 5000)
                     },
                     setFilesUploading,
+                    userEmail: auth.user?.profile.email,
                 }}
               >
                 {SetRow}

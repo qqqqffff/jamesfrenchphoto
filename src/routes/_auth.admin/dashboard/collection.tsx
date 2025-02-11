@@ -45,13 +45,14 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
       availableTags,
       watermarkObjects,
       collection,
-      set
+      set,
+      auth: context.auth,
     }
   }
 })
 
 function RouteComponent() {
-  const { availableTags, watermarkObjects, collection, set } = Route.useLoaderData()
+  const { availableTags, watermarkObjects, collection, set, auth } = Route.useLoaderData()
   const navigate = useNavigate()
 
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
@@ -215,6 +216,7 @@ function RouteComponent() {
           set={set}
           watermarkObjects={watermarkObjects}
           availableTags={availableTags}
+          auth={auth}
         />
       )}
     </>

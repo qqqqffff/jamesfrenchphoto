@@ -13,6 +13,7 @@ import { deleteCoverMutation, DeleteCoverParams, updateCollectionMutation, Updat
 import Loading from "../../common/Loading"
 import { detectDuplicates } from "./utils"
 import { PublishableItems } from "./PublishableItems"
+import { AuthContext } from "../../../auth"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
@@ -20,7 +21,8 @@ interface PhotoCollectionPannelProps {
   coverPath?: string,
   collection: PhotoCollection,
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
-  set?: PhotoSet
+  set?: PhotoSet,
+  auth: AuthContext
 }
 
 interface Publishable {
@@ -31,7 +33,7 @@ interface Publishable {
 
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
   watermarkObjects, availableTags, collection, 
-  set, updateParentCollection, 
+  set, updateParentCollection, auth
 }) => {
   const [createSet, setCreateSet] = useState(false)
   const [watermarkVisible, setWatermarkVisible] = useState(false)
@@ -53,7 +55,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   })
 
   const setQuery = useQuery({
-      ...getPhotoSetByIdQueryOptions(selectedSet?.id, { resolveUrls: false}),
+      ...getPhotoSetByIdQueryOptions(selectedSet?.id, { resolveUrls: false, user: auth.user?.profile.email }),
       enabled: selectedSet !== undefined
   })
 
@@ -261,6 +263,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                 setSelectedSet(updatedSet)
               }}
               updateParentCollection={updateParentCollection}
+              auth={auth}
             />
           )
         ) : (

@@ -27,7 +27,7 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
     ) throw redirect({ to: destination })
 
     const set = await context.queryClient.ensureQueryData(
-      getPhotoSetByIdQueryOptions(context.set, { resolveUrls: false })
+      getPhotoSetByIdQueryOptions(context.set, { resolveUrls: false, user: context.auth.user?.profile.email })
     )
 
     const path = set?.paths.find((path) => path.id === context.path)
@@ -125,7 +125,8 @@ function RouteComponent() {
         paths={data.set.paths} 
         data={paths} 
         setSelectedPath={setCurrent} 
-        selectedPath={current}      
+        selectedPath={current}
+        setId={data.set.id}
       />
       <button className='fixed top-1/2 right-4 -translate-y-1/2 text-gray-700 rounded-lg p-4 z-50 hover:text-gray-500'
         onClick={() => {

@@ -2,19 +2,23 @@ import { GridChildComponentProps } from "react-window"
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
 import { DynamicStringEnumKeysOf, parsePathName } from "../../../utils"
 import { FlowbiteColors, Tooltip } from "flowbite-react"
-// import { UploadImagePlaceholder } from "./UploadImagePlaceholder"
 import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import { 
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
+  favoriteImageMutation, 
+  FavoriteImageMutationParams, 
   reorderPathsMutation, 
   ReorderPathsParams,
+  unfavoriteImageMutation,
+  UnfavoriteImageMutationParams,
 } from "../../../services/photoSetService"
 import { 
   HiOutlineBarsArrowDown, 
   HiOutlineBarsArrowUp, 
-  HiOutlineTrash,
+  HiOutlineTrash
 } from "react-icons/hi2";
+import { HiOutlineDownload, HiOutlineHeart } from "react-icons/hi"
 import { CgArrowsExpandRight } from "react-icons/cg";
 import { useNavigate } from "@tanstack/react-router"
 import { Dispatch, SetStateAction } from "react"
@@ -25,9 +29,9 @@ export interface SetRowProps extends GridChildComponentProps {
     collection: PhotoCollection,
     set: PhotoSet,
     data: PicturePath[],
+    updateData: Dispatch<SetStateAction<PicturePath[]>>,
     urls: {id: string, url: UseQueryResult<[string | undefined, string] | undefined>}[],
-    cover: string,
-    pictureStyle: (id: string, selected: boolean) => string
+    pictureStyle: (id: string) => string
     selectedPhotos: PicturePath[]
     setSelectedPhotos: (photos: PicturePath[]) => void
     setDisplayPhotoControls: (id: string | undefined) => void
@@ -35,11 +39,13 @@ export interface SetRowProps extends GridChildComponentProps {
     setPicturePaths: (picturePaths: PicturePath[]) => void,
     displayTitleOverride: boolean,
     notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
-    setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
+    setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>,
+    userEmail: string | undefined
   }
 }
 
 export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
+  
   const index = columnIndex + 4 * rowIndex
   
   if(!data.data[index]) {
@@ -67,6 +73,27 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
 
   const rerorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+  })
+
+  const favorite = useMutation({
+    mutationFn: (params: FavoriteImageMutationParams) => favoriteImageMutation(params),
+    onSettled: (favorite) => {
+      if(favorite) {
+        data.updateData(data.data.map((path) => {
+          if(path.id === data.data[index].id){
+            return ({
+              ...path,
+              favorite: favorite
+            })
+          }
+          return path
+        }))
+      }
+    }
+  })
+
+  const unfavorite = useMutation({
+    mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params)
   })
 
   return (
@@ -131,7 +158,55 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
         )
       )}
       <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${data.controlsEnabled(data.data[index].id, false)}`}>
-        <Tooltip content={(<p>Preview Fullscreen</p>)} placement="bottom" className="w-[140px]" style='light'>
+        <Tooltip content={(<p>{data.data[index].favorite !== undefined ? 'Unfavorite' : 'Favorite'}</p>)} placement="bottom" className="" style='light'>
+          <button className="" onClick={() => {
+            if(data.data[index].favorite !== undefined && data.data[index].favorite !== 'temp'){
+              unfavorite.mutate({
+                id: data.data[index].favorite,
+                options: {
+                  logging: true
+                }
+              })
+              data.updateData(data.data.map((path) => {
+                if(path.id === data.data[index].id) {
+                  return ({
+                    ...path,
+                    favorite: undefined
+                  })
+                }
+                return path
+              }))
+            }
+            else if(data.userEmail && data.data[index].favorite === undefined){
+              favorite.mutate({
+                pathId: data.data[index].id,
+                user: data.userEmail,
+                options: {
+                  logging: true
+                }
+              })
+              data.updateData(data.data.map((path) => {
+                if(path.id === data.data[index].id){
+                  return ({
+                    ...path,
+                    favorite: 'temp'
+                  })
+                }
+                return path
+              }))
+            }
+          }}>
+            <HiOutlineHeart size={20} className={`${data.data[index].favorite !== undefined ? 'fill-red-400' : ''}`}/>
+          </button>
+        </Tooltip>
+        <Tooltip content={(<p>Download</p>)} placement="bottom" className="" style='light'>
+          <button className="" onClick={() => {
+            
+          }}>
+            <HiOutlineDownload size={20} />
+          </button>
+        </Tooltip>
+        <Tooltip content={(<p>Preview Fullscreen</p>)} placement="bottom" className='whitespace-nowrap' style='light'>
           <button
             onClick={() => {
               navigate({
@@ -146,7 +221,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
             <CgArrowsExpandRight size={20} />
           </button>
         </Tooltip>
-        <Tooltip content={(<p>Move to Top</p>)} placement="bottom" className="w-[110px]" style='light'>
+        <Tooltip content={(<p>Move to Top</p>)} placement="bottom" className="whitespace-nowrap" style='light'>
           <button className="" onClick={() => {
             const temp = [data.data[index], ...data.data.filter((p) => p.id !== data.data[index].id)].map((path, index) => {
               return {
@@ -162,7 +237,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
             <HiOutlineBarsArrowUp size={20} />
           </button>
         </Tooltip>
-        <Tooltip content={(<p>Move to Bottom</p>)} placement="bottom" className="w-[130px]" style='light'>
+        <Tooltip content={(<p>Move to Bottom</p>)} placement="bottom" className="whitespace-nowrap" style='light'>
           <button className="" onClick={() => {
             const temp = [...data.data.filter((p) => p.id !== data.data[index].id), data.data[index]].map((path, index) => {
               return {
@@ -178,7 +253,7 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
             <HiOutlineBarsArrowDown size={20} />
           </button>
         </Tooltip>
-        <Tooltip content={(<p>Delete</p>)} placement="bottom">
+        <Tooltip content={(<p>Delete</p>)} placement="bottom" style='light'>
           <button className="" onClick={() => {
             data.setPicturePaths(data.data.filter((path) => path.id !== data.data[index].id))
             deleteMutation.mutate({
