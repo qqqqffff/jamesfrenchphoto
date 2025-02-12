@@ -66,11 +66,11 @@ function RouteComponent() {
 
   const favorite = useMutation({
     mutationFn: (params: FavoriteImageMutationParams) => favoriteImageMutation(params),
-    onSettled: (id) => {
-      if(id){
+    onSettled: (favorite) => {
+      if(favorite){
         setCurrent({
           ...current,
-          favorite: id,
+          favorite: favorite[0],
         })
       }
     }
@@ -144,7 +144,7 @@ function RouteComponent() {
           }}>
             <HiOutlineHeart size={24} className={`${current.favorite !== undefined ? 'fill-red-400' : ''}`}/>
           </button>
-          {!data.collection.downloadable && (
+          {data.collection.downloadable && (
             <button 
               className={`${downloadImage.isPending ? 'cursor-wait' : ''}`}
               onClick={() => {

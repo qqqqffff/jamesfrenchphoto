@@ -5,11 +5,12 @@ import { PhotoCollection, PhotoSet, PicturePath } from '../types'
 import { useEffect, useRef, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Button, Tooltip } from 'flowbite-react'
-import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueries } from '@tanstack/react-query'
 import { SetCarousel } from '../components/collection/SetCarousel'
 import { CgArrowsExpandRight } from 'react-icons/cg'
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart } from 'react-icons/hi2'
 import { downloadImageMutation, DownloadImageMutationParams } from '../services/photoPathService'
+import { HiOutlineDownload } from 'react-icons/hi'
 
 interface PhotoCollectionParams {
   set?: string,
@@ -24,16 +25,22 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
   loader: async ({ context, params }) => {
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(!params.id) throw redirect({ to: destination })
-    const collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(params.id))
+    const collection = await context.queryClient.ensureQueryData(
+      getPhotoCollectionByIdQueryOptions(params.id, { user: context.auth.user?.profile.email, siSets: true })
+    )
     // if(!collection || collection.sets.length === 0 || !collection.published) throw redirect({ to: destination })
     invariant(collection)
     const set = collection.sets.find((set) => set.id === context.set)
     const watermarkUrl = (collection.watermarkPath !== undefined || set?.watermarkPath !== undefined) ?  (
       await context.queryClient.ensureQueryData(
         getPathQueryOptions(set?.watermarkPath ?? collection.watermarkPath ?? '')))?.[1] : undefined
-    
-    const paths = (await context.queryClient.ensureQueryData(getAllPicturePathsByPhotoSetQueryOptions(set?.id ?? collection.sets[0].id)))
-    // if(!coverUrl) throw redirect({ to: destination })
+    const coverUrl = (await context.queryClient.ensureQueryData(
+      getPathQueryOptions(collection.coverPath ?? '')
+    ))?.[1]
+    const paths = (await context.queryClient.ensureQueryData(
+      getAllPicturePathsByPhotoSetQueryOptions(set?.id ?? collection.sets[0].id, { user: context.auth.user?.profile.email })
+    ))
+    if(!coverUrl) throw redirect({ to: destination })
 
     const mappedCollection: PhotoCollection = {
       ...collection,
@@ -49,6 +56,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
       collection: mappedCollection,
       set: mappedSet,
       auth: context.auth,
+      coverPath: coverUrl
     }
   },
   wrapInSuspense: true
@@ -60,8 +68,6 @@ function RouteComponent() {
   const [set, setSet] = useState(data.set)
   const [currentControlDisplay, setCurrentControlDisplay] = useState<string>()
 
-  const coverPath = useQuery(getPathQueryOptions(data.collection.coverPath ?? ''))
-
   const navigate = useNavigate()
   const coverPhotoRef = useRef<HTMLImageElement | null>(null)
   const collectionRef = useRef<HTMLDivElement | null>(null)
@@ -70,9 +76,10 @@ function RouteComponent() {
 
   useEffect(() => {
     if(coverPhotoRef && coverPhotoRef.current) {
+      console.log('effected')
       coverPhotoRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [coverPhotoRef.current])
+  }, [data.coverPath])
 
   const paths = useQueries({
     queries: set.paths.map((path) => (
@@ -115,17 +122,18 @@ function RouteComponent() {
     mutationFn: (params: FavoriteImageMutationParams) => favoriteImageMutation(params),
     onSettled: (favorite) => {
       if(favorite) {
-      //   setSet({
-      //     ...set,
-      //     paths: set.paths.map((path) => {
-      //     if(path.id === data.data[index].id){
-      //       return ({
-      //         ...path,
-      //         favorite: favorite
-      //       })
-      //     }
-      //     return path
-      //   })})
+        setSet({
+          ...set,
+          paths: set.paths.map((path) => {
+            if(path.id === favorite[1]){
+              return ({
+                ...path,
+                favorite: favorite[0]
+              })
+            }
+            return path
+          })
+        })
       }
     }
   })
@@ -179,6 +187,7 @@ function RouteComponent() {
             className='border rounded-lg py-1.5 px-2 animate-pulse mt-10'
             onClick={() => {
               if(collectionRef.current){
+                console.log('went to sets')
                 collectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }
             }}
@@ -186,12 +195,16 @@ function RouteComponent() {
             Go to Sets
           </button>
         </div>
-        <img ref={coverPhotoRef} src={coverPath.data?.[1]} style={{ maxHeight: dimensions.height }} />
+        <img ref={coverPhotoRef} src={data.coverPath} style={{ maxHeight: dimensions.height }} />
       </div>
       <div className='flex flex-row items-center px-4 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
         <div className='flex flex-col items-start font-mono'>
-          <span className='font-bold text-2xl'>James French Photogrpahy</span>
-          <span className='italic'>{set.name}</span>
+          <span className='font-bold text-lg'>James French Photograpahy</span>
+          <span className='italic flex flex-row gap-1'>
+            <span>{collection.name}</span>
+            <span className='font-light'>&bull;</span>
+            <span>{set.name}</span>
+          </span>
         </div>
         <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
           onClick={() => {
@@ -202,7 +215,7 @@ function RouteComponent() {
           <HiOutlineArrowLeft size={24} />
         </button>
         <SetCarousel 
-          setList={data.collection.sets}
+          setList={collection.sets}
           setSelectedSet={setSet}
           selectedSet={set}
           currentIndex={currentIndex}
@@ -223,9 +236,9 @@ function RouteComponent() {
               <div key={index} className="flex flex-col gap-4">
                 {subCollection.map((picture, s_index) => {
                   const url = paths.find((path) => path.data?.[0] === picture.id)
-                  const favorite = picture.favorite !== undefined
+                  
                   return (
-                    <button 
+                    <div 
                       key={s_index} 
                       className="relative" 
                       onContextMenu={(e) => {
@@ -254,6 +267,65 @@ function RouteComponent() {
                         </>
                       )}
                       <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
+                        <Tooltip content={<p>{picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}</p>} placement='bottom' className='whitespace-nowrap' style='light'>
+                          <button
+                            onClick={() => {
+                              if(!picture.favorite && data.auth.user?.profile.email){
+                                favorite.mutate({
+                                  pathId: picture.id,
+                                  user: data.auth.user.profile.email,
+                                  options: {
+                                    logging: true
+                                  }
+                                })
+                                setSet({
+                                  ...set,
+                                  paths: set.paths.map((path) => {
+                                    if(path.id === picture.id){
+                                      return ({
+                                        ...path,
+                                        favorite: 'temp'
+                                      })
+                                    }
+                                    return path
+                                  })
+                                })
+                              }
+                              else if(picture.favorite && picture.favorite !== 'temp'){
+                                unfavorite.mutate({
+                                  id: picture.favorite,
+                                })
+                                setSet({
+                                  ...set,
+                                  paths: set.paths.map((path) => {
+                                    if(path.id === picture.id){
+                                      return ({
+                                        ...path,
+                                        favorite: undefined
+                                      })
+                                    }
+                                    return path
+                                  })
+                                })
+                              }
+                            }}
+                          >
+                            <HiOutlineHeart size={20} className={`${picture.favorite !== undefined ? 'fill-red-400' : ''}`}/>
+                          </button>
+                        </Tooltip>
+                        {collection.downloadable && (
+                          <Tooltip content={(<p>Download</p>)} placement="bottom" className="" style='light'>
+                            <button className={`${downloadImage.isPending ? 'cursor-wait' : ''}`} onClick={() => {
+                              if(!downloadImage.isPending){
+                                downloadImage.mutate({
+                                  path: picture.path
+                                })
+                              }
+                            }}>
+                              <HiOutlineDownload size={20} />
+                            </button>
+                          </Tooltip>
+                        )}
                         <Tooltip content={(<p>Preview Fullscreen</p>)} placement="bottom" className="whitespace-nowrap" style='light'>
                           <button
                             onClick={() => {
@@ -269,22 +341,8 @@ function RouteComponent() {
                             <CgArrowsExpandRight size={20} />
                           </button>
                         </Tooltip>
-                        <Tooltip content={<p>Favorite</p>} placement='bottom' className='whitespace-nowrap' style='light'>
-                            <button
-                              onClick={() => {
-                                // if(favorite){
-                                //   setFavorites(favorites.filter((favorite) => favorite !== picture.id))
-                                // }
-                                // else{
-                                //   setFavorites([...favorites, picture.id])
-                                // }
-                              }}
-                            >
-                              <HiOutlineHeart size={20} className={`${favorite ? 'fill-red-400' : ''}`}/>
-                            </button>
-                        </Tooltip>
                       </div>
-                    </button>
+                    </div>
                   )
                 })}
               </div>
@@ -298,6 +356,7 @@ function RouteComponent() {
           className="m-4 self-center"
           onClick={() => {
             if(coverPhotoRef && coverPhotoRef.current){
+              console.log('returned to top')
               coverPhotoRef.current.scrollIntoView({
                 behavior: 'smooth',
                 block: 'start'

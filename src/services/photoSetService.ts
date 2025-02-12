@@ -385,13 +385,14 @@ export interface FavoriteImageMutationParams {
         logging?: boolean
     }
 }
-export async function favoriteImageMutation(params: FavoriteImageMutationParams) {
+export async function favoriteImageMutation(params: FavoriteImageMutationParams): Promise<[string, string] | undefined> {
     const response = await client.models.UserFavorites.create({
         pathId: params.pathId,
         userEmail: params.user
     })
     if(params.options?.logging) console.log(response)
-    return response.data?.id
+    if(!response.data?.id) return undefined
+    return [response.data.id, params.pathId]
 }
 
 export interface UnfavoriteImageMutationParams {

@@ -81,10 +81,10 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
     onSettled: (favorite) => {
       if(favorite) {
         data.updateData(data.data.map((path) => {
-          if(path.id === data.data[index].id){
+          if(path.id === favorite[1]){
             return ({
               ...path,
-              favorite: favorite
+              favorite: favorite[0]
             })
           }
           return path

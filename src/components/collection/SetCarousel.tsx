@@ -21,7 +21,7 @@ export const SetCarousel = (props: SetCarouselProps) => {
 
   
   return (
-    <div className="relative w-[20%] overflow-hidden py-2 flex flex-col rounded-xl">
+    <div className="relative overflow-hidden py-2 flex flex-col rounded-xl">
       <div className="h-auto relative">
         <div
           ref={containerRef}
@@ -34,6 +34,7 @@ export const SetCarousel = (props: SetCarouselProps) => {
             const selected = props.currentIndex === index
             return (
               <button 
+                key={index}
                 ref={el => textRefs.current[index] = el}
                 id={set.id}
                 className={`
