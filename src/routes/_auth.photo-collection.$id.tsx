@@ -1,14 +1,15 @@
 import { createFileRoute, invariant, redirect, useNavigate } from '@tanstack/react-router'
 import { getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
-import { getAllPicturePathsByPhotoSetQueryOptions } from '../services/photoSetService'
+import { favoriteImageMutation, FavoriteImageMutationParams, getAllPicturePathsByPhotoSetQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
 import { PhotoCollection, PhotoSet, PicturePath } from '../types'
 import { useEffect, useRef, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Button, Tooltip } from 'flowbite-react'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { SetCarousel } from '../components/collection/SetCarousel'
 import { CgArrowsExpandRight } from 'react-icons/cg'
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart } from 'react-icons/hi2'
+import { downloadImageMutation, DownloadImageMutationParams } from '../services/photoPathService'
 
 interface PhotoCollectionParams {
   set?: string,
@@ -27,7 +28,6 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     // if(!collection || collection.sets.length === 0 || !collection.published) throw redirect({ to: destination })
     invariant(collection)
     const set = collection.sets.find((set) => set.id === context.set)
-    const coverUrl = (await context.queryClient.ensureQueryData(getPathQueryOptions(set?.coverPath ?? collection.coverPath ?? '')))?.[1]
     const watermarkUrl = (collection.watermarkPath !== undefined || set?.watermarkPath !== undefined) ?  (
       await context.queryClient.ensureQueryData(
         getPathQueryOptions(set?.watermarkPath ?? collection.watermarkPath ?? '')))?.[1] : undefined
@@ -42,7 +42,6 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
 
     const mappedSet: PhotoSet = {
       ...(set ?? collection.sets[0]),
-      coverPath: coverUrl ?? '',
       paths: paths ?? [],
     }
 
@@ -60,7 +59,6 @@ function RouteComponent() {
   const collection = data.collection
   const [set, setSet] = useState(data.set)
   const [currentControlDisplay, setCurrentControlDisplay] = useState<string>()
-  const [favorites, setFavorites] = useState<string[]>([])
 
   const coverPath = useQuery(getPathQueryOptions(data.collection.coverPath ?? ''))
 
@@ -113,6 +111,47 @@ function RouteComponent() {
 
   const currentIndex = collection.sets.findIndex((colSet) => colSet.id === set.id)
 
+  const favorite = useMutation({
+    mutationFn: (params: FavoriteImageMutationParams) => favoriteImageMutation(params),
+    onSettled: (favorite) => {
+      if(favorite) {
+      //   setSet({
+      //     ...set,
+      //     paths: set.paths.map((path) => {
+      //     if(path.id === data.data[index].id){
+      //       return ({
+      //         ...path,
+      //         favorite: favorite
+      //       })
+      //     }
+      //     return path
+      //   })})
+      }
+    }
+  })
+
+  const unfavorite = useMutation({
+    mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params)
+  })
+
+  const downloadImage = useMutation({
+    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
+    onSettled: (file) => {
+      if(file){
+        try{
+          const url = window.URL.createObjectURL(file)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = file.name
+          link.click()
+          window.URL.revokeObjectURL(url)
+        }catch(error){
+          console.error(error)
+        }
+      }
+    }
+  })
+
   return (
     <div 
       className="font-main" 
@@ -151,7 +190,7 @@ function RouteComponent() {
       </div>
       <div className='flex flex-row items-center px-4 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
         <div className='flex flex-col items-start font-mono'>
-          <span className='font-bold text-2xl'>{collection.name}</span>
+          <span className='font-bold text-2xl'>James French Photogrpahy</span>
           <span className='italic'>{set.name}</span>
         </div>
         <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
@@ -184,7 +223,7 @@ function RouteComponent() {
               <div key={index} className="flex flex-col gap-4">
                 {subCollection.map((picture, s_index) => {
                   const url = paths.find((path) => path.data?.[0] === picture.id)
-                  const favorite = favorites.find((favorite) => favorite === picture.id)
+                  const favorite = picture.favorite !== undefined
                   return (
                     <button 
                       key={s_index} 
@@ -215,7 +254,7 @@ function RouteComponent() {
                         </>
                       )}
                       <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
-                        <Tooltip content={(<p>Preview Fullscreen</p>)} placement="bottom" className="w-[140px]" style='light'>
+                        <Tooltip content={(<p>Preview Fullscreen</p>)} placement="bottom" className="whitespace-nowrap" style='light'>
                           <button
                             onClick={() => {
                               navigate({
@@ -230,15 +269,15 @@ function RouteComponent() {
                             <CgArrowsExpandRight size={20} />
                           </button>
                         </Tooltip>
-                        <Tooltip content={<p>Favorite</p>} placement='bottom' className='w-[100px]' style='light'>
+                        <Tooltip content={<p>Favorite</p>} placement='bottom' className='whitespace-nowrap' style='light'>
                             <button
                               onClick={() => {
-                                if(favorite){
-                                  setFavorites(favorites.filter((favorite) => favorite !== picture.id))
-                                }
-                                else{
-                                  setFavorites([...favorites, picture.id])
-                                }
+                                // if(favorite){
+                                //   setFavorites(favorites.filter((favorite) => favorite !== picture.id))
+                                // }
+                                // else{
+                                //   setFavorites([...favorites, picture.id])
+                                // }
                               }}
                             >
                               <HiOutlineHeart size={20} className={`${favorite ? 'fill-red-400' : ''}`}/>

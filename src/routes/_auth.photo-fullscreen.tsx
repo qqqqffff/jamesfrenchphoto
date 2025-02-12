@@ -1,12 +1,13 @@
 import { createFileRoute, invariant, redirect, useNavigate } from '@tanstack/react-router'
 import { favoriteImageMutation, FavoriteImageMutationParams, getPhotoSetByIdQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
 import { useMutation, useQueries } from '@tanstack/react-query'
-import { getPathQueryOptions } from '../services/collectionService'
+import { getPathQueryOptions, getPhotoCollectionByIdQueryOptions } from '../services/collectionService'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart, HiOutlineDownload } from "react-icons/hi";
 import { useState } from 'react'
 import { parsePathName } from '../utils'
 import { PhotoCarousel } from '../components/admin/collection/PhotoCarousel'
+import { downloadImageMutation, DownloadImageMutationParams } from '../services/photoPathService'
 
 interface PhotoFullScreenParams {
   set: string,
@@ -30,14 +31,22 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
       getPhotoSetByIdQueryOptions(context.set, { resolveUrls: false, user: context.auth.user?.profile.email })
     )
 
+
     const path = set?.paths.find((path) => path.id === context.path)
 
     if(!set || !path) throw redirect({ to: destination })
+
+    const collection = await context.queryClient.ensureQueryData(
+      getPhotoCollectionByIdQueryOptions(set.collectionId, { siPaths: false, siSets: false, siTags: false })
+    )
+
+    if(!collection) throw redirect({ to: destination })
 
     return {
       auth: context.auth,
       path: path,
       set: set,
+      collection: collection
     }
   }
 
@@ -70,6 +79,26 @@ function RouteComponent() {
   const unfavorite = useMutation({
     mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params),
   })
+
+  const downloadImage = useMutation({
+    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
+    onSettled: (file) => {
+      if(file){
+        try{
+          const url = window.URL.createObjectURL(file)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = file.name
+          link.click()
+          window.URL.revokeObjectURL(url)
+        }catch(error){
+          console.error(error)
+        }
+      }
+    }
+  })
+
+  console.log(downloadImage.error, downloadImage.status)
 
   return (
     <div className="bg-white flex flex-col items-center justify-center" style={{ height: dimensions.height }}>
@@ -115,9 +144,23 @@ function RouteComponent() {
           }}>
             <HiOutlineHeart size={24} className={`${current.favorite !== undefined ? 'fill-red-400' : ''}`}/>
           </button>
-          <button>
-            <HiOutlineDownload size={24} />
-          </button>
+          {!data.collection.downloadable && (
+            <button 
+              className={`${downloadImage.isPending ? 'cursor-wait' : ''}`}
+              onClick={() => {
+                if(!downloadImage.isPending){
+                  downloadImage.mutate({
+                    path: current.path,
+                    options: {
+                      logging: true
+                    }
+                  })
+                }
+              }}
+            >
+              <HiOutlineDownload size={24} />
+            </button>
+          )}
         </div>
       </div>
       <img src={paths.find((path) => path.data?.[0] === current.id)?.data?.[1]} style={{ height: dimensions.height - 200 }} />
@@ -134,6 +177,7 @@ function RouteComponent() {
           invariant(currentIndex !== -1)
           const nextIndex = currentIndex + 1 >= data.set.paths.length ? 0 : currentIndex + 1
           setCurrent(data.set.paths[nextIndex])
+          navigate({ to: '.', search: { set: data.set.id, path: data.set.paths[nextIndex].id }})
         }}
       >
         <HiOutlineArrowRight size={32} />
@@ -144,6 +188,7 @@ function RouteComponent() {
           invariant(currentIndex !== -1)
           const nextIndex = currentIndex - 1 < 0 ? data.set.paths.length - 1 : currentIndex - 1
           setCurrent(data.set.paths[nextIndex])
+          navigate({ to: '.', search: { set: data.set.id, path: data.set.paths[nextIndex].id }})
         }}
       >
         <HiOutlineArrowLeft size={32} />

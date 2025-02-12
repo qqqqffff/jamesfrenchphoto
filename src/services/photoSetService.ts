@@ -39,7 +39,7 @@ async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: st
 
 
 interface GetPhotoSetByIdOptions extends GetAllPicturePathsByPhotoSetOptions {
-    user?: string
+    user?: string,
 }
 async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options?: GetPhotoSetByIdOptions): Promise<PhotoSet | null> {
     if(!setId) return null

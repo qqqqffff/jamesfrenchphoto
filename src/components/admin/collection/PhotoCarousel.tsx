@@ -13,16 +13,19 @@ interface PhotoCarouselProps {
 
 export const PhotoCarousel = (props: PhotoCarouselProps) => {
   const imageRefs = useRef<(HTMLImageElement | null)[]>([])
-  const [averageWidth, setAverageWidth] = useState(90)
+  const [offset, setOffset] = useState(0)
   const navigate = useNavigate()
 
   const currentIndex = props.paths.findIndex((path) => path.id === props.selectedPath.id)
 
   useEffect(() => {
-    setAverageWidth((imageRefs.current
-      .reduce((prev, cur) => prev += (cur?.offsetWidth ?? 0 + 4), 0) 
-    ) / imageRefs.current.length)
-  }, [props.data])
+    setOffset(imageRefs.current.reduce((prev, cur, index) => {
+      if(index <= currentIndex){
+        return prev + ((cur?.clientWidth === undefined || cur.clientWidth === 0 ? 100 : cur.clientWidth) + 4)
+      }
+      return prev
+    }, 0) - ((imageRefs.current[currentIndex]?.clientWidth ?? 0) / 2))
+  }, [props.data, imageRefs.current[currentIndex]])
 
   return (
     <div className="relative w-screen overflow-hidden border-t-gray-300 border-t-2">
@@ -30,7 +33,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
         <div 
           className="flex transition-transform duration-500 ease-out h-full"
           style={{
-            transform: `translateX(calc(50vw - ${currentIndex * averageWidth}px - ${averageWidth / 2}px))`,
+            transform: `translateX(calc(50vw - ${offset}px))`,
           }}
         >
           {props.data.map((url, index) => {

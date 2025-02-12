@@ -23,6 +23,7 @@ import { CgArrowsExpandRight } from "react-icons/cg";
 import { useNavigate } from "@tanstack/react-router"
 import { Dispatch, SetStateAction } from "react"
 import { UploadImagePlaceholder } from "./UploadImagePlaceholder"
+import { downloadImageMutation, DownloadImageMutationParams } from "../../../services/photoPathService"
 
 export interface SetRowProps extends GridChildComponentProps {
   data: {
@@ -94,6 +95,24 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
 
   const unfavorite = useMutation({
     mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params)
+  })
+
+  const downloadImage = useMutation({
+    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
+    onSettled: (file) => {
+      if(file){
+        try{
+          const url = window.URL.createObjectURL(file)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = file.name
+          link.click()
+          window.URL.revokeObjectURL(url)
+        }catch(error){
+          console.error(error)
+        }
+      }
+    }
   })
 
   return (
@@ -200,8 +219,12 @@ export const SetRow = ({ columnIndex, rowIndex, data, style }: SetRowProps) => {
           </button>
         </Tooltip>
         <Tooltip content={(<p>Download</p>)} placement="bottom" className="" style='light'>
-          <button className="" onClick={() => {
-            
+          <button className={`${downloadImage.isPending ? 'cursor-wait' : ''}`} onClick={() => {
+            if(!downloadImage.isPending){
+              downloadImage.mutate({
+                path: data.data[index].path
+              })
+            }
           }}>
             <HiOutlineDownload size={20} />
           </button>
