@@ -14,6 +14,7 @@ import Loading from "../../common/Loading"
 import { detectDuplicates } from "./utils"
 import { PublishableItems } from "./PublishableItems"
 import { AuthContext } from "../../../auth"
+import { FavoritePannel } from "./FavoritePannel"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
@@ -41,6 +42,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
   const [coverPath, setCoverPath] = useState(collection.coverPath)
+
+  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites'>('sets')
 
   const client = useQueryClient()
   const router = useRouter()
@@ -198,79 +201,115 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             parentLoading={deleteImage.isPending}
             setCover={setCoverPath}
           />
-          <div className="flex flex-row items-center justify-between w-full">
-            <Label className="text-lg ms-2">Photo Sets</Label>
-            <button
-              className="flex flex-row gap-2 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-1 px-2 me-2"
-              onClick={() => {setCreateSet(true)}}
+          <div className="grid grid-cols-2 w-full place-items-center">
+            <button 
+              className={`py-1.5 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'sets' ? 'text-black' : 'text-gray-400'}`}
+              onClick={() => {
+                if(activeConsole !== 'sets'){
+                  setActiveConsole('sets')
+                }
+              }}
             >
-              <span className="">Create New Set</span>
-              <HiOutlinePlusCircle className="text-2xl text-gray-600" />
+              Photo Sets
+            </button>
+            <button 
+              className={`py-1.5 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'favorites' ? 'text-black' : 'text-gray-400'}`}
+              onClick={() => {
+                if(activeConsole !== 'favorites'){
+                  setActiveConsole('favorites')
+                }
+              }}
+            >
+              Favorites
             </button>
           </div>
-          <div className="border w-full"></div>
-          <div className="w-full">
-            <SetList 
-              setList={setList}
-              setSelectedSet={(set: PhotoSet) => {
-                navigate({
-                  to: '.', search: {
-                    collection: collection.id,
-                    set: set.id
-                  }
-                })
-                setQuery.refetch()
-                setSelectedSet(set)
-              } }
-              collection={collection}
-              updateSetList={setSetList}
-              creatingSet={createSet}
-              doneCreatingSet={() => setCreateSet(false)}
-            />
-          </div>
+          {activeConsole === 'sets' ? (
+            <>
+              <div className="flex flex-row items-center justify-between w-full">
+                <Label className="text-lg ms-2">Photo Sets</Label>
+                <button
+                  className="flex flex-row gap-2 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-1 px-2 me-2"
+                  onClick={() => {setCreateSet(true)}}
+                >
+                  <span className="">Create New Set</span>
+                  <HiOutlinePlusCircle className="text-2xl text-gray-600" />
+                </button>
+              </div>
+              <div className="border w-full"></div>
+              <div className="w-full">
+                <SetList 
+                  setList={setList}
+                  setSelectedSet={(set: PhotoSet) => {
+                    navigate({
+                      to: '.', search: {
+                        collection: collection.id,
+                        set: set.id
+                      }
+                    })
+                    setQuery.refetch()
+                    setSelectedSet(set)
+                  } }
+                  collection={collection}
+                  updateSetList={setSetList}
+                  creatingSet={createSet}
+                  doneCreatingSet={() => setCreateSet(false)}
+                />
+              </div>
+            </>
+           ) : (
+            <></>
+          )}
         </div>
-        {selectedSet ? (
-          setQuery.isLoading || setQuery.isRefetching ? (
+        { activeConsole === 'sets' ? (
+          selectedSet ? (
+            setQuery.isLoading || setQuery.isRefetching ? (
+              <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+                <div className="flex flex-row items-center justify-center">
+                  <p>Loading</p>
+                  <Loading />
+                </div>
+              </div>
+            ) : (
+              <PhotoSetPannel 
+                photoCollection={collection} 
+                photoSet={setQuery.data ?? selectedSet} 
+                watermarkObjects={watermarkObjects}
+                paths={setQuery.data?.paths ?? []}
+                deleteParentSet={(setId) => {
+                  const updatedSetList = setList
+                      .filter((set) => set.id !== setId)
+                      .sort((a, b) => a.order - b.order)
+                      .map((set, index) => ({ ...set, order: index}))
+                  
+                  setSetList(updatedSetList)
+                  setSelectedSet(undefined)
+                }}
+                parentUpdateSet={(updatedSet) => {
+                  const temp = setList.map((set) => {
+                    if(set.id === updatedSet.id){
+                      return updatedSet
+                    }
+                    return set
+                  })
+                  setSetList(temp)
+                  setSelectedSet(updatedSet)
+                }}
+                updateParentCollection={updateParentCollection}
+                auth={auth}
+              />
+            )
+          ) : (
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
               <div className="flex flex-row items-center justify-center">
-                <p>Loading</p>
-                <Loading />
+                <p>Click a set to view it here!</p>
               </div>
             </div>
-          ) : (
-            <PhotoSetPannel 
-              photoCollection={collection} 
-              photoSet={setQuery.data ?? selectedSet} 
-              watermarkObjects={watermarkObjects}
-              paths={setQuery.data?.paths ?? []}
-              deleteParentSet={(setId) => {
-                const updatedSetList = setList
-                    .filter((set) => set.id !== setId)
-                    .sort((a, b) => a.order - b.order)
-                    .map((set, index) => ({ ...set, order: index}))
-                
-                setSetList(updatedSetList)
-                setSelectedSet(undefined)
-              }}
-              parentUpdateSet={(updatedSet) => {
-                const temp = setList.map((set) => {
-                  if(set.id === updatedSet.id){
-                    return updatedSet
-                  }
-                  return set
-                })
-                setSetList(temp)
-                setSelectedSet(updatedSet)
-              }}
-              updateParentCollection={updateParentCollection}
-              auth={auth}
-            />
           )
         ) : (
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-            <div className="flex flex-row items-center justify-center">
-              <p>Click a set to view it here!</p>
-            </div>
+            <FavoritePannel 
+              collection={collection}
+            />
           </div>
         )}
       </div>

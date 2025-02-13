@@ -1,12 +1,13 @@
 import { generateClient } from 'aws-amplify/api'
 import { v4 } from 'uuid'
 import { Schema } from '../../amplify/data/resource'
-import { PhotoCollection, PhotoSet, PicturePath } from '../types'
+import { Favorite, PhotoCollection, PhotoSet, PicturePath, User, UserData, UserProfile } from '../types'
 import { getUrl, remove, uploadData } from 'aws-amplify/storage'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { Dispatch, SetStateAction } from 'react'
 import { UploadData } from '../components/modals/UploadImages/UploadToast'
+import { getAuthUsers, getUserProfileByEmail } from './userService'
 
 const client = generateClient<Schema>()
 
@@ -38,9 +39,7 @@ async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: st
 }
 
 
-interface GetPhotoSetByIdOptions extends GetAllPicturePathsByPhotoSetOptions {
-    user?: string,
-}
+interface GetPhotoSetByIdOptions extends GetAllPicturePathsByPhotoSetOptions { }
 async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options?: GetPhotoSetByIdOptions): Promise<PhotoSet | null> {
     if(!setId) return null
     const setResponse = await client.models.PhotoSet.get({
@@ -70,6 +69,74 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
         watermarkPath: setResponse.data.watermarkPath ?? undefined,
         paths: mappedPaths,
     }
+}
+
+interface GetFavoritesFromPhotoCollectionOptions {
+    logging?: boolean
+    metric?: boolean
+}
+async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collection: PhotoCollection, options?: GetFavoritesFromPhotoCollectionOptions): Promise<Map<User, Favorite[]>> {
+    console.log('api call')
+    const start = new Date().getTime()
+    const favoriteMap = new Map<string, Favorite[]>()
+
+    const response = await Promise.all(collection.sets.map(async (set) => {
+        const pathsResponse = await Promise.all(set.paths.map(async (path) => {
+            const pathResponse = (await client.models.PhotoPaths.get({ id: path.id })).data
+            if(pathResponse !== null){
+                const favorites = await Promise.all((await pathResponse.favorites()).data.map(async (favorite) => {
+                    const mappedFavorite: Favorite = {
+                        ...favorite
+                    }
+                    const collectedFavorites = favoriteMap.get(mappedFavorite.userEmail) ?? []
+                    favoriteMap.set(mappedFavorite.userEmail, [...collectedFavorites, mappedFavorite])
+                    return mappedFavorite
+                }))
+                return favorites
+            }
+            return pathResponse
+        }))
+        return pathsResponse
+    }))
+
+    
+    const returnMap = new Map<User, Favorite[]>()
+
+    const authUsers = await getAuthUsers(client)
+
+    const profileMapping = await Promise.all(Array.from(favoriteMap.entries()).map(async (entry) => {
+        const foundProfile =  await getUserProfileByEmail(client, entry[0], { siCollections: false, siSets: false, siTags: false, siTimeslot: false })
+        if(!foundProfile){
+            returnMap.set({ 
+                user: {
+                    sittingNumber: -1,
+                    email: entry[0],
+                    userTags: [],
+                    preferredContact: 'EMAIL',
+                    participant: [],
+                },
+                data: authUsers?.find((data) => data.email === entry[0])
+            }, entry[1])
+        } else {
+            returnMap.set({ 
+                user: foundProfile,
+                data: authUsers?.find((data) => data.email === entry[0])
+            }, entry[1])
+        }
+        return foundProfile
+    }))
+
+    if(options?.logging) {
+        console.log(returnMap)
+        console.log(profileMapping)
+    }
+    
+    const end = new Date().getTime()
+
+    if(options?.metric) console.log(`${new Date(end - start).getTime()}ms`)
+    if(options?.logging) console.log(response)
+
+    return returnMap
 }
 
 
@@ -417,4 +484,9 @@ export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string, options
 export const getPhotoSetByIdQueryOptions = (setId?: string, options?: GetPhotoSetByIdOptions) => queryOptions({
     queryKey: ['photoSet', client, setId, options],
     queryFn: () => getPhotoSetById(client, setId, options),
+})
+
+export const getFavoritesFromPhotoCollectionQueryOptions = (collection: PhotoCollection, options?: GetFavoritesFromPhotoCollectionOptions) => queryOptions({
+    queryKey: ['favorites', client, collection, options],
+    queryFn: () => getFavoritesFromPhotoCollection(client, collection, options)
 })

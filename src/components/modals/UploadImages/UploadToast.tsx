@@ -30,12 +30,12 @@ export const UploadToast = (props: UploadToastProps) => {
 
   return (
     <div className="flex flex-col fixed gap-4 right-5 bottom-5 z-20">
-      {uploads.map((upload) => {
+      {uploads.map((upload, index) => {
         const uploading = upload.state
         if(upload.state === 'idle') return undefined
         
         return (
-          <div className=" p-4 rounded-lg shadow  flex flex-row items-center justify-between bg-white border border-gray-300">
+          <div className=" p-4 rounded-lg shadow  flex flex-row items-center justify-between bg-white border border-gray-300" key={index}>
             <div className='flex flex-row items-center relative'>
               <HiOutlineUpload className={`${uploading === 'done' ? 'text-green-400' : 'animate-pulse'}`} size={24}/>
               <div className="flex flex-col justify-start min-w-[200px] ms-4 me-4">

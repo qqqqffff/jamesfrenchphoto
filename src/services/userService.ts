@@ -65,7 +65,6 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                                 const mappedSet: PhotoSet = {
                                     ...set,
                                     watermarkPath: set.watermarkPath ?? undefined,
-                                    coverText: undefined, //TODO: implement me
                                     paths: [],
                                 }
                                 return mappedSet
@@ -188,7 +187,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
     return userProfile
 }
 
-async function getAuthUsers(client: V6Client<Schema>, filter?: string | null): Promise<UserData[] | undefined> {
+export async function getAuthUsers(client: V6Client<Schema>, filter?: string | null): Promise<UserData[] | undefined> {
     console.log('api call')
     const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
             

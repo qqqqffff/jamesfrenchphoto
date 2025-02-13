@@ -49,6 +49,17 @@ export interface Participant {
     timeslot?: Timeslot[],
 }
 
+export type User = {
+    user: UserProfile
+    data?: UserData
+}
+
+export type Favorite = {
+    id: string,
+    userEmail: string,
+    pathId: string,
+}
+
 export type PicturePath = {
     id: string;
     url: string;
