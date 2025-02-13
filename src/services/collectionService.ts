@@ -9,25 +9,38 @@ import { parsePathName } from "../utils";
 const client = generateClient<Schema>()
 
 interface GetAllCollectionsOptions {
-    siTags: boolean
-    siSets: boolean
+    siTags?: boolean
+    siSets?: boolean
+    siPaths?: boolean,
+    metric?: boolean,
+    logging?: boolean
 }
 async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAllCollectionsOptions): Promise<PhotoCollection[]> {
     console.log('api call')
+    const start = new Date().getTime()
     const mappedCollections: PhotoCollection[] = await Promise.all(
         (await client.models.PhotoCollection.list()).data.map(async (collection) => {
+            if(options?.logging) console.log(collection)
             const mappedSets: PhotoSet[] = []
             const mappedTags: UserTag[] = []
             if(!options || options.siSets){
                 const setsResponse = await collection.sets()
-                mappedSets.push(...setsResponse.data.map((set) => {
+                mappedSets.push(...await Promise.all(setsResponse.data.map(async (set) => {
                     const mappedSet: PhotoSet = {
                         ...set,
                         watermarkPath: set.watermarkPath ?? undefined,
-                        paths: [],
+                        paths: options?.siPaths ? await Promise.all(
+                            (await set.paths()).data.map((path) => {
+                                const mappedPath: PicturePath = {
+                                    ...path,
+                                    url: ''
+                                }
+                                return mappedPath
+                            }
+                        )) : [],
                     }
                     return mappedSet
-                }))
+                })))
             }
 
             if(!options || options.siTags){
@@ -56,6 +69,9 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
             return mappedCollection
         })
     )
+    const end = new Date().getTime()
+
+    if(options?.metric) console.log(`GETALLPHOTOCOLLECTIONS:${new Date(end - start).getTime()}ms`)
     return mappedCollections
 }
 
@@ -328,7 +344,8 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
             id: params.collection.id,
             downloadable: params.downloadable,
             name: params.name,
-            coverPath: params.cover ? parsePathName(params.cover) : null,
+            coverPath: params.cover === undefined ? undefined : 
+                params.cover !== null ? parsePathName(params.cover) : null,
             published: params.published,
             watermarkPath: params.watermark?.path ? parsePathName(params.watermark.path) : null
         })

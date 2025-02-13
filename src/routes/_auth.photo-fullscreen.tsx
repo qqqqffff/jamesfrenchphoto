@@ -11,7 +11,7 @@ import { downloadImageMutation, DownloadImageMutationParams } from '../services/
 
 interface PhotoFullScreenParams {
   set: string,
-  path: string
+  path: string,
 }
 
 export const Route = createFileRoute('/_auth/photo-fullscreen')({
@@ -30,7 +30,6 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
     const set = await context.queryClient.ensureQueryData(
       getPhotoSetByIdQueryOptions(context.set, { resolveUrls: false, user: context.auth.user?.profile.email })
     )
-
 
     const path = set?.paths.find((path) => path.id === context.path)
 
@@ -97,8 +96,6 @@ function RouteComponent() {
       }
     }
   })
-
-  console.log(downloadImage.error, downloadImage.status)
 
   return (
     <div className="bg-white flex flex-col items-center justify-center" style={{ height: dimensions.height }}>

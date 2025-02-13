@@ -16,7 +16,7 @@ interface SetListProps extends ComponentProps<'div'> {
   collection: PhotoCollection,
   updateSetList: (set: PhotoSet[]) => void,
   creatingSet: boolean,
-  doneCreatingSet: () => void,
+  doneCreatingSet: (set?: PhotoSet) => void,
 }
 
 export const SetList = (props: SetListProps) => {
@@ -27,7 +27,6 @@ export const SetList = (props: SetListProps) => {
       id: 'creating',
       name: '',
       paths: [],
-      coverPath: '',
       order: props.setList.length,
       collectionId: props.collection.id
     }])
@@ -136,7 +135,7 @@ export const SetList = (props: SetListProps) => {
                     })
 
                     props.setSelectedSet(submittedSet)
-                    props.doneCreatingSet()
+                    props.doneCreatingSet(submittedSet)
                     setSets(updatedSets)
                     props.updateSetList(updatedSets)
                   }

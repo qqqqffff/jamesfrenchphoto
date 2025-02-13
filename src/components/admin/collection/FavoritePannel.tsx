@@ -8,6 +8,7 @@ import { DownloadData, DownloadToast } from "../../common/DownloadToast"
 import { useState } from "react"
 import { downloadFavoritesMutation, DownloadFavoritesMutationOptions } from "../../../services/photoPathService"
 import { v4 } from 'uuid'
+import { useNavigate } from "@tanstack/react-router"
 
 interface FavoritePannelProps {
   collection: PhotoCollection
@@ -15,6 +16,8 @@ interface FavoritePannelProps {
 
 export const FavoritePannel = (props: FavoritePannelProps) => {
   const [downloads, setDownloads] = useState<DownloadData[]>([])
+  const navigate = useNavigate()
+
   const favorites = useQuery(
     getFavoritesFromPhotoCollectionQueryOptions(props.collection, { metric: true })
   )
@@ -22,7 +25,6 @@ export const FavoritePannel = (props: FavoritePannelProps) => {
   const download = useMutation({
     mutationFn: (params: DownloadFavoritesMutationOptions) => downloadFavoritesMutation(params),
     onSettled: (file) => {
-      console.log(file)
       if(file) {
         try {
           const url = window.URL.createObjectURL(file)
@@ -49,7 +51,7 @@ export const FavoritePannel = (props: FavoritePannelProps) => {
       >
         {favorites.isFetching ? (
           <span
-            className="absolute place-self-center flex flex-row gap-1"
+            className="absolute place-self-center flex flex-row"
           >
             Loading<Loading />
           </span>
@@ -76,8 +78,9 @@ export const FavoritePannel = (props: FavoritePannelProps) => {
                 <div className="flex flex-row items-center place-self-end gap-2">
                   <Tooltip content={'Preview Favorites'} style="light">
                     <button
+                      className="hover:text-gray-500"
                       onClick={() => {
-
+                        navigate({ to: '/favorites-fullscreen', search: { favorites: entry[1].map((favorite) => favorite.id) }})
                       }}
                     >
                       <HiOutlineEye size={24} />
@@ -85,6 +88,7 @@ export const FavoritePannel = (props: FavoritePannelProps) => {
                   </Tooltip>
                   <Tooltip content={'Download Favorites'} style="light">
                     <button 
+                      className="hover:text-gray-500"
                       onClick={() => {
                         const id = v4()
                         const newDownload: DownloadData = {
@@ -94,9 +98,16 @@ export const FavoritePannel = (props: FavoritePannelProps) => {
                           totalItems: entry[1].length,
                           display: true
                         }
+                        
+                        const createFileName = (nameString ? (
+                          nameString.replace(', ', '_')
+                        ) : entry[0].user.email
+                          .substring(0, entry[0].user.email.indexOf('@'))
+                        ).toLowerCase()
+
                         download.mutate({
                           downloadId: id,
-                          zipName: `favorites_${nameString ?? 'fnu'}.zip`,
+                          zipName: `favorites_${createFileName}.zip`,
                           favorites: entry[1],
                           updateProgress: setDownloads,
                           options: {

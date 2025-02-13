@@ -151,7 +151,10 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient, auth:
         )
     },
     beforeLoad: ({ location }) => {
-        return { hidden: location.href.includes('photo-fullscreen') }
+        return { hidden: (
+            location.href.includes('photo-fullscreen') ||
+            location.href.includes('favorites-fullscreen')
+        )}
     },
     loader: ({ context }) => {
         return context.hidden

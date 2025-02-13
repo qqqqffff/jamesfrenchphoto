@@ -35,28 +35,33 @@ export const DownloadToast = (props: DownloadToastProps) => {
             <div className="flex flex-row items-center relative">
               <HiOutlineDownload className={`${downloading === 'done' ? 'text-green-400' : 'animate-pulse'}`} size={24} />
               <div className="flex flex-col justify-start min-w-[200px] mx-4">
-                { downloading === 'inprogress' || downloading === 'paused' ? (
-                  <>
-                    <span className="text-sm">Downloading</span>
-                    <Loading className="text-lg"/>
-                  </>
-                ) : (
-                  <span className="text-sm text-green-600">Done</span>
-                )}
-                <div className={`flex flex-row gap-1 text-xs ${downloading === 'done' ? 'text-green-600' : ''}`}>
-                {download.totalItems && (
-                    <span>
-                      {`${download.progress} / ${download.totalItems}`}
-                    </span>
-                )}
+                <div className="flex flex-row items-center gap-2">
+                  { downloading === 'inprogress' || downloading === 'paused' ? (
+                    <div className="flex flex-row gap-0">
+                      <span className="text-sm">Downloading</span>
+                      <Loading className="text-lg"/>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-green-600">Done</span>
+                  )}
+                  <div className={`flex flex-row gap-1 text-xs ${downloading === 'done' ? 'text-green-600' : ''}`}>
+                    {download.totalItems && (
+                      <span>
+                        {`${download.progress} / ${download.totalItems}`}
+                        
+                      </span>
+                    )}
+                  </div>
                 </div>
+                {(downloading === 'inprogress' || downloading === 'paused') && (
+                  <Progress 
+                    progress={(download.progress / download.totalItems) * 100} 
+                    size="sm" 
+                  />
+                )}
               </div>
-              {(downloading === 'inprogress' || downloading === 'paused') && (
-                <Progress 
-                  progress={(download.progress / download.totalItems) * 100}
-                  size="sm"
-                />
-              )}
+              
+                
             </div>
             <button 
               className="absolute right-2 top-2"

@@ -1,7 +1,7 @@
 import { generateClient } from 'aws-amplify/api'
 import { v4 } from 'uuid'
 import { Schema } from '../../amplify/data/resource'
-import { Favorite, PhotoCollection, PhotoSet, PicturePath, User, UserData, UserProfile } from '../types'
+import { Favorite, PhotoCollection, PhotoSet, PicturePath, User } from '../types'
 import { getUrl, remove, uploadData } from 'aws-amplify/storage'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
@@ -133,7 +133,7 @@ async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collect
     
     const end = new Date().getTime()
 
-    if(options?.metric) console.log(`${new Date(end - start).getTime()}ms`)
+    if(options?.metric) console.log(`GETFAVORITESFROMPHOTOCOLLECTION:${new Date(end - start).getTime()}ms`)
     if(options?.logging) console.log(response)
 
     return returnMap

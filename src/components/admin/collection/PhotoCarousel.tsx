@@ -1,11 +1,12 @@
 import { UseQueryResult } from "@tanstack/react-query"
 import { PicturePath } from "../../../types"
-import { invariant, useNavigate } from "@tanstack/react-router"
+import { invariant, useLocation, useNavigate } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react"
 
 interface PhotoCarouselProps {
   paths: PicturePath[],
-  setId: string,
+  setId?: string,
+  favorites?: string[]
   data: UseQueryResult<[string | undefined, string] | undefined>[]
   setSelectedPath: (path: PicturePath) => void,
   selectedPath: PicturePath,
@@ -15,6 +16,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
   const imageRefs = useRef<(HTMLImageElement | null)[]>([])
   const [offset, setOffset] = useState(0)
   const navigate = useNavigate()
+  const location = useLocation()
 
   const currentIndex = props.paths.findIndex((path) => path.id === props.selectedPath.id)
 
@@ -54,7 +56,11 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                         invariant(foundItem)
 
                         props.setSelectedPath(foundItem)
-                        navigate({ to: '.', search: { set: props.setId, path: foundItem.id }})
+                        if(location.href.includes('favorites-fullscreen')){
+                          navigate({ to: '.', search: { favorites: props.favorites, path: foundItem.id }})
+                        } else if(location.href.includes('photo-fullscreen')) {
+                          navigate({ to: '.', search: { set: props.setId, path: foundItem.id }})
+                        }
                       }}
                       src={url.data[1]} 
                       className='rounded-sm hover:border-gray-300 border-2 border-transparent

@@ -1,6 +1,4 @@
 import { ComponentProps, Dispatch, SetStateAction, useCallback, useState } from "react"
-import { PhotoCollection } from "../../../types"
-import { Tooltip } from "flowbite-react"
 import { useDropzone } from "react-dropzone"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { deleteCoverMutation, DeleteCoverParams, getPathQueryOptions, uploadCoverMutation, UploadCoverParams } from "../../../services/collectionService"
@@ -8,7 +6,6 @@ import { CgSpinner } from "react-icons/cg";
 import { ConfirmationModal } from "../../modals"
 
 interface CollectionThumbnailProps extends ComponentProps<'div'> {
-  collection: PhotoCollection
   collectionId: string,
   cover?: string,
   onClick?: () => void,
@@ -19,7 +16,7 @@ interface CollectionThumbnailProps extends ComponentProps<'div'> {
 }
 
 export const CollectionThumbnail= ({ 
-  collection, collectionId, onClick, 
+  collectionId, onClick, 
   cover, allowUpload, 
   contentChildren, parentLoading,
   setCover
@@ -168,16 +165,7 @@ export const CollectionThumbnail= ({
             </label>
           )
         )}
-        <div className="flex flex-row justify-between w-full mt-1">
-          <div className="flex flex-row gap-1 font-thin opacity-90 items-center justify-start">
-            <Tooltip content={(<p>Collection Has {collection.published ? 'Been Published' : 'Not Been Published'}</p>)}>
-              <p className={`${collection.published ? 'text-green-400' : 'text-gray-600 italic'}`}>{collection.name}</p>
-            </Tooltip>
-            <p>&bull;</p>
-            <p>Items: {collection.items}</p>
-            <p>&bull;</p>
-            <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
-          </div>
+        <div className="flex flex-row w-full mt-1">
           {contentChildren}
         </div>
       </div>

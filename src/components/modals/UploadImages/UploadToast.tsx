@@ -41,10 +41,10 @@ export const UploadToast = (props: UploadToastProps) => {
               <div className="flex flex-col justify-start min-w-[200px] ms-4 me-4">
                 <div className="flex flex-row items-center justify-between">
                   { uploading === 'inprogress' || uploading === 'paused' ? (
-                    <>
+                    <div className="flex flex-row gap-0">
                       <span className="text-sm">Uploading</span>
                       <Loading className="text-lg"/>
-                    </>
+                    </div>
                   ) : (
                     <span className="text-sm text-green-600">Done</span>
                   )}

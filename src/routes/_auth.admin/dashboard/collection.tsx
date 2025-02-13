@@ -2,16 +2,15 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
   getAllPhotoCollectionsQueryOptions,
   getAllWatermarkObjectsQueryOptions,
-  getPathQueryOptions,
   getPhotoCollectionByIdQueryOptions,
 } from '../../../services/collectionService'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { PhotoCollectionPannel } from '../../../components/admin/collection/PhotoCollectionPannel'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
 import { useState } from 'react'
 import { PhotoCollection, PhotoSet } from '../../../types'
-import { Progress, TextInput } from 'flowbite-react'
+import { Progress, TextInput, Tooltip } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
@@ -19,13 +18,15 @@ import { CollectionThumbnail } from '../../../components/admin/collection/Collec
 interface CollectionSearchParams {
   collection?: string,
   set?: string,
+  console?: string,
 }
 
 export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): CollectionSearchParams => ({
     collection: (search.collection as string) || undefined,
-    set: (search.set as string) || undefined
+    set: (search.set as string) || undefined,
+    console: (search.console as string) || 'sets'
   }),
   beforeLoad: ({ search }) => search,
   loader: async ({ context }) => {
@@ -47,50 +48,50 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
       collection,
       set,
       auth: context.auth,
+      collectionConsole: context.console ?? 'sets'
     }
   }
 })
 
 function RouteComponent() {
-  const { availableTags, watermarkObjects, collection, set, auth } = Route.useLoaderData()
+  const { availableTags, watermarkObjects, collection, set, auth, collectionConsole } = Route.useLoaderData()
   const navigate = useNavigate()
 
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
   const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
   const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>(collection)
 
-  const collections = useQuery(getAllPhotoCollectionsQueryOptions({siTags: false, siSets: true}))
-  const coverPaths = useQueries({
-    queries: (collections.data ?? [])
-        .filter((collection) => collection.coverPath !== undefined)
-        .map((collection) => {
-            return getPathQueryOptions(collection.coverPath!, collection.id)
-        })
-  })
+  const collections = useQuery(getAllPhotoCollectionsQueryOptions({
+    siTags: true, 
+    siSets: true, 
+    siPaths: true,
+    metric: true,
+  }))
+
   function filterItems(term: string): undefined | void {
-      if (!term || !collections.data || collections.data.length <= 0) {
-        setFilteredItems(undefined)
-        return
-      }
-  
-      const normalSearchTerm = term.trim().toLocaleLowerCase()
-  
-      const data: PhotoCollection[] = collections.data
-        .filter((item) => {
-          let filterResult = false
-          try {
-            filterResult = item.name
-              .trim()
-              .toLocaleLowerCase()
-              .includes(normalSearchTerm)
-          } catch (err) {
-            return false
-          }
-          return filterResult
-        })
-        .filter((item) => item !== undefined)
-  
-      setFilteredItems(data)
+    if (!term || !collections.data || collections.data.length <= 0) {
+      setFilteredItems(undefined)
+      return
+    }
+
+    const normalSearchTerm = term.trim().toLocaleLowerCase()
+
+    const data: PhotoCollection[] = collections.data
+      .filter((item) => {
+        let filterResult = false
+        try {
+          filterResult = item.name
+            .trim()
+            .toLocaleLowerCase()
+            .includes(normalSearchTerm)
+        } catch (err) {
+          return false
+        }
+        return filterResult
+      })
+      .filter((item) => item !== undefined)
+
+    setFilteredItems(data)
   }
 
   return (
@@ -165,7 +166,6 @@ function RouteComponent() {
                         .map((collection, index) => {
                           return (
                             <CollectionThumbnail 
-                              collection={collection}
                               collectionId={collection.id}
                               cover={collection.coverPath}
                               onClick={() => {
@@ -173,6 +173,17 @@ function RouteComponent() {
                                 setSelectedCollection(collection)
                               }}
                               key={index}
+                              contentChildren={(
+                                <div className="flex flex-row gap-1 font-thin opacity-90 items-center justify-start">
+                                  <Tooltip content={(<p>Collection Has {collection.published ? 'Been Published' : 'Not Been Published'}</p>)}>
+                                    <p className={`${collection.published ? 'text-green-400' : 'text-gray-600 italic'}`}>{collection.name}</p>
+                                  </Tooltip>
+                                  <p>&bull;</p>
+                                  <p>Items: {collection.items}</p>
+                                  <p>&bull;</p>
+                                  <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
+                                </div>
+                              )}
                             />
                           )
                         })
@@ -187,7 +198,6 @@ function RouteComponent() {
                       .map((collection, index) => {
                         return (
                           <CollectionThumbnail 
-                            collection={collection}
                             collectionId={collection.id}
                             cover={collection.coverPath}
                             onClick={() => {
@@ -195,6 +205,17 @@ function RouteComponent() {
                               setSelectedCollection(collection)
                             }}
                             key={index}
+                            contentChildren={(
+                              <div className="flex flex-row gap-1 font-thin opacity-90 items-center justify-start">
+                                <Tooltip content={(<p>Collection Has {collection.published ? 'Been Published' : 'Not Been Published'}</p>)}>
+                                  <p className={`${collection.published ? 'text-green-400' : 'text-gray-600 italic'}`}>{collection.name}</p>
+                                </Tooltip>
+                                <p>&bull;</p>
+                                <p>Items: {collection.items}</p>
+                                <p>&bull;</p>
+                                <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
+                              </div>
+                            )}
                           />
                         )
                       })
@@ -210,13 +231,20 @@ function RouteComponent() {
         </div>
       ) : (
         <PhotoCollectionPannel 
-          coverPath={coverPaths.find((path) => path.data?.[0] === selectedCollection.id)?.data?.[1]}
+          coverPath={selectedCollection.coverPath}
           collection={selectedCollection}
           updateParentCollection={setSelectedCollection}
           set={set}
           watermarkObjects={watermarkObjects}
           availableTags={availableTags}
           auth={auth}
+          parentActiveConsole={
+            collectionConsole === 'favorites' ? (
+              'favorites' as 'favorites'
+            ) : (
+              'sets' as 'sets'
+            )
+          }
         />
       )}
     </>

@@ -28,7 +28,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     const collection = await context.queryClient.ensureQueryData(
       getPhotoCollectionByIdQueryOptions(params.id, { user: context.auth.user?.profile.email, siSets: true })
     )
-    // if(!collection || collection.sets.length === 0 || !collection.published) throw redirect({ to: destination })
+    if((!collection || collection.sets.length === 0 || !collection.published) && !context.auth.admin) throw redirect({ to: destination })
     invariant(collection)
     const set = collection.sets.find((set) => set.id === context.set)
     const watermarkUrl = (collection.watermarkPath !== undefined || set?.watermarkPath !== undefined) ?  (
@@ -40,7 +40,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     const paths = (await context.queryClient.ensureQueryData(
       getAllPicturePathsByPhotoSetQueryOptions(set?.id ?? collection.sets[0].id, { user: context.auth.user?.profile.email })
     ))
-    if(!coverUrl) throw redirect({ to: destination })
+    if(!coverUrl && !context.auth.admin) throw redirect({ to: destination })
 
     const mappedCollection: PhotoCollection = {
       ...collection,

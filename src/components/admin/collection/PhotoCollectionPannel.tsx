@@ -23,7 +23,8 @@ interface PhotoCollectionPannelProps {
   collection: PhotoCollection,
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   set?: PhotoSet,
-  auth: AuthContext
+  auth: AuthContext,
+  parentActiveConsole: 'sets' | 'favorites'
 }
 
 interface Publishable {
@@ -34,7 +35,7 @@ interface Publishable {
 
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
   watermarkObjects, availableTags, collection, 
-  set, updateParentCollection, auth
+  set, updateParentCollection, auth, parentActiveConsole
 }) => {
   const [createSet, setCreateSet] = useState(false)
   const [watermarkVisible, setWatermarkVisible] = useState(false)
@@ -43,7 +44,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
   const [coverPath, setCoverPath] = useState(collection.coverPath)
 
-  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites'>('sets')
+  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites'>(parentActiveConsole)
 
   const client = useQueryClient()
   const router = useRouter()
@@ -131,91 +132,108 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
       <div className="flex flex-row mx-4 mt-4 gap-4">
         <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
           <CollectionThumbnail 
-            collection={collection}
             collectionId={collection.id}
             cover={coverPath}
             allowUpload
             onClick={() => {}}
             contentChildren={(
-              <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
-                <Dropdown.Item
-                  onClick={() => setUpdateCollectionVisible(true)}
-                >
-                  Update Collection
-                </Dropdown.Item>
-                <Dropdown.Item 
-                  disabled={collection.coverPath === undefined}
-                  onClick={() => deleteImage.mutate({
-                    collectionId: collection.id,
-                    cover: collection.coverPath
-                  })}
-                >
-                  Remove Cover Photo
-                </Dropdown.Item>
-                <Dropdown.Item
-                  onClick={() => setWatermarkVisible(true)}
-                >
-                  Watermark
-                </Dropdown.Item>
-                <Dropdown.Item
-                  onClick={() => navigate({ to: `/photo-collection/${collection.id}`, search: { set: selectedSet?.id }})}
-                >
-                  Preview Collection
-                </Dropdown.Item>
-                <Tooltip
-                  className={`${publishable.status ? 'hidden' : ''}`}
-                  content={(
-                    <div className="flex flex-col gap-1 justify-start max-h-[200px] overflow-y-scroll z-20">
-                      {publishable.reason?.map((reason, index) => {
-                        return (
-                          <PublishableItems key={index} item="error" message={reason} />
-                        )
-                      })}
-                      {publishable.warning?.map((warning, index) => {
-                        return (
-                          <PublishableItems key={index} item="warning" message={warning} />
-                        )
-                      })}
-                    </div>
-                  )}
-                >
+              <div className='flex flex-row justify-between w-full'>
+                <div className="flex flex-row gap-1 font-thin opacity-90 items-center justify-start">
+                  <Tooltip content={(<p>Collection Has {collection.published ? 'Been Published' : 'Not Been Published'}</p>)}>
+                    <p className={`${collection.published ? 'text-green-400' : 'text-gray-600 italic'}`}>{collection.name}</p>
+                  </Tooltip>
+                  <p>&bull;</p>
+                  <p>Items: {collection.items}</p>
+                  <p>&bull;</p>
+                  <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
+                </div>
+                <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
                   <Dropdown.Item
-                    onClick={() => {
-                      updateParentCollection({
-                        ...collection,
-                        published: !collection.published
-                      })
-                      updateCollection.mutate({
-                        collection: collection,
-                        published: !collection.published
-                      })
-                    }}
-                    disabled={!publishable.status || !collection.published}
-                    className="disabled:cursor-not-allowed"
+                    onClick={() => setUpdateCollectionVisible(true)}
                   >
-                    <span className={`${!publishable.status ? 'text-gray-500' : ''}`}>{!collection.published ? 'Publish' : 'Unpublish'}</span>
+                    Update Collection
                   </Dropdown.Item>
-                </Tooltip>
-              </Dropdown>
+                  <Dropdown.Item 
+                    disabled={collection.coverPath === undefined}
+                    onClick={() => deleteImage.mutate({
+                      collectionId: collection.id,
+                      cover: collection.coverPath
+                    })}
+                  >
+                    Remove Cover Photo
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    onClick={() => setWatermarkVisible(true)}
+                  >
+                    Watermark
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    onClick={() => console.log(navigate({ to: `/photo-collection/${collection.id}`, search: { set: selectedSet?.id }})) }
+                  >
+                    Preview Collection
+                  </Dropdown.Item>
+                  <Tooltip
+                    style="light"
+                    className={`${((publishable?.reason?.length ?? 0) < 0 && (publishable.warning?.length ?? 0) < 0) ? 'hidden' : ''}`}
+                    content={(
+                      <div className="flex flex-col gap-1 justify-start max-h-[200px] overflow-y-scroll z-20">
+                        {publishable.reason?.map((reason, index) => {
+                          return (
+                            <PublishableItems key={index} item="error" message={reason} />
+                          )
+                        })}
+                        {publishable.warning?.map((warning, index) => {
+                          return (
+                            <PublishableItems key={index} item="warning" message={warning} />
+                          )
+                        })}
+                      </div>
+                    )}
+                  >
+                    <Dropdown.Item
+                      onClick={() => {
+                        updateParentCollection({
+                          ...collection,
+                          published: !collection.published
+                        })
+                        updateCollection.mutate({
+                          collection: collection,
+                          published: !collection.published
+                        })
+                      }}
+                      disabled={(() => {
+                        if(publishable.status) return false
+                        if(collection.published) return false
+                        return true
+                      })()}
+                      className="disabled:cursor-not-allowed"
+                    >
+                      <span className={`${!publishable.status ? 'text-gray-500' : ''}`}>{!collection.published ? 'Publish' : 'Unpublish'}</span>
+                    </Dropdown.Item>
+                  </Tooltip>
+                </Dropdown>
+              </div>
             )}
             parentLoading={deleteImage.isPending}
             setCover={setCoverPath}
           />
-          <div className="grid grid-cols-2 w-full place-items-center">
+          <div className="grid grid-cols-2 w-full place-items-center border border-gray-400 rounded-lg py-0.5">
             <button 
-              className={`py-1.5 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'sets' ? 'text-black' : 'text-gray-400'}`}
+              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'sets' ? 'text-black' : 'text-gray-400'}`}
               onClick={() => {
                 if(activeConsole !== 'sets'){
                   setActiveConsole('sets')
+                  navigate({ to: '.', search: { collection: collection.id, console: 'sets' }})
                 }
               }}
             >
               Photo Sets
             </button>
             <button 
-              className={`py-1.5 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'favorites' ? 'text-black' : 'text-gray-400'}`}
+              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'favorites' ? 'text-black' : 'text-gray-400'}`}
               onClick={() => {
                 if(activeConsole !== 'favorites'){
+                  navigate({ to: '.', search: { collection: collection.id, console: 'favorites' }})
                   setActiveConsole('favorites')
                 }
               }}
@@ -229,7 +247,9 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                 <Label className="text-lg ms-2">Photo Sets</Label>
                 <button
                   className="flex flex-row gap-2 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-1 px-2 me-2"
-                  onClick={() => {setCreateSet(true)}}
+                  onClick={() => {
+                    setCreateSet(true)
+                  }}
                 >
                   <span className="">Create New Set</span>
                   <HiOutlinePlusCircle className="text-2xl text-gray-600" />
@@ -243,7 +263,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                     navigate({
                       to: '.', search: {
                         collection: collection.id,
-                        set: set.id
+                        set: set.id,
+                        console: activeConsole as string
                       }
                     })
                     setQuery.refetch()
@@ -252,7 +273,22 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   collection={collection}
                   updateSetList={setSetList}
                   creatingSet={createSet}
-                  doneCreatingSet={() => setCreateSet(false)}
+                  doneCreatingSet={(set) => {
+                    if(set !== undefined && collection.published){
+                      const updatedCollection: PhotoCollection = {
+                        ...collection,
+                        published: false
+                      }
+                      updateCollection.mutate({
+                        collection: collection,
+                        published: false
+                      })
+
+                      updateParentCollection(updatedCollection)
+                      setCreateSet(false)
+                    }
+                    setCreateSet(false)
+                  }}
                 />
               </div>
             </>

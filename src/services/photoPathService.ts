@@ -1,13 +1,40 @@
 import { downloadData } from "aws-amplify/storage"
 import { parsePathName } from "../utils"
-import { Favorite } from "../types"
+import { Favorite, PicturePath } from "../types"
 import { Dispatch, SetStateAction } from "react"
 import JSZip from 'jszip';
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../amplify/data/resource";
 import { DownloadData } from "../components/common/DownloadToast";
+import { V6Client } from '@aws-amplify/api-graphql'
+import { queryOptions } from "@tanstack/react-query";
 
 const client = generateClient<Schema>()
+
+interface GetPathsFromFavoriteIdsOptions {
+  logging?: boolean,
+  metric?: boolean
+}
+async function getPathsFromFavoriteIds(client: V6Client<Schema>, ids: string[], options?: GetPathsFromFavoriteIdsOptions): Promise<PicturePath[]> {
+  const paths: PicturePath[] = (await Promise.all(ids.map(async (id) => {
+    const favoriteResponse = await client.models.UserFavorites.get({ id: id })
+    if(options?.logging) console.log(favoriteResponse)
+    if(favoriteResponse.data){
+      const path = await favoriteResponse.data.path()
+      if(options?.logging) console.log(path)
+      if(path.data) {
+        const mappedPath: PicturePath = {
+          ...path.data,
+          url: ''
+        }
+        return mappedPath
+      }
+    }
+    return
+  }))).filter((path) => path !== undefined)
+
+  return paths
+}
 
 export interface DownloadImageMutationParams {
   path: string,
@@ -89,3 +116,8 @@ export async function downloadFavoritesMutation(params: DownloadFavoritesMutatio
 
   return new File([await zipContent], params.zipName, { type: 'application/zip' }) 
 }
+
+export const getPathsFromFavoriteIdsQueryOptions = (ids: string[], options?: GetPathsFromFavoriteIdsOptions) => queryOptions({
+  queryKey: ['favorites', client, ids, options],
+  queryFn: () => getPathsFromFavoriteIds(client, ids, options)
+})
