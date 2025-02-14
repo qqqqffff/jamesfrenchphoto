@@ -314,6 +314,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                     <HiOutlineUpload size={20} />
                     <input 
                       id='watermark-upload' 
+                      accept=""
                       type='file' 
                       className="hidden"
                       multiple={false}
