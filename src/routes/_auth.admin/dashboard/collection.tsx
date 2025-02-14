@@ -242,7 +242,11 @@ function RouteComponent() {
             collectionConsole === 'favorites' ? (
               'favorites' as 'favorites'
             ) : (
-              'sets' as 'sets'
+              collectionConsole === 'watermarks' ? (
+                'watermarks' as 'watermarks'
+              ) : (
+                'sets' as 'sets'
+              )
             )
           }
         />

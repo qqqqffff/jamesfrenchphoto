@@ -15,6 +15,7 @@ import { detectDuplicates } from "./utils"
 import { PublishableItems } from "./PublishableItems"
 import { AuthContext } from "../../../auth"
 import { FavoritePannel } from "./FavoritePannel"
+import { HiOutlineUpload } from "react-icons/hi"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
@@ -24,7 +25,7 @@ interface PhotoCollectionPannelProps {
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   set?: PhotoSet,
   auth: AuthContext,
-  parentActiveConsole: 'sets' | 'favorites'
+  parentActiveConsole: 'sets' | 'favorites' | 'watermarks'
 }
 
 interface Publishable {
@@ -44,7 +45,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
   const [coverPath, setCoverPath] = useState(collection.coverPath)
 
-  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites'>(parentActiveConsole)
+  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks'>(parentActiveConsole)
 
   const client = useQueryClient()
   const router = useRouter()
@@ -107,10 +108,10 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
           } } 
           onWatermarkUpload={(watermarks) => {
               if(watermarks) {
-                  client.invalidateQueries({
-                      queryKey: ['watermarks', 'photoCollection'],
-                  })
-                  router.invalidate()
+                client.invalidateQueries({
+                  queryKey: ['watermarks', 'photoCollection'],
+                })
+                router.invalidate()
               }
           }} 
           paths={[]} 
@@ -217,7 +218,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             parentLoading={deleteImage.isPending}
             setCover={setCoverPath}
           />
-          <div className="grid grid-cols-2 w-full place-items-center border border-gray-400 rounded-lg py-0.5">
+          <div className="grid grid-cols-3 w-full place-items-center border border-gray-400 rounded-lg py-0.5">
             <button 
               className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'sets' ? 'text-black' : 'text-gray-400'}`}
               onClick={() => {
@@ -239,6 +240,17 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               }}
             >
               Favorites
+            </button>
+            <button
+              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'watermarks' ? 'text-black' : 'text-gray-400'}`}
+              onClick={() => {
+                if(activeConsole !== 'watermarks') {
+                  navigate({ to: '.', search: { collection: collection.id, console: 'watermarks' }})
+                  setActiveConsole('watermarks')
+                }
+              }}
+            >
+              Watermarks
             </button>
           </div>
           {activeConsole === 'sets' ? (
@@ -293,7 +305,28 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               </div>
             </>
            ) : (
-            <></>
+            activeConsole === 'watermarks' ? (
+              <>
+                <div className="flex flex-row items-center justify-between w-full">
+                  <Label className="text-lg ms-2">Watermarks</Label>
+                  <label htmlFor="watermark-upload" className="flex flex-row gap-2 border border-gray-300 items-center hover:bg-gray-100 rounded-xl py-1 px-3 me-2">
+                    <span className="">Upload Watermark</span>
+                    <HiOutlineUpload size={20} />
+                    <input 
+                      id='watermark-upload' 
+                      type='file' 
+                      className="hidden"
+                      multiple={false}
+                      onChange={(event) => {
+
+                      }} 
+                    />
+                  </label>
+                </div>
+              </>
+            ) : (
+              <></>
+            )
           )}
         </div>
         { activeConsole === 'sets' ? (
@@ -342,11 +375,16 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             </div>
           )
         ) : (
-          <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-            <FavoritePannel 
-              collection={collection}
-            />
-          </div>
+          activeConsole === 'favorites' ? (
+            <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+              <FavoritePannel 
+                collection={collection}
+              />
+            </div>
+          ) : (
+            <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+            </div>
+          )
         )}
       </div>
     </>
