@@ -1,24 +1,28 @@
 import { Dispatch, FC, SetStateAction, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../../types"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
 import { getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
 import { CollectionThumbnail } from "./CollectionThumbnail"
-import { HiOutlineCog6Tooth, HiOutlinePlusCircle } from "react-icons/hi2"
+import { HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineTrash } from "react-icons/hi2"
 import { SetList } from "./SetList"
 import { CreateCollectionModal, WatermarkModal } from "../../modals"
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import { PhotoSetPannel } from "./PhotoSetPannel"
-import { deleteCoverMutation, DeleteCoverParams, updateCollectionMutation, UpdateCollectionParams } from "../../../services/collectionService"
+import { deleteCoverMutation, DeleteCoverParams, getPathQueryOptions, updateCollectionMutation, UpdateCollectionParams } from "../../../services/collectionService"
 import Loading from "../../common/Loading"
 import { detectDuplicates } from "./utils"
 import { PublishableItems } from "./PublishableItems"
 import { AuthContext } from "../../../auth"
 import { FavoritePannel } from "./FavoritePannel"
 import { HiOutlineUpload } from "react-icons/hi"
+import { deleteWatermarkMutation, DeleteWatermarkParams, uploadWatermarksMutation, WatermarkUploadParams } from "../../../services/watermarkService"
+import { parsePathName } from "../../../utils"
+import { WatermarkPannel } from "./WatermarkPannel"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
+  updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
   availableTags: UserTag[],
   coverPath?: string,
   collection: PhotoCollection,
@@ -35,11 +39,12 @@ interface Publishable {
 }
 
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
-  watermarkObjects, availableTags, collection, 
+  watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole
 }) => {
   const [createSet, setCreateSet] = useState(false)
   const [watermarkVisible, setWatermarkVisible] = useState(false)
+  const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
   const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
   const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
@@ -62,6 +67,20 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const setQuery = useQuery({
       ...getPhotoSetByIdQueryOptions(selectedSet?.id, { resolveUrls: false, user: auth.user?.profile.email }),
       enabled: selectedSet !== undefined
+  })
+
+  const uploadWatermarks = useMutation({
+    mutationFn: (params: WatermarkUploadParams) => uploadWatermarksMutation(params),
+  })
+
+  const deleteWatermark = useMutation({
+    mutationFn: (params: DeleteWatermarkParams) => deleteWatermarkMutation(params), 
+  })
+
+  const watermarkPaths = useQueries({
+    queries: watermarkObjects.map((watermark) => {
+      return getPathQueryOptions(watermark.path, watermark.id)
+    })
   })
 
   //all cover paths, each set has paths, warn if less than 20 and if has duplicates
@@ -120,15 +139,15 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
           onClose={() => setWatermarkVisible(false)} 
       />
       <CreateCollectionModal
-          collection={collection}
-          onSubmit={(collection) => {
-              if(collection){
-                  updateParentCollection(collection)
-              }
-          }} 
-          availableTags={availableTags} 
-          open={updateCollectionVisible} 
-          onClose={() => setUpdateCollectionVisible(false)}
+        collection={collection}
+        onSubmit={(collection) => {
+          if(collection){
+            updateParentCollection(collection)
+          }
+        }} 
+        availableTags={availableTags} 
+        open={updateCollectionVisible} 
+        onClose={() => setUpdateCollectionVisible(false)}
       />
       <div className="flex flex-row mx-4 mt-4 gap-4">
         <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
@@ -319,11 +338,67 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                       className="hidden"
                       multiple={false}
                       onChange={(event) => {
-
+                        if(event.target.files){
+                          const uploads = new Map<string, File>()
+                          Array.from(event.target.files).forEach((file) => {
+                            uploads.set(file.name, file)
+                          })
+                          uploadWatermarks.mutate({
+                            filesUpload: uploads,
+                            updateWatermarks: updateWatermarkObjects
+                          })
+                        }
                       }} 
                     />
                   </label>
                 </div>
+                <div className="border w-full"></div>
+                {watermarkPaths.map((path) => {
+                  const foundWatermark = watermarkObjects.find((watermarks) => watermarks.id === path.data?.[0])
+                  if(path.data && !foundWatermark) return
+                  return (
+                    <div 
+                      className={`border border-gray-300 px-3 py-1 flex flex-row justify-between items-center w-full rounded-lg hover:bg-gray-100 
+                        ${(selectedWatermark === foundWatermark && foundWatermark !== undefined) ? 'bg-gray-200' : ''}`}
+                      onClick={() => {
+                        if(foundWatermark && selectedWatermark !== foundWatermark){
+                          setSelectedWatermark(foundWatermark)
+                        }
+                      }}
+                    >
+                      { path.isLoading ? (
+                        <span className="flex flex-row items-center">
+                          <span>Loading</span>
+                          <Loading className="text-xl"/>
+                        </span>
+                      ) : (
+                        (path.data && foundWatermark !== undefined) ? (
+                          <>
+                            <span className="italic font-light">{parsePathName(foundWatermark.path)}</span>
+                            <div className="flex flex-row gap-2 items-center">
+                              <Tooltip content={'Delete'} style="light" placement="bottom">
+                                <button
+                                  onClick={() => {
+                                    updateWatermarkObjects((prev) => {
+                                      return prev.filter((parentWatermarks) => parentWatermarks.id !== foundWatermark.id)
+                                    })
+                                    deleteWatermark.mutate({
+                                      watermark: foundWatermark
+                                    })
+                                  }}
+                                >
+                                  <HiOutlineTrash size={20} className="hover:text-gray-700"/>
+                                </button>
+                              </Tooltip>
+                            </div>
+                          </>
+                        ) : (
+                          undefined
+                        )
+                      )}
+                    </div>
+                  )
+                })}
               </>
             ) : (
               <></>
@@ -384,6 +459,14 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             </div>
           ) : (
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+              <WatermarkPannel 
+                collection={collection}
+                updateCollection={updateParentCollection}
+                watermarkObjects={watermarkObjects}
+                watermarkPaths={watermarkPaths}
+                selectedWatermark={selectedWatermark}
+                setSelectedWatermark={setSelectedWatermark}
+              />
             </div>
           )
         )}

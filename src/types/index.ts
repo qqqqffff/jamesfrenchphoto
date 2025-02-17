@@ -69,6 +69,7 @@ export type PicturePath = {
 }
 
 export type Watermark = {
+    id: string,
     url: string,
     path: string,
 }

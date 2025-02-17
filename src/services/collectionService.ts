@@ -130,15 +130,23 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
     return collections
 }
 
-async function getAllWatermarkObjects(client: V6Client<Schema>): Promise<Watermark[]> {
+interface GetAllWatermarkObjectsOptions {
+    resolveUrl?: boolean
+}
+async function getAllWatermarkObjects(client: V6Client<Schema>, options?: GetAllWatermarkObjectsOptions): Promise<Watermark[]> {
     console.log('api call')
     const watermarksResponse = await client.models.Watermark.list()
     return Promise.all(watermarksResponse
         .data.map(async (watermark) => {
-            const url = (await getUrl({
-                path: watermark.path
-            })).url.toString()
+            const url = options?.resolveUrl ? (
+                (await getUrl({
+                    path: watermark.path
+                })).url.toString() 
+            ) : (
+                ''
+            )
             const mappedWatermark: Watermark = {
+                id: watermark.id,
                 url: url,
                 path: watermark.path
             }
@@ -469,9 +477,9 @@ export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOp
     queryFn: () => getAllCollectionsFromUserTags(client, tags)
 })
 
-export const getAllWatermarkObjectsQueryOptions = () => queryOptions({
-    queryKey: ['watermark', client],
-    queryFn: () => getAllWatermarkObjects(client),
+export const getAllWatermarkObjectsQueryOptions = (options?: GetAllWatermarkObjectsOptions) => queryOptions({
+    queryKey: ['watermark', client, options],
+    queryFn: () => getAllWatermarkObjects(client, options),
     gcTime: 1000 * 15 * 60 //15 minutes
 })
 

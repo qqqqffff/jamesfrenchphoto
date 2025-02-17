@@ -9,7 +9,7 @@ import { PhotoCollectionPannel } from '../../../components/admin/collection/Phot
 import { useQuery } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
 import { useState } from 'react'
-import { PhotoCollection, PhotoSet } from '../../../types'
+import { PhotoCollection, PhotoSet, Watermark } from '../../../types'
 import { Progress, TextInput, Tooltip } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
@@ -31,7 +31,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   beforeLoad: ({ search }) => search,
   loader: async ({ context }) => {
     const availableTags = await context.queryClient.ensureQueryData(getAllUserTagsQueryOptions({ siCollections: false }))
-    const watermarkObjects = await context.queryClient.ensureQueryData(getAllWatermarkObjectsQueryOptions())
+    const watermarkObjects = await context.queryClient.ensureQueryData(getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
     let collection: PhotoCollection | undefined
     let set: PhotoSet | undefined
     if(context.collection){
@@ -57,6 +57,7 @@ function RouteComponent() {
   const { availableTags, watermarkObjects, collection, set, auth, collectionConsole } = Route.useLoaderData()
   const navigate = useNavigate()
 
+  const [watermarks, setWatermarks] = useState<Watermark[]>(watermarkObjects)
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
   const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
   const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>(collection)
@@ -235,7 +236,8 @@ function RouteComponent() {
           collection={selectedCollection}
           updateParentCollection={setSelectedCollection}
           set={set}
-          watermarkObjects={watermarkObjects}
+          watermarkObjects={watermarks}
+          updateWatermarkObjects={setWatermarks}
           availableTags={availableTags}
           auth={auth}
           parentActiveConsole={
