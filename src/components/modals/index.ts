@@ -7,7 +7,6 @@ import { TermsAndConditionsModal as termsAndConditions } from './TermsAndConditi
 import { UserColumnModal as userColumn } from './UserColumn';
 import { CreatePackageModal as createPackage } from './CreatePackage';
 import { CreateCollectionModal as createCollection } from './CreateCollection';
-import { WatermarkModal as watermark } from './Watermark';
 import { EditTimeslotModal as editTimeslot } from './EditTimeslotModal';
 
 
@@ -25,5 +24,4 @@ export const TermsAndConditionsModal = termsAndConditions
 export const UserColumnModal = userColumn
 export const CreatePackageModal = createPackage
 export const CreateCollectionModal = createCollection
-export const WatermarkModal = watermark
 export const EditTimeslotModal = editTimeslot

@@ -1,13 +1,13 @@
 import { Dispatch, FC, SetStateAction, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../../types"
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueries, useQuery } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
 import { getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
 import { CollectionThumbnail } from "./CollectionThumbnail"
 import { HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineTrash } from "react-icons/hi2"
 import { SetList } from "./SetList"
-import { CreateCollectionModal, WatermarkModal } from "../../modals"
-import { useNavigate, useRouter } from "@tanstack/react-router"
+import { CreateCollectionModal } from "../../modals"
+import { useNavigate } from "@tanstack/react-router"
 import { PhotoSetPannel } from "./PhotoSetPannel"
 import { deleteCoverMutation, DeleteCoverParams, getPathQueryOptions, updateCollectionMutation, UpdateCollectionParams } from "../../../services/collectionService"
 import Loading from "../../common/Loading"
@@ -43,7 +43,6 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   set, updateParentCollection, auth, parentActiveConsole
 }) => {
   const [createSet, setCreateSet] = useState(false)
-  const [watermarkVisible, setWatermarkVisible] = useState(false)
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
   const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
   const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
@@ -52,8 +51,6 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
 
   const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks'>(parentActiveConsole)
 
-  const client = useQueryClient()
-  const router = useRouter()
   const navigate = useNavigate()
 
   const deleteImage = useMutation({
@@ -118,26 +115,6 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
 
   return (
     <>
-      <WatermarkModal 
-          collection={collection} 
-          onCollectionSubmit={(collection) => {
-              if(collection){
-                  client.invalidateQueries({ queryKey: ['photoCollection']})
-              }
-          } } 
-          onWatermarkUpload={(watermarks) => {
-              if(watermarks) {
-                client.invalidateQueries({
-                  queryKey: ['watermarks', 'photoCollection'],
-                })
-                router.invalidate()
-              }
-          }} 
-          paths={[]} 
-          watermarks={watermarkObjects} 
-          open={watermarkVisible} 
-          onClose={() => setWatermarkVisible(false)} 
-      />
       <CreateCollectionModal
         collection={collection}
         onSubmit={(collection) => {
@@ -181,11 +158,6 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                     })}
                   >
                     Remove Cover Photo
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    onClick={() => setWatermarkVisible(true)}
-                  >
-                    Watermark
                   </Dropdown.Item>
                   <Dropdown.Item
                     onClick={() => console.log(navigate({ to: `/photo-collection/${collection.id}`, search: { set: selectedSet?.id }})) }
@@ -418,7 +390,6 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               <PhotoSetPannel 
                 photoCollection={collection} 
                 photoSet={setQuery.data ?? selectedSet} 
-                watermarkObjects={watermarkObjects}
                 paths={setQuery.data?.paths ?? []}
                 deleteParentSet={(setId) => {
                   const updatedSetList = setList

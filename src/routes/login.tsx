@@ -9,6 +9,7 @@ import { HiOutlineEyeSlash, HiOutlineEye } from "react-icons/hi2";
 interface LoginParams {
   createAccount?: boolean,
   unauthorized?: boolean,
+  invalidToken?: boolean,
   relogin?: boolean,
 }
 
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/login')({
   validateSearch: (search: Record<string, unknown>): LoginParams => ({
     createAccount: (search.createAccount as boolean) || undefined,
     unauthorized: (search.unauthorized as boolean) || undefined,
+    invalidToken: (search.invalidToken as boolean) || undefined,
     relogin: (search.relogin as boolean) || undefined,
   })
 })
@@ -118,6 +120,20 @@ function RouteComponent() {
                 })
               )
             }
+          )
+        }
+        {
+          notifications.find((item) => item.item === 'invalidToken')?.visible &&
+          notification('The provided access token is invalid or has expired. If this was unexpected please ask for a new one.', 'red',
+            () => {
+              navigate({ to: '.' })
+              setNotifications(
+                notifications.map((notification) => {
+                  if(notification.item === 'invalidToken') return {...notification, visible: false}
+                  return notification
+                })
+              )
+            },
           )
         }
       </div>

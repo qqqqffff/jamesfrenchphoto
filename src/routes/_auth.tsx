@@ -1,7 +1,15 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
+import { getTemporaryAccessTokenQueryOptions } from '../services/userService'
+
+interface AuthSearchParams {
+  temporaryToken?: string,
+}
 
 export const Route = createFileRoute('/_auth')({
-  beforeLoad: async ({ context, location }) => {
+  validateSearch: (search: Record<string, unknown>): AuthSearchParams => ({
+    temporaryToken: (search.token as string) || undefined
+  }),
+  beforeLoad: async ({ context, location, search }) => {
     //old code assistant
     if(localStorage.getItem('user') !== null){
       localStorage.removeItem('user')
@@ -13,6 +21,20 @@ export const Route = createFileRoute('/_auth')({
           relogin: true
         }
       })
+    }
+    if(search.temporaryToken && location.href.includes('photo') && !context.auth.isAuthenticated){
+      const validToken = await context.queryClient.ensureQueryData(
+        getTemporaryAccessTokenQueryOptions(search.temporaryToken)
+      ) 
+      if(!validToken) {
+        throw redirect({
+          to: '/login',
+          search: {
+            invalidToken: true
+          }
+        })
+      }
+      return validToken
     }
     if(!context.auth.isAuthenticated){
       throw redirect({

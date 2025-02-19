@@ -1,12 +1,13 @@
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from "../../amplify/data/resource";
-import { Participant, PhotoCollection, PhotoSet, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { Participant, PhotoCollection, PhotoSet, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
 import { getAllCollectionsFromUserTags } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
 import { updateUserAttributes } from "aws-amplify/auth";
+import { Duration } from "luxon";
 
 const client = generateClient<Schema>()
 
@@ -170,6 +171,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
 
     const userProfile: UserProfile = {
         ...profileResponse.data,
+        sittingNumber: profileResponse.data.sittingNumber ?? -1,
         participant: mappedParticipants,
         activeParticipant: activeParticipant,
         preferredContact: profileResponse.data.preferredContact ?? 'EMAIL',
@@ -216,6 +218,37 @@ export async function getAuthUsers(client: V6Client<Schema>, filter?: string | n
     }).filter((user) => (filter === undefined || user.email === filter) && filter !== null)
 
     return parsedUsersData
+}
+
+async function getTemporaryAccessToken(client: V6Client<Schema>, id: string): Promise<TemporaryAccessToken | undefined> {
+    const response = await client.models.TemporaryAccessToken.get({ id: id }, { authMode: 'identityPool' })
+    if(response.data && (
+        !response.data.expire || new Date(response.data.expire).getTime() < Date.now())
+    ){
+        const mappedToken: TemporaryAccessToken = {
+            ...response.data,
+            expires: response.data.expire ? new Date(response.data.expire) : undefined,
+            sessionTime: response.data.sessionTime ? Duration.fromISO(response.data.sessionTime) : undefined
+        }
+
+        return mappedToken
+    }
+}
+
+interface CreateAccessTokenMutationParams {
+    expires?: Date,
+    sessionTime?: Duration,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function CreateAccessTokenMutationParams(params: CreateAccessTokenMutationParams) {
+    const response = await client.models.TemporaryAccessToken.create({
+        expire: params.expires?.toISOString(),
+        sessionTime: params.sessionTime?.toString()
+    })
+
+    if(params.options?.logging) console.log(response)
 }
 
 interface CreateParticipantMutationParams {
@@ -324,4 +357,9 @@ export const getUserProfileByEmailQueryOptions = (email: string, options?: GetUs
 export const getAuthUsersQueryOptions = (filter?: string | null) =>  queryOptions({
     queryKey: ['authUsers', client, filter],
     queryFn: () => getAuthUsers(client, filter)
+})
+
+export const getTemporaryAccessTokenQueryOptions = (id: string) => queryOptions({
+    queryKey: ['temporaryAccessToken', client, id],
+    queryFn: () => getTemporaryAccessToken(client, id)
 })

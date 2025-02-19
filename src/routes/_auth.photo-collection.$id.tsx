@@ -26,7 +26,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(!params.id) throw redirect({ to: destination })
     const collection = await context.queryClient.ensureQueryData(
-      getPhotoCollectionByIdQueryOptions(params.id, { user: context.auth.user?.profile.email, siSets: true })
+      getPhotoCollectionByIdQueryOptions(params.id, { user: context.auth.user?.profile.email, siSets: true, siPaths: true })
     )
     if((!collection || collection.sets.length === 0 || !collection.published) && !context.auth.admin) throw redirect({ to: destination })
     invariant(collection)

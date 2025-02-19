@@ -24,13 +24,25 @@ const schema = a.schema({
       name: a.string().required(),
       tags: a.hasMany('CollectionTag', 'collectionId'),
       sets: a.hasMany('PhotoSet', 'collectionId'),
+      tokens: a.hasMany('PhotoCollectionTokens', 'collectionId'),
       watermarkPath: a.string(),
       downloadable: a.boolean().default(false),
       items: a.integer().default(0),
       published: a.boolean().default(false),
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
+  PhotoCollectionTokens: a
+    .model({
+      id: a.id().required(),
+      collectionId: a.id().required(),
+      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      temporaryAccessTokenId: a.id().required(),
+      temporaryAccessToken: a.belongsTo('TemporaryAccessToken', 'temporaryAccessTokenId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('collectionId'), index('temporaryAccessTokenId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['read'])]),
   PhotoSet: a
     .model({
       id: a.id().required(),
@@ -43,7 +55,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('collectionId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get', 'list'])]),
   Watermark: a
     .model({
       id: a.id().required(),
@@ -62,7 +74,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('setId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['read'])]),
   UserFavorites: a
     .model({
       id: a.id().required(),
@@ -73,7 +85,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('userEmail').name('listFavoritesByUserEmail')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'delete', 'create', 'list'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'delete', 'create', 'list']), allow.guest().to(['get', 'delete', 'create', 'list'])]),
   UserTag: a
     .model({
       id: a.id().required(),
@@ -151,8 +163,8 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
     .model({
-      sittingNumber: a.integer().required(),
-      email: a.string().required(),
+      sittingNumber: a.integer(),
+      email: a.string().required().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read', 'update']), allow.guest().to(['create', 'read'])]),
       userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read']), allow.guest().to(['create'])]),
       timeslot: a.hasMany('Timeslot', 'register'),
       participantFirstName: a.string(),
@@ -262,7 +274,16 @@ const schema = a.schema({
     })
     .handler(a.handler.function(downloadImages))
     .authorization((allow) => [allow.authenticated()])
-    .returns(a.string())
+    .returns(a.string()),
+  TemporaryAccessToken: a
+    .model({
+      id: a.id().required(),
+      expire: a.string(),
+      sessionTime: a.string(),
+      sets: a.hasMany('PhotoCollectionTokens', 'temporaryAccessTokenId')
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['read'])])
 })
 .authorization((allow) => [allow.resource(postConfirmation), allow.resource(addCreateUserQueue)]);
 

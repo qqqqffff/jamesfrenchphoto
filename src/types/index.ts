@@ -1,4 +1,5 @@
 import { AuthSession, AuthUser, FetchUserAttributesOutput } from "aws-amplify/auth";
+import { Duration } from "luxon";
 
 export interface UserStorage {
     user: AuthUser
@@ -135,4 +136,10 @@ export type ColumnColor = {
     value: string
     bgColor?: string
     textColor?: string
+}
+
+export interface TemporaryAccessToken {
+    id: string,
+    expires?: Date,
+    sessionTime?: Duration
 }

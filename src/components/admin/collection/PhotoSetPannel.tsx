@@ -1,12 +1,12 @@
 import { Dispatch, FC, SetStateAction, useCallback, useRef, useState } from "react"
-import { PhotoCollection, PhotoSet, PicturePath, Watermark } from "../../../types"
+import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
 import { 
   HiOutlineCog6Tooth,
   HiOutlineExclamationTriangle,
   HiOutlineTrash
 } from "react-icons/hi2";
 import { Alert, Dropdown, FlowbiteColors, TextInput, ToggleSwitch, Tooltip } from "flowbite-react";
-import { ConfirmationModal, UploadImagesModal, WatermarkModal } from "../../modals";
+import { ConfirmationModal, UploadImagesModal } from "../../modals";
 import { FixedSizeGrid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import useWindowDimensions from "../../../hooks/windowDimensions";
@@ -34,7 +34,6 @@ import { AuthContext } from "../../../auth";
 export type PhotoCollectionProps = {
   photoCollection: PhotoCollection;
   photoSet: PhotoSet;
-  watermarkObjects: Watermark[],
   paths: PicturePath[],
   deleteParentSet: (setId: string) => void,
   parentUpdateSet: (updatedSet: PhotoSet) => void,
@@ -43,18 +42,15 @@ export type PhotoCollectionProps = {
 }
 
 export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ 
-  photoCollection, photoSet, watermarkObjects, 
+  photoCollection, photoSet, 
   paths, deleteParentSet, parentUpdateSet,
   updateParentCollection, auth
 }) => {
   const gridRef = useRef<FixedSizeGrid>(null)
   const [picturePaths, setPicturePaths] = useState(paths)
-  const [pictureCollection, setPictureCollection] = useState(photoCollection)
   const [searchText, setSearchText] = useState<string>('')
   const [selectedPhotos, setSelectedPhotos] = useState<PicturePath[]>([])
   const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
-  const [watermarkVisible, setWatermarkVisible] = useState(false)
-  const [watermarks, setWatermarks] = useState<Watermark[]>(watermarkObjects)
   const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
   const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
   const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
@@ -202,23 +198,6 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
       uploads={uploads}
       setUploads={setUploads}
     />
-    <WatermarkModal
-      open={watermarkVisible}
-      onClose={() => setWatermarkVisible(false)}
-      collection={pictureCollection}
-      paths={picturePaths ?? []}
-      onCollectionSubmit={(collection) => {
-        const temp = {...collection}
-        //TODO: query invalidation
-        setPictureCollection(temp)
-      }}
-      onWatermarkUpload={(paths) => {
-        const temp = [...paths]
-        //TODO: query invalidation
-        setWatermarks(temp)
-      }}
-      watermarks={watermarks}
-    />
     <ConfirmationModal 
       title='Delete Set'
       body='This action will <b>DELETE</b> this set <b>AND</b> any associated pictures. This action cannot be undone!'
@@ -240,7 +219,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
     />
     {selectedPhotos.length > 0 && (
       <SetControls 
-        collection={pictureCollection}
+        collection={photoCollection}
         photos={picturePaths}
         setPhotos={setPicturePaths}
         selectedPhotos={selectedPhotos} 
