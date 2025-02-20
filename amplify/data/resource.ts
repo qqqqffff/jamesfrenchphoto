@@ -7,6 +7,7 @@ import { verifyContactChallenge } from '../functions/verify-contact-challenge/re
 import { sendTimeslotConfirmation } from '../functions/send-timeslot-confirmation/resource';
 import { updateUserAttribute } from '../auth/update-user-attribute/resource';
 import { downloadImages } from '../functions/download-images/resource';
+import { CfnCollection } from 'aws-cdk-lib/aws-opensearchserverless';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -24,7 +25,7 @@ const schema = a.schema({
       name: a.string().required(),
       tags: a.hasMany('CollectionTag', 'collectionId'),
       sets: a.hasMany('PhotoSet', 'collectionId'),
-      tokens: a.hasMany('PhotoCollectionTokens', 'collectionId'),
+      collectionTokens: a.hasMany('TemporaryAccessToken', 'collectionId'),
       watermarkPath: a.string(),
       downloadable: a.boolean().default(false),
       items: a.integer().default(0),
@@ -32,17 +33,6 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
-  PhotoCollectionTokens: a
-    .model({
-      id: a.id().required(),
-      collectionId: a.id().required(),
-      collection: a.belongsTo('PhotoCollection', 'collectionId'),
-      temporaryAccessTokenId: a.id().required(),
-      temporaryAccessToken: a.belongsTo('TemporaryAccessToken', 'temporaryAccessTokenId')
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [index('collectionId'), index('temporaryAccessTokenId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['read'])]),
   PhotoSet: a
     .model({
       id: a.id().required(),
@@ -280,7 +270,8 @@ const schema = a.schema({
       id: a.id().required(),
       expire: a.string(),
       sessionTime: a.string(),
-      sets: a.hasMany('PhotoCollectionTokens', 'temporaryAccessTokenId')
+      collectionId: a.id().required(),
+      collection: a.belongsTo('PhotoCollection', 'collectionTokens')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['read'])])

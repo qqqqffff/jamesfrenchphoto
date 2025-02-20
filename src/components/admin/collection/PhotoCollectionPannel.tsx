@@ -19,6 +19,7 @@ import { HiOutlineUpload } from "react-icons/hi"
 import { deleteWatermarkMutation, DeleteWatermarkParams, uploadWatermarksMutation, WatermarkUploadParams } from "../../../services/watermarkService"
 import { parsePathName } from "../../../utils"
 import { WatermarkPannel } from "./WatermarkPannel"
+import { createAccessTokenMutationParams, CreateAccessTokenMutationParams } from "../../../services/userService"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
@@ -48,6 +49,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
   const [coverPath, setCoverPath] = useState(collection.coverPath)
+  const [shareVisible, setShareVisible] = useState(false)
 
   const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks'>(parentActiveConsole)
 
@@ -126,6 +128,9 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
         open={updateCollectionVisible} 
         onClose={() => setUpdateCollectionVisible(false)}
       />
+      <ShareCollectionModal 
+        collection={}
+      />
       <div className="flex flex-row mx-4 mt-4 gap-4">
         <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
           <CollectionThumbnail 
@@ -203,6 +208,13 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                       <span className={`${!publishable.status ? 'text-gray-500' : ''}`}>{!collection.published ? 'Publish' : 'Unpublish'}</span>
                     </Dropdown.Item>
                   </Tooltip>
+                  <Dropdown.Item
+                    onClick={() => {
+
+                    }}
+                  >
+                    Share
+                  </Dropdown.Item>
                 </Dropdown>
               </div>
             )}

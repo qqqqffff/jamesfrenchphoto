@@ -141,5 +141,6 @@ export type ColumnColor = {
 export interface TemporaryAccessToken {
     id: string,
     expires?: Date,
-    sessionTime?: Duration
+    sessionTime?: Duration,
+    collections: PhotoCollection
 }

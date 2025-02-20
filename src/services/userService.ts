@@ -235,20 +235,24 @@ async function getTemporaryAccessToken(client: V6Client<Schema>, id: string): Pr
     }
 }
 
-interface CreateAccessTokenMutationParams {
+export interface CreateAccessTokenMutationParams {
     expires?: Date,
     sessionTime?: Duration,
+    collectionId: string,
     options?: {
         logging?: boolean
     }
 }
-export async function CreateAccessTokenMutationParams(params: CreateAccessTokenMutationParams) {
+export async function createAccessTokenMutationParams(params: CreateAccessTokenMutationParams) {
     const response = await client.models.TemporaryAccessToken.create({
         expire: params.expires?.toISOString(),
-        sessionTime: params.sessionTime?.toString()
+        collectionId: params.collectionId,
+        sessionTime: params.sessionTime?.toString(),
     })
 
     if(params.options?.logging) console.log(response)
+
+    return response.data?.id
 }
 
 interface CreateParticipantMutationParams {
