@@ -6,7 +6,7 @@ import { getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
 import { CollectionThumbnail } from "./CollectionThumbnail"
 import { HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineTrash } from "react-icons/hi2"
 import { SetList } from "./SetList"
-import { CreateCollectionModal } from "../../modals"
+import { CreateCollectionModal, ShareCollectionModal } from "../../modals"
 import { useNavigate } from "@tanstack/react-router"
 import { PhotoSetPannel } from "./PhotoSetPannel"
 import { deleteCoverMutation, DeleteCoverParams, getPathQueryOptions, updateCollectionMutation, UpdateCollectionParams } from "../../../services/collectionService"
@@ -19,8 +19,6 @@ import { HiOutlineUpload } from "react-icons/hi"
 import { deleteWatermarkMutation, DeleteWatermarkParams, uploadWatermarksMutation, WatermarkUploadParams } from "../../../services/watermarkService"
 import { parsePathName } from "../../../utils"
 import { WatermarkPannel } from "./WatermarkPannel"
-import { createAccessTokenMutationParams, CreateAccessTokenMutationParams } from "../../../services/userService"
-
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
@@ -129,7 +127,9 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
         onClose={() => setUpdateCollectionVisible(false)}
       />
       <ShareCollectionModal 
-        collection={}
+        collection={collection}
+        open={shareVisible}
+        onClose={() => setShareVisible(false)}
       />
       <div className="flex flex-row mx-4 mt-4 gap-4">
         <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
@@ -210,7 +210,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   </Tooltip>
                   <Dropdown.Item
                     onClick={() => {
-
+                      setShareVisible(true)
                     }}
                   >
                     Share

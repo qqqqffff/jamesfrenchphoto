@@ -142,5 +142,5 @@ export interface TemporaryAccessToken {
     id: string,
     expires?: Date,
     sessionTime?: Duration,
-    collections: PhotoCollection
+    collectionId: string
 }

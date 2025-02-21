@@ -25,7 +25,7 @@ const schema = a.schema({
       name: a.string().required(),
       tags: a.hasMany('CollectionTag', 'collectionId'),
       sets: a.hasMany('PhotoSet', 'collectionId'),
-      collectionTokens: a.hasMany('TemporaryAccessToken', 'collectionId'),
+      tokens: a.hasMany('TemporaryAccessToken', 'collectionId'),
       watermarkPath: a.string(),
       downloadable: a.boolean().default(false),
       items: a.integer().default(0),
@@ -169,7 +169,7 @@ const schema = a.schema({
       favorites: a.hasMany('UserFavorites', 'userEmail')
     })
     .identifier(['email'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create', 'get'])]),
   Participant: a.
     model({
       id: a.id().required(),
@@ -271,7 +271,7 @@ const schema = a.schema({
       expire: a.string(),
       sessionTime: a.string(),
       collectionId: a.id().required(),
-      collection: a.belongsTo('PhotoCollection', 'collectionTokens')
+      collection: a.belongsTo('PhotoCollection', 'collectionId')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['read'])])

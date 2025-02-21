@@ -41,11 +41,12 @@ interface GetUserProfileByEmailOptions {
     siTags?: boolean,
     siTimeslot?: boolean,
     siCollections?: boolean,
-    siSets?: boolean
+    siSets?: boolean,
+    unauthenticated?: boolean
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     console.log('api call')
-    const profileResponse = await client.models.UserProfile.get({ email: email })
+    const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
     if(!profileResponse || !profileResponse.data) return
     const participantResponse = await profileResponse.data.participant()
     const mappedParticipants: Participant[] = await Promise.all(participantResponse.data.map(async (participant) => {
@@ -161,7 +162,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
 
     //in theory there should be at least one participant upon reaching this point
     let activeParticipant = mappedParticipants.find((participant) => participant.id === profileResponse.data?.activeParticipant)
-    if(!profileResponse.data.activeParticipant){
+    if(!profileResponse.data.activeParticipant && mappedParticipants.length > 0){
         activeParticipant = mappedParticipants[0]
         await client.models.UserProfile.update({
             email: email,
@@ -243,7 +244,7 @@ export interface CreateAccessTokenMutationParams {
         logging?: boolean
     }
 }
-export async function createAccessTokenMutationParams(params: CreateAccessTokenMutationParams) {
+export async function createAccessTokenMutation(params: CreateAccessTokenMutationParams): Promise<string | undefined> {
     const response = await client.models.TemporaryAccessToken.create({
         expire: params.expires?.toISOString(),
         collectionId: params.collectionId,
@@ -346,6 +347,34 @@ export async function updateParticipantMutation(params: UpdateParticipantMutatio
         middleName: params.middleName,
         contact: params.contact
     })
+}
+
+export interface CreateTempUserProfileParams {
+    email: string,
+}
+export async function createTempUserProfileMutation(params: CreateTempUserProfileParams): Promise<UserProfile | undefined> {
+    const response = await client.models.UserProfile.create({
+        email: params.email,
+    }, { authMode: 'identityPool'})
+    if(response.data){
+        const mappedProfile: UserProfile = {
+            ...response.data,
+            sittingNumber: -1,
+            userTags: [],
+            timeslot: undefined,
+            participant: [],
+            participantFirstName: undefined,
+            participantLastName: undefined,
+            participantPreferredName: undefined,
+            participantMiddleName: undefined,
+            preferredContact: 'EMAIL',
+            participantContact: false,
+            participantEmail: undefined,
+            activeParticipant: undefined,
+        }
+
+        return mappedProfile
+    }
 }
 
 export const getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({

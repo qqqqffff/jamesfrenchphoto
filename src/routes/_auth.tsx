@@ -7,7 +7,7 @@ interface AuthSearchParams {
 
 export const Route = createFileRoute('/_auth')({
   validateSearch: (search: Record<string, unknown>): AuthSearchParams => ({
-    temporaryToken: (search.token as string) || undefined
+    temporaryToken: (search.temporaryToken as string) || undefined
   }),
   beforeLoad: async ({ context, location, search }) => {
     //old code assistant

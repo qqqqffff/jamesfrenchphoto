@@ -8,6 +8,8 @@ import { UserColumnModal as userColumn } from './UserColumn';
 import { CreatePackageModal as createPackage } from './CreatePackage';
 import { CreateCollectionModal as createCollection } from './CreateCollection';
 import { EditTimeslotModal as editTimeslot } from './EditTimeslotModal';
+import { ShareCollectionModal as shareCollection } from './ShareCollection';
+import { UnauthorizedEmailModal as unauthorizedEmail } from './UnauthorizedEmail';
 
 
 export type ModalProps = {
@@ -25,3 +27,5 @@ export const UserColumnModal = userColumn
 export const CreatePackageModal = createPackage
 export const CreateCollectionModal = createCollection
 export const EditTimeslotModal = editTimeslot
+export const ShareCollectionModal = shareCollection
+export const UnauthorizedEmailModal = unauthorizedEmail

@@ -13,14 +13,15 @@ const client = generateClient<Schema>()
 
 interface GetAllPicturePathsByPhotoSetOptions {
     resolveUrls?: boolean,
-    user?: string
+    user?: string,
+    unauthenticated?: boolean
 } 
 async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: string, options?: GetAllPicturePathsByPhotoSetOptions): Promise<PicturePath[] | null> {
     console.log('api call')
     if(!setId) return null
     const pathResponse = await client.models.PhotoPaths.listPhotoPathsBySetId({
         setId: setId
-    })
+    }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
     const mappedPaths: PicturePath[] = await Promise.all(pathResponse.data.map(async (path) => {
         let favorite: undefined | string
         if(options?.user){

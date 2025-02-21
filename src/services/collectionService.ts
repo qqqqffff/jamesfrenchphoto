@@ -189,10 +189,11 @@ interface GetPhotoCollectionByIdOptions {
     siPaths?: boolean,
     resolveUrls?: boolean,
     user?: string,
+    unauthenticated?: boolean
 }
 async function getCollectionById(collectionId: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | undefined> {
     console.log('api call')
-    const collection = await client.models.PhotoCollection.get({ id: collectionId })
+    const collection = await client.models.PhotoCollection.get({ id: collectionId }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
     if(!collection || !collection.data) return
     const sets: PhotoSet[] = []
     if(!options || options.siSets){

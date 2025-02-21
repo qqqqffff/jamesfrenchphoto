@@ -7,7 +7,8 @@ export const storage = defineStorage({
         'photo-collections/*': [
             allow.groups(['ADMINS']).to(['read', 'write', 'delete']),
             allow.groups(['USERS']).to(['read']),
-            allow.resource(downloadImages).to(['read'])
+            allow.resource(downloadImages).to(['read']),
+            allow.guest.to(['read']),
         ],
         'packages/*': [
             allow.groups(['ADMINS']).to(['read', 'write', 'delete']),
@@ -15,7 +16,8 @@ export const storage = defineStorage({
         ],
         'watermarks/*': [
             allow.groups(['ADMINS']).to(['read', 'write', 'delete']),
-            allow.groups(['USERS']).to(['read'])
+            allow.groups(['USERS']).to(['read']),
+            allow.guest.to(['read']),
         ]
     })
 })
