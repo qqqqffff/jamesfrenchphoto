@@ -1,5 +1,5 @@
 import { Dispatch, FC, SetStateAction, useState } from "react"
-import { UserTag, Watermark, PhotoCollection, PhotoSet } from "../../../types"
+import { UserTag, Watermark, PhotoCollection, PhotoSet, ShareTemplate } from "../../../types"
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
 import { getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
@@ -9,17 +9,32 @@ import { SetList } from "./SetList"
 import { CreateCollectionModal, ShareCollectionModal } from "../../modals"
 import { useNavigate } from "@tanstack/react-router"
 import { PhotoSetPannel } from "./PhotoSetPannel"
-import { deleteCoverMutation, DeleteCoverParams, getPathQueryOptions, updateCollectionMutation, UpdateCollectionParams } from "../../../services/collectionService"
+import { 
+  deleteCoverMutation, 
+  DeleteCoverParams, 
+  getPathQueryOptions, 
+  updateCollectionMutation, 
+  UpdateCollectionParams 
+} from "../../../services/collectionService"
 import Loading from "../../common/Loading"
 import { detectDuplicates } from "./utils"
 import { PublishableItems } from "./PublishableItems"
 import { AuthContext } from "../../../auth"
 import { FavoritePannel } from "./FavoritePannel"
 import { HiOutlineUpload } from "react-icons/hi"
-import { deleteWatermarkMutation, DeleteWatermarkParams, uploadWatermarksMutation, WatermarkUploadParams } from "../../../services/watermarkService"
+import { 
+  deleteWatermarkMutation, 
+  DeleteWatermarkParams, 
+  uploadWatermarksMutation,
+  WatermarkUploadParams 
+} from "../../../services/watermarkService"
 import { parsePathName } from "../../../utils"
 import { WatermarkPannel } from "./WatermarkPannel"
 import { SharePannel } from "./SharePannel"
+import { 
+  deleteShareTemplateMutation, 
+  DeleteShareTemplateParams,  
+} from "../../../services/shareService"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
@@ -30,7 +45,9 @@ interface PhotoCollectionPannelProps {
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   set?: PhotoSet,
   auth: AuthContext,
-  parentActiveConsole: 'sets' | 'favorites' | 'watermarks' | 'share'
+  parentActiveConsole: 'sets' | 'favorites' | 'watermarks' | 'share',
+  shareTemplates: ShareTemplate[],
+  updateShareTemplates: Dispatch<SetStateAction<ShareTemplate[]>>
 }
 
 interface Publishable {
@@ -42,7 +59,8 @@ interface Publishable {
 //TODO: update cover should update parent
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
   watermarkObjects, updateWatermarkObjects, availableTags, collection, 
-  set, updateParentCollection, auth, parentActiveConsole
+  set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
+  updateShareTemplates
 }) => {
   const [createSet, setCreateSet] = useState(false)
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
@@ -51,6 +69,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
   const [coverPath, setCoverPath] = useState(collection.coverPath)
   const [shareVisible, setShareVisible] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<ShareTemplate>()
 
   const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share'>(parentActiveConsole)
 
@@ -75,6 +94,10 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
 
   const deleteWatermark = useMutation({
     mutationFn: (params: DeleteWatermarkParams) => deleteWatermarkMutation(params), 
+  })
+
+  const deleteShareTemplate = useMutation({
+    mutationFn: (params: DeleteShareTemplateParams) => deleteShareTemplateMutation(params)
   })
 
   const watermarkPaths = useQueries({
@@ -115,8 +138,6 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
 
       return publishable
   })()
-
-  console.log(collection)
 
   return (
     <>
@@ -399,10 +420,57 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                     </div>
                   )
                 })}
-              </>
+              </> 
+            ) : (
+              activeConsole === 'share' ? (
+                <>
+                  <div className="flex flex-row items-center justify-start w-full">
+                    <Label className="text-lg ms-2">Templates</Label>
+                  </div>
+                  <div className="border w-full"></div>
+                  {shareTemplates.map((template) => {
+                    const selected = template.id === selectedTemplate?.id
+                    return (
+                      <div 
+                        className={`border border-gray-300 px-3 py-1 flex flex-row justify-between items-center w-full rounded-lg hover:bg-gray-100 
+                          ${selected ? 'bg-gray-200' : ''}`}
+                        onClick={() => {
+                          if(!selected){
+                            setSelectedTemplate(template)
+                          }
+                        }}
+                      >
+                        <span className="italic font-light">{template.name}</span>
+                        <div className="flex flex-row gap-2 items-center">
+                          <Tooltip content={'Delete'} style="light" placement="bottom">
+                            <button
+                              onClick={() => {
+                                setSelectedTemplate((prev) => {
+                                  if(prev?.id === template.id){
+                                    return undefined
+                                  }
+                                  return prev
+                                })
+                                updateShareTemplates((prev) => {
+                                  return prev.filter((parentTemplate) => parentTemplate.id !== template.id)
+                                })
+                                deleteShareTemplate.mutate({
+                                  id: template.id
+                                })
+                              }}
+                            >
+                              <HiOutlineTrash size={20} className="hover:text-gray-700 mt-1"/>
+                            </button>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </> 
             ) : (
               <></>
             )
+          )
           )}
         </div>
         { activeConsole === 'sets' ? (
@@ -472,6 +540,9 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
             <SharePannel 
               collection={collection}
+              selectedTemplate={selectedTemplate}
+              updateParentSelectedTemplate={setSelectedTemplate}
+              updateParentTemplates={updateShareTemplates}
             />
           </div>
         )))}

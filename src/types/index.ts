@@ -61,6 +61,15 @@ export type Favorite = {
     pathId: string,
 }
 
+export type ShareTemplate = {
+    id: string,
+    name: string,
+    header?: string,
+    header2?: string,
+    body?: string,
+    footer?: string,
+}
+
 export type PicturePath = {
     id: string;
     url: string;

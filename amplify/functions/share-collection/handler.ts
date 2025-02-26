@@ -178,7 +178,7 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
   </table><table class="module" role="module" data-type="text" border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;" data-muid="cb56948d-1f08-4be0-8178-b17cd448e133" data-mc-module-version="2019-10-22">
     <tbody>
       <tr>
-        <td style="padding:40px 0px 10px 40px; line-height:36px; text-align:inherit; background-color:#739e86;" height="100%" valign="top" bgcolor="#739e86" role="module-content">
+        <td style="padding:40px 0px 10px 40px; line-height:36px; text-align:inherit; background-color:#85c1e9;" height="100%" valign="top" bgcolor="#739e86" role="module-content">
           <div>
             <div style="font-family: inherit; text-align: inherit;">
               <span style="color: #ffffff; font-size: 42px; font-family: inherit; text-wrap-mode: wrap; text-wrap: stable;">{{header_1}}</span>
@@ -192,7 +192,7 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
   </table><table class="module" role="module" data-type="text" border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;" data-muid="cb56948d-1f08-4be0-8178-b17cd448e133.1" data-mc-module-version="2019-10-22">
     <tbody>
       <tr>
-        <td style="padding:18px 0px 30px 40px; line-height:28px; text-align:inherit; background-color:#739e86;" height="100%" valign="top" bgcolor="#739e86" role="module-content">
+        <td style="padding:18px 0px 30px 40px; line-height:28px; text-align:inherit; background-color:#85c1e9;" height="100%" valign="top" bgcolor="#739e86" role="module-content">
           <div>
             <div style="font-family: inherit; text-align: inherit">
               <span style="color: #ffffff; font-size: 28px; font-family: inherit; text-wrap-mode: wrap; text-wrap: stable;">{{header_2}}</span>
@@ -216,7 +216,7 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
         <td style="padding:40px 20px 10px 40px; line-height:28px; text-align:inherit; background-color:#ffffff;" height="100%" valign="top" bgcolor="#ffffff" role="module-content">
           <div>
             <div style="font-family: inherit; text-align: inherit">
-              <span style="color: #c64f4f; font-size: 28px; font-family: inherit; text-wrap-mode: wrap; text-wrap: stable;">{{body_1}}</span>
+              <span style="color: #2874a6; font-size: 28px; font-family: inherit; text-wrap-mode: wrap; text-wrap: stable;">{{body_1}}</span>
             </div>
             <div></div>
           </div>
@@ -229,7 +229,7 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
         <td style="padding:18px 20px 30px 40px; line-height:20px; text-align:inherit; background-color:#ffffff;" height="100%" valign="top" bgcolor="#ffffff" role="module-content">
           <div>
             <div style="font-family: inherit; text-align: inherit">
-              <span style="color: #c64f4f; font-size: 18px; font-family: inherit; text-wrap-mode: wrap; text-wrap: stable;">{{footer}}</span>
+              <span style="color: #2874a6; font-size: 18px; font-family: inherit; text-wrap-mode: wrap; text-wrap: stable;">{{footer}}</span>
             </div>
             <div></div>
           </div>
@@ -243,7 +243,7 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
           <table border="0" cellpadding="0" cellspacing="0" align="center" width="100%" height="3px" style="line-height:3px; font-size:3px;">
             <tbody>
               <tr>
-                <td style="padding:0px 0px 3px 0px;" bgcolor="#c64f4f"></td>
+                <td style="padding:0px 0px 3px 0px;" bgcolor="#2874a6"></td>
               </tr>
             </tbody>
           </table>
@@ -266,8 +266,8 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
                             <div>
                               <div style="font-family: inherit; text-align: inherit">
                                 <a href={{collection_link}}>
-                                  <span style="color: #c64f4f; font-size: 18px; font-family: inherit">
-                                    <u>View Collection here</u>
+                                  <span style="color: #2874a6; font-size: 18px; font-family: inherit">
+                                    <u>View Collection Here</u>
                                   </span>
                                 </a>
                               </div>

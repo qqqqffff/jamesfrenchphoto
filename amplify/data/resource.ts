@@ -272,6 +272,17 @@ const schema = a.schema({
     .handler(a.handler.function(shareCollection))
     .authorization((allow) => [allow.group('ADMINS')])
     .returns(a.json()),
+  ShareTemplates: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      header: a.string(),
+      header2: a.string(),
+      body: a.string(),
+      footer: a.string(),
+    })
+    .authorization((allow) => [allow.group('ADMINS')])
+    .identifier(['id']),
   DownloadImages: a
     .query()
     .arguments({

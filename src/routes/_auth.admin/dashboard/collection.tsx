@@ -9,11 +9,12 @@ import { PhotoCollectionPannel } from '../../../components/admin/collection/Phot
 import { useQuery } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
 import { useState } from 'react'
-import { PhotoCollection, PhotoSet, Watermark } from '../../../types'
+import { PhotoCollection, PhotoSet, ShareTemplate, Watermark } from '../../../types'
 import { Progress, TextInput, Tooltip } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
+import { getAllShareTemplatesQueryOptions } from '../../../services/shareService'
 
 interface CollectionSearchParams {
   collection?: string,
@@ -32,6 +33,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   loader: async ({ context }) => {
     const availableTags = await context.queryClient.ensureQueryData(getAllUserTagsQueryOptions({ siCollections: false }))
     const watermarkObjects = await context.queryClient.ensureQueryData(getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
+    const shareTemplates = await context.queryClient.ensureQueryData(getAllShareTemplatesQueryOptions())
     let collection: PhotoCollection | undefined
     let set: PhotoSet | undefined
     if(context.collection){
@@ -48,16 +50,26 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
       collection,
       set,
       auth: context.auth,
-      collectionConsole: context.console ?? 'sets'
+      collectionConsole: context.console ?? 'sets',
+      templates: shareTemplates,
     }
   }
 })
 
 function RouteComponent() {
-  const { availableTags, watermarkObjects, collection, set, auth, collectionConsole } = Route.useLoaderData()
+  const { 
+    availableTags, 
+    watermarkObjects, 
+    collection, 
+    set, 
+    auth, 
+    collectionConsole,
+    templates
+  } = Route.useLoaderData()
   const navigate = useNavigate()
 
   const [watermarks, setWatermarks] = useState<Watermark[]>(watermarkObjects)
+  const [shareTemplates, setShareTemplates] = useState<ShareTemplate[]>(templates)
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
   const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
   const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>(collection)
@@ -68,6 +80,7 @@ function RouteComponent() {
     siPaths: true,
     metric: true,
   }))
+
 
   function filterItems(term: string): undefined | void {
     if (!term || !collections.data || collections.data.length <= 0) {
@@ -254,6 +267,8 @@ function RouteComponent() {
             )
             ))
           }
+          shareTemplates={shareTemplates}
+          updateShareTemplates={setShareTemplates}
         />
       )}
     </>

@@ -479,33 +479,7 @@ export async function reorderSetsMutation(params: ReorderSetsParams){
     if(params.options?.logging) console.log(response)
 }
 
-export interface ShareCollectionParams {
-    emails: string[],
-    header?: string,
-    header2?: string,
-    body?: string,
-    footer?: string,
-    coverPath: string,
-    link?: string,
-    name: string,
-    options?: {
-        logging: boolean
-    }
-}
-export async function shareCollectionMutation(params: ShareCollectionParams){
-    //TODO: implement link creation if dne
-    const response = await client.queries.ShareCollection({
-        email: params.emails,
-        header: params.header,
-        header2: params.header2,
-        body: params.body,
-        footer: params.footer,
-        coverPath: params.coverPath,
-        link: params.link ?? '',
-        name: params.name,
-    })
-    if(params.options?.logging) console.log(response)
-}
+
 
 export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOptions({
     queryKey: ['photoCollection', client, tags],
