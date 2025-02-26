@@ -244,12 +244,15 @@ function RouteComponent() {
             collectionConsole === 'favorites' ? (
               'favorites' as 'favorites'
             ) : (
-              collectionConsole === 'watermarks' ? (
-                'watermarks' as 'watermarks'
-              ) : (
-                'sets' as 'sets'
-              )
+            collectionConsole === 'watermarks' ? (
+              'watermarks' as 'watermarks'
+            ) : (
+            collectionConsole === 'share' ? (
+              'share' as 'share'
+            ) : (
+              'sets' as 'sets'
             )
+            ))
           }
         />
       )}

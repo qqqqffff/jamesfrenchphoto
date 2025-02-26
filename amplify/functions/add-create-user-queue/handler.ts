@@ -3,7 +3,7 @@ import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { Schema } from "../../data/resource";
 import { v4 } from 'uuid'
 import { stackConstants } from '../../constants';
-import { EmailType } from '../../custom/types';
+import { EmailType } from '../../custom/email/types';
 
 const sqsClient = new SQSClient()
 const dynamoClient = new DynamoDBClient()

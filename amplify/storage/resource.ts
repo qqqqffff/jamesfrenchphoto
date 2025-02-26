@@ -1,5 +1,6 @@
 import { defineStorage } from "@aws-amplify/backend";
 import { downloadImages } from "../functions/download-images/resource";
+import { shareCollection } from "../functions/share-collection/resource";
 
 export const storage = defineStorage({
     name: 'jamesfrenchphoto',
@@ -10,6 +11,12 @@ export const storage = defineStorage({
             allow.resource(downloadImages).to(['read']),
             allow.guest.to(['read']),
         ],
+        'photo-collections/covers/*': [
+            allow.groups(['ADMINS']).to(['read', 'write', 'delete']),
+            allow.groups(['USERS']).to(['read']),
+            allow.guest.to(['read']),
+            allow.resource(shareCollection).to(['read'])
+        ],
         'packages/*': [
             allow.groups(['ADMINS']).to(['read', 'write', 'delete']),
             allow.groups(['USERS']).to(['read'])
@@ -19,5 +26,6 @@ export const storage = defineStorage({
             allow.groups(['USERS']).to(['read']),
             allow.guest.to(['read']),
         ]
-    })
+    }),
+    isDefault: true
 })

@@ -7,7 +7,7 @@ import { verifyContactChallenge } from '../functions/verify-contact-challenge/re
 import { sendTimeslotConfirmation } from '../functions/send-timeslot-confirmation/resource';
 import { updateUserAttribute } from '../auth/update-user-attribute/resource';
 import { downloadImages } from '../functions/download-images/resource';
-import { CfnCollection } from 'aws-cdk-lib/aws-opensearchserverless';
+import { shareCollection } from '../functions/share-collection/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -257,6 +257,21 @@ const schema = a.schema({
     .handler(a.handler.function(sendTimeslotConfirmation))
     .authorization((allow) => [allow.authenticated()])
     .returns(a.json()),
+  ShareCollection: a
+    .query()
+    .arguments({
+      email: a.string().required().array().required(),
+      header: a.string(),
+      header2: a.string(),
+      body: a.string(),
+      footer: a.string(),
+      coverPath: a.string().required(),
+      link: a.string().required(),
+      name: a.string().required(),
+    })
+    .handler(a.handler.function(shareCollection))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.json()),
   DownloadImages: a
     .query()
     .arguments({
@@ -276,7 +291,10 @@ const schema = a.schema({
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['read'])])
 })
-.authorization((allow) => [allow.resource(postConfirmation), allow.resource(addCreateUserQueue)]);
+.authorization((allow) => [
+  allow.resource(postConfirmation),
+  allow.resource(addCreateUserQueue),
+]);
 
 export type Schema = ClientSchema<typeof schema>;
 

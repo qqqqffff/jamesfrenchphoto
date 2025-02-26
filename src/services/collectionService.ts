@@ -414,6 +414,7 @@ export async function deleteCollectionMutation(params: DeleteCollectionParams) {
 export interface DeleteCoverParams {
     cover?: string,
     collectionId: string,
+    replacement?: boolean,
     options?: {
         logging: boolean,
     }
@@ -423,12 +424,17 @@ export async function deleteCoverMutation(params: DeleteCoverParams){
     const s3response = await remove({
         path: params.cover,
     })
-    const dynamoResponse = await client.models.PhotoCollection.update({
-        id: params.collectionId,
-        coverPath: null,
-    })
 
-    if(params.options?.logging) console.log(s3response, dynamoResponse)
+    if(params.options?.logging) console.log(s3response)
+
+    if(!params.replacement){
+        const dynamoResponse = await client.models.PhotoCollection.update({
+            id: params.collectionId,
+            coverPath: null,
+        })
+        if(params.options?.logging) console.log(dynamoResponse)
+    }
+
 }
 
 export interface UploadCoverParams {
@@ -440,7 +446,7 @@ export interface UploadCoverParams {
 }
 export async function uploadCoverMutation(params: UploadCoverParams){
     const s3response = await uploadData({
-        path: `photo-collections/${params.collectionId}/cover_${params.cover.name}`,
+        path: `photo-collections/covers/${params.collectionId}_${params.cover.name}`,
         data: params.cover,
     }).result
     
@@ -470,6 +476,34 @@ export async function reorderSetsMutation(params: ReorderSetsParams){
         return dynamoResponse
     }))
 
+    if(params.options?.logging) console.log(response)
+}
+
+export interface ShareCollectionParams {
+    emails: string[],
+    header?: string,
+    header2?: string,
+    body?: string,
+    footer?: string,
+    coverPath: string,
+    link?: string,
+    name: string,
+    options?: {
+        logging: boolean
+    }
+}
+export async function shareCollectionMutation(params: ShareCollectionParams){
+    //TODO: implement link creation if dne
+    const response = await client.queries.ShareCollection({
+        email: params.emails,
+        header: params.header,
+        header2: params.header2,
+        body: params.body,
+        footer: params.footer,
+        coverPath: params.coverPath,
+        link: params.link ?? '',
+        name: params.name,
+    })
     if(params.options?.logging) console.log(response)
 }
 

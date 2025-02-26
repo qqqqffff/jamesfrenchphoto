@@ -19,6 +19,8 @@ import { HiOutlineUpload } from "react-icons/hi"
 import { deleteWatermarkMutation, DeleteWatermarkParams, uploadWatermarksMutation, WatermarkUploadParams } from "../../../services/watermarkService"
 import { parsePathName } from "../../../utils"
 import { WatermarkPannel } from "./WatermarkPannel"
+import { SharePannel } from "./SharePannel"
+
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
@@ -28,7 +30,7 @@ interface PhotoCollectionPannelProps {
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   set?: PhotoSet,
   auth: AuthContext,
-  parentActiveConsole: 'sets' | 'favorites' | 'watermarks'
+  parentActiveConsole: 'sets' | 'favorites' | 'watermarks' | 'share'
 }
 
 interface Publishable {
@@ -37,6 +39,7 @@ interface Publishable {
   warning?: string[]
 }
 
+//TODO: update cover should update parent
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
   watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole
@@ -49,7 +52,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const [coverPath, setCoverPath] = useState(collection.coverPath)
   const [shareVisible, setShareVisible] = useState(false)
 
-  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks'>(parentActiveConsole)
+  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share'>(parentActiveConsole)
 
   const navigate = useNavigate()
 
@@ -112,6 +115,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
 
       return publishable
   })()
+
+  console.log(collection)
 
   return (
     <>
@@ -255,6 +260,17 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             >
               Watermarks
             </button>
+            <button
+              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'share' ? 'text-black' : 'text-gray-400'}`}
+              onClick={() => {
+                if(activeConsole !== 'share') {
+                  navigate({ to: '.', search: { collection: collection.id, console: 'share' }})
+                  setActiveConsole('share')
+                }
+              }}
+            >
+              Share
+            </button>
           </div>
           {activeConsole === 'sets' ? (
             <>
@@ -390,69 +406,75 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
           )}
         </div>
         { activeConsole === 'sets' ? (
-          selectedSet ? (
-            setQuery.isLoading || setQuery.isRefetching ? (
+            selectedSet ? (
+              setQuery.isLoading || setQuery.isRefetching ? (
+                <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+                  <div className="flex flex-row items-center justify-center">
+                    <p>Loading</p>
+                    <Loading />
+                  </div>
+                </div>
+              ) : (
+                <PhotoSetPannel 
+                  photoCollection={collection} 
+                  photoSet={setQuery.data ?? selectedSet} 
+                  paths={setQuery.data?.paths ?? []}
+                  deleteParentSet={(setId) => {
+                    const updatedSetList = setList
+                        .filter((set) => set.id !== setId)
+                        .sort((a, b) => a.order - b.order)
+                        .map((set, index) => ({ ...set, order: index}))
+                    
+                    setSetList(updatedSetList)
+                    setSelectedSet(undefined)
+                  }}
+                  parentUpdateSet={(updatedSet) => {
+                    const temp = setList.map((set) => {
+                      if(set.id === updatedSet.id){
+                        return updatedSet
+                      }
+                      return set
+                    })
+                    setSetList(temp)
+                    setSelectedSet(updatedSet)
+                  }}
+                  updateParentCollection={updateParentCollection}
+                  auth={auth}
+                />
+              )
+            ) : (
               <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
                 <div className="flex flex-row items-center justify-center">
-                  <p>Loading</p>
-                  <Loading />
+                  <p>Click a set to view it here!</p>
                 </div>
               </div>
-            ) : (
-              <PhotoSetPannel 
-                photoCollection={collection} 
-                photoSet={setQuery.data ?? selectedSet} 
-                paths={setQuery.data?.paths ?? []}
-                deleteParentSet={(setId) => {
-                  const updatedSetList = setList
-                      .filter((set) => set.id !== setId)
-                      .sort((a, b) => a.order - b.order)
-                      .map((set, index) => ({ ...set, order: index}))
-                  
-                  setSetList(updatedSetList)
-                  setSelectedSet(undefined)
-                }}
-                parentUpdateSet={(updatedSet) => {
-                  const temp = setList.map((set) => {
-                    if(set.id === updatedSet.id){
-                      return updatedSet
-                    }
-                    return set
-                  })
-                  setSetList(temp)
-                  setSelectedSet(updatedSet)
-                }}
-                updateParentCollection={updateParentCollection}
-                auth={auth}
-              />
-            )
-          ) : (
-            <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-              <div className="flex flex-row items-center justify-center">
-                <p>Click a set to view it here!</p>
-              </div>
-            </div>
           )
         ) : (
           activeConsole === 'favorites' ? (
-            <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-              <FavoritePannel 
-                collection={collection}
-              />
-            </div>
-          ) : (
-            <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-              <WatermarkPannel 
-                collection={collection}
-                updateCollection={updateParentCollection}
-                watermarkObjects={watermarkObjects}
-                watermarkPaths={watermarkPaths}
-                selectedWatermark={selectedWatermark}
-                setSelectedWatermark={setSelectedWatermark}
-              />
-            </div>
-          )
-        )}
+          <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+            <FavoritePannel 
+              collection={collection}
+            />
+          </div>
+        ) : (
+          activeConsole === 'watermarks' ? (
+          <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+            <WatermarkPannel 
+              collection={collection}
+              updateCollection={updateParentCollection}
+              watermarkObjects={watermarkObjects}
+              watermarkPaths={watermarkPaths}
+              selectedWatermark={selectedWatermark}
+              setSelectedWatermark={setSelectedWatermark}
+            />
+          </div>
+        ) : (
+          <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+            <SharePannel 
+              collection={collection}
+            />
+          </div>
+        )))}
       </div>
     </>
   )
