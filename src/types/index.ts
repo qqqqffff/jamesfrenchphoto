@@ -87,6 +87,7 @@ export type Watermark = {
 export type PhotoCollection = {
     name: string;
     coverPath?: string;
+    publicCoverPath?: string;
     createdAt: string;
     id: string;
     updatedAt: string;

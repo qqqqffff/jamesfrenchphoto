@@ -1,9 +1,5 @@
 import { Schema } from "../../data/resource";
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import sgMail from '@sendgrid/mail'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-
-const client = new S3Client()
 
 const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html data-editor-version="2" class="sg-campaigns" xmlns="http://www.w3.org/1999/xhtml">
@@ -164,7 +160,7 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
           <td style="padding:0px;margin:0px;border-spacing:0;"><table class="wrapper" role="module" data-type="image" border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;" data-muid="f4a414df-a163-417a-95dd-bbcbad52b8a0">
     <tbody>
       <tr>
-        <td style="font-size:6px; line-height:10px; padding:0px 0px 0px 0px;" valign="top" align="left">
+        <td style="font-size:6px; line-height:10px; padding:0px 0px 0px 0px;" valign="top" align="center">
           <span class="max-width" border="0" style="display:block; color:#ffffff; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:24px;" width="251" alt="" data-proportionally-constrained="true" data-responsive="false" src="" height="33">James French Photography</span>
         </td>
       </tr>
@@ -205,8 +201,11 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
   </table><table class="wrapper" role="module" data-type="image" border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;" data-muid="a14e01f4-fd68-4f7a-bb08-453a2be0f1c9">
     <tbody>
       <tr>
-        <td style="font-size:6px; line-height:10px; padding:0px 0px 0px 0px;" valign="top" align="center">
-          <img class="max-width" border="0" style="display:block; color:#000000; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; width:100%; height:auto !important;" width="600" alt="" data-proportionally-constrained="true" data-responsive="true" src={{cover_path}}>
+        <td style="font-size:6px; line-height:10px; padding-left: 1rem; padding-right: 1rem; position: relative;" valign="top" align="center">
+          <div style="position: relative; display: inline-block; width: 100%;">
+            <img class="max-width" border="0" style="display:block; color:#000000; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; width:100%; height:auto !important;" width="600" alt="" data-proportionally-constrained="true" data-responsive="true" src="../../../secrets/CAMI5795.jpg">
+            <span style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #000000; font-size: 32px; font-family: inherit; bottom: -100px;">{{collection_name}}</span>
+          </div>
         </td>
       </tr>
     </tbody>
@@ -322,61 +321,25 @@ export const handler: Schema['ShareCollection']['functionHandler'] = async (even
 
   if(!process.env.SENDGRID_API_KEY) return JSON.stringify('Missing API Key')
   sgMail.setApiKey(process.env.SENDGRID_API_KEY)
-  const bucketName = process.env.BUCKET_NAME
-  if(!bucketName) return JSON.stringify('Missing bucket name')
-
-  //fetch image
-  const command = new GetObjectCommand({
-    Key: event.arguments.coverPath,
-    Bucket: bucketName
-  })
-
-  //TODO: do without signed urls
-  const signedUrl = await getSignedUrl(client, command)
-
-
-  // const extension = event.arguments.coverPath.substring(event.arguments.coverPath.indexOf('.') + 1)
-  // const contentType = (() => {
-  //   switch (extension) {
-  //     case 'jpg':
-  //     case 'jpeg':
-  //       return 'image/jpeg';
-  //     case 'png':
-  //       return 'image/png';
-  //     case 'gif':
-  //       return 'image/gif';
-  //     case 'webp':
-  //       return 'image/webp';
-  //     default:
-  //       return null
-  //   }
-  // })()
-
-  // if(!s3image.ContentType || !s3image.Body || !contentType) return JSON.stringify('Missing Image')
-
-  
-  // const image64 = await s3image.Body.transformToString('base64')
-  // const base64datauri = `data:${contentType};base64,${image64}`
+  if(!process.env.BASE_LINK) return JSON.stringify('Missing Base Link')
 
   //elements
   const header = event.arguments.header
   const header2 = event.arguments.header2
   const body = event.arguments.body
   const footer = event.arguments.footer
-  const link = event.arguments.link
+  const link = process.env.BASE_LINK + '/' + event.arguments.link
   const name = event.arguments.name
-
-  // let template = await fs.readFile('./template.html', 'utf-8')
-  const url = `https://d7cmzhaoo03xh.cloudfront.net/photo-collections/covers/e9373e44-76ce-4ae6-b1f4-ec8660e5a3ed_CAMI5795.jpg`
-
+  
   //transformation
   const modifiedTemplate = template
     .replace('{{header_1}}', header ?? '')
     .replace('{{header_2}}', header2 ?? '')
-    .replace('{{cover_path}}', `'${signedUrl}'`)
+    .replace('{{cover_path}}', `'${link}'`)
     .replace('{{body_1}}', body ?? '')
     .replace('{{footer}}', footer ?? '')
     .replace('{{collection_link}}', `'${link}'`)
+    .replace('{{collection_name}}', name)
 
   //send message
 
@@ -385,14 +348,6 @@ export const handler: Schema['ShareCollection']['functionHandler'] = async (even
     from: 'no-reply@jamesfrenchphotography.com',
     subject: `James French Photography Collection: ${name}`,
     html: modifiedTemplate,
-    // attachments: [
-    //   {
-    //     content: image64,
-    //     filename: `${event.arguments.coverPath.substring(event.arguments.coverPath.indexOf('_') + 1)}`,
-    //     type: contentType,
-    //     contentId: 'cover',
-    //   }
-    // ]
   }
 
   const response = await sgMail.send(message)

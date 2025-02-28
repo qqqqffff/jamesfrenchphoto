@@ -58,6 +58,7 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
             const mappedCollection: PhotoCollection = {
                 ...collection,
                 coverPath: collection.coverPath ?? undefined,
+                publicCoverPath: collection.publicCoverPath ?? undefined,
                 downloadable: collection.downloadable ?? false,
                 watermarkPath: collection.watermarkPath ?? undefined,
                 tags: mappedTags,
@@ -105,6 +106,7 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
             const mappedCollection: PhotoCollection = {
                 ...collectionResponse.data,
                 coverPath: collectionResponse.data.coverPath ?? undefined,
+                publicCoverPath: collectionResponse.data.publicCoverPath ?? undefined,
                 downloadable: collectionResponse.data.downloadable ?? false,
                 watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
                 tags: tags,
@@ -241,6 +243,7 @@ async function getCollectionById(collectionId: string, options?: GetPhotoCollect
         watermarkPath: collection.data.watermarkPath ?? undefined,
         downloadable: collection.data.downloadable ?? false,
         coverPath: collection.data.coverPath ?? undefined,
+        publicCoverPath: collection.data.publicCoverPath ?? undefined,
         items: collection.data.items ?? 0,
         published: collection.data.published ?? false,
         sets: sets.sort((a, b) => a.order - b.order),
@@ -284,6 +287,7 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
     const returnedCollection: PhotoCollection = {
         ...collectionResponse.data,
         coverPath: coverPath,
+        publicCoverPath: coverPath,
         tags: params.tags,
         downloadable: params.downloadable,
         watermarkPath: undefined,

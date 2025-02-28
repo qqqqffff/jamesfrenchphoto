@@ -4,7 +4,7 @@ export const shareCollection = defineFunction({
   name: 'share-collection',
   entry: './handler.ts',
   environment: {
-    BUCKET_NAME: secret('jamesfrenchphoto-bucket'),
-    SENDGRID_API_KEY: secret('sendgrid-api-key')
+    SENDGRID_API_KEY: secret('sendgrid-api-key'),
+    BASE_LINK: secret('cloudfront-base-link')
   }
 })

@@ -216,9 +216,7 @@ function RouteComponent() {
             </Button>
           )}
         </div>
-        <div className="flex flex-row justify-center items-center mb-2 relative bg-gray-200" 
-          
-        >
+        <div className="flex flex-row justify-center items-center mb-2 relative bg-gray-200">
           <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
             <p className={`${dimensions.width > 1600 ? "text-5xl" : 'text-3xl' } font-thin opacity-90`}>{collection.name}</p>
             <p className="italic text-xl opacity-90">{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>

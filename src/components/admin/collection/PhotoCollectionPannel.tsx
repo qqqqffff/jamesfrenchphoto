@@ -197,6 +197,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   </Dropdown.Item>
                   <Tooltip
                     style="light"
+                    arrow
                     className={`${((publishable?.reason?.length ?? 0) < 0 && (publishable.warning?.length ?? 0) < 0) ? 'hidden' : ''}`}
                     content={(
                       <div className="flex flex-col gap-1 justify-start max-h-[200px] overflow-y-scroll z-20">

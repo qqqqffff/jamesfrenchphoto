@@ -8,6 +8,8 @@ import { sendTimeslotConfirmation } from '../functions/send-timeslot-confirmatio
 import { updateUserAttribute } from '../auth/update-user-attribute/resource';
 import { downloadImages } from '../functions/download-images/resource';
 import { shareCollection } from '../functions/share-collection/resource';
+import { addPublicPhoto } from '../functions/add-public-photo/resource';
+import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -21,6 +23,7 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       coverPath: a.string(),
+      publicCoverPath: a.string(),
       coverType: a.enum(['default']),
       name: a.string().required(),
       tags: a.hasMany('CollectionTag', 'collectionId'),
@@ -291,6 +294,24 @@ const schema = a.schema({
     .handler(a.handler.function(downloadImages))
     .authorization((allow) => [allow.authenticated()])
     .returns(a.string()),
+  AddPublicPhoto: a
+    .query()
+    .arguments({
+      path: a.string().required(),
+      type: a.string().required(),
+      collectionId: a.string(),
+    })
+    .handler(a.handler.function(addPublicPhoto))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.json()),
+  DeletePublicPhoto: a
+    .query()
+    .arguments({
+      path: a.string().required(),
+    })
+    .handler(a.handler.function(deletePublicPhoto))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.json()),
   TemporaryAccessToken: a
     .model({
       id: a.id().required(),

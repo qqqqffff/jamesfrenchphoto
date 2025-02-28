@@ -13,6 +13,7 @@ import { SharePreview } from "./SharePreview";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { textInputTheme } from "../../../utils";
 import { HiOutlineX } from 'react-icons/hi'
+import { HiOutlineExclamationTriangle } from "react-icons/hi2";
 
 interface SharePannelProps {
   collection: PhotoCollection,
@@ -126,6 +127,22 @@ export const SharePannel = (props: SharePannelProps) => {
         return ''
     }
   }
+
+  const resolveError = (() => {
+    let returnString = !props.collection.coverPath ? 'No Cover' : ''
+    returnString += !props.collection.publicCoverPath ? (
+      returnString.length > 0 ? 
+      ', Missing Public Cover Photo (Republish collection and wait)' : 'Missing Public Cover Photo (Republish collection and wait)'
+    ) : ''
+    returnString += !props.collection.published ? (
+      returnString.length > 0 ? 
+        ', Collection is not published.' : 'Collection is not published.'
+    ) : (
+      returnString.length > 0 ? 
+      '.' : ''
+    )
+    return returnString
+  })()
 
   return (
     <>
@@ -309,27 +326,35 @@ export const SharePannel = (props: SharePannelProps) => {
             body={body}
             footer={footer}
           />
-          <Button
-            className="w-fit"
-            onClick={() => {
-              share.mutate({
-                emails: emails,
-                header: header,
-                header2: header2,
-                body: body,
-                footer: footer,
-                coverPath: props.collection.coverPath ?? '',
-                //TODO: resolve link
-                link: '',
-                name: props.collection.name,
-                options: {
-                  logging: true
-                }
-              })
-            }}
-          >
-            Share
-          </Button>
+          <div className="flex flex-row gap-2 items-center">
+            <Button
+              disabled={!props.collection.published || !props.collection.coverPath || !props.collection.publicCoverPath}
+              className="w-fit me-4"
+              onClick={() => {
+                share.mutate({
+                  emails: emails,
+                  header: header,
+                  header2: header2,
+                  body: body,
+                  footer: footer,
+                  coverPath: props.collection.coverPath ?? '',
+                  link: props.collection.publicCoverPath ?? '',
+                  name: props.collection.name,
+                  options: {
+                    logging: true
+                  }
+                })
+              }}
+            >
+              Share
+            </Button>
+            {(!props.collection.published || !props.collection.coverPath || !props.collection.publicCoverPath) && (
+              <>
+                <HiOutlineExclamationTriangle className="text-yellow-400" size={28} />
+                <span className="">{resolveError}</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>
