@@ -13,6 +13,8 @@ import {
   deleteCoverMutation, 
   DeleteCoverParams, 
   getPathQueryOptions, 
+  publishCollectionMutation, 
+  PublishCollectionParams, 
   updateCollectionMutation, 
   UpdateCollectionParams 
 } from "../../../services/collectionService"
@@ -104,6 +106,19 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
     queries: watermarkObjects.map((watermark) => {
       return getPathQueryOptions(watermark.path, watermark.id)
     })
+  })
+
+  const publishCollection = useMutation({
+    mutationFn: (params: PublishCollectionParams) => publishCollectionMutation(params),
+    onSuccess: (data) => {
+      if(data){
+        updateParentCollection({
+          ...collection,
+          published: true,
+          publicCoverPath: data
+        })
+      }
+    }
   })
 
   //all cover paths, each set has paths, warn if less than 20 and if has duplicates
@@ -216,22 +231,41 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   >
                     <Dropdown.Item
                       onClick={() => {
-                        updateParentCollection({
-                          ...collection,
-                          published: !collection.published
-                        })
-                        updateCollection.mutate({
-                          collection: collection,
-                          published: !collection.published
-                        })
+                        if(collection.published){
+                          updateParentCollection({
+                            ...collection,
+                            published: false,
+                            publicCoverPath: undefined
+                          })
+                          publishCollection.mutate({
+                            collectionId: collection.id,
+                            publishStatus: false,
+                            path: collection.publicCoverPath ?? '',
+                            options: {
+                              logging: true,
+                            }
+                          })
+                        }
+                        else if(!collection.published && collection.coverPath){
+                          publishCollection.mutate({
+                            collectionId: collection.id,
+                            publishStatus: true,
+                            path: collection.coverPath,
+                            options: {
+                              logging: true
+                            }
+                          })
+                        }
                       }}
                       disabled={(() => {
                         if(publishable.status) return false
                         if(collection.published) return false
+                        if(publishCollection.isPending) return true
                         return true
                       })()}
                       className="disabled:cursor-not-allowed"
                     >
+                      {/* TODO: display a loading spinner */}
                       <span className={`${!publishable.status ? 'text-gray-500' : ''}`}>{!collection.published ? 'Publish' : 'Unpublish'}</span>
                     </Dropdown.Item>
                   </Tooltip>

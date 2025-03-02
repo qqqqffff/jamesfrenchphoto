@@ -299,11 +299,10 @@ const schema = a.schema({
     .arguments({
       path: a.string().required(),
       type: a.string().required(),
-      collectionId: a.string(),
     })
     .handler(a.handler.function(addPublicPhoto))
     .authorization((allow) => [allow.group('ADMINS')])
-    .returns(a.json()),
+    .returns(a.string()),
   DeletePublicPhoto: a
     .query()
     .arguments({
