@@ -5,6 +5,7 @@ import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
 import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
+import { PutObjectCommandOutput } from "@aws-sdk/client-s3";
 
 const client = generateClient<Schema>()
 
@@ -374,6 +375,49 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
     if(params.options?.logging) console.log(updatedCollection)
 
     return updatedCollection
+}
+
+export interface PublishCollectionParams {
+    collectionId: string,
+    publishStatus: boolean,
+    path: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function publishCollectionMutation(params: PublishCollectionParams) {
+    if(params.publishStatus){
+        const responsePublishPublic = await client.queries.AddPublicPhoto({
+            collectionId: params.collectionId,
+            path: params.path,
+            type: 'cover'
+        })
+
+        if(!responsePublishPublic.data) return null
+
+        const publicPath: { key: string, uploadResult: PutObjectCommandOutput } = JSON.parse(responsePublishPublic.data.toString())
+
+        const response = await client.models.PhotoCollection.update({
+            id: params.collectionId,
+            publicCoverPath: publicPath.key,
+            published: true
+        })
+
+        if(params.options?.logging) console.log(response)
+    }
+    else {
+        const responsePublic = await client.queries.DeletePublicPhoto({ path: params.path })
+
+        if(!responsePublic.data) return null
+        
+        const response = await client.models.PhotoCollection.update({
+            id: params.collectionId,
+            publicCoverPath: null,
+            published: false
+        })
+
+        if(params.options?.logging) console.log(response)
+    }
 }
 
 export interface DeleteCollectionParams {

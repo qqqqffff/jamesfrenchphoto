@@ -9,6 +9,7 @@ import { useState } from "react"
 import { downloadFavoritesMutation, DownloadFavoritesMutationOptions } from "../../../services/photoPathService"
 import { v4 } from 'uuid'
 import { useNavigate } from "@tanstack/react-router"
+import { formatTime } from "../../../utils"
 
 interface FavoritePannelProps {
   collection: PhotoCollection
@@ -62,20 +63,41 @@ export const FavoritePannel = (props: FavoritePannelProps) => {
             ) : (
               undefined
             )
+
+            let created: Date | undefined = entry[1][0].createdAt
+            let updated: Date | undefined = entry[1][0].updatedAt
+
+            entry[1].forEach((favorite) => {
+              if(favorite.createdAt.getTime() < (created?.getTime() ?? Infinity)){
+                created = favorite.createdAt
+              }
+              if(favorite.updatedAt.getTime() > (updated?.getTime() ?? 0)) {
+                updated = favorite.updatedAt
+              }
+            })
+            
+            const formattedCreatedAt = formatTime(created, { timeString: false }) + ' ' + formatTime(created)  
+            const formattedUpdatedAt = formatTime(updated, { timeString: false }) + ' ' + formatTime(updated) 
+            
             return (
               <div 
                 key={index}
                 className="rounded-lg border border-gray-300 grid grid-cols-3 px-2 py-1 items-center"
               >
-                <div className="flex flex-col text-start self-start">
+                <div className="flex flex-col h-full place-self-start justify-center">
                   <span className="font-semibold">{nameString}</span>
                   <span className="font-light italic text-sm">{entry[0].user.email}</span>
                 </div>
-                <span className="text-xl font-light place-self-center">
-                  <span className="italic">Favorites:</span>
-                  <span className="ms-1">{entry[1].length}</span>
-                </span>
-                <div className="flex flex-row items-center place-self-end gap-2">
+                <div className="flex flex-col items-center place-self-center">
+                  <span className="text-xl font-light ">
+                    <span className="italic underline">Favorites:</span>
+                    <span className="ms-1">{entry[1].length}</span>
+                  </span>
+                  <span className="text-xs">Created At: {formattedCreatedAt}</span>
+                  <span className="text-xs">Updated At: {formattedUpdatedAt}</span>
+                </div>
+                
+                <div className="flex flex-row items-center gap-2 h-full place-self-end">
                   <Tooltip content={'Preview Favorites'} style="light">
                     <button
                       className="hover:text-gray-500"

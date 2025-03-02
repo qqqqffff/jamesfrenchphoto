@@ -87,7 +87,9 @@ async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collect
             if(pathResponse !== null){
                 const favorites = await Promise.all((await pathResponse.favorites()).data.map(async (favorite) => {
                     const mappedFavorite: Favorite = {
-                        ...favorite
+                        ...favorite,
+                        createdAt: new Date(favorite.createdAt),
+                        updatedAt: new Date(favorite.updatedAt),
                     }
                     const collectedFavorites = favoriteMap.get(mappedFavorite.userEmail) ?? []
                     favoriteMap.set(mappedFavorite.userEmail, [...collectedFavorites, mappedFavorite])

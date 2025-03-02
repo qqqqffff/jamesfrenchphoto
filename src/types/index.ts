@@ -59,6 +59,8 @@ export type Favorite = {
     id: string,
     userEmail: string,
     pathId: string,
+    createdAt: Date,
+    updatedAt: Date,
 }
 
 export type ShareTemplate = {

@@ -40,6 +40,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({open, onClose, existingTag})
                 const mappedCollection: PhotoCollection = {
                     ...photoCollection,
                     coverPath: photoCollection.coverPath ?? undefined,
+                    publicCoverPath: photoCollection.publicCoverPath ?? undefined,
                     tags: [], //TODO: implement me
                     sets: [], //TODO: implement me
                     downloadable: photoCollection.downloadable ?? false,

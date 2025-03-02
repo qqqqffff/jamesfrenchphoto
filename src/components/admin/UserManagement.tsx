@@ -98,6 +98,7 @@ export default function UserManagement(){
                     const collection: PhotoCollection = {
                         ...collectionData,
                         coverPath: collectionData.coverPath ?? undefined,
+                        publicCoverPath: collectionData.publicCoverPath ?? undefined,
                         downloadable: collectionData.downloadable ?? false, 
                         watermarkPath: collectionData.watermarkPath ?? undefined,
                         tags: [],

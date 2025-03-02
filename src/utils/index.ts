@@ -8,7 +8,9 @@ export function formatTime(time: Date | string | undefined, params?: {timeString
         const dateString = time.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
         return dateString
     }
-    const timeString = time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' }).replace(/[^0-9:]/g, '')
+    const temp = time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })
+    const timeString = temp.substring(0, temp.lastIndexOf(':')) + temp.substring(temp.indexOf(' '))
+
     return timeString
 }
 

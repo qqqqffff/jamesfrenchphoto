@@ -75,6 +75,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                         const mappedCollection: PhotoCollection = {
                             ...collection.data,
                             coverPath: collection.data.coverPath ?? undefined,
+                            publicCoverPath: collection.data.publicCoverPath ?? undefined,
                             watermarkPath: collection.data.watermarkPath ?? undefined,
                             downloadable: collection.data.downloadable ?? false,
                             items: collection.data.items ?? 0,
