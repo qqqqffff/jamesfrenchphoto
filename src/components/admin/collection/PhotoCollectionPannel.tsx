@@ -37,6 +37,7 @@ import {
   deleteShareTemplateMutation, 
   DeleteShareTemplateParams,  
 } from "../../../services/shareService"
+import { CgSpinner } from "react-icons/cg"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
@@ -213,6 +214,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   <Tooltip
                     style="light"
                     arrow
+                    placement="bottom"
+                    trigger="hover"
                     className={`${((publishable?.reason?.length ?? 0) < 0 && (publishable.warning?.length ?? 0) < 0) ? 'hidden' : ''}`}
                     content={(
                       <div className="flex flex-col gap-1 justify-start max-h-[200px] overflow-y-scroll z-20">
@@ -263,9 +266,12 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                         if(publishCollection.isPending) return true
                         return true
                       })()}
-                      className="disabled:cursor-not-allowed"
+                      className={`disabled:cursor-not-allowed flex flex-row gap-2 ${publishCollection.isPending ? 'cursor-wait' : ''}`}
                     >
                       {/* TODO: display a loading spinner */}
+                      {publishCollection.isPending && (
+                        <CgSpinner size={24} className="animate-spin text-gray-600"/>
+                      )}
                       <span className={`${!publishable.status ? 'text-gray-500' : ''}`}>{!collection.published ? 'Publish' : 'Unpublish'}</span>
                     </Dropdown.Item>
                   </Tooltip>

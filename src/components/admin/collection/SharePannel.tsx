@@ -14,6 +14,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { textInputTheme } from "../../../utils";
 import { HiOutlineX } from 'react-icons/hi'
 import { HiOutlineExclamationTriangle } from "react-icons/hi2";
+import validator from 'validator'
 
 interface SharePannelProps {
   collection: PhotoCollection,
@@ -31,10 +32,10 @@ export const SharePannel = (props: SharePannelProps) => {
   const [emails, setEmails] = useState<string[]>([])
   const [email, setEmail] = useState<string>()
   const [name, setName] = useState<string | undefined>(props.selectedTemplate?.name)
+  const [emailError, setEmailError] = useState<string>()
 
   useEffect(() => {
     if(props.selectedTemplate){
-      console.log(props.selectedTemplate)
       setHeader((prev) => (
         prev !== props.selectedTemplate?.header ? (
           props.selectedTemplate?.header
@@ -144,27 +145,71 @@ export const SharePannel = (props: SharePannelProps) => {
     return returnString
   })()
 
+  const link = window.location.href
+    .replace(new RegExp(/admin.*/g), 'photo-collection')
+    + `/${props.collection.id}`
+
   return (
     <>
       <div className="grid grid-cols-2 gap-10">
         <div className="flex flex-col gap-4">
           <div className="flex flex-row gap-4 items-center">
-            <TextInput 
-              theme={textInputTheme} 
-              sizing="md" 
-              className="w-full" 
-              placeholder="Enter Email Here..." 
-              onChange={(event) => {
-                setEmail(event.target.value)
-              }}
-              value={email}
-            />
-            <Button className=""
+            <div className="flex flex-col w-full">
+              <TextInput 
+                theme={textInputTheme} 
+                sizing="md" 
+                className="w-full" 
+                color={`${emailError ? 'failure' : ''}`}
+                helperText={emailError}
+                placeholder="Enter Email Here..." 
+                onKeyDown={(event) => {
+                  if(event.key === 'Enter'){
+                    if(!email){
+                      setEmailError('Email Required')
+                      return
+                    }
+                    if(!validator.isEmail(email)){
+                      setEmailError('Invalid Email Address')
+                      return
+                    }
+                    if(emails.some((value) => value.toLocaleLowerCase() === email.toLocaleLowerCase())){
+                      setEmailError('Email Already Entered')
+                      return
+                    }
+                    if(email){
+                      setEmails([...emails, email])
+                      setEmail('')
+                    }
+                  }
+                }}
+                onChange={(event) => {
+                  if(emailError) {
+                    setEmailError(undefined)
+                    setEmail(event.target.value)
+                    return
+                  }
+                  setEmail(event.target.value)
+                }}
+                value={email}
+              />
+            </div>
+            <Button className="self-start"
               onClick={() => {
-                //TODO: email validation
+                if(!email){
+                  setEmailError('Email Required')
+                  return
+                }
+                if(!validator.isEmail(email)){
+                  setEmailError('Invalid Email Address')
+                  return
+                }
+                if(emails.some((value) => value.toLocaleLowerCase() === email.toLocaleLowerCase())){
+                  setEmailError('Email Already Entered')
+                  return
+                }
                 if(email){
                   setEmails([...emails, email])
-                  setEmail(undefined)
+                  setEmail('')
                 }
               }}
             >
@@ -172,9 +217,10 @@ export const SharePannel = (props: SharePannelProps) => {
             </Button>
           </div>
           <div className="flex flex-row gap-4 flex-wrap">
-            {emails.map((email) => {
+            {emails.map((email, index) => {
               return (
                 <Badge 
+                  key={index}
                   className="hover:bg-gray-200 hover:cursor-pointer px-4 text-wrap"
                   onClick={() => {
                     setEmails(emails.filter((e) => e !== email))
@@ -330,6 +376,7 @@ export const SharePannel = (props: SharePannelProps) => {
             <Button
               disabled={!props.collection.published || !props.collection.coverPath || !props.collection.publicCoverPath}
               className="w-fit me-4"
+              isProcessing={share.isPending}
               onClick={() => {
                 share.mutate({
                   emails: emails,
@@ -337,8 +384,8 @@ export const SharePannel = (props: SharePannelProps) => {
                   header2: header2,
                   body: body,
                   footer: footer,
-                  coverPath: props.collection.coverPath ?? '',
-                  link: props.collection.publicCoverPath ?? '',
+                  coverPath: props.collection.publicCoverPath ?? '',
+                  link: link,
                   name: props.collection.name,
                   options: {
                     logging: true

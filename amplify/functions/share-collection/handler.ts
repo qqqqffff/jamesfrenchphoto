@@ -161,7 +161,7 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
     <tbody>
       <tr>
         <td style="font-size:6px; line-height:10px; padding:0px 0px 0px 0px;" valign="top" align="center">
-          <span class="max-width" border="0" style="display:block; color:#ffffff; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:24px;" width="251" alt="" data-proportionally-constrained="true" data-responsive="false" src="" height="33">James French Photography</span>
+          <span class="max-width" border="0" style="display:block; color:#ffffff; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:24px;" width="251" alt="" data-proportionally-constrained="true" data-responsive="false" height="33">James French Photography</span>
         </td>
       </tr>
     </tbody>
@@ -202,9 +202,17 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
     <tbody>
       <tr>
         <td style="font-size:6px; line-height:10px; padding-left: 1rem; padding-right: 1rem; position: relative;" valign="top" align="center">
-          <div style="position: relative; display: inline-block; width: 100%;">
-            <img class="max-width" border="0" style="display:block; color:#000000; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; width:100%; height:auto !important;" width="600" alt="" data-proportionally-constrained="true" data-responsive="true" src="../../../secrets/CAMI5795.jpg">
-            <span style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #000000; font-size: 32px; font-family: inherit; bottom: -100px;">{{collection_name}}</span>
+          <div style="position: relative; width: 100%; display: inline-block;">
+            <img class="max-width" border="0" style="display:block; color:#000000; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; width:100%; height:auto !important;" width="600" alt="" data-proportionally-constrained="true" data-responsive="true" src={{cover_path}}>
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; text-align: center;">
+              <table width="100%" height="100%" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td valign="middle" align="center">
+                    <span style="color: #000000; font-size: 32px; font-family: inherit; background-color: rgba(255, 255, 255, 0.7); padding: 5px 10px; display: inline-block;">{{collection_name}}</span>
+                  </td>
+                </tr>
+              </table>
+            </div>
           </div>
         </td>
       </tr>
@@ -328,17 +336,16 @@ export const handler: Schema['ShareCollection']['functionHandler'] = async (even
   const header2 = event.arguments.header2
   const body = event.arguments.body
   const footer = event.arguments.footer
-  const link = process.env.BASE_LINK + '/' + event.arguments.link
   const name = event.arguments.name
   
   //transformation
   const modifiedTemplate = template
     .replace('{{header_1}}', header ?? '')
     .replace('{{header_2}}', header2 ?? '')
-    .replace('{{cover_path}}', `'${link}'`)
+    .replace('{{cover_path}}', `'${process.env.BASE_LINK + '/' + event.arguments.coverPath}'`)
     .replace('{{body_1}}', body ?? '')
     .replace('{{footer}}', footer ?? '')
-    .replace('{{collection_link}}', `'${link}'`)
+    .replace('{{collection_link}}', `'${event.arguments.link}'`)
     .replace('{{collection_name}}', name)
 
   //send message
