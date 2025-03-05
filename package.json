@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "preinstall": "npm install --platform=linux --arch=x64 --target=20x sharp"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.4.0",
@@ -45,7 +44,10 @@
     "validator": "^13.12.0"
   },
   "overrides": {
-    "@parcel/watcher": "2.1.0"
+    "@parcel/watcher": "2.1.0",
+    "vite": {
+      "esbuild": "^0.25.0"
+    }
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.1.1",
@@ -65,7 +67,7 @@
     "aws-cdk": "^2.178.1",
     "aws-cdk-lib": "^2.152.0",
     "constructs": "^10.3.0",
-    "esbuild": "^0.23.1",
+    "esbuild": "^0.25.0",
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
