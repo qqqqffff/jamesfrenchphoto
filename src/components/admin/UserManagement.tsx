@@ -98,10 +98,13 @@ export default function UserManagement(){
                     const collection: PhotoCollection = {
                         ...collectionData,
                         coverPath: collectionData.coverPath ?? undefined,
+                        publicCoverPath: collectionData.publicCoverPath ?? undefined,
                         downloadable: collectionData.downloadable ?? false, 
                         watermarkPath: collectionData.watermarkPath ?? undefined,
                         tags: [],
-                        paths: [],
+                        sets: [],
+                        items: 0,
+                        published: false
                     }
                     return collection
                 }))).filter((item) => item !== undefined)
@@ -165,6 +168,7 @@ export default function UserManagement(){
                     }
                     const participantData: UserTableData = {
                         ...profile,
+                        sittingNumber: profile.sittingNumber ?? -1,
                         id: participant.id,
                         participantFirstName: participant.firstName ?? undefined,
                         participantLastName: participant.lastName ?? undefined,
@@ -188,6 +192,7 @@ export default function UserManagement(){
                 const participantData: UserTableData = {
                     ...profile,
                     id: v4(),
+                    sittingNumber: profile.sittingNumber ?? -1,
                     participantFirstName: profile.participantFirstName ?? undefined,
                     participantLastName: profile.participantLastName ?? undefined,
                     participantEmail: profile.participantEmail?? undefined,

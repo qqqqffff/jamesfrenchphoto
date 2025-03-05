@@ -6,6 +6,10 @@ import { addCreateUserQueue } from '../functions/add-create-user-queue/resource'
 import { verifyContactChallenge } from '../functions/verify-contact-challenge/resource';
 import { sendTimeslotConfirmation } from '../functions/send-timeslot-confirmation/resource';
 import { updateUserAttribute } from '../auth/update-user-attribute/resource';
+import { downloadImages } from '../functions/download-images/resource';
+import { shareCollection } from '../functions/share-collection/resource';
+import { addPublicPhoto } from '../functions/add-public-photo/resource';
+import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -15,34 +19,36 @@ and "delete" any "Todo" records.
 =========================================================================*/
 
 const schema = a.schema({
-  Events: a
-    .model({
-      id: a.id().required(),
-      name: a.string().required(),
-      collections: a.hasMany('PhotoCollection', 'eventId')
-    })
-    .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS')]),
   PhotoCollection: a
     .model({
       id: a.id().required(),
-      eventId: a.id().required(),
-      event: a.belongsTo('Events', 'eventId'),
       coverPath: a.string(),
-      coverText: a.customType({
-        color: a.string(),
-        opacity: a.string(),
-        family: a.string()
-      }),
+      publicCoverPath: a.string(),
+      coverType: a.enum(['default']),
       name: a.string().required(),
-      imagePaths: a.hasMany('PhotoPaths', 'collectionId'),
       tags: a.hasMany('CollectionTag', 'collectionId'),
+      sets: a.hasMany('PhotoSet', 'collectionId'),
+      tokens: a.hasMany('TemporaryAccessToken', 'collectionId'),
       watermarkPath: a.string(),
       downloadable: a.boolean().default(false),
+      items: a.integer().default(0),
+      published: a.boolean().default(false),
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('eventId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
+  PhotoSet: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      paths: a.hasMany('PhotoPaths', 'setId'),
+      order: a.integer().required(),
+      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      collectionId: a.id().required(),
+      watermarkPath: a.string(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('collectionId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get', 'list'])]),
   Watermark: a
     .model({
       id: a.id().required(),
@@ -55,13 +61,13 @@ const schema = a.schema({
       id: a.id().required(),
       path: a.string().required(),
       order: a.integer().required(),
-      collectionId: a.id().required(),
-      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      setId: a.id().required(),
+      set: a.belongsTo('PhotoSet', 'setId'),
       favorites: a.hasMany('UserFavorites', 'pathId')
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('collectionId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+    .secondaryIndexes((index) => [index('setId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['read'])]),
   UserFavorites: a
     .model({
       id: a.id().required(),
@@ -72,7 +78,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('userEmail').name('listFavoritesByUserEmail')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'delete', 'create', 'list'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'delete', 'create', 'list']), allow.guest().to(['get', 'delete', 'create', 'list'])]),
   UserTag: a
     .model({
       id: a.id().required(),
@@ -150,8 +156,8 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
     .model({
-      sittingNumber: a.integer().required(),
-      email: a.string().required(),
+      sittingNumber: a.integer(),
+      email: a.string().required().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read', 'update']), allow.guest().to(['create', 'read'])]),
       userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read']), allow.guest().to(['create'])]),
       timeslot: a.hasMany('Timeslot', 'register'),
       participantFirstName: a.string(),
@@ -166,7 +172,7 @@ const schema = a.schema({
       favorites: a.hasMany('UserFavorites', 'userEmail')
     })
     .identifier(['email'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create', 'get'])]),
   Participant: a.
     model({
       id: a.id().required(),
@@ -254,8 +260,73 @@ const schema = a.schema({
     .handler(a.handler.function(sendTimeslotConfirmation))
     .authorization((allow) => [allow.authenticated()])
     .returns(a.json()),
+  ShareCollection: a
+    .query()
+    .arguments({
+      email: a.string().required().array().required(),
+      header: a.string(),
+      header2: a.string(),
+      body: a.string(),
+      footer: a.string(),
+      coverPath: a.string().required(),
+      link: a.string().required(),
+      name: a.string().required(),
+    })
+    .handler(a.handler.function(shareCollection))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.json()),
+  ShareTemplates: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      header: a.string(),
+      header2: a.string(),
+      body: a.string(),
+      footer: a.string(),
+    })
+    .authorization((allow) => [allow.group('ADMINS')])
+    .identifier(['id']),
+  DownloadImages: a
+    .query()
+    .arguments({
+      paths: a.string().required().array()
+    })
+    .handler(a.handler.function(downloadImages))
+    .authorization((allow) => [allow.authenticated()])
+    .returns(a.string()),
+  AddPublicPhoto: a
+    .query()
+    .arguments({
+      path: a.string().required(),
+      type: a.string().required(),
+      name: a.string().required()
+    })
+    .handler(a.handler.function(addPublicPhoto))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.string()),
+  DeletePublicPhoto: a
+    .query()
+    .arguments({
+      path: a.string().required(),
+    })
+    .handler(a.handler.function(deletePublicPhoto))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.json()),
+  TemporaryAccessToken: a
+    .model({
+      id: a.id().required(),
+      expire: a.string(),
+      sessionTime: a.string(),
+      collectionId: a.id().required(),
+      collection: a.belongsTo('PhotoCollection', 'collectionId')
+    })
+    .identifier(['id'])
+    .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['read'])])
 })
-.authorization((allow) => [allow.resource(postConfirmation), allow.resource(addCreateUserQueue)]);
+.authorization((allow) => [
+  allow.resource(postConfirmation),
+  allow.resource(addCreateUserQueue),
+]);
 
 export type Schema = ClientSchema<typeof schema>;
 

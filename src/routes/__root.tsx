@@ -80,10 +80,14 @@ const UserProfileComponent: FC<{
 }
 
 const RootComponent = () => {
+    const data = Route.useLoaderData()
+
     const auth = useAuth()
     const { width } = useWindowDimensions()
     const queryClient = useQueryClient()
     const navigate = useNavigate()
+
+    if(data) return (<Outlet />)
 
     function UserComponent(){
         if(auth.user == null) return (<LoginComponent />)
@@ -136,8 +140,6 @@ const RootComponent = () => {
     )
 }
 
-
-
 export const Route = createRootRouteWithContext<{queryClient: QueryClient, auth: AuthContext }>()({
     component: RootComponent,
     notFoundComponent: () => {
@@ -147,5 +149,14 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient, auth:
                 <Link to='/'>Click here to return home</Link>
             </div>
         )
+    },
+    beforeLoad: ({ location }) => {
+        return { hidden: (
+            location.href.includes('photo-fullscreen') ||
+            location.href.includes('favorites-fullscreen')
+        )}
+    },
+    loader: ({ context }) => {
+        return context.hidden
     }
 })

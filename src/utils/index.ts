@@ -8,7 +8,9 @@ export function formatTime(time: Date | string | undefined, params?: {timeString
         const dateString = time.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
         return dateString
     }
-    const timeString = time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' }).replace(/[^0-9:]/g, '')
+    const temp = time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })
+    const timeString = temp.substring(0, temp.lastIndexOf(':')) + temp.substring(temp.indexOf(' '))
+
     return timeString
 }
 
@@ -194,7 +196,8 @@ export const textInputTheme: CustomFlowbiteTheme['textInput'] = {
     field: {
         input: {
             sizes: {
-                'lg': 'px-3.5 py-1.5 text-lg'
+                'lg': 'px-3.5 py-1.5 text-lg',
+                'sm': 'px-2 py-1 text-sm'
             },
             colors: {
                 'pink-400': "text-pink-400",

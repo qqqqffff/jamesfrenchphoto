@@ -4,10 +4,12 @@ import { FormEvent, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Alert, Button, Label, Modal, TextInput } from 'flowbite-react'
 import { textInputTheme } from '../utils'
+import { HiOutlineEyeSlash, HiOutlineEye } from "react-icons/hi2";
 
 interface LoginParams {
   createAccount?: boolean,
   unauthorized?: boolean,
+  invalidToken?: boolean,
   relogin?: boolean,
 }
 
@@ -16,6 +18,7 @@ export const Route = createFileRoute('/login')({
   validateSearch: (search: Record<string, unknown>): LoginParams => ({
     createAccount: (search.createAccount as boolean) || undefined,
     unauthorized: (search.unauthorized as boolean) || undefined,
+    invalidToken: (search.invalidToken as boolean) || undefined,
     relogin: (search.relogin as boolean) || undefined,
   })
 })
@@ -56,6 +59,8 @@ function RouteComponent() {
   const [passwordMinCharacters, setPasswordMinCharacters] = useState(false)
   const [passwordUpperCharacter, setPasswordUpperCharacter] = useState(false)
   const [passwordLowerCharacter, setPasswordLowerCharacter] = useState(false)
+
+  const [passwordVisible, setPasswordVisible] = useState(false)
   
   function NotificationComponent() {
     return (
@@ -115,6 +120,20 @@ function RouteComponent() {
                 })
               )
             }
+          )
+        }
+        {
+          notifications.find((item) => item.item === 'invalidToken')?.visible &&
+          notification('The provided access token is invalid or has expired. If this was unexpected please ask for a new one.', 'red',
+            () => {
+              navigate({ to: '.' })
+              setNotifications(
+                notifications.map((notification) => {
+                  if(notification.item === 'invalidToken') return {...notification, visible: false}
+                  return notification
+                })
+              )
+            },
           )
         }
       </div>
@@ -251,7 +270,20 @@ function RouteComponent() {
             <Label className="ms-2 font-semibold text-xl" htmlFor="email">Email:</Label>
             <TextInput sizing='lg' className="mb-4 w-full" placeholder="Email" type="email" onChange={(event) => setUsername(event.target.value)} value={username} />
             <Label className="ms-2 font-semibold text-xl" htmlFor="password">Password:</Label>
-            <TextInput sizing='lg' className="mb-4 w-full" placeholder="Password" type="password" onChange={(event) => setPassword(event.target.value)} value={password} />
+            <div className='w-full relative h-auto'>
+              <TextInput sizing='lg' className="mb-4 w-full" placeholder="Password" type={passwordVisible ? 'text' : 'password'} onChange={(event) => setPassword(event.target.value)} value={password} />
+              <button 
+                type='button' 
+                onClick={() => setPasswordVisible(!passwordVisible)}
+                className='absolute inset-y-0 right-3 mb-4'
+              >
+                {passwordVisible ? (
+                  <HiOutlineEyeSlash size={24} className='fill-white'/>
+                ) : (
+                  <HiOutlineEye size={24} className='fill-white'/>
+                )}
+              </button>
+            </div>
             <div className="flex justify-end">
               <Button isProcessing={submitting} className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" disabled={!validate()}>Login</Button>
             </div>

@@ -1,71 +1,96 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Dropdown, Progress, TextInput } from 'flowbite-react'
-import { useState } from 'react'
-import { HiOutlinePlusCircle } from 'react-icons/hi'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
-  HiEllipsisHorizontal,
-  HiOutlineMinusCircle,
-  HiOutlinePencil,
-} from 'react-icons/hi2'
-import { Event } from '../../../types'
-import {
-  ConfirmationModal,
-  CreateCollectionModal,
-  CreateEventModal,
-} from '../../../components/modals'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import {
+  getAllPhotoCollectionsQueryOptions,
   getAllWatermarkObjectsQueryOptions,
+  getPhotoCollectionByIdQueryOptions,
 } from '../../../services/collectionService'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
+import { PhotoCollectionPannel } from '../../../components/admin/collection/PhotoCollectionPannel'
+import { useQuery } from '@tanstack/react-query'
+import { CreateCollectionModal } from '../../../components/modals'
+import { useState } from 'react'
+import { PhotoCollection, PhotoSet, ShareTemplate, Watermark } from '../../../types'
+import { Progress, TextInput, Tooltip } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
-import {
-  deleteEventMutation,
-  getAllEventsQueryOptions,
-} from '../../../services/eventService'
-import { EventPannel } from '../../../components/admin/EventPannel'
+import { HiOutlinePlusCircle } from 'react-icons/hi2'
+import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
+import { getAllShareTemplatesQueryOptions } from '../../../services/shareService'
+
+interface CollectionSearchParams {
+  collection?: string,
+  set?: string,
+  console?: string,
+}
 
 export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): CollectionSearchParams => ({
+    collection: (search.collection as string) || undefined,
+    set: (search.set as string) || undefined,
+    console: (search.console as string) || 'sets'
+  }),
+  beforeLoad: ({ search }) => search,
+  loader: async ({ context }) => {
+    const availableTags = await context.queryClient.ensureQueryData(getAllUserTagsQueryOptions({ siCollections: false }))
+    const watermarkObjects = await context.queryClient.ensureQueryData(getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
+    const shareTemplates = await context.queryClient.ensureQueryData(getAllShareTemplatesQueryOptions())
+    let collection: PhotoCollection | undefined
+    let set: PhotoSet | undefined
+    if(context.collection){
+      collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(context.collection))
+      if(collection && context.set) {
+        set = collection.sets.find((set) => context.set === set.id)
+      }
+    }else{
+      collection = undefined
+    }
+    return {
+      availableTags,
+      watermarkObjects,
+      collection,
+      set,
+      auth: context.auth,
+      collectionConsole: context.console ?? 'sets',
+      templates: shareTemplates,
+    }
+  }
 })
 
 function RouteComponent() {
-  const [createEventModalVisible, setCreateEventModalVisible] = useState(false)
-  const [
-    createPhotoCollectionModalVisible,
-    setCreatePhotoCollectionModalVisible,
-  ] = useState(false)
-  const [selectedEvent, setSelectedEvent] = useState<Event>()
-  const [deleteConfirmationVisible, setDeleteConfirmationVisible] =
-    useState(false)
-  const [loading, setLoading] = useState(false)
-  const [filteredItems, setFilteredItems] = useState<Event[]>()
+  const { 
+    availableTags, 
+    watermarkObjects, 
+    collection, 
+    set, 
+    auth, 
+    collectionConsole,
+    templates
+  } = Route.useLoaderData()
+  const navigate = useNavigate()
 
-  const availableTags = useQuery(
-    getAllUserTagsQueryOptions({ siCollections: false }),
-  )
-  const eventList = useQuery(getAllEventsQueryOptions({ siCollections: false }))
-  const watermarkObjects = useQuery(getAllWatermarkObjectsQueryOptions())
-  const deleteEvent = useMutation({
-    mutationFn: (eventId: string) => deleteEventMutation(eventId),
-    onSettled: async (data) => {
-      if (data) {
-        setSelectedEvent(undefined)
-      }
-      await eventList.refetch()
-      setLoading(false)
-    },
-  })
+  const [watermarks, setWatermarks] = useState<Watermark[]>(watermarkObjects)
+  const [shareTemplates, setShareTemplates] = useState<ShareTemplate[]>(templates)
+  const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
+  const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
+  const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>(collection)
+
+  const collections = useQuery(getAllPhotoCollectionsQueryOptions({
+    siTags: true, 
+    siSets: true, 
+    siPaths: true,
+    metric: true,
+  }))
+
 
   function filterItems(term: string): undefined | void {
-    if (!term || !eventList.data || eventList.data.length <= 0) {
+    if (!term || !collections.data || collections.data.length <= 0) {
       setFilteredItems(undefined)
       return
     }
 
     const normalSearchTerm = term.trim().toLocaleLowerCase()
 
-    const data: Event[] = eventList.data
+    const data: PhotoCollection[] = collections.data
       .filter((item) => {
         let filterResult = false
         try {
@@ -80,178 +105,172 @@ function RouteComponent() {
       })
       .filter((item) => item !== undefined)
 
-    console.log(data)
     setFilteredItems(data)
   }
 
   return (
     <>
-      <CreateEventModal
-        open={createEventModalVisible}
-        onClose={() => setCreateEventModalVisible(false)}
-        onSubmit={async (event) => {
-          if (event !== undefined) {
-            console.log(event)
-            setLoading(true)
-            await eventList.refetch()
-            setLoading(false)
-            setSelectedEvent(undefined)
-          } else {
-            //TODO: error handle
-          }
-        }}
-        event={selectedEvent}
-      />
       <CreateCollectionModal
-        eventId={selectedEvent?.id ?? ''}
-        open={createPhotoCollectionModalVisible}
-        onClose={() => setCreatePhotoCollectionModalVisible(false)}
+        open={createCollectionVisible}
+        onClose={() => setCreateCollectionVisible(false)}
         onSubmit={async (collection) => {
           if (collection) {
-            setLoading(true)
-            await eventList.refetch()
-            setLoading(false)
+            collections.refetch()
+            // setSelectedCollection(collection)
           }
           //TODO: error handle
         }}
-        availableTags={availableTags.data ?? []}
+        availableTags={availableTags}
       />
-      <ConfirmationModal
-        title={'Delete Event'}
-        body={`Deleting Event <b>${selectedEvent?.name}</b> will delete <b>ALL</b> collections,\n and <b>ALL</b> associated photos. This action <b>CANNOT</b> be undone!`}
+      
+      {/* <ConfirmationModal TODO: move me
+        title={'Delete Collection'}
+        body={`Deleting Event <b>${selectedCollection?.name}</b> will delete <b>ALL</b> collections,\n and <b>ALL</b> associated photos. This action <b>CANNOT</b> be undone!`}
         denyText={'Cancel'}
         confirmText={'Delete'}
         confirmAction={async () => {
-          if (selectedEvent) {
+          if (selectedCollection) {
             setLoading(true)
-            deleteEvent.mutate(selectedEvent.id)
-            setSelectedEvent(undefined)
+            deleteCollection.mutate({ collection: selectedCollection})
+            setSelectedCollection(undefined)
           } else {
             //TODO: error handle
           }
         }}
         open={deleteConfirmationVisible}
         onClose={() => setDeleteConfirmationVisible(false)}
-      />
-      <div className="grid grid-cols-6 gap-2 mt-4 font-main">
-        <div className="flex flex-col ms-5 border border-gray-400 rounded-2xl p-2">
-          <button
-            className="flex flex-row w-full items-center justify-between hover:bg-gray-100 rounded-2xl py-1 cursor-pointer"
-            onClick={() => setCreateEventModalVisible(true)}
-          >
-            <span className="text-xl ms-4 mb-1">Create New Event</span>
-            <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2" />
-          </button>
-
-          <TextInput
-            className="self-center w-[80%]"
-            theme={textInputTheme}
-            sizing="sm"
-            placeholder="Search"
-            onChange={(event) => filterItems(event.target.value)}
-          />
-          <div className="w-full border border-gray-200 my-2"></div>
-
-          {!eventList.isLoading && !loading ? (
-            eventList.data && eventList.data.length > 0 ? (
-              (filteredItems ?? eventList.data).map((event, index) => {
-                const selectedEventClass = selectedEvent?.id === event.id ? 'bg-gray-200 hover:bg-gray-300 border-2 border-sky-300' : 'hover:bg-gray-100 border-2 border-transparent'
-                return (
-                  <div className="flex flex-col" key={index}>
-                    <div className="flex flex-row">
-                      <button
-                        type="button"
-                        className={`flex flex-row w-full items-center justify-start rounded-2xl py-1 bg-gray ${selectedEventClass}`}
-                        onClick={async () => {
-                          setSelectedEvent(undefined)
-                          await new Promise(resolve => setTimeout(resolve, 1))
-                          setSelectedEvent(event)
-                        }}
-                      >
-                        <span className="text-xl ms-4 mb-1">{event.name}</span>
-                      </button>
-                      <Dropdown
-                        label={
-                          <HiEllipsisHorizontal
-                            size={24}
-                            className="hover:border-gray-400 hover:border rounded-full"
+      /> */}
+      {!selectedCollection ? (
+        <div className="flex flex-col w-full items-center justify-center mt-2">
+          <div className="w-[80%] flex flex-col">
+            <div className='flex flex-row w-full justify-between'>
+              <TextInput
+                className="self-center w-[60%] max-w-[400px] ms-4"
+                theme={textInputTheme}
+                sizing='lg'
+                placeholder="Search"
+                onChange={(event) => filterItems(event.target.value)}
+              />
+              <button
+                className="flex flex-row gap-4 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-2 me-4"
+                onClick={() => {setCreateCollectionVisible(true)}}
+              >
+                <span className="text-xl ms-4">Create New Collection</span>
+                <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2" />
+              </button>
+            </div>
+            <div className='grid grid-cols-3 border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
+              {collections.isLoading ? (
+                <div className="self-center col-start-2 flex flex-row items-center justify-center min-w-[200px]">
+                  <Progress
+                    progress={100}
+                    textLabel="Loading..."
+                    textLabelPosition="inside"
+                    labelText
+                    size="lg"
+                    className="min-w-[200px]"
+                  />
+                </div>
+              ) : (
+                collections.data && collections.data.length > 0 ? (
+                  filteredItems ? (
+                    filteredItems.length > 0 ? (
+                      filteredItems
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        .map((collection, index) => {
+                          return (
+                            <CollectionThumbnail 
+                              collectionId={collection.id}
+                              cover={collection.coverPath}
+                              onClick={() => {
+                                navigate({to: '.', search: { collection: collection.id }})
+                                setSelectedCollection(collection)
+                              }}
+                              key={index}
+                              contentChildren={(
+                                <div className="flex flex-row gap-1 font-thin opacity-90 items-center justify-start">
+                                  <Tooltip content={(<p>Collection Has {collection.published ? 'Been Published' : 'Not Been Published'}</p>)}>
+                                    <p className={`${collection.published ? 'text-green-400' : 'text-gray-600 italic'}`}>{collection.name}</p>
+                                  </Tooltip>
+                                  <p>&bull;</p>
+                                  <p>Items: {collection.items}</p>
+                                  <p>&bull;</p>
+                                  <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
+                                </div>
+                              )}
+                            />
+                          )
+                        })
+                    ) : (
+                      <div className="self-center col-start-2 flex flex-row items-center justify-center">
+                        <span >No results!</span>
+                      </div>
+                    )
+                  ) : (
+                    collections.data
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .map((collection, index) => {
+                        return (
+                          <CollectionThumbnail 
+                            collectionId={collection.id}
+                            cover={collection.coverPath}
+                            onClick={() => {
+                              navigate({to: '.', search: { collection: collection.id }})
+                              setSelectedCollection(collection)
+                            }}
+                            key={index}
+                            contentChildren={(
+                              <div className="flex flex-row gap-1 font-thin opacity-90 items-center justify-start">
+                                <Tooltip content={(<p>Collection Has {collection.published ? 'Been Published' : 'Not Been Published'}</p>)}>
+                                  <p className={`${collection.published ? 'text-green-400' : 'text-gray-600 italic'}`}>{collection.name}</p>
+                                </Tooltip>
+                                <p>&bull;</p>
+                                <p>Items: {collection.items}</p>
+                                <p>&bull;</p>
+                                <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
+                              </div>
+                            )}
                           />
-                        }
-                        inline
-                        arrowIcon={false}
-                      >
-                        <Dropdown.Item
-                          onClick={() => {
-                            setCreateEventModalVisible(true)
-                            setSelectedEvent(event)
-                          }}
-                        >
-                          <HiOutlinePencil className="me-1" />
-                          Rename Event
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          onClick={() => {
-                            setCreatePhotoCollectionModalVisible(true)
-                            setSelectedEvent(event)
-                          }}
-                        >
-                          <HiOutlinePlusCircle className="me-1" />
-                          Create Photo Collection
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          onClick={() => {
-                            setDeleteConfirmationVisible(true)
-                            setSelectedEvent(event)
-                          }}
-                        >
-                          <HiOutlineMinusCircle className="me-1" />
-                          Delete Event
-                        </Dropdown.Item>
-                      </Dropdown>
-                    </div>
+                        )
+                      })
+                  )
+                ) : (
+                  <div className="self-center col-start-2 flex flex-row items-center justify-center">
+                    <span >No collections yet!</span>
                   </div>
                 )
-              })
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <PhotoCollectionPannel 
+          coverPath={selectedCollection.coverPath}
+          collection={selectedCollection}
+          updateParentCollection={setSelectedCollection}
+          set={set}
+          watermarkObjects={watermarks}
+          updateWatermarkObjects={setWatermarks}
+          availableTags={availableTags}
+          auth={auth}
+          parentActiveConsole={
+            collectionConsole === 'favorites' ? (
+              'favorites' as 'favorites'
             ) : (
-              <span className="text-gray-400">No events</span>
+            collectionConsole === 'watermarks' ? (
+              'watermarks' as 'watermarks'
+            ) : (
+            collectionConsole === 'share' ? (
+              'share' as 'share'
+            ) : (
+              'sets' as 'sets'
             )
-          ) : (
-            <Progress
-              progress={100}
-              textLabel="Loading..."
-              textLabelPosition="inside"
-              labelText
-              size="lg"
-            />
-          )}
-        </div>
-        <div className="col-span-5">
-          {selectedEvent === undefined ? (
-            <div className={`w-[80%] border border-gray-400 rounded-2xl p-2 flex flex-row items-center justify-center me-4`}>
-              Click An Event to View It's Collections
-            </div>
-          ) : 
-            watermarkObjects.isLoading ||
-            availableTags.isLoading ? (
-            <div className={`w-[80%] border border-gray-400 rounded-2xl p-2 flex flex-row items-center justify-center me-4`}>
-              <Progress
-                progress={100}
-                textLabel="Loading..."
-                textLabelPosition="inside"
-                labelText
-                size="lg"
-                className="min-w-[200px]"
-              />
-            </div>
-          ) : (
-            <EventPannel
-              event={selectedEvent}
-              watermarkObjects={watermarkObjects.data ?? []}
-              availableTags={availableTags.data ?? []}
-            />
-          )}
-        </div>
-      </div>
+            ))
+          }
+          shareTemplates={shareTemplates}
+          updateShareTemplates={setShareTemplates}
+        />
+      )}
     </>
   )
 }

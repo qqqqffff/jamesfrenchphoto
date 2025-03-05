@@ -5,8 +5,7 @@ import { Alert, Button, Modal } from 'flowbite-react'
 import PDFViewer from '../../../components/common/PDFViewer'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
-import { useQueries } from '@tanstack/react-query'
-import { getCoverPathFromCollectionQueryOptions } from '../../../services/collectionService'
+import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
 
 interface PackagePDFModalProps {
     pdf: File,
@@ -51,13 +50,6 @@ function RouteComponent() {
             return prev
         }, [])
 
-  const collectionCovers = useQueries({
-    queries: collections.map((collection) => 
-      getCoverPathFromCollectionQueryOptions(collection))
-  })
-
-  
-
   return (
     <>
       {activePackage && activePackagePDF && (
@@ -92,22 +84,33 @@ function RouteComponent() {
           {collections.length > 0 ? 
             (
               <div className={`grid grid-cols-${dimensions.width > 700 ? 2 : 1} gap-10 mb-4`}>
-              {collections.map((collection, index) => {
-              return (
-                <button 
-                    className="flex flex-row justify-center items-center relative rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] hover:bg-gray-300 hover:text-gray-500"
-                    onClick={() => {
+              {collections
+                .filter((collection) => collection.published)
+                .map((collection, index) => {
+                  return (
+                    <CollectionThumbnail 
+                      collectionId={collection.id} 
+                      cover={collection.coverPath}
+                      key={index} 
+                      onClick={() => {
                         navigate({ to: `/photo-collection/${collection.id}`})
-                    }}
-                    key={index}
-                >
-                  <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
-                    <p className={`font-thin opacity-90 text-2xl`}>{collection.name}</p>
-                  </div>
-                  <img src={collectionCovers.find((path) => path.data?.[0] === collection.id)?.data?.[1]} className="max-h-[238px] max-w-[360px]"/>
-                </button>
-              )
-              })}
+                      }}
+                    />
+                    // <button 
+                    //     className="flex flex-row justify-center items-center relative rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] hover:bg-gray-300 hover:text-gray-500"
+                    //     onClick={() => {
+                    //         navigate({ to: `/photo-collection/${collection.id}`})
+                    //     }}
+                    //     key={index}
+                    // >
+                    //   <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
+                    //     <p className={`font-thin opacity-90 text-2xl`}>{collection.name}</p>
+                    //   </div>
+                    //   <img src={collectionCovers.find((path) => path.data?.[0] === collection.id)?.data?.[1]} className="max-h-[238px] max-w-[360px]"/>
+                    // </button>
+                  )
+                }
+              )}
             </div>) :
             (<div className="text-xl text-gray-400 italic flex flex-col text-center mb-4">
               <span>Sorry, there are no viewable collections for you right now.</span>

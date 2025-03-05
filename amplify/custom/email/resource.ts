@@ -7,7 +7,7 @@ import { Chain, Choice, Condition, DefinitionBody, IStateMachine, StateMachine }
 import { LambdaInvoke } from "aws-cdk-lib/aws-stepfunctions-tasks";
 import { Construct } from "constructs";
 import * as url from 'node:url'
-import { stackConstants } from "../constants";
+import { stackConstants } from "../../constants";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 
 type EmailStepFunctionProps = {

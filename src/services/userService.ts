@@ -1,12 +1,13 @@
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from "../../amplify/data/resource";
-import { Participant, PhotoCollection, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { Participant, PhotoCollection, PhotoSet, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
 import { getAllCollectionsFromUserTags } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
 import { updateUserAttributes } from "aws-amplify/auth";
+import { Duration } from "luxon";
 
 const client = generateClient<Schema>()
 
@@ -39,11 +40,13 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
 interface GetUserProfileByEmailOptions {
     siTags?: boolean,
     siTimeslot?: boolean,
-    siCollections?: boolean
+    siCollections?: boolean,
+    siSets?: boolean,
+    unauthenticated?: boolean
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     console.log('api call')
-    const profileResponse = await client.models.UserProfile.get({ email: email })
+    const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
     if(!profileResponse || !profileResponse.data) return
     const participantResponse = await profileResponse.data.participant()
     const mappedParticipants: Participant[] = await Promise.all(participantResponse.data.map(async (participant) => {
@@ -58,13 +61,27 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                     mappedCollections.push(...(await Promise.all((await tagResponse.data.collectionTags()).data.map(async (colTag) => {
                         const collection = await colTag.collection()
                         if(!collection || !collection.data) return
+                        const sets: PhotoSet[] = []
+                        if(!options || options.siSets){
+                            sets.push(...(await collection.data.sets()).data.map((set) => {
+                                const mappedSet: PhotoSet = {
+                                    ...set,
+                                    watermarkPath: set.watermarkPath ?? undefined,
+                                    paths: [],
+                                }
+                                return mappedSet
+                            }))
+                        }
                         const mappedCollection: PhotoCollection = {
                             ...collection.data,
                             coverPath: collection.data.coverPath ?? undefined,
+                            publicCoverPath: collection.data.publicCoverPath ?? undefined,
                             watermarkPath: collection.data.watermarkPath ?? undefined,
                             downloadable: collection.data.downloadable ?? false,
+                            items: collection.data.items ?? 0,
+                            published: collection.data.published ?? false,
                             //unnecessary
-                            paths: [],
+                            sets: sets,
                             tags: [],
                         }
                         return mappedCollection
@@ -146,7 +163,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
 
     //in theory there should be at least one participant upon reaching this point
     let activeParticipant = mappedParticipants.find((participant) => participant.id === profileResponse.data?.activeParticipant)
-    if(!profileResponse.data.activeParticipant){
+    if(!profileResponse.data.activeParticipant && mappedParticipants.length > 0){
         activeParticipant = mappedParticipants[0]
         await client.models.UserProfile.update({
             email: email,
@@ -156,6 +173,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
 
     const userProfile: UserProfile = {
         ...profileResponse.data,
+        sittingNumber: profileResponse.data.sittingNumber ?? -1,
         participant: mappedParticipants,
         activeParticipant: activeParticipant,
         preferredContact: profileResponse.data.preferredContact ?? 'EMAIL',
@@ -173,7 +191,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
     return userProfile
 }
 
-async function getAuthUsers(client: V6Client<Schema>, filter?: string | null): Promise<UserData[] | undefined> {
+export async function getAuthUsers(client: V6Client<Schema>, filter?: string | null): Promise<UserData[] | undefined> {
     console.log('api call')
     const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
             
@@ -202,6 +220,41 @@ async function getAuthUsers(client: V6Client<Schema>, filter?: string | null): P
     }).filter((user) => (filter === undefined || user.email === filter) && filter !== null)
 
     return parsedUsersData
+}
+
+async function getTemporaryAccessToken(client: V6Client<Schema>, id: string): Promise<TemporaryAccessToken | undefined> {
+    const response = await client.models.TemporaryAccessToken.get({ id: id }, { authMode: 'identityPool' })
+    if(response.data && (
+        !response.data.expire || new Date(response.data.expire).getTime() < Date.now())
+    ){
+        const mappedToken: TemporaryAccessToken = {
+            ...response.data,
+            expires: response.data.expire ? new Date(response.data.expire) : undefined,
+            sessionTime: response.data.sessionTime ? Duration.fromISO(response.data.sessionTime) : undefined
+        }
+
+        return mappedToken
+    }
+}
+
+export interface CreateAccessTokenMutationParams {
+    expires?: Date,
+    sessionTime?: Duration,
+    collectionId: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function createAccessTokenMutation(params: CreateAccessTokenMutationParams): Promise<string | undefined> {
+    const response = await client.models.TemporaryAccessToken.create({
+        expire: params.expires?.toISOString(),
+        collectionId: params.collectionId,
+        sessionTime: params.sessionTime?.toString(),
+    })
+
+    if(params.options?.logging) console.log(response)
+
+    return response.data?.id
 }
 
 interface CreateParticipantMutationParams {
@@ -297,6 +350,34 @@ export async function updateParticipantMutation(params: UpdateParticipantMutatio
     })
 }
 
+export interface CreateTempUserProfileParams {
+    email: string,
+}
+export async function createTempUserProfileMutation(params: CreateTempUserProfileParams): Promise<UserProfile | undefined> {
+    const response = await client.models.UserProfile.create({
+        email: params.email,
+    }, { authMode: 'identityPool'})
+    if(response.data){
+        const mappedProfile: UserProfile = {
+            ...response.data,
+            sittingNumber: -1,
+            userTags: [],
+            timeslot: undefined,
+            participant: [],
+            participantFirstName: undefined,
+            participantLastName: undefined,
+            participantPreferredName: undefined,
+            participantMiddleName: undefined,
+            preferredContact: 'EMAIL',
+            participantContact: false,
+            participantEmail: undefined,
+            activeParticipant: undefined,
+        }
+
+        return mappedProfile
+    }
+}
+
 export const getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({
     queryKey: ['userTags', client, options],
     queryFn: () => getAllUserTags(client, options)
@@ -310,4 +391,9 @@ export const getUserProfileByEmailQueryOptions = (email: string, options?: GetUs
 export const getAuthUsersQueryOptions = (filter?: string | null) =>  queryOptions({
     queryKey: ['authUsers', client, filter],
     queryFn: () => getAuthUsers(client, filter)
+})
+
+export const getTemporaryAccessTokenQueryOptions = (id: string) => queryOptions({
+    queryKey: ['temporaryAccessToken', client, id],
+    queryFn: () => getTemporaryAccessToken(client, id)
 })

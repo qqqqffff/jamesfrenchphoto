@@ -1,15 +1,15 @@
-import { UploadImagesModal as uploadImages } from './UploadImages'
+import { UploadImagesModal as uploadImages } from './UploadImages/UploadImages'
 import { CreateUserModal as createUser } from './CreateUser';
 import { ConfirmationModal as confirmation } from './Confirmation'
 import { CreateTagModal as createTag } from './CreateTag'
 import { CreateTimeslotModal as createTimeslot } from './CreateTimeslot';
 import { TermsAndConditionsModal as termsAndConditions } from './TermsAndConditions';
 import { UserColumnModal as userColumn } from './UserColumn';
-import { CreateEventModal as createEvent } from './CreateEvent';
 import { CreatePackageModal as createPackage } from './CreatePackage';
 import { CreateCollectionModal as createCollection } from './CreateCollection';
-import { WatermarkModal as watermark } from './Watermark';
 import { EditTimeslotModal as editTimeslot } from './EditTimeslotModal';
+import { ShareCollectionModal as shareCollection } from './ShareCollection';
+import { UnauthorizedEmailModal as unauthorizedEmail } from './UnauthorizedEmail';
 
 
 export type ModalProps = {
@@ -24,8 +24,8 @@ export const CreateTagModal = createTag
 export const CreateTimeslotModal = createTimeslot
 export const TermsAndConditionsModal = termsAndConditions
 export const UserColumnModal = userColumn
-export const CreateEventModal = createEvent
 export const CreatePackageModal = createPackage
 export const CreateCollectionModal = createCollection
-export const WatermarkModal = watermark
 export const EditTimeslotModal = editTimeslot
+export const ShareCollectionModal = shareCollection
+export const UnauthorizedEmailModal = unauthorizedEmail

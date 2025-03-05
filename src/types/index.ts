@@ -1,12 +1,5 @@
 import { AuthSession, AuthUser, FetchUserAttributesOutput } from "aws-amplify/auth";
-
-export interface Event {
-    id: string;
-    name: string;
-    collections: PhotoCollection[]
-    createdAt: string,
-    updatedAt: string,
-}
+import { Duration } from "luxon";
 
 export interface UserStorage {
     user: AuthUser
@@ -57,14 +50,38 @@ export interface Participant {
     timeslot?: Timeslot[],
 }
 
+export type User = {
+    user: UserProfile
+    data?: UserData
+}
+
+export type Favorite = {
+    id: string,
+    userEmail: string,
+    pathId: string,
+    createdAt: Date,
+    updatedAt: Date,
+}
+
+export type ShareTemplate = {
+    id: string,
+    name: string,
+    header?: string,
+    header2?: string,
+    body?: string,
+    footer?: string,
+}
+
 export type PicturePath = {
     id: string;
     url: string;
     path: string;
     order: number;
+    favorite?: string;
 }
 
 export type Watermark = {
+    id: string,
     url: string,
     path: string,
 }
@@ -72,14 +89,25 @@ export type Watermark = {
 export type PhotoCollection = {
     name: string;
     coverPath?: string;
+    publicCoverPath?: string;
     createdAt: string;
     id: string;
     updatedAt: string;
-    eventId: string;
-    paths: PicturePath[]
     tags: UserTag[],
+    sets: PhotoSet[],
     watermarkPath?: string,
     downloadable: boolean,
+    items: number,
+    published: boolean
+}
+
+export type PhotoSet = {
+    id: string;
+    watermarkPath?: string,
+    name: string,
+    paths: PicturePath[],
+    order: number,
+    collectionId: string;
 }
 
 export type Timeslot = {
@@ -120,4 +148,11 @@ export type ColumnColor = {
     value: string
     bgColor?: string
     textColor?: string
+}
+
+export interface TemporaryAccessToken {
+    id: string,
+    expires?: Date,
+    sessionTime?: Duration,
+    collectionId: string
 }
