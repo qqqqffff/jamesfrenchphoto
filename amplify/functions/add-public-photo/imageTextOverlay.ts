@@ -1,8 +1,13 @@
 import sharp from 'sharp'
 import canvas from 'canvas'
+import fs, { readdirSync } from 'node:fs'
+// const fonts = require('fonts')
 
 export async function addTextToImage(file: File, text: string) {
   try{
+    canvas.registerFont('/opt/font/nodejs/fonts/arial.ttf', { family: 'arial' })
+    console.log(readdirSync('/opt/font/nodejs/fonts'))
+
     const inputImage = await sharp(await file.arrayBuffer()).metadata()
 
     const defaultOptions = {
@@ -16,7 +21,7 @@ export async function addTextToImage(file: File, text: string) {
     const can = canvas.createCanvas(inputImage.width ?? 0, inputImage.height ?? 0)
     const ctx = can.getContext('2d')
 
-    ctx.font = `${defaultOptions.fontSize}px`
+    ctx.font = `${defaultOptions.fontSize}px arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 

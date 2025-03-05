@@ -203,16 +203,7 @@ const template = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http
       <tr>
         <td style="font-size:6px; line-height:10px; padding-left: 1rem; padding-right: 1rem; position: relative;" valign="top" align="center">
           <div style="position: relative; width: 100%; display: inline-block;">
-            <img class="max-width" border="0" style="display:block; color:#000000; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; width:100%; height:auto !important;" width="600" alt="" data-proportionally-constrained="true" data-responsive="true" src={{cover_path}}>
-            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; text-align: center;">
-              <table width="100%" height="100%" border="0" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td valign="middle" align="center">
-                    <span style="color: #000000; font-size: 32px; font-family: inherit; background-color: rgba(255, 255, 255, 0.7); padding: 5px 10px; display: inline-block;">{{collection_name}}</span>
-                  </td>
-                </tr>
-              </table>
-            </div>
+            <img class="max-width" border="0" style="display:block; color:#000000; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; width:100%; height:auto !important;" width="600" alt="" data-proportionally-constrained="true" data-responsive="true" src={{cover_path}}> 
           </div>
         </td>
       </tr>

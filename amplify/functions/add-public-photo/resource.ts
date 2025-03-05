@@ -6,15 +6,12 @@ export const addPublicPhoto = defineFunction({
   environment: {
     PUBLIC_BUCKET_NAME: secret('jamesfrenchphoto-public-bucket'),
     PRIVATE_BUCKET_NAME: secret('jamesfrenchphoto-bucket'),
-    // FONTCONFIG_PATH: '/opt/fonts',
-    // LD_LIBRARY_PATH: '/lib'
-  },
-  bundling: {
-    minify: false
+    FONTCONFIG_PATH: '/opt/font/nodejs/fonts',
   },
   layers: {
     'sharp': 'arn:aws:lambda:us-east-1:911167908910:layer:sharp:4',
     'canvas': 'arn:aws:lambda:us-east-1:911167908910:layer:canvas-nodejs:4',
+    'fonts': 'arn:aws:lambda:us-east-1:911167908910:layer:fonts:11'
   },
   runtime: 20,
   timeoutSeconds: 30
