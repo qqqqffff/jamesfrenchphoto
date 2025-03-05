@@ -244,6 +244,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                             collectionId: collection.id,
                             publishStatus: false,
                             path: collection.publicCoverPath ?? '',
+                            name: '',
                             options: {
                               logging: true,
                             }
@@ -254,6 +255,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                             collectionId: collection.id,
                             publishStatus: true,
                             path: collection.coverPath,
+                            name: collection.name,
                             options: {
                               logging: true
                             }

@@ -299,6 +299,7 @@ const schema = a.schema({
     .arguments({
       path: a.string().required(),
       type: a.string().required(),
+      name: a.string().required()
     })
     .handler(a.handler.function(addPublicPhoto))
     .authorization((allow) => [allow.group('ADMINS')])

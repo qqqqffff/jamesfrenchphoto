@@ -380,6 +380,7 @@ export interface PublishCollectionParams {
     collectionId: string,
     publishStatus: boolean,
     path: string,
+    name: string,
     options?: {
         logging?: boolean
     }
@@ -389,7 +390,8 @@ export async function publishCollectionMutation(params: PublishCollectionParams)
         if(params.publishStatus){
             const responsePublishPublic = await client.queries.AddPublicPhoto({
                 path: params.path,
-                type: 'cover'
+                type: 'cover',
+                name: params.name
             })
     
             if(params.options?.logging) console.log(responsePublishPublic, responsePublishPublic.data)
