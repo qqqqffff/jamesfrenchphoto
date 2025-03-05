@@ -17,7 +17,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        main: ['Main Font']
+        main: ['Main Font'],
+        birthstone: ['Birthstone']
       },
       colors: {
         ...colors

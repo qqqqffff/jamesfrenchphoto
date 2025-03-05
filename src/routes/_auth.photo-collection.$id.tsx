@@ -196,7 +196,7 @@ function RouteComponent() {
         }}
       />
       <div 
-        className="font-main" 
+        className="font-mono" 
         onContextMenu={(e) => {
           if(!collection.downloadable) e.preventDefault()
         }}
@@ -218,8 +218,10 @@ function RouteComponent() {
         </div>
         <div className="flex flex-row justify-center items-center mb-2 relative bg-gray-200">
           <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
-            <p className={`${dimensions.width > 1600 ? "text-5xl" : 'text-3xl' } font-thin opacity-90`}>{collection.name}</p>
-            <p className="italic text-xl opacity-90">{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
+            <div className='bg-white bg-opacity-30 flex flex-col gap-2 px-10 py-4'>
+              <p className={`${dimensions.width > 1600 ? "text-7xl" : 'text-5xl' } font-thin font-birthstone`}>{collection.name}</p>
+              <p className="italic text-xl">{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
+            </div>
             <button 
               className='border rounded-lg py-1.5 px-2 animate-pulse mt-10'
               onClick={() => {
@@ -234,7 +236,7 @@ function RouteComponent() {
           </div>
           <img ref={coverPhotoRef} src={data.coverPath} style={{ maxHeight: dimensions.height }} />
         </div>
-        <div className='flex flex-row items-center px-4 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
+        <div className='grid grid-cols-3 items-center px-8 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
           <div className='flex flex-col items-start font-mono'>
             <span className='font-bold text-lg'>James French Photograpahy</span>
             <span className='italic flex flex-row gap-1'>
@@ -243,28 +245,30 @@ function RouteComponent() {
               <span>{set.name}</span>
             </span>
           </div>
-          <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
-            onClick={() => {
-              const nextIndex = currentIndex - 1 < 0 ? collection.sets.length - 1 : currentIndex - 1
-              setSet({...collection.sets[nextIndex]})
-            }}
-          >
-            <HiOutlineArrowLeft size={24} />
-          </button>
-          <SetCarousel 
-            setList={collection.sets}
-            setSelectedSet={setSet}
-            selectedSet={set}
-            currentIndex={currentIndex}
-          />
-          <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
-            onClick={() => {
-              const nextIndex = currentIndex + 1 >= collection.sets.length ? 0 : currentIndex + 1
-              setSet({...collection.sets[nextIndex]})
-            }}
-          >
-            <HiOutlineArrowRight size={24} />
-          </button>
+          <div className='flex flex-row w-full justify-between'>
+            <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
+              onClick={() => {
+                const nextIndex = currentIndex - 1 < 0 ? collection.sets.length - 1 : currentIndex - 1
+                setSet({...collection.sets[nextIndex]})
+              }}
+            >
+              <HiOutlineArrowLeft size={24} />
+            </button>
+            <SetCarousel 
+              setList={collection.sets}
+              setSelectedSet={setSet}
+              selectedSet={set}
+              currentIndex={currentIndex}
+            />
+            <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
+              onClick={() => {
+                const nextIndex = currentIndex + 1 >= collection.sets.length ? 0 : currentIndex + 1
+                setSet({...collection.sets[nextIndex]})
+              }}
+            >
+              <HiOutlineArrowRight size={24} />
+            </button>
+          </div>
         </div>
         <div className={gridClass} >
           {formattedCollection  && formattedCollection.length > 0 && formattedCollection

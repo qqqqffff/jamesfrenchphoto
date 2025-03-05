@@ -8,13 +8,14 @@ import {
   updateShareTemplateMutation, 
   UpdateShareTemplateParams 
 } from "../../../services/shareService";
-import { Badge, Button, Dropdown, Textarea, TextInput } from "flowbite-react";
+import { Badge, Button, Dropdown, TextInput } from "flowbite-react";
 import { SharePreview } from "./SharePreview";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { textInputTheme } from "../../../utils";
 import { HiOutlineX } from 'react-icons/hi'
-import { HiOutlineExclamationTriangle } from "react-icons/hi2";
+import { HiOutlineExclamationTriangle, HiOutlineInformationCircle } from "react-icons/hi2";
 import validator from 'validator'
+import { AutoExpandTextarea } from "../../common/AutoExpandTextArea";
 
 interface SharePannelProps {
   collection: PhotoCollection,
@@ -149,6 +150,10 @@ export const SharePannel = (props: SharePannelProps) => {
     .replace(new RegExp(/admin.*/g), 'photo-collection')
     + `/${props.collection.id}`
 
+  function formatString(value: string){
+    return value.replace(/\n/g, '<br />')
+  }
+
   return (
     <>
       <div className="grid grid-cols-2 gap-10">
@@ -241,25 +246,25 @@ export const SharePannel = (props: SharePannelProps) => {
             <Dropdown.Item onClick={() => setMode('body')}>Body</Dropdown.Item>
             <Dropdown.Item onClick={() => setMode('footer')}>Footer</Dropdown.Item>
           </Dropdown>
-          <Textarea
+          <AutoExpandTextarea 
             placeholder={`Enter ${formatMode(mode)} Here....`}
-            onChange={(event) => {
+            stateUpdate={(value) => {
               switch(mode){
                 case 'header':
-                  setHeader(event.target.value)
+                  setHeader(value)
                   return
                 case 'header2':
-                  setHeader2(event.target.value)
+                  setHeader2(value)
                   return
                 case 'body':
-                  setBody(event.target.value)
+                  setBody(value)
                   return
                 case 'footer':
-                  setFooter(event.target.value)
+                  setFooter(value)
                   return
               }
-            }}
-            value={getCurrentValue(mode)}
+            }}          
+            parentValue={getCurrentValue(mode)}
           />
           <div className="flex flex-row gap-4 items-center w-full">
             <TextInput 
@@ -380,10 +385,10 @@ export const SharePannel = (props: SharePannelProps) => {
               onClick={() => {
                 share.mutate({
                   emails: emails,
-                  header: header,
-                  header2: header2,
-                  body: body,
-                  footer: footer,
+                  header: header ? formatString(header) : undefined,
+                  header2: header2 ? formatString(header2) : undefined,
+                  body: body ? formatString(body) : undefined,
+                  footer: footer ? formatString(footer) : undefined,
                   coverPath: props.collection.publicCoverPath ?? '',
                   link: link,
                   name: props.collection.name,
@@ -399,6 +404,12 @@ export const SharePannel = (props: SharePannelProps) => {
               <>
                 <HiOutlineExclamationTriangle className="text-yellow-400" size={28} />
                 <span className="">{resolveError}</span>
+              </>
+            )}
+            {share.isSuccess && !share.isPending && (
+              <>
+                <HiOutlineInformationCircle className="text-green-400" size={28} />
+                <span>Shared Successfully</span>
               </>
             )}
           </div>

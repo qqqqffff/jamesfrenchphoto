@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { PhotoSet } from "../../types"
 
 interface SetCarouselProps {
@@ -10,24 +10,28 @@ interface SetCarouselProps {
 
 export const SetCarousel = (props: SetCarouselProps) => {
   const textRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [offset, setOffset] = useState(0)
 
   useEffect(() => {
-    if(containerRef.current){
-      const ref = textRefs.current.find((ref) => ref?.id === props.selectedSet.id)
-      ref?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }, [containerRef.current, props.selectedSet])
-
+    setOffset(
+      textRefs.current.reduce((prev, cur, index) => {
+        if(index <= props.currentIndex){
+          return prev + ((cur?.clientWidth === undefined || cur.clientWidth === 0 ? 100 : cur.clientWidth))
+        }
+        return prev
+      }, 0)
+      - 
+      ((textRefs.current[props.currentIndex]?.clientWidth ?? 100) / 2)
+    )
+  }, [textRefs.current[props.currentIndex]])
   
   return (
     <div className="relative overflow-hidden py-2 flex flex-col rounded-xl">
       <div className="h-auto relative">
         <div
-          ref={containerRef}
           className="flex transition-transform duration-500 ease-out h-full px-2"
           style={{
-            // transform: `translateX(calc(20vw - ${averageWidth / 2}px - ${currentIndex * averageWidth}px))`
+            transform: `translateX(calc(50% - ${offset}px))`
           }}
         >
           {props.setList.map((set, index) => {

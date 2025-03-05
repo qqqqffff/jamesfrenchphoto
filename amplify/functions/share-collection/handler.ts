@@ -343,8 +343,8 @@ export const handler: Schema['ShareCollection']['functionHandler'] = async (even
 
   const message: sgMail.MailDataRequired = {
     to: emails,
-    from: 'no-reply@jamesfrenchphotography.com',
-    subject: `James French Photography Collection: ${name}`,
+    from: 'jamesfrenchphoto@jamesfrenchphotography.com',
+    subject: `Your Collection: ${name} is Ready to View`,
     html: modifiedTemplate,
   }
 
