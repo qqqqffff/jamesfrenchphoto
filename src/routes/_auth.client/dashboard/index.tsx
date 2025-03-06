@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Package, UserTag } from '../../../types'
 import { FC, useState } from 'react'
-import { Alert, Button, Modal } from 'flowbite-react'
+import { Button, Modal } from 'flowbite-react'
 import PDFViewer from '../../../components/common/PDFViewer'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
@@ -67,7 +67,8 @@ function RouteComponent() {
       <div className="grid grid-cols-6 mt-8 font-main">
         <div className="flex flex-col items-center justify-center col-start-2 col-span-4 gap-4 border-black border rounded-xl mb-4 overflow-auto">
           <div className="flex flex-col items-center justify-center my-4">
-            {tags.length > 0 &&
+            {/* notifications will display here */}
+            {/* {tags.length > 0 &&
               tags.map((tag, index) => {
                   if(tag.name === 'LAF Escort 2025'){
                       return (
@@ -76,7 +77,7 @@ function RouteComponent() {
                   }
                   return undefined
               }).filter((element) => element !== undefined)
-            }
+            } */}
           </div>
           
           <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections:</span>
@@ -95,19 +96,12 @@ function RouteComponent() {
                       onClick={() => {
                         navigate({ to: `/photo-collection/${collection.id}`})
                       }}
+                      contentChildren={(
+                        <div className='font-thin font-mono opacity-90 text-gray-500 italic'>
+                          <p>{collection.name}</p>
+                        </div>
+                      )}
                     />
-                    // <button 
-                    //     className="flex flex-row justify-center items-center relative rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] hover:bg-gray-300 hover:text-gray-500"
-                    //     onClick={() => {
-                    //         navigate({ to: `/photo-collection/${collection.id}`})
-                    //     }}
-                    //     key={index}
-                    // >
-                    //   <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
-                    //     <p className={`font-thin opacity-90 text-2xl`}>{collection.name}</p>
-                    //   </div>
-                    //   <img src={collectionCovers.find((path) => path.data?.[0] === collection.id)?.data?.[1]} className="max-h-[238px] max-w-[360px]"/>
-                    // </button>
                   )
                 }
               )}
