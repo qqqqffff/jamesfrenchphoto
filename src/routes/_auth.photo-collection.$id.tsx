@@ -245,7 +245,7 @@ function RouteComponent() {
               <span>{set.name}</span>
             </span>
           </div>
-          <div className='flex flex-row w-full justify-between'>
+          <div className='flex flex-row w-full justify-between col-span-2 me-10'>
             <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
               onClick={() => {
                 const nextIndex = currentIndex - 1 < 0 ? collection.sets.length - 1 : currentIndex - 1
