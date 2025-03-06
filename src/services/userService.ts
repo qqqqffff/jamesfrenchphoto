@@ -222,6 +222,7 @@ export async function getAuthUsers(client: V6Client<Schema>, filter?: string | n
     return parsedUsersData
 }
 
+//TODO: address token expiration
 async function getTemporaryAccessToken(client: V6Client<Schema>, id: string): Promise<TemporaryAccessToken | undefined> {
     const response = await client.models.TemporaryAccessToken.get({ id: id }, { authMode: 'identityPool' })
     if(response.data && (

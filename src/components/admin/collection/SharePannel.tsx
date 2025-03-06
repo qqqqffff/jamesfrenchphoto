@@ -8,14 +8,15 @@ import {
   updateShareTemplateMutation, 
   UpdateShareTemplateParams 
 } from "../../../services/shareService";
-import { Badge, Button, Dropdown, TextInput } from "flowbite-react";
+import { Badge, Button, Checkbox, Dropdown, TextInput } from "flowbite-react";
 import { SharePreview } from "./SharePreview";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { textInputTheme } from "../../../utils";
 import { HiOutlineX } from 'react-icons/hi'
-import { HiOutlineExclamationTriangle, HiOutlineInformationCircle } from "react-icons/hi2";
+import { HiOutlineCheckBadge, HiOutlineExclamationTriangle } from "react-icons/hi2";
 import validator from 'validator'
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea";
+import { createAccessTokenMutation, CreateAccessTokenMutationParams } from "../../../services/userService";
 
 interface SharePannelProps {
   collection: PhotoCollection,
@@ -34,6 +35,11 @@ export const SharePannel = (props: SharePannelProps) => {
   const [email, setEmail] = useState<string>()
   const [name, setName] = useState<string | undefined>(props.selectedTemplate?.name)
   const [emailError, setEmailError] = useState<string>()
+  const [allowPublicUsers, setAllowPublicUsers] = useState(false)
+
+  const link = window.location.href
+    .replace(new RegExp(/admin.*/g), 'photo-collection')
+    + `/${props.collection.id}`
 
   useEffect(() => {
     if(props.selectedTemplate){
@@ -108,6 +114,28 @@ export const SharePannel = (props: SharePannelProps) => {
     mutationFn: (params: UpdateShareTemplateParams) => updateShareTemplateMutation(params)
   })
 
+  const createAccessToken = useMutation({
+    mutationFn: (params: CreateAccessTokenMutationParams) => createAccessTokenMutation(params),
+    onSuccess: (data) => {
+      if(data){
+        const finalLink = link + `?temporaryToken=${data}`
+        share.mutate({
+          emails: emails,
+          header: header ? formatString(header) : undefined,
+          header2: header2 ? formatString(header2) : undefined,
+          body: body ? formatString(body) : undefined,
+          footer: footer ? formatString(footer) : undefined,
+          coverPath: props.collection.publicCoverPath ?? '',
+          link: finalLink,
+          name: props.collection.name,
+          options: {
+            logging: true
+          }
+        })
+      }
+    }
+  })
+
   const formatMode = (mode: string) => {
     const temp = mode.substring(0, 1).toLocaleUpperCase()
     const temp2 = mode.substring(1)
@@ -145,10 +173,6 @@ export const SharePannel = (props: SharePannelProps) => {
     )
     return returnString
   })()
-
-  const link = window.location.href
-    .replace(new RegExp(/admin.*/g), 'photo-collection')
-    + `/${props.collection.id}`
 
   function formatString(value: string){
     return value.replace(/\n/g, '<br />')
@@ -377,38 +401,50 @@ export const SharePannel = (props: SharePannelProps) => {
             body={body}
             footer={footer}
           />
-          <div className="flex flex-row gap-2 items-center">
-            <Button
-              disabled={!props.collection.published || !props.collection.coverPath || !props.collection.publicCoverPath}
-              className="w-fit me-4"
-              isProcessing={share.isPending}
-              onClick={() => {
-                share.mutate({
-                  emails: emails,
-                  header: header ? formatString(header) : undefined,
-                  header2: header2 ? formatString(header2) : undefined,
-                  body: body ? formatString(body) : undefined,
-                  footer: footer ? formatString(footer) : undefined,
-                  coverPath: props.collection.publicCoverPath ?? '',
-                  link: link,
-                  name: props.collection.name,
-                  options: {
-                    logging: true
+          <div className="flex flex-col gap-2 items-start">
+            <div className="flex flex-row items-center gap-2">
+              <Button
+                disabled={!props.collection.published || !props.collection.coverPath || !props.collection.publicCoverPath}
+                className="w-fit me-4"
+                isProcessing={share.isPending || createAccessToken.isPending}
+                onClick={() => {
+                  if(allowPublicUsers){
+                    createAccessToken.mutate({
+                      collectionId: props.collection.id,
+                    })
+                  } else {
+                    share.mutate({
+                      emails: emails,
+                      header: header ? formatString(header) : undefined,
+                      header2: header2 ? formatString(header2) : undefined,
+                      body: body ? formatString(body) : undefined,
+                      footer: footer ? formatString(footer) : undefined,
+                      coverPath: props.collection.publicCoverPath ?? '',
+                      link: link,
+                      name: props.collection.name,
+                      options: {
+                        logging: true
+                      }
+                    })
                   }
-                })
-              }}
-            >
-              Share
-            </Button>
+                }}
+              >
+                Share
+              </Button>
+              <button className="flex flex-row gap-2 items-center" onClick={() => setAllowPublicUsers(!allowPublicUsers)}>
+                <Checkbox readOnly checked={allowPublicUsers}/>
+                <span>Allow public users</span>
+              </button>
+            </div>
             {(!props.collection.published || !props.collection.coverPath || !props.collection.publicCoverPath) && (
               <>
                 <HiOutlineExclamationTriangle className="text-yellow-400" size={28} />
                 <span className="">{resolveError}</span>
               </>
             )}
-            {share.isSuccess && !share.isPending && (
+            {share.isSuccess && !share.isPending && !createAccessToken.isPending && (
               <>
-                <HiOutlineInformationCircle className="text-green-400" size={28} />
+                <HiOutlineCheckBadge className="text-green-400" size={28} />
                 <span>Shared Successfully</span>
               </>
             )}
