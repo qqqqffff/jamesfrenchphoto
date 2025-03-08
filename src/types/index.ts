@@ -134,13 +134,30 @@ export type Package = {
     pdfPath: string,
 }
 
-export interface UserColumnDisplay {
+export interface TableGroup {
     id: string,
-    heading: string,
+    name: string,
+    tables: Table[]
+}
+
+export interface Table {
+    id: string,
+    name: string,
+    columns: TableColumn[],
+    tableGroupId: string
+}
+
+export interface TableColumn {
+    id: string,
+    header: string,
+    values: string[],
+    type: 'value' | 'date' | 'choice' | 'user',
+    choices?: string[],
     color?: ColumnColor[],
     display: boolean,
-    tag: string,
-    sort?: 'ASC' | 'DSC'
+    tags: UserTag[],
+    sort?: 'ASC' | 'DSC',
+    tableId: string,
 }
 
 export type ColumnColor = {
