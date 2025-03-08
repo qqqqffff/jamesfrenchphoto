@@ -120,16 +120,40 @@ const schema = a.schema({
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
-  UserColumnDisplay: a
+  TableGroup: a
     .model({
-      id: a.string().required(),
-      heading: a.string().required(),
-      color: a.hasMany('ColumnColorMapping', 'columnId'),
-      display: a.boolean().default(true),
-      tag: a.string().required(),
+      id: a.id().required(),
+      name: a.string().required(),
+      tables a.hasMany('Table','tableGroupId')
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('tag'), index('heading')])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  Table: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      tableGroupId: a.id().required(),
+      tableGroup: a.belongsTo('TableGroup', 'tableGroupId'),
+      tableColumns: a.hasMany('TableColumn', 'tableId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('tableGroupId')])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  TableColumn: a
+    .model({
+      id: a.string().required(),
+      header: a.string().required(),
+      values: a.string().array(),
+      choices: a.string().array(),
+      type: a.enum(['value', 'user', 'date', 'choice', 'tag']),
+      color: a.hasMany('ColumnColorMapping', 'columnId'),
+      display: a.boolean().default(true),
+      tag: a.string().array(),
+      tableId: a.id().required(),
+      table: a.belongsTo('Table', 'tableId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('tableId')])
     .authorization((allow) => [allow.group('ADMINS')]),
   ColumnColorMapping: a
     .model({
