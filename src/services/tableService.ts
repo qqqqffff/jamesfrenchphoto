@@ -68,6 +68,47 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
     return mappedTable
 }
 
+export interface CreateTableParams {
+    name: string,
+    tableGroupId: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function createTableMutation(params: CreateTableParams): Promise<string | undefined> {
+    const response = await client.models.Table.create({
+        name: params.name,
+        tableGroupId: params.tableGroupId,
+    })
+    if(response && response.data) {
+        return response.data.id
+    }
+}
+
+export interface CreateTableColumnParams {
+    header: string,
+    type: 'value' | 'user' | 'date' | 'choice' | 'tag',
+    choices?: string[],
+    tags?: string[],
+    tableId: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function createTableColumnMutation(params: CreateTableColumnParams): Promise<string | undefined> {
+    const response = await client.models.TableColumn.create({
+        header: params.header,
+        type: params.type,
+        choices: params.choices,
+        tags: params.tags,
+        tableId: params.tableId
+    })
+    if(response && response.data) {
+        return response.data.id
+    }
+}
+
+
 export const getAllTableGroupsQueryOptions = (options?: GetAllTableGroupsOptions) => queryOptions({
     queryKey: ['TableGroups', client, options],
     queryFn: getAllTableGroups(client, options)
