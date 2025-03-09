@@ -124,7 +124,7 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       name: a.string().required(),
-      tables a.hasMany('Table','tableGroupId')
+      tables: a.hasMany('Table','tableGroupId')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS')]),
@@ -145,9 +145,8 @@ const schema = a.schema({
       header: a.string().required(),
       values: a.string().array(),
       choices: a.string().array(),
-      type: a.enum(['value', 'user', 'date', 'choice', 'tag']),
+      type: a.enum(['value', 'user', 'date', 'choice', 'tag', 'file']),
       color: a.hasMany('ColumnColorMapping', 'columnId'),
-      display: a.boolean().default(true),
       tag: a.string().array(),
       tableId: a.id().required(),
       table: a.belongsTo('Table', 'tableId')

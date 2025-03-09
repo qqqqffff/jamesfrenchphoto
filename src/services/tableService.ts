@@ -1,50 +1,50 @@
 import { generateClient } from 'aws-amplify/api'
-import { v4 } from 'uuid'
 import { Schema } from '../../amplify/data/resource'
-import { TableGroup, Table, TableColumn, ColumnColorDisplay } from '../types'
-import { getUrl, remove, uploadData } from 'aws-amplify/storage'
+import { TableGroup, Table, TableColumn, ColumnColor, UserTag } from '../types'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 
 const client = generateClient<Schema>()
 
 interface GetAllTableGroupsOptions {
-    logging: boolean,
-    metrics: boolean
+    logging?: boolean,
+    metrics?: boolean
 }
-async function getAllTableGroups(client: V6Client<Schema>, options: GetAllTableGroupsOptions){
+async function getAllTableGroups(client: V6Client<Schema>, options?: GetAllTableGroupsOptions){
     const mappedGroups: TableGroup[] = await Promise.all((await client.models.TableGroup.list()).data.map(async (group) => {
-        const tables: Table[] = (await group.tables()).map((table) => {
+        const tables: Table[] = (await group.tables()).data.map((table) => {
             const mappedTable: Table = {
                 ...table,
-                tableColumns: [],
+                columns: [],
             }
             return mappedTable
         })
 
         const mappedGroup: TableGroup = {
             ...group,
-            groupTables: tables
+            tables: tables
         }
 
         return mappedGroup
     }))
+    if(options?.logging) console.log(mappedGroups)
 
     return mappedGroups
 }
 
 interface GetTableOptions {
-    logging: boolean,
-    metrics: boolean
+    siUserTags?: boolean,
+    logging?: boolean,
+    metrics?: boolean
 }
 async function getTable(client: V6Client<Schema>, id?: string, options?: GetTableOptions) {
     if(!id) return
     const tableResponse = await client.models.Table.get({ id: id })
     if(!tableResponse || !tableResponse.data) return
 
-    const mappedColumns: TableColumn[] = await Promise.all((await tableResponse.data.columns()).map(async (column) => {
-        const color: ColumnColorDisplay[] = (await column.color()).map((color) => {
-            const mappedColor: ColumnColorDisplay = {
+    const mappedColumns: TableColumn[] = await Promise.all((await tableResponse.data.tableColumns()).data.map(async (column) => {
+        const color: ColumnColor[] = (await column.color()).data.map((color) => {
+            const mappedColor: ColumnColor = {
                 ...color,
                 bgColor: color.bgColor ?? undefined,
                 textColor: color.textColor ?? undefined,
@@ -55,11 +55,21 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
             ...column,
             values: column.values ? column.values as string[] : [],
             choices: column.choices ? column.choices as string[] : [],
+            display: true,
             type: column.type ?? 'value' as 'value',
-            display: column.display ?? true,
-            tag: column.tag ? column.tag as string[] : [],
-            columnColorDisplay: color,
+            tags: column.tag && options?.siUserTags ? (await Promise.all(column.tag.map(async (tag) => {
+                if(!tag) return
+                const tagResponse = await client.models.UserTag.get({ id: tag })
+                if(!tagResponse || !tagResponse.data) return
+                const mappedTag: UserTag = {
+                    ...tagResponse.data,
+                    color: tagResponse.data.color ?? undefined,
+                }
+                return mappedTag
+            }))).filter((tag) => tag !== undefined) : [],
+            color: color,
         }
+        return mappedColumn
     }))
     const mappedTable: Table = {
         ...tableResponse.data,
@@ -87,7 +97,7 @@ export async function createTableMutation(params: CreateTableParams): Promise<st
 
 export interface CreateTableColumnParams {
     header: string,
-    type: 'value' | 'user' | 'date' | 'choice' | 'tag',
+    type: 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file',
     choices?: string[],
     tags?: string[],
     tableId: string,
@@ -100,7 +110,7 @@ export async function createTableColumnMutation(params: CreateTableColumnParams)
         header: params.header,
         type: params.type,
         choices: params.choices,
-        tags: params.tags,
+        tag: params.tags,
         tableId: params.tableId
     })
     if(response && response.data) {
@@ -108,13 +118,52 @@ export async function createTableColumnMutation(params: CreateTableColumnParams)
     }
 }
 
+export interface UpdateTableColumnParams  extends Partial<CreateTableColumnParams> {
+    column: TableColumn,
+    values: string[]
+}
+export async function updateTableColumnsMutation(params: UpdateTableColumnParams) {
+    const valuesCheck = params.values.reduce((prev, cur, index) => {
+        if(prev === false) return false
+        if(params.column.values[index] !== cur) return false
+        return prev
+    }, true)
+    const choicesCheck = params.choices?.reduce((prev, cur) => {
+        if(prev === false) return false
+        if(!params.column.choices?.includes(cur)) return false
+        return prev
+    }, true)
+    const tagsCheck = params.tags?.reduce((prev, cur) => {
+        if(prev === false) return false
+        if(!params.column.tags?.map((tag) => tag.id).includes(cur)) return false
+        return prev
+    }, true)
+    if(!valuesCheck ||
+        !choicesCheck ||
+        !tagsCheck ||
+        params.header !== params.column.header
+    ) {
+        const response = await client.models.TableColumn.update({
+            id: params.column.id,
+            header: params.header ?? params.column.header,
+            values: params.values,
+            choices: params.column.type === 'choice' || params.type === 'choice' ? ( 
+                params.choices ?? params.column.choices
+            ): undefined,
+            type: params.type ?? params.column.type,
+            tag: params.tags ?? params.column.tags.map((tag) => tag.id),
+        })
+        if(params.options?.logging) console.log(response)
+    }
+}
+
 
 export const getAllTableGroupsQueryOptions = (options?: GetAllTableGroupsOptions) => queryOptions({
     queryKey: ['TableGroups', client, options],
-    queryFn: getAllTableGroups(client, options)
+    queryFn: () => getAllTableGroups(client, options)
 })
 
-export const getTableQueryOptions = (id?: string, options?: GetTableOptions) => queryOptipns({
+export const getTableQueryOptions = (id?: string, options?: GetTableOptions) => queryOptions({
     queryKey: ['Table', client, id, options],
-    queryFn: getTable(client, id, options)
+    queryFn: () => getTable(client, id, options)
 })

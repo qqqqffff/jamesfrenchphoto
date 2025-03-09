@@ -151,7 +151,7 @@ export interface TableColumn {
     id: string,
     header: string,
     values: string[],
-    type: 'value' | 'date' | 'choice' | 'user',
+    type: 'value' | 'user' | 'date' | 'choice'  | 'tag' | 'file',
     choices?: string[],
     color?: ColumnColor[],
     display: boolean,
