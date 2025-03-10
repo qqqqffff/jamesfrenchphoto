@@ -158,7 +158,7 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       columnId: a.id().required(),
-      column: a.belongsTo('UserColumnDisplay', 'columnId'),
+      column: a.belongsTo('TableColumn', 'columnId'),
       value: a.string().required(),
       bgColor: a.string(),
       textColor: a.string()

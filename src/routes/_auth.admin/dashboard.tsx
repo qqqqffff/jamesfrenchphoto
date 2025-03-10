@@ -80,11 +80,11 @@ function RouteComponent() {
           <Button
             color="gray"
             onClick={() => {
-                navigate({ to: '/admin/dashboard/user' })
+                navigate({ to: '/admin/dashboard/table' })
             }}
-            className={activeConsoleClassName('user')}
+            className={activeConsoleClassName('table')}
           >
-            <HiOutlineUserCircle className="mt-1 me-1" /> User
+            <HiOutlineUserCircle className="mt-1 me-1" /> Management Tables
           </Button>
           <Button
             color="gray"

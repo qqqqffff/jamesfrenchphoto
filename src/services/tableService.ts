@@ -78,6 +78,45 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
     return mappedTable
 }
 
+export interface CreateTableGroupParams {
+    name: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function createTableGroupMutation(params: CreateTableGroupParams) {
+    const response = await client.models.TableGroup.create({ name: params.name })
+    if(params.options?.logging) console.log(response)
+}
+
+export interface UpdateTableGroupParams {
+    group: TableGroup,
+    name?: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function updateTableGroupMutation(params: UpdateTableGroupParams) {
+    if(params.group.name !== params.name && params.name !== undefined) {
+        const response = await client.models.TableGroup.update({
+            id: params.group.id,
+            name: params.name
+        })
+        if(params.options?.logging) console.log(response)
+    }
+}
+
+export interface DeleteTableGroupParams {
+    id: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function deleteTableGroupMutation(params: DeleteTableGroupParams) {
+    const response = await client.models.TableGroup.delete({ id: params.id })
+    if(params.options?.logging) console.log(response)
+}
+
 export interface CreateTableParams {
     name: string,
     tableGroupId: string,
@@ -93,6 +132,34 @@ export async function createTableMutation(params: CreateTableParams): Promise<st
     if(response && response.data) {
         return response.data.id
     }
+}
+
+export interface UpdateTableParams {
+    table: Table,
+    name?: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function updateTableMutation(params: UpdateTableParams) {
+    if(params.table.name !== params.name && params.name !== undefined){
+        const response = await client.models.Table.update({
+            id: params.table.id,
+            name: params.name,
+        })
+        if(params.options?.logging) console.log(response)
+    }
+}
+
+export interface DeleteTableParams {
+    id: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function deleteTableMutation(params: DeleteTableParams) {
+    const response = await client.models.Table.delete({ id: params.id })
+    if(params.options?.logging) console.log(response)
 }
 
 export interface CreateTableColumnParams {
