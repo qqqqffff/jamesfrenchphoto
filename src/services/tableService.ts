@@ -87,6 +87,7 @@ export interface CreateTableGroupParams {
 export async function createTableGroupMutation(params: CreateTableGroupParams) {
     const response = await client.models.TableGroup.create({ name: params.name })
     if(params.options?.logging) console.log(response)
+    return response.data?.id
 }
 
 export interface UpdateTableGroupParams {
