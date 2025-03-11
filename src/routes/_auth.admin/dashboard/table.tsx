@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getAllTableGroupsQueryOptions } from '../../../services/tableService'
-import { SetStateAction, useState } from 'react'
+import { useState } from 'react'
 import { Table, TableGroup } from '../../../types'
 import { TableSidePannel } from '../../../components/admin/table/TableSidePannel'
 
@@ -38,7 +38,7 @@ function RouteComponent() {
     searchGroup,
     searchTable,
   } = Route.useLoaderData()
-  const navigate = Route.useNavigate()
+  // const navigate = Route.useNavigate()
 
   const [tableGroups, setTableGroups] = useState<TableGroup[]>(searchTableGroups)
   const [selectedGroups, setSelectedGroups] = useState<TableGroup[]>(searchGroup ? [searchGroup] : [])
@@ -46,11 +46,12 @@ function RouteComponent() {
 
   return (
     <>
-      <div className='flex flex-row mx-4 mt-4 gap-4'>
+      <div className='flex flex-row mx-4 gap-4 h-[98vh] my-[1vh]'>
         <TableSidePannel 
           tableGroups={tableGroups} 
           parentUpdateTableGroups={setTableGroups} 
-          selectedTableGroups={selectedGroups} 
+          selectedTableGroups={selectedGroups}
+          selectedTable={selectedTable}
           parentUpdateSelectedTableGroups={setSelectedGroups} 
           parentUpdateSelectedTable={setSelectedTable}
         />

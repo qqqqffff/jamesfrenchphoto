@@ -1,8 +1,8 @@
 import { useMutation } from "@tanstack/react-query"
 import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlinePlusCircle } from "react-icons/hi2"
-import { createTableGroupMutation, CreateTableGroupParams, createTableMutation, CreateTableParams, deleteTableGroupMutation, DeleteTableGroupParams, deleteTableMutation, DeleteTableParams, updateTableGroupMutation, UpdateTableGroupParams, updateTableMutation, UpdateTableParams } from "../../../services/tableService"
-import { Table, TableColumn, TableGroup } from "../../../types"
-import { Dispatch, SetStateAction, useRef, useState } from "react"
+import { createTableGroupMutation, CreateTableGroupParams, createTableMutation, CreateTableParams, deleteTableGroupMutation, DeleteTableGroupParams, updateTableGroupMutation, UpdateTableGroupParams } from "../../../services/tableService"
+import { Table, TableGroup } from "../../../types"
+import { Dispatch, SetStateAction, useRef } from "react"
 import { EditableTextField } from "../../common/EditableTextField"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
 import { Dropdown } from "flowbite-react"
@@ -28,11 +28,12 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
         console.log(tableGroupName.current)
         const updateGroup = (prev: TableGroup[]) => prev.map((group) => {
           if(group.id.includes('temp') && tableGroupName.current !== null){
-            return {
+            const tempGroup: TableGroup = {
               ...group,
               id: data,
               name: tableGroupName.current
             }
+            return tempGroup
           }
           return group
         })
@@ -64,7 +65,7 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
             }
             return {
               ...group,
-              tables: [...group.tables, mappedTable]
+              tables: [...group.tables, mappedTable].filter((table) => table.id !== 'temp')
             }
           }
           return group
@@ -168,7 +169,16 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
                         }))
                         .filter((selectedGroup) => selectedGroup.id !== group.id)
 
+                        const tableGroups = [
+                          ...props.tableGroups
+                        ]
+                        .map((parentGroup) => ({
+                          ...parentGroup,
+                          tables: parentGroup.id === group.id ? parentGroup.tables.filter((table) => table.id !== 'temp') : parentGroup.tables
+                        }))
+
                         props.parentUpdateSelectedTableGroups(temp)
+                        props.parentUpdateTableGroups(tableGroups)
                       }
                       else {
                         const temp = [
@@ -198,53 +208,80 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
                   >
                     <Dropdown.Item 
                       onClick={() => {
+                        const otherAddingTable = props.tableGroups.find((parentGroup) => 
+                          parentGroup.tables.some((table) => table.id === 'temp')
+                        )
+                        
                         const updateGroup = (prev: TableGroup[]) => {
                           let temp: TableGroup[] = [
                             ...prev
                           ]
 
-                          if(!temp.some((tempGroup) => tempGroup.id === group.id)){
+                          if(!temp.some((parentGroup) => parentGroup.id === group.id)){
                             temp.push(group)
                           }
 
-                          return temp.map((parentGroup) => {
-                            if(parentGroup.id === group.id){
-                              const tempTable: Table = {
-                                id: 'temp',
-                                name: 'hello world',
-                                columns: [] as TableColumn[],
-                                tableGroupId: parentGroup.id
+                          temp = temp
+                            .map((parentGroup) => {
+                              if(otherAddingTable?.id === parentGroup.id){
+                                const mappedGroup: TableGroup = {
+                                  ...parentGroup,
+                                  tables: parentGroup.tables.filter((table) => table.id !== 'temp')
+                                }
+                                return mappedGroup
                               }
+                              else if(parentGroup.id === group.id) {
+                                const newTable: Table = {
+                                  id: 'temp',
+                                  name: '',
+                                  columns: [],
+                                  tableGroupId: parentGroup.id
+                                }
+                                const mappedGroup: TableGroup = {
+                                  ...parentGroup,
+                                  tables: [...parentGroup.tables, newTable]
+                                }
 
-                              return {
-                                ...parentGroup,
-                                tables: [
-                                  ...parentGroup.tables,
-                                  tempTable
-                                ]
+                                return mappedGroup
                               }
-                            }
-                            return parentGroup
-                          })
+                              return parentGroup
+                            })
+
+                          return temp
                         }
+
                         selectedGroupId.current = group.id
                         props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
                         props.parentUpdateTableGroups((prev) => updateGroup(prev))
                       }}
                     >Add Table</Dropdown.Item>
                     <Dropdown.Item>Rename Group</Dropdown.Item>
-                    <Dropdown.Item>Delete Group</Dropdown.Item>
+                    <Dropdown.Item
+                      onClick={() => {
+                        deleteTableGroup.mutate({
+                          id: group.id
+                        })
+                        props.parentUpdateSelectedTableGroups((prev) => {
+                          const temp = [...prev].filter((parent) => parent.id !== group.id)
+                          return temp
+                        })
+                        props.parentUpdateSelectedTableGroups((prev) => {
+                          const temp = [...prev].filter((parent) => parent.id !== group.id)
+                          return temp
+                        })
+                      }}
+                    >Delete Group</Dropdown.Item>
                   </Dropdown>
                 </div>
                 {selected && (
-                  <ol className="ps-16">
+                  <ol className="ps-10">
                     {group.tables.map((table, index) => {
                       const tableSelected = table.id === props.selectedTable?.id
                       if(table.id === 'temp') {
                         return (
-                          <div className="pe-14" key={index}>
+                          <div className="ps-6 pe-8 py-0.5" key={index}>
                             <EditableTextField
-                              label={<li style={{ listStyleType: 'circle' }} />}
+                              label={<li style={{ listStyleType: 'circle' }} className="text-sm -ms-4 -me-2" />}
                               className="min-w-full text-sm border-b-black focus:ring-0 focus:border-transparent focus:border-b-black"
                               text={tableName.current ?? ''}
                               placeholder="Enter Table Name Here..."
@@ -281,14 +318,24 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
                       }
                       
                       return (
-                        <li 
-                          key={index} 
-                          style={{ listStyleType: 'circle'}} 
+                        <div 
+                          key={index}
+                          onClick={() => {
+                            if(!tableSelected) {
+                              props.parentUpdateSelectedTable(table)
+                            }
+                            else {
+                              props.parentUpdateSelectedTable(undefined)
+                            }
+                          }}
                           className={`
-                            text-sm font-light border w-full hover:text-gray-500 
+                            text-sm font-light border w-full hover:text-gray-500 hover:cursor-pointer rounded-md px-6 py-0.5 flex flex-row items-center
                             ${tableSelected ? 'border-gray-800 bg-gray-100 hover:bg-gray-200 hover:border-gray-600' : 'hover:border-gray-200 border-transparent'}
                           `}
-                        >{table.name}</li>
+                        >
+                          <li style={{ listStyleType: 'circle'}} />
+                          <span>{table.name}</span>
+                        </div>
                       )
                     })}
                   </ol>
