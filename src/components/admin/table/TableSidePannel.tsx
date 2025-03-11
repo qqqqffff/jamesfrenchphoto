@@ -1,8 +1,11 @@
 import { useMutation } from "@tanstack/react-query"
-import { HiOutlinePlusCircle } from "react-icons/hi2"
+import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlinePlusCircle } from "react-icons/hi2"
 import { createTableGroupMutation, CreateTableGroupParams, createTableMutation, CreateTableParams, deleteTableGroupMutation, DeleteTableGroupParams, deleteTableMutation, DeleteTableParams, updateTableGroupMutation, UpdateTableGroupParams, updateTableMutation, UpdateTableParams } from "../../../services/tableService"
-import { Table, TableGroup } from "../../../types"
-import { Dispatch, SetStateAction, useState } from "react"
+import { Table, TableColumn, TableGroup } from "../../../types"
+import { Dispatch, SetStateAction, useRef, useState } from "react"
+import { EditableTextField } from "../../common/EditableTextField"
+import { HiOutlineDotsHorizontal } from "react-icons/hi"
+import { Dropdown } from "flowbite-react"
 
 interface TableSidePannelParams {
   tableGroups: TableGroup[],
@@ -14,25 +17,28 @@ interface TableSidePannelParams {
 }
 
 export const TableSidePannel = (props: TableSidePannelParams) => {
-  const [tableGroupName, setTableGroupName] = useState<string>()
-  const [tableName, setTableName] = useState<string>()
-  const [selectedGroupId, setSelectedGroupId] = useState<string>()
+  const tableGroupName = useRef<string | null>(null)
+  const tableName = useRef<string | null>(null)
+  const selectedGroupId = useRef<string | null>(null)
 
   const createTableGroup = useMutation({
     mutationFn: (params: CreateTableGroupParams) => createTableGroupMutation(params),
     onSuccess: (data) => {
       if(data){
-        props.parentUpdateTableGroups((prev) => prev.map((group) => {
-          if(group.id === 'temp'){
+        console.log(tableGroupName.current)
+        const updateGroup = (prev: TableGroup[]) => prev.map((group) => {
+          if(group.id.includes('temp') && tableGroupName.current !== null){
             return {
               ...group,
               id: data,
+              name: tableGroupName.current
             }
           }
           return group
-        }))
-        setTableGroupName('')
+        })
+        props.parentUpdateTableGroups((prev) => updateGroup(prev))
       }
+      tableGroupName.current = null
     }
   })
   
@@ -47,12 +53,12 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
   const createTable = useMutation({
     mutationFn: (params: CreateTableParams) => createTableMutation(params),
     onSuccess: (data) => {
-      if(data && tableName && selectedGroupId) {
-        props.parentUpdateTableGroups((prev) => prev.map((group) => {
-          if(group.id === selectedGroupId){
+      if(data && tableName.current && selectedGroupId.current) {
+        const updateGroup = (prev: TableGroup[]) => prev.map((group) => {
+          if(group.id === selectedGroupId.current && tableName.current && selectedGroupId.current){
             const mappedTable: Table = {
               id: data,
-              name: tableName,
+              name: tableName.current,
               tableGroupId: group.id,
               columns: []
             }
@@ -62,50 +68,232 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
             }
           }
           return group
-        }))
-        props.parentUpdateSelectedTable((prev) => {
-          if(prev?.id === 'temp'){
-            return {
-              ...prev,
-              id: data
-            }
-          }
-          else {
-            return {
-              id: data,
-              name: tableName,
-              tableGroupId: selectedGroupId,
-              columns: []
-            }
-          }
         })
-        setTableName('')
+        props.parentUpdateTableGroups((prev) => updateGroup(prev))
+        props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+        props.parentUpdateSelectedTable({
+          id: data,
+          name: tableName.current,
+          tableGroupId: selectedGroupId.current,
+          columns: []
+        })
+        tableName.current = null
+        selectedGroupId.current = null
       }
     }
   })
 
-  const updateTable = useMutation({
-    mutationFn: (params: UpdateTableParams) => updateTableMutation(params)
-  })
+  // TODO: move me
+  // const updateTable = useMutation({
+  //   mutationFn: (params: UpdateTableParams) => updateTableMutation(params)
+  // })
 
-  const deleteTable = useMutation({
-    mutationFn: (params: DeleteTableParams) => deleteTableMutation(params)
-  })
-
+  // const deleteTable = useMutation({
+  //   mutationFn: (params: DeleteTableParams) => deleteTableMutation(params)
+  // })
 
   return (
     <>
       <div className="flex flex-col items-center border border-gray-400 gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
         <div className="flex flex-row items-center w-full justify-between px-4 border-b pb-4 border-b-gray-400">
           <span className="text-2xl text-start">Tables</span>
-          <button>
-            <HiOutlinePlusCircle size={24}/>
+          <button 
+            className="flex flex-row items-center gap-2 enabled:hover:text-gray-500 enabled:hover:bg-gray-100 px-3 py-1 border rounded-xl disabled:text-gray-400"
+            disabled={props.tableGroups.find((group) => group.id === 'temp') !== undefined}
+            onClick={() => {
+              const temp = [
+                ...props.tableGroups
+              ]
+              temp.push({
+                id: 'temp',
+                name: '',
+                tables: []
+              })
+
+              props.parentUpdateTableGroups(temp)
+            }}
+          >
+            <span>Create Group</span>
+            <HiOutlinePlusCircle size={20}/>
           </button>
         </div>
-        <div className="flex flex-col w-full gap-2">
-          {props.tableGroups.map((group) => {
+        <div className="flex flex-col w-full">
+          {props.tableGroups.map((group, index) => {
+            const selected = props.selectedTableGroups.some((selectedGroup) => group.id === selectedGroup.id)
+            if(group.id.includes('temp')){
+              return (
+                <div className="pe-16" key={index}>
+                  <EditableTextField 
+                    label={(<span>&bull;</span>)}
+                    className="min-w-full text-lg border-b-black focus:ring-0 focus:border-transparent focus:border-b-black"
+                    text={tableGroupName.current ?? ''} 
+                    placeholder="Enter Group Name Here..."
+                    onSubmitText={(text) => {
+                      tableGroupName.current = text
+                      createTableGroup.mutate({
+                        name: text,
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }} 
+                    onCancel={() => {
+                      const temp = [
+                        ...props.tableGroups
+                      ].filter((group) => group.id !== 'temp')
+
+                      props.parentUpdateTableGroups(temp)
+                    }}
+                  />
+                </div>
+              )
+            }
             return (
-              <div>{group.name}</div>
+              <div className="flex flex-col" key={index}>
+                <div className="flex flex-row items-center w-full px-4">
+                  <span className="text-2xl">&bull;</span>
+                  <button 
+                    className={`
+                      flex flex-row gap-2 items-center w-full mx-1 px-1 justify-between border border-transparent rounded-lg
+                    hover:text-gray-500 hover:border-gray-200
+                    `}
+                    onClick={() => {
+                      if(selected){
+                        const temp = [
+                          ...props.selectedTableGroups
+                        ]
+                        .map((group) => ({
+                          ...group,
+                          tables: group.tables.filter((table) => table.id !== 'temp')
+                        }))
+                        .filter((selectedGroup) => selectedGroup.id !== group.id)
+
+                        props.parentUpdateSelectedTableGroups(temp)
+                      }
+                      else {
+                        const temp = [
+                          ...props.selectedTableGroups,
+                          group
+                        ]
+
+                        props.parentUpdateSelectedTableGroups(temp)
+                      }
+                    }}
+                  >
+                    <div className="flex flex-row items-center text-lg font-light gap-2">
+                      <span>{group.name}</span>
+                    </div>
+                    {selected ? (
+                      <HiOutlineChevronDown size={20} />
+                    ) : (
+                      <HiOutlineChevronLeft size={20} />
+                    )}
+                  </button>
+                  <Dropdown
+                    label={(
+                      <HiOutlineDotsHorizontal size={20} className="hover:text-gray-500" />
+                    )}
+                    inline
+                    arrowIcon={false}
+                  >
+                    <Dropdown.Item 
+                      onClick={() => {
+                        const updateGroup = (prev: TableGroup[]) => {
+                          let temp: TableGroup[] = [
+                            ...prev
+                          ]
+
+                          if(!temp.some((tempGroup) => tempGroup.id === group.id)){
+                            temp.push(group)
+                          }
+
+                          return temp.map((parentGroup) => {
+                            if(parentGroup.id === group.id){
+                              const tempTable: Table = {
+                                id: 'temp',
+                                name: 'hello world',
+                                columns: [] as TableColumn[],
+                                tableGroupId: parentGroup.id
+                              }
+
+                              return {
+                                ...parentGroup,
+                                tables: [
+                                  ...parentGroup.tables,
+                                  tempTable
+                                ]
+                              }
+                            }
+                            return parentGroup
+                          })
+                        }
+                        selectedGroupId.current = group.id
+                        props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                        props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                      }}
+                    >Add Table</Dropdown.Item>
+                    <Dropdown.Item>Rename Group</Dropdown.Item>
+                    <Dropdown.Item>Delete Group</Dropdown.Item>
+                  </Dropdown>
+                </div>
+                {selected && (
+                  <ol className="ps-16">
+                    {group.tables.map((table, index) => {
+                      const tableSelected = table.id === props.selectedTable?.id
+                      if(table.id === 'temp') {
+                        return (
+                          <div className="pe-14" key={index}>
+                            <EditableTextField
+                              label={<li style={{ listStyleType: 'circle' }} />}
+                              className="min-w-full text-sm border-b-black focus:ring-0 focus:border-transparent focus:border-b-black"
+                              text={tableName.current ?? ''}
+                              placeholder="Enter Table Name Here..."
+                              onSubmitText={(text) => {
+                                tableName.current = text
+                                selectedGroupId.current = group.id
+                                createTable.mutate({
+                                  tableGroupId: group.id,
+                                  name: text,
+                                  options: {
+                                    logging: true
+                                  }
+                                })
+                              }}
+                              onCancel={() => {
+                                const updateGroup = (prev: TableGroup[]) => {
+                                  let temp = [
+                                    ...prev
+                                  ].map((group) => ({
+                                      ...group,
+                                      tables: group.tables.filter((table) => table.id !== 'temp')
+                                    })
+                                  )
+
+                                  return temp
+                                }
+
+                                props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                                props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                              }}
+                            />
+                          </div>
+                        )
+                      }
+                      
+                      return (
+                        <li 
+                          key={index} 
+                          style={{ listStyleType: 'circle'}} 
+                          className={`
+                            text-sm font-light border w-full hover:text-gray-500 
+                            ${tableSelected ? 'border-gray-800 bg-gray-100 hover:bg-gray-200 hover:border-gray-600' : 'hover:border-gray-200 border-transparent'}
+                          `}
+                        >{table.name}</li>
+                      )
+                    })}
+                  </ol>
+                )}
+              </div>
             )
           })}
         </div>

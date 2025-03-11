@@ -2,10 +2,13 @@ import { ComponentProps, ReactNode, useEffect, useRef, useState } from "react";
 import { HiOutlineCheck, HiOutlinePencil } from "react-icons/hi2";
 
 interface EditableTextFieldProps extends ComponentProps<'span'> {
-  label: ReactNode
+  label?: ReactNode
   text: string
   onSubmitText: (text: string) => void
-  onSubmitError: (message: string) => void
+  onSubmitError?: (message: string) => void
+  onCancel?: () => void
+  minWidth?: string
+  placeholder?: string
 }
 
 export const EditableTextField = (props: EditableTextFieldProps) => {
@@ -19,11 +22,18 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
 
   useEffect(() => {
     setWidth(contentSpan.current?.offsetWidth ?? 0)
+    if(props.placeholder && inputRef.current){
+      setEditing(true)
+      inputRef.current.focus()
+    }
   }, [editedContent])
 
   function handleSubmit(){
+    console.log(editedContent, content, editedContent !== content)
     if(!editedContent || editedContent === ''){
-      props.onSubmitError('Set Name is Required!')
+      if(props.onSubmitError) {
+        props.onSubmitError('Set Name is Required!')
+      }
       setEditing(false)
       setEditedContent(undefined)
       return
@@ -42,7 +52,7 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
       onMouseEnter={() => setShowEdit(true)}
       onMouseLeave={() => setShowEdit(false)}
     >
-      {props.label}
+      {props?.label}
       <span 
         className="text-2xl absolute text-transparent" 
         ref={contentSpan}
@@ -50,12 +60,13 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
         {`${editedContent ?? content}?`}
       </span>
       <input 
-        className="font-thin p-0 text-2xl border-transparent disabled:cursor-default ring-transparent" 
+        className={`font-thin p-0 text-2xl border-transparent disabled:cursor-default ring-transparent ${props.className}`}
         value={editedContent ?? content} 
         type="text" 
         ref={inputRef}
-        style={{ width: width }}
+        style={{ width: width, minWidth: props.minWidth }}
         disabled={!editing}
+        placeholder={props.placeholder}
         onChange={(event) => {
           if(editing){
             setEditedContent(event.target.value)
@@ -68,6 +79,18 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
           else if(event.key == 'Escape'){
             setEditedContent(undefined)
             setEditing(false)
+            if(props.onCancel){
+              props.onCancel()
+            }
+          }
+        }}
+        onBlur={() => {
+          if(!editedContent || editedContent === '') {
+            setEditing(false)
+            setEditedContent(undefined)
+            if(props.onCancel){
+              props.onCancel()
+            }
           }
         }}
       />
@@ -86,10 +109,10 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
           }}
           className="hover:text-gray-500"
         >
-          {!editing ? (
-              <HiOutlinePencil size={24} />
+          {(!editing) ? (
+            <HiOutlinePencil size={24} />
           ) : (
-              <HiOutlineCheck size={24} />
+            <HiOutlineCheck size={24} />
           )}
         </button>
       )}
