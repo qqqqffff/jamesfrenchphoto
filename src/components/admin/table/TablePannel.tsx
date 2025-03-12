@@ -6,6 +6,7 @@ import { EditableTextField } from "../../common/EditableTextField"
 import { textInputTheme } from "../../../utils"
 import { Dropdown, TextInput } from "flowbite-react"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
+import { TableComponent } from "./TableComponent"
 
 interface TablePannelProps {
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
@@ -124,6 +125,11 @@ export const TablePannel = (props: TablePannelProps) => {
           </div>
         </div>
         <div className="w-full border border-gray-200 my-2"></div>
+        <TableComponent 
+          table={props.selectedTable}
+          parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
+          parentUpdateTableGroups={props.parentUpdateTableGroups}
+        />
       </div>
     </>
   )
