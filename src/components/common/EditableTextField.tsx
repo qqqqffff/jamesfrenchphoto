@@ -29,7 +29,6 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
   }, [editedContent])
 
   function handleSubmit(){
-    console.log(editedContent, content, editedContent !== content)
     if(!editedContent || editedContent === ''){
       if(props.onSubmitError) {
         props.onSubmitError('Set Name is Required!')

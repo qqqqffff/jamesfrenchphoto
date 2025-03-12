@@ -2,10 +2,11 @@ import { useMutation } from "@tanstack/react-query"
 import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlinePlusCircle } from "react-icons/hi2"
 import { createTableGroupMutation, CreateTableGroupParams, createTableMutation, CreateTableParams, deleteTableGroupMutation, DeleteTableGroupParams, updateTableGroupMutation, UpdateTableGroupParams } from "../../../services/tableService"
 import { Table, TableGroup } from "../../../types"
-import { Dispatch, SetStateAction, useRef } from "react"
+import { Dispatch, SetStateAction, useRef, useState } from "react"
 import { EditableTextField } from "../../common/EditableTextField"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
 import { Dropdown } from "flowbite-react"
+import { ConfirmationModal } from "../../modals"
 
 interface TableSidePannelParams {
   tableGroups: TableGroup[],
@@ -20,6 +21,7 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
   const tableGroupName = useRef<string | null>(null)
   const tableName = useRef<string | null>(null)
   const selectedGroupId = useRef<string | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState(false)
 
   const createTableGroup = useMutation({
     mutationFn: (params: CreateTableGroupParams) => createTableGroupMutation(params),
@@ -95,6 +97,36 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
 
   return (
     <>
+      <ConfirmationModal 
+        title='Delete Group'
+        body='This action will <b>DELETE</b> this group <b>AND</b> any associated tables. This action cannot be undone!'
+        denyText="Cancel"
+        confirmText="Delete"
+        confirmAction={() => {
+          if(selectedGroupId.current){
+            deleteTableGroup.mutate({
+              id: selectedGroupId.current,
+              options: {
+                logging: true
+              }
+            })
+            setDeleteConfirmation(false)
+            props.parentUpdateTableGroups((prev) => {
+              return prev.filter((group) => group.id !== selectedGroupId.current)
+            })
+            props.parentUpdateSelectedTableGroups((prev) => {
+              return prev.filter((group) => group.id !== selectedGroupId.current)
+            })
+            props.parentUpdateSelectedTable((prev) => {
+              if(prev?.tableGroupId === selectedGroupId.current) return undefined
+              return prev
+            })
+            selectedGroupId.current = null
+          }
+        }}
+        onClose={() => setDeleteConfirmation(false)}
+        open={deleteConfirmation}
+      />
       <div className="flex flex-col items-center border border-gray-400 gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
         <div className="flex flex-row items-center w-full justify-between px-4 border-b pb-4 border-b-gray-400">
           <span className="text-2xl text-start">Tables</span>
@@ -121,22 +153,59 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
         <div className="flex flex-col w-full">
           {props.tableGroups.map((group, index) => {
             const selected = props.selectedTableGroups.some((selectedGroup) => group.id === selectedGroup.id)
-            if(group.id.includes('temp')){
+            if(group.id === 'temp' || group.id.includes('edit')){
               return (
                 <div className="pe-16" key={index}>
                   <EditableTextField 
                     label={(<span>&bull;</span>)}
                     className="min-w-full text-lg border-b-black focus:ring-0 focus:border-transparent focus:border-b-black"
-                    text={tableGroupName.current ?? ''} 
+                    text={group.name ?? ''} 
                     placeholder="Enter Group Name Here..."
                     onSubmitText={(text) => {
-                      tableGroupName.current = text
-                      createTableGroup.mutate({
-                        name: text,
-                        options: {
-                          logging: true
+                      if(group.id === 'temp'){
+                        tableGroupName.current = text
+                        createTableGroup.mutate({
+                          name: text,
+                          options: {
+                            logging: true
+                          }
+                        })
+                      }
+                      else {
+                        updateTableGroup.mutate({
+                          group: {
+                            ...group,
+                            id: group.id.replace('edit', '')
+                          },
+                          name: text,
+                          options: {
+                            logging: true
+                          }
+                        })
+
+                        const updateGroup = (prev: TableGroup[]) => {
+                          let temp: TableGroup[] = [...prev]
+                          if(!temp.some((parentGroup) => parentGroup.id === group.id)){
+                            temp.push(group)
+                          }
+
+                          temp = temp.map((parentGroup) => {
+                            if(parentGroup.id === group.id) {
+                              return {
+                                ...parentGroup,
+                                id: parentGroup.id.replace('edit', ''),
+                                name: text
+                              }
+                            }
+                            return parentGroup
+                          })
+
+                          return temp
                         }
-                      })
+
+                        props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                        props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                      }
                     }} 
                     onCancel={() => {
                       const temp = [
@@ -223,14 +292,14 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
 
                           temp = temp
                             .map((parentGroup) => {
-                              if(otherAddingTable?.id === parentGroup.id){
+                              if(otherAddingTable?.id === parentGroup.id && parentGroup.id !== group.id){
                                 const mappedGroup: TableGroup = {
                                   ...parentGroup,
                                   tables: parentGroup.tables.filter((table) => table.id !== 'temp')
                                 }
                                 return mappedGroup
                               }
-                              else if(parentGroup.id === group.id) {
+                              else if(parentGroup.id === group.id && otherAddingTable?.id !== parentGroup.id) {
                                 const newTable: Table = {
                                   id: 'temp',
                                   name: '',
@@ -255,25 +324,40 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
                         props.parentUpdateTableGroups((prev) => updateGroup(prev))
                       }}
                     >Add Table</Dropdown.Item>
-                    <Dropdown.Item>Rename Group</Dropdown.Item>
                     <Dropdown.Item
                       onClick={() => {
-                        deleteTableGroup.mutate({
-                          id: group.id
-                        })
-                        props.parentUpdateSelectedTableGroups((prev) => {
-                          const temp = [...prev].filter((parent) => parent.id !== group.id)
+                        const updateGroup = (prev: TableGroup[]) => {
+                          let temp: TableGroup[] = [...prev]
+                          if(!temp.some((parentGroup) => parentGroup.id === group.id)){
+                            temp.push(group)
+                          }
+
+                          temp = temp.map((parentGroup) => {
+                            if(parentGroup.id === group.id) {
+                              return {
+                                ...parentGroup,
+                                id: 'edit' + parentGroup.id
+                              }
+                            }
+                            return parentGroup
+                          })
+
                           return temp
-                        })
-                        props.parentUpdateSelectedTableGroups((prev) => {
-                          const temp = [...prev].filter((parent) => parent.id !== group.id)
-                          return temp
-                        })
+                        }
+
+                        props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                        props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                      }}
+                    >Rename Group</Dropdown.Item>
+                    <Dropdown.Item
+                      onClick={() => {
+                        setDeleteConfirmation(true)
+                        selectedGroupId.current = group.id
                       }}
                     >Delete Group</Dropdown.Item>
                   </Dropdown>
                 </div>
-                {selected && (
+                {selected && !group.id.includes('edit') && (
                   <ol className="ps-10">
                     {group.tables.map((table, index) => {
                       const tableSelected = table.id === props.selectedTable?.id
