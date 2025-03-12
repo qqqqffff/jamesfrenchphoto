@@ -86,15 +86,6 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
     }
   })
 
-  // TODO: move me
-  // const updateTable = useMutation({
-  //   mutationFn: (params: UpdateTableParams) => updateTableMutation(params)
-  // })
-
-  // const deleteTable = useMutation({
-  //   mutationFn: (params: DeleteTableParams) => deleteTableMutation(params)
-  // })
-
   return (
     <>
       <ConfirmationModal 
@@ -103,9 +94,10 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
         denyText="Cancel"
         confirmText="Delete"
         confirmAction={() => {
-          if(selectedGroupId.current){
+          const foundGroup = props.tableGroups.find((group) => group.id === selectedGroupId.current)
+          if(foundGroup){
             deleteTableGroup.mutate({
-              id: selectedGroupId.current,
+              group: foundGroup,
               options: {
                 logging: true
               }
@@ -210,7 +202,9 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
                     onCancel={() => {
                       const temp = [
                         ...props.tableGroups
-                      ].filter((group) => group.id !== 'temp')
+                      ]
+                      .filter((group) => group.id !== 'temp')
+                      .map((group) => ({...group, id: group.id.replace('edit', '')}))
 
                       props.parentUpdateTableGroups(temp)
                     }}

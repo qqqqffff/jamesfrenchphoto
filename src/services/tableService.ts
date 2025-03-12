@@ -108,14 +108,23 @@ export async function updateTableGroupMutation(params: UpdateTableGroupParams) {
 }
 
 export interface DeleteTableGroupParams {
-    id: string,
+    group: TableGroup,
     options?: {
         logging?: boolean
     }
 }
 export async function deleteTableGroupMutation(params: DeleteTableGroupParams) {
-    const response = await client.models.TableGroup.delete({ id: params.id })
+    const response = await client.models.TableGroup.delete({ id: params.group.id })
     if(params.options?.logging) console.log(response)
+        
+    await Promise.all(params.group.tables.map(async (table) => {
+        await deleteTableMutation({
+            table: table,
+            options: {
+                logging: params.options?.logging
+            }
+        })
+    }))
 }
 
 export interface CreateTableParams {
@@ -152,15 +161,31 @@ export async function updateTableMutation(params: UpdateTableParams) {
     }
 }
 
+//TODO: column file deletion
 export interface DeleteTableParams {
-    id: string,
+    table: Table,
     options?: {
         logging?: boolean
     }
 }
 export async function deleteTableMutation(params: DeleteTableParams) {
-    const response = await client.models.Table.delete({ id: params.id })
+    const response = await client.models.Table.delete({ id: params.table.id })
     if(params.options?.logging) console.log(response)
+    const columnsResponse = await Promise.all(params.table.columns.map(async (column) => {
+        const colResponse = await client.models.TableColumn.delete({ id: column.id })
+
+        const colorResponse = await Promise.all((column.color ?? []).map(async (color) => {
+            const response = await client.models.ColumnColorMapping.delete({ id: color.id })
+            return response
+        }))
+
+        return {
+            colResponse: colResponse,
+            colorResponse: colorResponse
+        }
+    }))
+
+    if(params.options?.logging) console.log(columnsResponse)
 }
 
 export interface CreateTableColumnParams {

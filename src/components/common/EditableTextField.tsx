@@ -26,7 +26,11 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
       setEditing(true)
       inputRef.current.focus()
     }
-  }, [editedContent])
+    if(props.text !== content){
+      setContent(props.text)
+      setEditedContent(props.text)
+    }
+  }, [editedContent, props.text])
 
   function handleSubmit(){
     if(!editedContent || editedContent === ''){

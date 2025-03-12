@@ -3,6 +3,7 @@ import { getAllTableGroupsQueryOptions } from '../../../services/tableService'
 import { useState } from 'react'
 import { Table, TableGroup } from '../../../types'
 import { TableSidePannel } from '../../../components/admin/table/TableSidePannel'
+import { TablePannel } from '../../../components/admin/table/TablePannel'
 
 interface ManagementTablesSearchParams {
   table?: string,
@@ -55,6 +56,18 @@ function RouteComponent() {
           parentUpdateSelectedTableGroups={setSelectedGroups} 
           parentUpdateSelectedTable={setSelectedTable}
         />
+        { selectedTable ? (
+          <TablePannel
+            parentUpdateSelectedTableGroups={setSelectedGroups}
+            parentUpdateTableGroups={setTableGroups}
+            parentUpdateSelectedTable={setSelectedTable}
+            selectedTable={selectedTable}
+          />
+        ) : (
+          <div className="flex flex-col w-full items-center border border-gray-400 gap-2 rounded-2xl p-4">
+            <span className='font-light text-2xl italic'>Pick a table or create one to show up here!</span>
+          </div>
+        )}
       </div>
     </>
   )
