@@ -207,6 +207,7 @@ export async function createTableColumnMutation(params: CreateTableColumnParams)
         tag: params.tags,
         tableId: params.tableId
     })
+    if(params.options?.logging) console.log(response)
     if(response && response.data) {
         return response.data.id
     }
@@ -222,16 +223,19 @@ export async function updateTableColumnsMutation(params: UpdateTableColumnParams
         if(params.column.values[index] !== cur) return false
         return prev
     }, true)
+    if(params.options?.logging) console.log(`value check: ${valuesCheck}`)
     const choicesCheck = params.choices?.reduce((prev, cur) => {
         if(prev === false) return false
         if(!params.column.choices?.includes(cur)) return false
         return prev
     }, true)
+    if(params.options?.logging) console.log(`choices check: ${valuesCheck}`)
     const tagsCheck = params.tags?.reduce((prev, cur) => {
         if(prev === false) return false
         if(!params.column.tags?.map((tag) => tag.id).includes(cur)) return false
         return prev
     }, true)
+    if(params.options?.logging) console.log(`tags check: ${valuesCheck}`)
     if(!valuesCheck ||
         !choicesCheck ||
         !tagsCheck ||
@@ -249,6 +253,41 @@ export async function updateTableColumnsMutation(params: UpdateTableColumnParams
         })
         if(params.options?.logging) console.log(response)
     }
+}
+
+export interface AppendTableRowParams {
+    table: Table,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function appendTableRowMutation(params: AppendTableRowParams){
+    const response = await Promise.all(params.table.columns.map(async (column) => {
+        return client.models.TableColumn.update({
+            id: column.id,
+            values: [...column.values, '']
+        })
+    }))
+
+    if(params.options?.logging) console.log(response)
+}
+
+export interface DeleteTableColumnParams {
+    column: TableColumn,
+    options?: {
+        logging: boolean
+    }
+}
+export async function deleteTableColumnMutation(params: DeleteTableColumnParams){
+    const response = client.models.TableColumn.delete({ id: params.column.id })
+
+    if(params.options?.logging) console.log(response)
+
+    const columnMappingResponse = await Promise.all((params.column.color ?? []).map(async (color) => {
+        return client.models.ColumnColorMapping.delete({ id: color.id })
+    }))
+
+    if(params.options?.logging) console.log(columnMappingResponse)
 }
 
 

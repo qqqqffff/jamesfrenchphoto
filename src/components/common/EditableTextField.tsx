@@ -26,13 +26,14 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
       setEditing(true)
       inputRef.current.focus()
     }
-    if(props.text !== content){
+    if(props.text !== content || props.text !== editedContent){
       setContent(props.text)
       setEditedContent(props.text)
     }
   }, [editedContent, props.text])
 
   function handleSubmit(){
+    //case failed to make edited content
     if(!editedContent || editedContent === ''){
       if(props.onSubmitError) {
         props.onSubmitError('Set Name is Required!')
@@ -41,12 +42,23 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
       setEditedContent(undefined)
       return
     }
-    if(editedContent !== content){
+    //case unchanged content
+    if(props.text === content || props.text == editedContent){
+      setEditedContent(undefined)
+      setEditing(false)
+      if(props.onCancel) {
+        props.onCancel()
+      }
+      return
+    }
+    //case changed content
+    else if(editedContent !== content){
       props.onSubmitText(editedContent)
       setContent(editedContent)
+      setEditedContent(undefined)
+      setEditing(false)
+      return
     }
-    setEditedContent(undefined)
-    setEditing(false)
   }
 
   return (
@@ -57,7 +69,7 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
     >
       {props?.label}
       <span 
-        className="text-2xl absolute text-transparent" 
+        className={`text-2xl absolute text-transparent ${props.className} -z-10`} 
         ref={contentSpan}
       >
         {`${editedContent ?? content}?`}
@@ -87,15 +99,6 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
             }
           }
         }}
-        onBlur={() => {
-          if(!editedContent || editedContent === '') {
-            setEditing(false)
-            setEditedContent(undefined)
-            if(props.onCancel){
-              props.onCancel()
-            }
-          }
-        }}
       />
       {(showEdit || editing) && (
         <button 
@@ -110,7 +113,7 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
               handleSubmit()
             }
           }}
-          className="hover:text-gray-500"
+          className="hover:text-gray-500 hover:cursor-pointer"
         >
           {(!editing) ? (
             <HiOutlinePencil size={24} />

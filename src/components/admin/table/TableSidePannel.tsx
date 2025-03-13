@@ -7,6 +7,7 @@ import { EditableTextField } from "../../common/EditableTextField"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
 import { Dropdown } from "flowbite-react"
 import { ConfirmationModal } from "../../modals"
+import { useNavigate } from "@tanstack/react-router"
 
 interface TableSidePannelParams {
   tableGroups: TableGroup[],
@@ -22,6 +23,7 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
   const tableName = useRef<string | null>(null)
   const selectedGroupId = useRef<string | null>(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
+  const navigate = useNavigate()
 
   const createTableGroup = useMutation({
     mutationFn: (params: CreateTableGroupParams) => createTableGroupMutation(params),
@@ -401,9 +403,11 @@ export const TableSidePannel = (props: TableSidePannelParams) => {
                           onClick={() => {
                             if(!tableSelected) {
                               props.parentUpdateSelectedTable(table)
+                              navigate({ to: '.', search: { table: table.id }})
                             }
                             else {
                               props.parentUpdateSelectedTable(undefined)
+                              navigate({ to: '.', search: { table: undefined }})
                             }
                           }}
                           className={`
