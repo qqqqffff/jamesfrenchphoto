@@ -1,15 +1,21 @@
-import { Dispatch, SetStateAction } from "react"
-import { Table, TableGroup } from "../../../types"
-import { HiChevronDown, HiOutlinePencil, HiOutlinePlus, HiOutlinePlusCircle } from 'react-icons/hi2'
-import { Dropdown, MegaMenu, Tooltip } from "flowbite-react"
+import { Dispatch, SetStateAction, useRef } from "react"
+import { Table, TableColumn, TableGroup } from "../../../types"
+import { HiOutlineCalendar, HiOutlineListBullet, HiOutlinePencil, HiOutlinePlusCircle, HiOutlineUserCircle } from 'react-icons/hi2'
+import { Dropdown } from "flowbite-react"
+import { useMutation } from "@tanstack/react-query"
+import { createTableColumnMutation, CreateTableColumnParams } from "../../../services/tableService"
+import { EditableTextField } from "../../common/EditableTextField"
 
 interface TableComponentProps {
   table: Table,
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
+  parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
 }
 
 export const TableComponent = (props: TableComponentProps) => {
+  const columnType = useRef<'value' | 'user' | 'date' | 'choice' | 'tag' | 'file' | null>(null)
+
   const tableRows: [string, 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file'][][] = []
 
   if(props.table.columns.length > 0) { 
@@ -21,7 +27,62 @@ export const TableComponent = (props: TableComponentProps) => {
       tableRows.push(row)
     }
   }
-  
+
+  const createColumn = useMutation({
+    mutationFn: (params: CreateTableColumnParams) => createTableColumnMutation(params),
+    onSuccess: (data) => {
+      if(data){
+        const temp: Table = {
+          ...props.table,
+          columns: props.table.columns.map((column) => {
+            if(column.id === 'temp'){
+              return {
+                ...column,
+                id: data
+              }
+            }
+            return column
+          })
+        }
+        
+        const updateGroups = (prev: TableGroup[]) => {
+          const temp = [...prev]
+            .map((group) => {
+              if(group.id === props.table.tableGroupId){
+                return {
+                  ...group,
+                  tables: group.tables.map((table) => {
+                    if(table.id === props.table.id){
+                      return {
+                        ...table,
+                        columns: table.columns.map((column) => {
+                          if(column.id === 'temp'){
+                            return {
+                              ...column,
+                              id: data
+                            }
+                          }
+                          return column
+                        })
+                      }
+                    }
+                    return table
+                  })
+                }
+              }
+              return group
+            })
+
+          return temp
+        }
+
+        props.parentUpdateSelectedTableGroups((prev) => updateGroups(prev))
+        props.parentUpdateTableGroups((prev) => updateGroups(prev))
+        props.parentUpdateTable(temp)
+      }
+    }
+
+  })
 
 
   return (
@@ -41,12 +102,65 @@ export const TableComponent = (props: TableComponentProps) => {
                     items-center uppercase
                   "
                 >
-                  <button 
-                    className="hover:underline underline-offset-2 max-w-[140px]"
-                    onClick={() => {}}
-                  >
-                    {column.header}
-                  </button>
+                  {column.id === 'temp' || column.id.includes('edit') ? (
+                    <EditableTextField 
+                      className="text-sm w-full border-b-black focus:ring-0 focus:border-transparent focus:border-b-black"
+                      text={column.header ?? ''}
+                      placeholder="Enter Column Name..."
+                      onSubmitText={(text) => {
+                        if(columnType.current !== null){
+                          //TODO: improve logic and finish implementing me
+                          createColumn.mutate({
+                            header: text,
+                            tableId: props.table.id,
+                            type: columnType.current,
+                            options: {
+                              logging: true
+                            }
+                          })
+                        }
+                      }}
+                      onCancel={() => {
+                        const temp: Table = {
+                          ...props.table,
+                          columns: props.table.columns
+                            .filter((column) => column.id === 'temp')
+                            .map((column) => ({...column, id: column.id.replace('edit', '')}))
+                        }
+
+                        const updateGroup = (prev: TableGroup[]) => {
+                          const pTemp = [...prev]
+                            .map((group) => {
+                              if(group.id === props.table.tableGroupId){
+                                return {
+                                  ...group,
+                                  tables: group.tables.map((table) => {
+                                    if(table.id === props.table.id){
+                                      return temp
+                                    }
+                                    return table
+                                  })
+                                }
+                              }
+                              return group
+                            })
+
+                          return pTemp
+                        }
+
+                        props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                        props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                        props.parentUpdateTable(temp)
+                      }}
+                    />
+                  ) : (
+                    <button 
+                      className="hover:underline underline-offset-2 max-w-[140px]"
+                      onClick={() => {}}
+                    >
+                      {column.header}
+                    </button>
+                  )}
                 </th>
               )
             })}
@@ -62,10 +176,87 @@ export const TableComponent = (props: TableComponentProps) => {
                 arrowIcon={false}
                 label={(<HiOutlinePlusCircle className="text-gray-600 hover:fill-gray-200 hover:text-gray-900" size={24}/>)}
               >
-                <span className="whitespace-nowrap px-4 border-b pb-0.5">Add a Column</span>
-                <div className="grid grid-cols-2">
-                  <div className="">
-                    <HiOutlinePencil size={24} className="bg-orange-400"/>
+                <div className="w-max">
+                  <span className="whitespace-nowrap px-4 border-b pb-0.5">Add a Column</span>
+                  <div className="grid grid-cols-2 p-1 gap-x-2">
+                    <Dropdown.Item 
+                      as='button'
+                      className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
+                      onClick={() => {
+                        const temp: TableColumn = {
+                          id: 'temp',
+                          values: [],
+                          display: true,
+                          header: '',
+                          type: 'value',
+                          tags: [],
+                          tableId: props.table.id
+                        }
+
+                        columnType.current = 'value'
+
+                        props.parentUpdateTable({
+                          ...props.table,
+                          columns: [...props.table.columns, temp]
+                        })
+                      }}
+                    >
+                      <HiOutlinePencil size={32} className="bg-orange-400 border-4 border-orange-400 rounded-lg"/>
+                      <div className="flex flex-col">
+                        <span className="whitespace-nowrap">Value Column</span>
+                        <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds simple values</span>
+                      </div>
+                    </Dropdown.Item>
+                    <Dropdown.Item 
+                      as='button'
+                      className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      <HiOutlineUserCircle size={32} className="bg-red-500 border-4 border-red-500 rounded-lg"/>
+                      <div className="flex flex-col">
+                        <span className="whitespace-nowrap">User Column</span>
+                        <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column syncs with user's emails.</span>
+                      </div>
+                    </Dropdown.Item>
+                    <Dropdown.Item  
+                      as='button'
+                      className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      <HiOutlineCalendar size={32} className="bg-sky-400 border-4 border-sky-400 rounded-lg"/>
+                      <div className="flex flex-col">
+                        <span className="whitespace-nowrap">Date Column</span>
+                        <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column auto formats dates.</span>
+                      </div>
+                    </Dropdown.Item >
+                    <Dropdown.Item  
+                      as='button'
+                      className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      <HiOutlineListBullet size={32} className="bg-cyan-400 border-4 border-cyan-400 rounded-lg"/>
+                      <div className="flex flex-col">
+                        <span className="whitespace-nowrap">Choice Column</span>
+                        <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column has multiple expected values to choose from.</span>
+                      </div>
+                    </Dropdown.Item >
+                    <Dropdown.Item  
+                      as='button'
+                      className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      <HiOutlineUserCircle size={32} className="bg-fuchsia-600 border-4 border-fuchsia-600 rounded-lg"/>
+                      <div className="flex flex-col">
+                        <span className="whitespace-nowrap">Tag Column</span>
+                        <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column syncs with tags.</span>
+                      </div>
+                    </Dropdown.Item >
+                    <Dropdown.Item  
+                      as='button'
+                      className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      <HiOutlineUserCircle size={32} className="bg-purple-600 border-4 border-purple-600 rounded-lg"/>
+                      <div className="flex flex-col">
+                        <span className="whitespace-nowrap">File Column</span>
+                        <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds files.</span>
+                      </div>
+                    </Dropdown.Item>
                   </div>
                 </div>
               </Dropdown>

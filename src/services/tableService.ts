@@ -194,6 +194,7 @@ export interface CreateTableColumnParams {
     choices?: string[],
     tags?: string[],
     tableId: string,
+    values?: string[]
     options?: {
         logging?: boolean
     }

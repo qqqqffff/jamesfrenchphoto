@@ -127,6 +127,7 @@ export const TablePannel = (props: TablePannelProps) => {
         <div className="w-full border border-gray-200 my-2"></div>
         <TableComponent 
           table={props.selectedTable}
+          parentUpdateTable={props.parentUpdateSelectedTable}
           parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
           parentUpdateTableGroups={props.parentUpdateTableGroups}
         />
