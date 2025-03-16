@@ -140,9 +140,16 @@ export const TablePannel = (props: TablePannelProps) => {
                     ...props.selectedTable,
                     columns: [
                       ...table.data.columns.map((dataColumn) => {
-                        const foundColumn = props.selectedTable.columns.find((column) => column.id.replace('edit', '') === dataColumn.id)
-                        if(foundColumn){
-                          return foundColumn
+                        const foundEditColumn = props.selectedTable.columns.find((column) => column.id.replace('edit', '') === dataColumn.id)
+                        if(foundEditColumn){
+                          return foundEditColumn
+                        }
+                        const foundEditedColumn = props.selectedTable.columns.find((column) => column.id.replace('edited', '') === dataColumn.id)
+                        if(foundEditedColumn){
+                          return {
+                            ...foundEditedColumn,
+                            id: foundEditedColumn.id.replace('edited', '')
+                          }
                         }
                         return dataColumn
                       }), 

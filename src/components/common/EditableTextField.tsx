@@ -13,7 +13,7 @@ interface EditableTextFieldProps extends ComponentProps<'span'> {
 
 export const EditableTextField = (props: EditableTextFieldProps) => {
   const [content, setContent] = useState(props.text)
-  const [editedContent, setEditedContent] = useState<string>()
+  const [spanContent, setSpanContent] = useState(props.text)
   const [width, setWidth] = useState(0)
   const contentSpan = useRef<HTMLSpanElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -21,30 +21,20 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
-    setWidth(contentSpan.current?.offsetWidth ?? 0)
+    setWidth(contentSpan.current?.clientWidth ?? 0)
     if(props.placeholder && inputRef.current){
       setEditing(true)
       inputRef.current.focus()
     }
-    if(props.text !== content || props.text !== editedContent){
+    if(props.text !== content && spanContent !== content){
       setContent(props.text)
-      setEditedContent(props.text)
+      setSpanContent(props.text)
     }
-  }, [editedContent, props.text])
+  }, [spanContent, props.text])
 
   function handleSubmit(){
-    //case failed to make edited content
-    if(!editedContent || editedContent === ''){
-      if(props.onSubmitError) {
-        props.onSubmitError('Set Name is Required!')
-      }
-      setEditing(false)
-      setEditedContent(undefined)
-      return
-    }
     //case unchanged content
-    if(props.text === content || props.text == editedContent){
-      setEditedContent(undefined)
+    if(props.text === content){
       setEditing(false)
       if(props.onCancel) {
         props.onCancel()
@@ -52,10 +42,9 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
       return
     }
     //case changed content
-    else if(editedContent !== content){
-      props.onSubmitText(editedContent)
-      setContent(editedContent)
-      setEditedContent(undefined)
+    else if(props.text !== content){
+      props.onSubmitText(content)
+      setContent('')
       setEditing(false)
       return
     }
@@ -72,11 +61,11 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
         className={`text-2xl absolute text-transparent ${props.className} -z-10`} 
         ref={contentSpan}
       >
-        {`${editedContent ?? content}?`}
+        {`${spanContent}?`}
       </span>
       <input 
         className={`font-thin p-0 text-2xl border-transparent disabled:cursor-default ring-transparent ${props.className}`}
-        value={editedContent ?? content} 
+        value={content} 
         type="text" 
         ref={inputRef}
         style={{ width: width, minWidth: props.minWidth }}
@@ -84,7 +73,8 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
         placeholder={props.placeholder}
         onChange={(event) => {
           if(editing){
-            setEditedContent(event.target.value)
+            setContent(event.target.value)
+            setSpanContent(event.target.value)
           }
         }}
         onKeyDown={(event) => {
@@ -92,8 +82,9 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
             handleSubmit()
           }
           else if(event.key == 'Escape'){
-            setEditedContent(undefined)
             setEditing(false)
+            setContent(props.text)
+            setSpanContent(props.text)
             if(props.onCancel){
               props.onCancel()
             }
@@ -105,7 +96,8 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
           onClick={async () => {
             if(inputRef.current && !editing){
               setEditing(true)
-              setEditedContent(content)
+              setContent(props.text)
+              setSpanContent(props.text)
               await new Promise(resolve => setTimeout(resolve, 1))
               inputRef.current.focus()
             }

@@ -218,23 +218,23 @@ export interface UpdateTableColumnParams  extends Partial<CreateTableColumnParam
     values: string[]
 }
 export async function updateTableColumnsMutation(params: UpdateTableColumnParams) {
-    const valuesCheck = params.values.reduce((prev, cur, index) => {
+    const valuesCheck = (params.values && params.values.length > 0) ? params.values.reduce((prev, cur, index) => {
         if(prev === false) return false
         if(params.column.values[index] !== cur) return false
         return prev
-    }, true)
+    }, true) : true
     if(params.options?.logging) console.log(`value check: ${valuesCheck}`)
-    const choicesCheck = params.choices?.reduce((prev, cur) => {
+    const choicesCheck = params.choices ? params.choices?.reduce((prev, cur) => {
         if(prev === false) return false
         if(!params.column.choices?.includes(cur)) return false
         return prev
-    }, true)
+    }, true) : true
     if(params.options?.logging) console.log(`choices check: ${valuesCheck}`)
-    const tagsCheck = params.tags?.reduce((prev, cur) => {
+    const tagsCheck = (params.tags && params.tags.length > 0) ? params.tags?.reduce((prev, cur) => {
         if(prev === false) return false
         if(!params.column.tags?.map((tag) => tag.id).includes(cur)) return false
         return prev
-    }, true)
+    }, true) : true
     if(params.options?.logging) console.log(`tags check: ${valuesCheck}`)
     if(!valuesCheck ||
         !choicesCheck ||
@@ -265,10 +265,39 @@ export async function appendTableRowMutation(params: AppendTableRowParams){
     const response = await Promise.all(params.table.columns.map(async (column) => {
         return client.models.TableColumn.update({
             id: column.id,
-            values: [...column.values, '']
+            values: [...column.values]
         })
     }))
 
+    if(params.options?.logging) console.log(response)
+}
+
+export interface DeleteTableRowParams {
+    table: Table,
+    rowIndex: number,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function deleteTableRowMutation(params: DeleteTableRowParams) {
+    const tempTable: Table = {
+        ...params.table,
+        columns: params.table.columns.map((column) => ({
+            ...column, 
+            values: column.values.reduce((prev, cur, index) => {
+                if(params.rowIndex === index) return prev
+                prev.push(cur)
+                return prev
+            }, [] as string[])
+        }))
+    }
+    if(params.options?.logging) console.log(tempTable)
+    const response = await Promise.all(tempTable.columns.map(async (column) => {
+        return client.models.TableColumn.update({
+            id: column.id,
+            values: column.values
+        })
+    }))
     if(params.options?.logging) console.log(response)
 }
 
@@ -279,7 +308,7 @@ export interface DeleteTableColumnParams {
     }
 }
 export async function deleteTableColumnMutation(params: DeleteTableColumnParams){
-    const response = client.models.TableColumn.delete({ id: params.column.id })
+    const response = await client.models.TableColumn.delete({ id: params.column.id })
 
     if(params.options?.logging) console.log(response)
 

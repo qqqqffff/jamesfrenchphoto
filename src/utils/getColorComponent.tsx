@@ -1,5 +1,4 @@
 import { FC } from "react";
-import { defaultColors } from ".";
 
 export interface ColorComponentProps {
     activeColor?: string
@@ -13,10 +12,6 @@ export const getColorComponent: FC<ColorComponentProps> = ({ activeColor, custom
     if(!activeColor) activeColor = 'black'
 
     const className = 'text-' + activeColor
-    
-    if(!(defaultColors.map((color) => ('text-' + color)).includes(className) || activeColor === 'black')){
-        throw new Error('Unexpected Token')
-    }
     
     const colorText = activeColor.replace(/[^a-zA-Z]/g, '')[0].toUpperCase() + activeColor.replace(/[^a-zA-Z]/g, '').substring(1);
     return (<span className={className}>{customText ? customText : colorText}</span>)

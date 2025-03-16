@@ -1,15 +1,19 @@
 import { Dispatch, SetStateAction, useRef, useState } from "react"
 import { Table, TableColumn, TableGroup } from "../../../types"
-import { HiOutlineCalendar, HiOutlineListBullet, HiOutlinePencil, HiOutlinePlusCircle, HiOutlineUserCircle } from 'react-icons/hi2'
+import { HiOutlineCalendar, HiOutlineListBullet, HiOutlinePencil, HiOutlinePlusCircle, HiOutlineUserCircle, HiOutlineXCircle } from 'react-icons/hi2'
 import { Dropdown } from "flowbite-react"
 import { useMutation } from "@tanstack/react-query"
 import { 
+  appendTableRowMutation,
+  AppendTableRowParams,
   // appendTableRowMutation, 
   // AppendTableRowParams, 
   createTableColumnMutation, 
   CreateTableColumnParams, 
   deleteTableColumnMutation, 
   DeleteTableColumnParams, 
+  deleteTableRowMutation, 
+  DeleteTableRowParams, 
   UpdateTableColumnParams, 
   updateTableColumnsMutation 
 } from "../../../services/tableService"
@@ -22,6 +26,7 @@ import { DateCell } from "./DateCell"
 import { ChoiceCell } from "./ChoiceCell"
 import { TagCell } from "./TagCell"
 import { FileCell } from "./FileCell"
+import { invariant } from "@tanstack/react-router"
 
 interface TableComponentProps {
   table: Table,
@@ -108,9 +113,13 @@ export const TableComponent = (props: TableComponentProps) => {
     mutationFn: (params: UpdateTableColumnParams) => updateTableColumnsMutation(params),
   })
 
-  // const appendRow = useMutation({
-  //   mutationFn: (params: AppendTableRowParams) => appendTableRowMutation(params)
-  // })
+  const appendRow = useMutation({
+    mutationFn: (params: AppendTableRowParams) => appendTableRowMutation(params)
+  })
+
+  const deleteRow = useMutation({
+    mutationFn: (params: DeleteTableRowParams) => deleteTableRowMutation(params)
+  })
 
   const deleteColumn = useMutation({
     mutationFn: (params: DeleteTableColumnParams) => deleteTableColumnMutation(params)
@@ -218,7 +227,6 @@ export const TableComponent = (props: TableComponentProps) => {
                           text={column.header ?? ''}
                           placeholder="Enter Column Name..."
                           onSubmitText={(text) => {
-                            console.log(text, column.id, column.header)
                             if(columnType.current !== null){
                               //TODO: improve logic and finish implementing me
                               createColumn.mutate({
@@ -283,10 +291,10 @@ export const TableComponent = (props: TableComponentProps) => {
                               const temp: Table = {
                                 ...props.table,
                                 columns: props.table.columns
-                                  .map((column) => ({
-                                    ...column, 
-                                    id: column.id.replace('edit', ''),
-                                    name: text
+                                  .map((parentColumn) => ({
+                                    ...parentColumn, 
+                                    id: parentColumn.id === column.id ? column.id.replace('edit', 'edited') : parentColumn.id.replace('edit', ''),
+                                    header: parentColumn.id === column.id ? text : parentColumn.header,
                                   }))
                               }
 
@@ -306,7 +314,7 @@ export const TableComponent = (props: TableComponentProps) => {
                                     }
                                     return group
                                   })
-    
+
                                 return pTemp
                               }
     
@@ -408,6 +416,7 @@ export const TableComponent = (props: TableComponentProps) => {
                           <Dropdown.Item 
                             className="justify-center"
                             onClick={() => {
+                              refColumn.current = column
                               setDeleteColumnConfirmation(true)
                             }}
                           >Delete</Dropdown.Item>
@@ -562,6 +571,21 @@ export const TableComponent = (props: TableComponentProps) => {
                               key={j} 
                               value={v}
                               updateValue={(text) => {
+                                const column = props.table.columns.find((column) => column.id === id)
+
+                                invariant(column !== undefined)
+
+                                updateColumn.mutate({
+                                  column: column,
+                                  values: column.values.map((value, index) => {
+                                    if(index === i) return text
+                                    return value
+                                  }),
+                                  options: {
+                                    logging: true
+                                  }
+                                })
+
                                 //TODO: add api call
                                 const temp: Table = {
                                   ...props.table,
@@ -607,6 +631,61 @@ export const TableComponent = (props: TableComponentProps) => {
                         }
                       }
                     })}
+                    <td className="flex flex-row items-center justify-center py-3">
+                      <button
+                        onClick={() => {
+                          deleteRow.mutate({
+                            table: props.table,
+                            rowIndex: i,
+                            options: {
+                              logging: true
+                            }
+                          })
+
+                          const temp: Table = {
+                            ...props.table,
+                            columns: props.table.columns.map((column) => {
+                              const mappedColumn: TableColumn = {
+                                ...column,
+                                values: column.values.reduce((prev, cur, index) => {
+                                  if(index === i) return prev
+                                  prev.push(cur)
+                                  return prev
+                                }, [] as string[])
+                              }
+                              return mappedColumn
+                            })
+                          }
+
+                          const updateGroup = (prev: TableGroup[]) => {
+                            const pTemp: TableGroup[] = [
+                              ...prev
+                            ].map((parentGroup) => {
+                              if(parentGroup.id === props.table.tableGroupId){
+                                return {
+                                  ...parentGroup,
+                                  tables: parentGroup.tables.map((table) => {
+                                    if(table.id === temp.id){
+                                      return temp
+                                    }
+                                    return table
+                                  })
+                                }
+                              }
+                              return parentGroup
+                            })
+
+                            return pTemp
+                          }
+
+                          props.parentUpdateTable(temp)
+                          props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                          props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                        }}
+                      >
+                        <HiOutlineXCircle className="text-gray-600 hover:fill-gray-200 hover:text-gray-900" size={26} />
+                      </button>
+                    </td>
                   </tr>
                 )
               })
@@ -616,12 +695,12 @@ export const TableComponent = (props: TableComponentProps) => {
                 <td className="text-ellipsis flex flex-row items-center justify-center w-full p-1 border-x border-b">
                   <button
                     onClick={() => {
-                      // appendRow.mutate({
-                      //   table: props.table,
-                      //   options: {
-                      //     logging: true
-                      //   }
-                      // })
+                      appendRow.mutate({
+                        table: props.table,
+                        options: {
+                          logging: true
+                        }
+                      })
 
                       const temp: Table = {
                         ...props.table,
