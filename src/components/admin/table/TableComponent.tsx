@@ -1,8 +1,8 @@
 import { Dispatch, SetStateAction, useRef, useState } from "react"
-import { Table, TableColumn, TableGroup } from "../../../types"
+import { Table, TableColumn, TableGroup, UserData } from "../../../types"
 import { HiOutlineCalendar, HiOutlineListBullet, HiOutlinePencil, HiOutlinePlusCircle, HiOutlineUserCircle, HiOutlineXCircle } from 'react-icons/hi2'
 import { Dropdown } from "flowbite-react"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import { 
   appendTableRowMutation,
   AppendTableRowParams,
@@ -34,6 +34,7 @@ interface TableComponentProps {
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
   parentDeleteColumns: Dispatch<SetStateAction<TableColumn[]>>
+  userData: UseQueryResult<UserData[] | undefined, Error>
 }
 
 export const TableComponent = (props: TableComponentProps) => {
@@ -144,6 +145,63 @@ export const TableComponent = (props: TableComponentProps) => {
     }
 
     props.parentUpdateTable(table)
+  }
+
+  const updateValue = (id: string, text: string, i: number) => {
+    const column = props.table.columns.find((column) => column.id === id)
+
+    invariant(column !== undefined)
+
+    updateColumn.mutate({
+      column: column,
+      values: column.values.map((value, index) => {
+        if(index === i) return text
+        return value
+      }),
+      options: {
+        logging: true
+      }
+    })
+
+    //TODO: add api call
+    const temp: Table = {
+      ...props.table,
+      columns: props.table.columns.map((column) => {
+        if(column.id === id){
+          const values = [...column.values]
+          values[i] = text
+          return {
+            ...column,
+            values: values
+          }
+        }
+        return column
+      })
+    }
+
+    const updateGroup = (prev: TableGroup[]) => {
+      const pTemp = [...prev]
+        .map((group) => {
+          if(group.id === temp.tableGroupId){
+            return {
+              ...group,
+              tables: group.tables.map((table) => {
+                if(table.id === temp.id){
+                  return temp
+                }
+                return table
+              })
+            }
+          }
+          return group
+        })
+
+      return pTemp
+    }
+
+    props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+    props.parentUpdateTableGroups((prev) => updateGroup(prev))
+    props.parentUpdateTable(temp)
   }
 
   return (
@@ -525,7 +583,8 @@ export const TableComponent = (props: TableComponentProps) => {
                             <UserCell
                               key={j}
                               value={v}
-                              updateValue={(text) => console.log(text)}
+                              updateValue={(text) => updateValue(id, text, i)}
+                              userData={props.userData}
                             />
                           )
                         }
@@ -570,62 +629,7 @@ export const TableComponent = (props: TableComponentProps) => {
                             <ValueCell
                               key={j} 
                               value={v}
-                              updateValue={(text) => {
-                                const column = props.table.columns.find((column) => column.id === id)
-
-                                invariant(column !== undefined)
-
-                                updateColumn.mutate({
-                                  column: column,
-                                  values: column.values.map((value, index) => {
-                                    if(index === i) return text
-                                    return value
-                                  }),
-                                  options: {
-                                    logging: true
-                                  }
-                                })
-
-                                //TODO: add api call
-                                const temp: Table = {
-                                  ...props.table,
-                                  columns: props.table.columns.map((column) => {
-                                    if(column.id === id){
-                                      const values = [...column.values]
-                                      values[i] = text
-                                      return {
-                                        ...column,
-                                        values: values
-                                      }
-                                    }
-                                    return column
-                                  })
-                                }
-
-                                const updateGroup = (prev: TableGroup[]) => {
-                                  const pTemp = [...prev]
-                                    .map((group) => {
-                                      if(group.id === temp.tableGroupId){
-                                        return {
-                                          ...group,
-                                          tables: group.tables.map((table) => {
-                                            if(table.id === temp.id){
-                                              return temp
-                                            }
-                                            return table
-                                          })
-                                        }
-                                      }
-                                      return group
-                                    })
-
-                                  return pTemp
-                                }
-
-                                props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-                                props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                                props.parentUpdateTable(temp)
-                              }}
+                              updateValue={(text) => updateValue(id, text, i)}
                             />
                           )
                         }

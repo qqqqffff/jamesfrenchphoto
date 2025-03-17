@@ -19,6 +19,7 @@ export interface UserData {
     created?: Date;
     updated?: Date;
     enabled?: boolean;
+    profile?: UserProfile
 }
 
 export interface UserProfile {

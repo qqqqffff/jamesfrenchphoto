@@ -8,6 +8,7 @@ import { Dropdown, TextInput } from "flowbite-react"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
 import { TableComponent } from "./TableComponent"
 import Loading from "../../common/Loading"
+import { getAuthUsersQueryOptions } from "../../../services/userService"
 
 interface TablePannelProps {
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
@@ -21,6 +22,8 @@ export const TablePannel = (props: TablePannelProps) => {
   const [deletedColumns, setDeletedColumns] = useState<TableColumn[]>([])
 
   const table = useQuery(getTableQueryOptions(props.selectedTable.id, { siUserTags: true }))
+
+  const userData = useQuery(getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true }))
 
   const updateTable = useMutation({
       mutationFn: (params: UpdateTableParams) => updateTableMutation(params)
@@ -160,6 +163,7 @@ export const TablePannel = (props: TablePannelProps) => {
                   parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
                   parentUpdateTableGroups={props.parentUpdateTableGroups}
                   parentDeleteColumns={setDeletedColumns}
+                  userData={userData}
                 />
               </>
             ) : (

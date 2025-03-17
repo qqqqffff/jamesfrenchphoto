@@ -191,13 +191,19 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
     return userProfile
 }
 
-export async function getAuthUsers(client: V6Client<Schema>, filter?: string | null): Promise<UserData[] | undefined> {
+interface GetAuthUsersOptions {
+    siProfiles?: boolean,
+    logging?: boolean
+}
+
+export async function getAuthUsers(client: V6Client<Schema>, filter?: string | null, options?: GetAuthUsersOptions): Promise<UserData[] | undefined> {
     console.log('api call')
     const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
+    if(options?.logging) console.log(json)
             
     const users = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput
     if(!users || !users.Users) return
-    const parsedUsersData = users.Users.map((user) => {
+    const parsedUsersData = (await Promise.all(users.Users.map(async (user) => {
         let attributes = new Map<string, string>()
         if(user.Attributes){
             user.Attributes.filter((attribute) => attribute.Name && attribute.Value).forEach((attribute) => {
@@ -209,6 +215,18 @@ export async function getAuthUsers(client: V6Client<Schema>, filter?: string | n
         const updated = user.UserLastModifiedDate
         const status = String(user.UserStatus)
         const userId = String(user.Username)
+
+        let profile: UserProfile | undefined
+        const email = attributes.get('email')
+        if(options?.siProfiles && email){
+            profile = await getUserProfileByEmail(client, email, {
+                siCollections: true,
+                siSets: true,
+                siTags: true,
+                siTimeslot: true
+            })
+        }
+
         return {
             ...Object.fromEntries(attributes),
             enabled,
@@ -216,8 +234,9 @@ export async function getAuthUsers(client: V6Client<Schema>, filter?: string | n
             updated,
             status,
             userId,
+            profile
         } as UserData
-    }).filter((user) => (filter === undefined || user.email === filter) && filter !== null)
+    }))).filter((user) => (filter === undefined || user.email === filter) && filter !== null)
 
     return parsedUsersData
 }
@@ -389,9 +408,9 @@ export const getUserProfileByEmailQueryOptions = (email: string, options?: GetUs
     queryFn: () => getUserProfileByEmail(client, email, options)
 })
 
-export const getAuthUsersQueryOptions = (filter?: string | null) =>  queryOptions({
-    queryKey: ['authUsers', client, filter],
-    queryFn: () => getAuthUsers(client, filter)
+export const getAuthUsersQueryOptions = (filter?: string | null, options?: GetAuthUsersOptions) =>  queryOptions({
+    queryKey: ['authUsers', client, filter, options],
+    queryFn: () => getAuthUsers(client, filter, options)
 })
 
 export const getTemporaryAccessTokenQueryOptions = (id: string) => queryOptions({
