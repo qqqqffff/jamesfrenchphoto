@@ -194,12 +194,13 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
 interface GetAuthUsersOptions {
     siProfiles?: boolean,
     logging?: boolean
+    metric?: boolean
 }
 
 export async function getAuthUsers(client: V6Client<Schema>, filter?: string | null, options?: GetAuthUsersOptions): Promise<UserData[] | undefined> {
     console.log('api call')
+    const start = new Date().getTime()
     const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
-    if(options?.logging) console.log(json)
             
     const users = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput
     if(!users || !users.Users) return
@@ -237,6 +238,8 @@ export async function getAuthUsers(client: V6Client<Schema>, filter?: string | n
             profile
         } as UserData
     }))).filter((user) => (filter === undefined || user.email === filter) && filter !== null)
+
+    if(options?.metric) console.log(`GETAUTHUSERS: ${new Date().getTime() - start}ms`)
 
     return parsedUsersData
 }

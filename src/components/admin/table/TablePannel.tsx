@@ -23,7 +23,7 @@ export const TablePannel = (props: TablePannelProps) => {
 
   const table = useQuery(getTableQueryOptions(props.selectedTable.id, { siUserTags: true }))
 
-  const userData = useQuery(getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true }))
+  const userData = useQuery(getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
 
   const updateTable = useMutation({
       mutationFn: (params: UpdateTableParams) => updateTableMutation(params)
