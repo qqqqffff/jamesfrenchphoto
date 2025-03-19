@@ -585,6 +585,8 @@ export const TableComponent = (props: TableComponentProps) => {
                               value={v}
                               updateValue={(text) => updateValue(id, text, i)}
                               userData={props.userData}
+                              table={props.table}
+                              rowIndex={i}
                             />
                           )
                         }

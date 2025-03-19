@@ -1,15 +1,18 @@
 import { UseQueryResult } from "@tanstack/react-query";
 import { ComponentProps, useEffect, useRef, useState } from "react";
 import Loading from "../../common/Loading";
-import { UserData } from "../../../types";
+import { Participant, Table, UserData } from "../../../types";
 import { Tooltip } from "flowbite-react";
 import { HiOutlineXMark } from 'react-icons/hi2'
 import validator from 'validator'
+import { InviteUserWindow } from "./InviteUserWindow";
 
 interface UserCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void
   userData: UseQueryResult<UserData[] | undefined, Error>,
+  table: Table,
+  rowIndex: number,
 }
 
 export const UserCell = (props: UserCellProps) => {
@@ -63,8 +66,96 @@ export const UserCell = (props: UserCellProps) => {
 
   console.log(displayUserPannel, displayNoResults, displayInvite, displaySearchResults, props.value)
 
+  function userPannel(type: 'user' | 'participant', value: string): JSX.Element | undefined {
+    let profile: UserData | undefined
+    let participant: Participant | undefined
+    if(type === 'user'){
+      profile = props.userData.data?.find((data) => data.email === value)
+      if(!profile) return
+    }
+    else if(type === 'participant'){
+      participant = props.userData.data?.map((data) => {
+        const foundParticipant = data.profile?.participant.find((participants) => participants.email === value)
+        return foundParticipant
+      }).reduce((prev, cur) => {
+        if(cur && !prev) return cur
+        return prev
+      })
+      if(!participant) return
+    }
+    return type === 'user' && profile ? (
+      <div className="flex flex-col px-2 text-xs">
+        <div className="flex flex-row gap-2 items-center text-nowrap">
+          <span>First Name:</span>
+          <span className="italic">{profile.first}</span>
+        </div>
+        <div className="flex flex-row gap-2 items-center text-nowrap">
+          <span>Last Name:</span>
+          <span className="italic">{profile.last}</span>
+        </div>
+        <div className="flex flex-row gap-2 items-center text-nowrap">
+          <span>Created:</span>
+          <span className="italic">
+          {
+            profile.created?.toLocaleString('en-US', { timeZone: 'America/Chicago' })
+            .replace('T', ' ')
+            .replace(/[.].*/g, '')
+          }
+          </span>
+        </div>
+        <div className="border-gray-300 border mb-1"/>
+        {profile.profile?.participant.map((participant) => {
+          return (
+            <div className="flex flex-col">
+              <span className="underline">Participant:</span>
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>First Name:</span>
+                <span className="italic">{participant.firstName}</span>
+              </div>
+              {participant.preferredName && (
+                <div className="flex flex-row gap-2 items-center text-nowrap">
+                  <span>Preferred Name:</span>
+                  <span className="italic">{participant.preferredName}</span>
+                </div>
+              )}
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Last Name:</span>
+                <span className="italic">{participant.lastName}</span>
+              </div>
+              {participant.email && (
+                <div className="flex flex-row gap-2 items-center text-nowrap">
+                  <span>Email:</span>
+                  <span className="italic">{participant.email}</span>
+                </div>
+              )}
+              <div className="border-gray-300 border mb-1"/>
+            </div>
+          )
+        })}
+      </div>
+    ) : (
+      type === 'participant' && participant ? (
+        <div className="flex flex-col text-xs px-2 pb-1">
+          <div className="flex flex-row gap-2 items-center text-nowrap">
+              <span>First Name:</span>
+              <span className="italic">{participant.firstName}</span>
+            </div>
+          {participant.preferredName && (
+            <div className="flex flex-row gap-2 items-center text-nowrap">
+              <span>Preferred Name:</span>
+              <span className="italic">{participant.preferredName}</span>
+            </div>
+          )}
+          <div className="flex flex-row gap-2 items-center text-nowrap">
+            <span>Last Name:</span>
+            <span className="italic">{participant.lastName}</span>
+          </div>
+        </div>
+      ) : undefined
+    )
+  }
   return (
-    <td className="text-ellipsis border py-3 px-3 max-w-[150px] relative">
+    <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
       <input
         ref={inputRef}
         placeholder="Enter Email..."
@@ -96,24 +187,34 @@ export const UserCell = (props: UserCellProps) => {
             }
           }
         }}
-        // onBlur={() => {
-        //   if(!displayUserPannel && !displayInvite){
-        //     setIsFocused(false)
-        //   }
-        // }}
+        onBlur={() => {
+          setTimeout(() => {
+            if(!displayInvite){
+              if(props.value !== value) {
+                setIsFocused(false)
+                props.updateValue(value)
+                return
+              }
+              setIsFocused(false)
+            }
+          }, 1)
+        }}
         onFocus={() => setIsFocused(true)}
       />
 
       {displaySearchResults  && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg min-w-max">
+        <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
           <ul className="max-h-60 overflow-y-auto py-1 min-w-max">
             {filteredItems.map((item, index) => {
               return (
                 <Tooltip 
                   content={(
-                    <span className={`${item[1] === 'participant' ? 'text-purple-400' : 'text-blue-400'}`}>
-                      {item[1] === 'participant' ? 'Participant Email' : 'User Email'}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className={`${item[1] === 'participant' ? 'text-purple-400' : 'text-blue-400'}`}>
+                        {item[1] === 'participant' ? 'Participant' : 'User'}
+                      </span>
+                      {userPannel(item[1], item[0])}
+                    </div>
                   )}
                   style='light'
                   placement="bottom"
@@ -152,7 +253,7 @@ export const UserCell = (props: UserCellProps) => {
       )}
 
       {displayUserPannel && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col gap-2">
+        <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col gap-2 ">
           <div className="flex flex-row p-1 justify-between w-full border-b">
             <span className={`${foundUser === 'participant' ? 'text-purple-400' : 'text-blue-400'} ms-2`}>
               {foundUser === 'participant' ? 'Participant' : 'User'}
@@ -166,14 +267,14 @@ export const UserCell = (props: UserCellProps) => {
               <HiOutlineXMark size={16} className="text-gray-400"/>
             </button>
           </div>
-          
+          {userPannel(foundUser, props.value)}
         </div>
       )}
 
       {displayInvite && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col gap-2">
+        <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col gap-2">
           <div className="flex flex-row p-1 justify-between w-full border-b">
-            <span>Invite User</span>
+            <span className="ms-2">Invite User</span>
             <button 
               className=""
               onClick={() => {
@@ -183,6 +284,11 @@ export const UserCell = (props: UserCellProps) => {
               <HiOutlineXMark size={16} className="text-gray-400"/>
             </button>
           </div>
+          <InviteUserWindow 
+            email={props.value}
+            table={props.table}
+            rowIndex={props.rowIndex}
+          />
         </div>
       )}
     </td>

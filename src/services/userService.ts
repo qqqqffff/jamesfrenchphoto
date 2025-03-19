@@ -401,6 +401,19 @@ export async function createTempUserProfileMutation(params: CreateTempUserProfil
     }
 }
 
+export interface InviteUserParams {
+    email: string,
+    firstName: string,
+    lastName: string,
+    participants: Participant[],
+    options?: {
+        logging?: boolean
+    }
+}
+export async function inviteUserMutation(params: InviteUserParams) {
+    console.log(params)
+}
+
 export const getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({
     queryKey: ['userTags', client, options],
     queryFn: () => getAllUserTags(client, options)
