@@ -10,6 +10,7 @@ import { downloadImages } from '../functions/download-images/resource';
 import { shareCollection } from '../functions/share-collection/resource';
 import { addPublicPhoto } from '../functions/add-public-photo/resource';
 import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
+import { shareUserInvite } from '../functions/share-user-invite/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -309,6 +310,17 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.group('ADMINS')])
     .identifier(['id']),
+  ShareUserInvite: a
+    .query()
+    .arguments({
+      email: a.string().required(),
+      firstName: a.string().required(),
+      lastName: a.string().required(),
+      link: a.string().required()
+    })
+    .handler(a.handler.function(shareUserInvite))
+    .authorization((allow) => [allow.authenticated()])
+    .returns(a.json()),
   DownloadImages: a
     .query()
     .arguments({
@@ -349,6 +361,7 @@ const schema = a.schema({
 .authorization((allow) => [
   allow.resource(postConfirmation),
   allow.resource(addCreateUserQueue),
+  allow.resource(shareUserInvite)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;
