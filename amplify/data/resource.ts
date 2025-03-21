@@ -10,6 +10,7 @@ import { downloadImages } from '../functions/download-images/resource';
 import { shareCollection } from '../functions/share-collection/resource';
 import { addPublicPhoto } from '../functions/add-public-photo/resource';
 import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
+import { shareUserInvite } from '../functions/share-user-invite/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -120,22 +121,46 @@ const schema = a.schema({
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
-  UserColumnDisplay: a
+  TableGroup: a
     .model({
-      id: a.string().required(),
-      heading: a.string().required(),
-      color: a.hasMany('ColumnColorMapping', 'columnId'),
-      display: a.boolean().default(true),
-      tag: a.string().required(),
+      id: a.id().required(),
+      name: a.string().required(),
+      tables: a.hasMany('Table','tableGroupId')
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('tag'), index('heading')])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  Table: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      tableGroupId: a.id().required(),
+      tableGroup: a.belongsTo('TableGroup', 'tableGroupId'),
+      tableColumns: a.hasMany('TableColumn', 'tableId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('tableGroupId')])
+    .authorization((allow) => [allow.group('ADMINS')]),
+  TableColumn: a
+    .model({
+      id: a.string().required(),
+      header: a.string().required(),
+      values: a.string().array(),
+      choices: a.string().array(),
+      type: a.enum(['value', 'user', 'date', 'choice', 'tag', 'file']),
+      color: a.hasMany('ColumnColorMapping', 'columnId'),
+      tag: a.string().array(),
+      tableId: a.id().required(),
+      table: a.belongsTo('Table', 'tableId'),
+      order: a.integer().required()
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('tableId')])
     .authorization((allow) => [allow.group('ADMINS')]),
   ColumnColorMapping: a
     .model({
       id: a.id().required(),
       columnId: a.id().required(),
-      column: a.belongsTo('UserColumnDisplay', 'columnId'),
+      column: a.belongsTo('TableColumn', 'columnId'),
       value: a.string().required(),
       bgColor: a.string(),
       textColor: a.string()
@@ -169,7 +194,10 @@ const schema = a.schema({
       participantEmail: a.string(),
       participant: a.hasMany('Participant', 'userEmail'),
       activeParticipant: a.id(),
-      favorites: a.hasMany('UserFavorites', 'userEmail')
+      favorites: a.hasMany('UserFavorites', 'userEmail'),
+      temporaryCreate: a.hasOne('TemporaryCreateUsersTokens', 'userEmail'),
+      firstName: a.string(),
+      lastName: a.string(),
     })
     .identifier(['email'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create', 'get'])]),
@@ -225,8 +253,8 @@ const schema = a.schema({
   TemporaryCreateUsersTokens: a
     .model({
       id: a.string().required(),
-      tags: a.string().array(),
-      sittingNumberPrefix: a.integer(),
+      userProfile: a.belongsTo('UserProfile', 'userEmail'),
+      userEmail: a.string().required(),
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['get'])]),
@@ -286,6 +314,17 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.group('ADMINS')])
     .identifier(['id']),
+  ShareUserInvite: a
+    .query()
+    .arguments({
+      email: a.string().required(),
+      firstName: a.string().required(),
+      lastName: a.string().required(),
+      link: a.string().required()
+    })
+    .handler(a.handler.function(shareUserInvite))
+    .authorization((allow) => [allow.authenticated()])
+    .returns(a.json()),
   DownloadImages: a
     .query()
     .arguments({
@@ -326,6 +365,7 @@ const schema = a.schema({
 .authorization((allow) => [
   allow.resource(postConfirmation),
   allow.resource(addCreateUserQueue),
+  allow.resource(shareUserInvite)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

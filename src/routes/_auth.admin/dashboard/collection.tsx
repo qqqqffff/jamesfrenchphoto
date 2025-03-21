@@ -8,7 +8,7 @@ import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { PhotoCollectionPannel } from '../../../components/admin/collection/PhotoCollectionPannel'
 import { useQuery } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PhotoCollection, PhotoSet, ShareTemplate, Watermark } from '../../../types'
 import { Progress, TextInput, Tooltip } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
@@ -81,6 +81,11 @@ function RouteComponent() {
     metric: true,
   }))
 
+  useEffect(() => {
+    if(collection !== selectedCollection){
+      setSelectedCollection(collection)
+    }
+  }, [collection])
 
   function filterItems(term: string): undefined | void {
     if (!term || !collections.data || collections.data.length <= 0) {

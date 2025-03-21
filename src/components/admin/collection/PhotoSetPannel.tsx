@@ -228,9 +228,10 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
       />
     )}
     <div className="border-gray-400 border rounded-2xl p-4 flex flex-col items-center w-full">
-      <div className="grid grid-cols-3 w-full">
+      <div className="grid w-full grid-cols-3">
         <EditableTextField 
-          label={(<span>{`Photo Set: `}</span>)} 
+          className="text-xl"
+          label={(<span className="text-nowrap text-xl">{`Photo Set: `}</span>)} 
           text={photoSet.name} 
           onSubmitText={(text) => {
             updateSet.mutate({
@@ -258,14 +259,14 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
         <TextInput 
           theme={textInputTheme} 
           sizing="sm" 
-          className="w-full max-w-[400px] place-self-center" 
+          className="w-full max-w-[400px] place-self-center mb-2" 
           placeholder="Search"
           onChange={(event) => {
             setSearchText(event.target.value)
           }}
           value={searchText}
         />
-        <div className="flex flex-row items-center gap-3 place-self-end h-full">
+        <div className="flex flex-row items-center gap-3 place-self-end h-full mb-1">
           <span>Items: {photoSet.paths.length}</span>
           {duplicates.length > 0 && (
             <Tooltip style='light' content={(

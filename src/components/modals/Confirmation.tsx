@@ -25,23 +25,28 @@ export const ConfirmationModal: FC<ConfirmationModalProps> = ({onClose, open, ti
             <Modal.Header>{title}</Modal.Header>
             <Modal.Body>
                 <div className="text-center w-full flex flex-col">
-                    {body.split('\n').map((line, i) => {
-                        let trimmedLine: JSX.Element[] | String[] = [line]
-                        const bold = trimmedLine[0].includes('<b>')
-                        if(bold){
-                            trimmedLine = trimmedLine[0].split('<b>')
-                            trimmedLine = trimmedLine.map((newline, j) => {
-                                if(!newline.includes('<')) return (<>{newline}</>)
+                {body.split('\n').map((line, i) => {
+                    const bold = line.includes('<b>') ? line.split('<b>') : undefined
+                    return (
+                        <span key={`line-${i}`}>
+                        {bold ? (
+                            bold.map((newline, j) => {
+                                if (!newline.includes('<')) 
+                                    return <span key={`bold-${i}-${j}-plain`}>{newline}</span>
                                 const nl = newline.substring(0, newline.indexOf('<'))
                                 const rest = newline.substring(newline.indexOf('>') + 1)
-                                return (<span key={j}><b>{nl}</b>{rest}</span>)
+                                return (
+                                    <span key={`bold-${i}-${j}-formatted`}>
+                                    <b>{nl}</b>{rest}
+                                    </span>
+                                )
                             })
-                        }
-
-                        return (<span key={i}>{bold ? (trimmedLine) : (trimmedLine[0])}</span>)
-                    })}
+                        ) : (line)}
+                        </span>
+                    )
+                })}
                 </div>
-                {children ? children : (<></>)}
+                {children}
             </Modal.Body>
             <Modal.Footer className="justify-end flex-row gap-4">
                 <Button onClick={() => onClose()}>{denyText}</Button>

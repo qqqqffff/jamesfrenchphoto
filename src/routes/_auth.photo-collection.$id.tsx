@@ -196,7 +196,7 @@ function RouteComponent() {
         }}
       />
       <div 
-        className="font-mono" 
+        className="font-bodoni" 
         onContextMenu={(e) => {
           if(!collection.downloadable) e.preventDefault()
         }}
@@ -226,7 +226,6 @@ function RouteComponent() {
               className='border rounded-lg py-1.5 px-2 animate-pulse mt-10'
               onClick={() => {
                 if(collectionRef.current){
-                  console.log('went to sets')
                   collectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
                 }
               }}
@@ -234,10 +233,10 @@ function RouteComponent() {
               Go to Sets
             </button>
           </div>
-          <img ref={coverPhotoRef} src={data.coverPath} style={{ maxHeight: dimensions.height }} />
+          <img ref={coverPhotoRef} src={data.coverPath} style={{ maxHeight: '100vh', minHeight: '100vh' }} />
         </div>
         <div className='grid grid-cols-3 items-center px-8 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
-          <div className='flex flex-col items-start font-mono'>
+          <div className='flex flex-col items-start font-bodoni'>
             <span className='font-bold text-lg'>James French Photograpahy</span>
             <span className='italic flex flex-row gap-1'>
               <span>{collection.name}</span>

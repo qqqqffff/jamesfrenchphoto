@@ -127,6 +127,30 @@ export const defaultColors = [
     'amber-600',
 ]
 
+export const getColumnTypeColor = (value?: 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file') => {
+    if(!value) return 'black'
+    switch(value) {
+        case 'user': {
+            return 'red-500'
+        }
+        case 'date': {
+            return 'sky-400'
+        }
+        case 'choice': {
+            return 'cyan-400'
+        }
+        case 'tag': {
+            return 'fuchsia-600'
+        }
+        case 'file': {
+            return 'purple-600'
+        }
+        case 'value': {
+            return 'orange-400'
+        }
+    }
+}
+
 export const defaultColumnColors: Record<string, {text: string, bg: string}> = {
     'pink-400': {text: 'pink-600', bg: 'pink-200'},
     'rose-500': {text: 'rose-600', bg: 'rose-200'},

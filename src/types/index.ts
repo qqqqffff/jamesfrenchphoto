@@ -19,6 +19,7 @@ export interface UserData {
     created?: Date;
     updated?: Date;
     enabled?: boolean;
+    profile?: UserProfile
 }
 
 export interface UserProfile {
@@ -36,6 +37,8 @@ export interface UserProfile {
     participantEmail?: string,
     participant: Participant[],
     activeParticipant?: Participant,
+    firstName?: string,
+    lastName?: string
 }
 
 export interface Participant {
@@ -48,6 +51,7 @@ export interface Participant {
     email?: string,
     contact: boolean,
     timeslot?: Timeslot[],
+    userEmail: string,
 }
 
 export type User = {
@@ -134,13 +138,31 @@ export type Package = {
     pdfPath: string,
 }
 
-export interface UserColumnDisplay {
+export interface TableGroup {
     id: string,
-    heading: string,
+    name: string,
+    tables: Table[]
+}
+
+export interface Table {
+    id: string,
+    name: string,
+    columns: TableColumn[],
+    tableGroupId: string
+}
+
+export interface TableColumn {
+    id: string,
+    header: string,
+    values: string[],
+    type: 'value' | 'user' | 'date' | 'choice'  | 'tag' | 'file',
+    choices?: string[],
     color?: ColumnColor[],
     display: boolean,
-    tag: string,
-    sort?: 'ASC' | 'DSC'
+    tags: UserTag[],
+    sort?: 'ASC' | 'DSC',
+    tableId: string,
+    order: number,
 }
 
 export type ColumnColor = {
@@ -148,6 +170,7 @@ export type ColumnColor = {
     value: string
     bgColor?: string
     textColor?: string
+    columnId: string
 }
 
 export interface TemporaryAccessToken {

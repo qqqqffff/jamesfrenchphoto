@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { generateClient } from "aws-amplify/api"
 import { confirmSignUp, resendSignUpCode, signUp } from "aws-amplify/auth"
-import { Accordion, Alert, Badge, Button, Checkbox, Dropdown, Label, Modal, TextInput } from "flowbite-react"
+import { Alert, Badge, Button, Checkbox, Label, Modal, TextInput } from "flowbite-react"
 import { FormEvent, useRef, useState } from "react"
-import { HiOutlineCheckCircle, HiOutlineExclamationCircle, HiOutlineXCircle } from "react-icons/hi2";
+import { HiOutlineCheckCircle, HiOutlineExclamationCircle } from "react-icons/hi2";
 import validator from 'validator'
 import { v4 } from 'uuid'
 import { useNavigate } from "@tanstack/react-router"
@@ -12,6 +12,7 @@ import { Participant, UserTag } from '../types'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { TermsAndConditionsModal } from '../components/modals'
 import { textInputTheme } from '../utils'
+import { getTemporaryUserQueryOptions } from '../services/userService'
 
 interface RegisterParams {
   token: string,
@@ -26,33 +27,9 @@ export const Route = createFileRoute('/register')({
     return search
   },
   loader: async ({ context }) => {
-    const token = await client.models.TemporaryCreateUsersTokens.get({
-      id: context.token,
-    }, { authMode: 'iam' })
+    const profile = await context.queryClient.ensureQueryData(getTemporaryUserQueryOptions(context.token))
 
-    const tagMap: SignupAvailableTag[] = []
-
-    if(token && token.data){
-      tagMap.push(...(await Promise.all((token.data.tags ?? [])
-        .filter((tag) => tag !== undefined && tag !== null)
-        .map(async (tag) => {
-          const tagResponse = await client.models.UserTag.get({ id: tag }, { authMode: 'iam' })
-          if(!tagResponse || !tagResponse.data) return
-          const mappedTag: SignupAvailableTag = {
-            tag: {
-              ...tagResponse.data,
-              color: tagResponse.data.color ?? undefined,
-            },
-            selected: {
-              selected: true,
-              participantId: '1'
-            }
-          }
-          return mappedTag
-        }))).filter((tag) => tag !== undefined)
-      )
-    }
-    return tagMap
+    return profile
   }
 })
 
@@ -103,9 +80,8 @@ export function RouteComponent(){
     const [termsAndConditionsVisible, setTermsAndConditionsVisible] = useState(false)
     const [preferredContact, setPreferredContact] = useState(false)
     const [termsAndConditions, setTermsAndConditions] = useState(false)
-    //TODO: fix me
-    const tags = Route.useLoaderData()
-    const [availableTags, setAvailableTags] = useState<SignupAvailableTag[]>(tags)
+
+    const profile = Route.useLoaderData()
 
     const [password, setPassword] = useState<string>()
     const [confirmPassword, setConfirmPassword] = useState<string>()
@@ -117,33 +93,32 @@ export function RouteComponent(){
     const [passwordLowerCharacter, setPasswordLowerCharacter] = useState(false)
     const [passwordMatch, setPasswordMatch] = useState(false)
     
-    const [userFirstName, setUserFirstName] = useState<string>()
+    const [userFirstName, setUserFirstName] = useState<string | undefined>(profile?.firstName)
     const userFirstNameRef = useRef<HTMLInputElement>(null)
-    const [userLastName, setUserLastName] = useState<string>()
+    const [userLastName, setUserLastName] = useState<string | undefined>(profile?.lastName)
     const userLastNameRef = useRef<HTMLInputElement>(null)
-    const [userEmail, setUserEmail] = useState<string>()
+    const [userEmail, setUserEmail] = useState<string | undefined>(profile?.email)
     const userEmailRef = useRef<HTMLInputElement>(null)
     const [userPhoneNumber, setUserPhoneNumber] = useState<string>()
     const userPhoneNumberRef = useRef<HTMLInputElement>(null)
     
     const [innerFormErrors, setInnerFormErrors] = useState<SignupFormError[]>([])
 
-    const [participantEmail, setParticipantEmail] = useState<string>()
-    const [participantFirstName, setParticipantFirstName] = useState<string>()
+    const [participantEmail, setParticipantEmail] = useState<string | undefined>(profile?.activeParticipant?.email)
+    const [participantFirstName, setParticipantFirstName] = useState<string | undefined>(profile?.activeParticipant?.firstName)
     const participantFirstNameRef = useRef<HTMLInputElement>(null)
-    const [participantLastName, setParticipantLastName] = useState<string>()
+    const [participantLastName, setParticipantLastName] = useState<string | undefined>(profile?.activeParticipant?.lastName)
     const participantLastNameRef = useRef<HTMLInputElement>(null)
-    const [participantPreferredName, setParticipantPreferredName] = useState<string>()
+    const [participantPreferredName, setParticipantPreferredName] = useState<string | undefined>(profile?.activeParticipant?.preferredName)
     const [participantMiddleName, setParticipantMiddleName] = useState<string>()
     const [participantContact, setParticipantContact] = useState(false)
-    const [participantTags, setParticipantTags] = useState<UserTag[]>([...(availableTags.map((tag) => tag.tag))])
     const [participantSameDetails, setParticipantSameDetails] = useState(false)
-    const [participants, setParticipants] = useState<SignupParticipant[]>([])
-    const [activeParticipant, setActiveParticipant] = useState<SignupParticipant>()
+    const [participants, setParticipants] = useState<SignupParticipant[]>(profile?.participant.map((participant) => ({...participant, sameDetails: false})) ?? [])
+    const [activeParticipant, setActiveParticipant] = useState<SignupParticipant | undefined>(profile?.activeParticipant ? ({...profile.activeParticipant, sameDetails: false}) : undefined)
     const [participantSubmitting, setParticipantSubmitting] = useState(false)
 
     const [formErrors, setFormErrors] = useState<string[]>(() => {
-        if(window.localStorage.getItem('user')){
+        if(window.localStorage.getItem('user') || window.localStorage.getItem('jfp.auth.user')){
             return ['You are already logged in! If you want to create a new account please sign out of your current account first.']
         }
         return []
@@ -207,8 +182,9 @@ export function RouteComponent(){
                     preferredName: participantPreferredName,
                     middleName: participantPreferredName,
                     contact: participantContact,
-                    userTags: participantTags,
-                    sameDetails: false
+                    userTags: [],
+                    sameDetails: false,
+                    userEmail: userEmail
                 }
                 tempParticipants.push(participant)
             }
@@ -412,17 +388,6 @@ export function RouteComponent(){
         return true
     }
 
-
-    const displayTags = participantTags
-        .filter((tag) => tag)
-        .map((tag) => tag)
-        .map((tag, index, arr) => {
-            return (
-                <p className={`${tag.color ? `text-${tag.color}` : ''} me-1`} key={index} >{tag.name + (arr.length - 1 != index ? ',' : '')}</p>
-            )
-        })
-        .filter((item) => item !== undefined)
-
     return (
         <>
             <div className="mt-4">
@@ -466,363 +431,301 @@ export function RouteComponent(){
             <form className={`flex flex-col items-center justify-center font-main my-12 w-full ${width > 500 ? 'px-4' : 'px-0'}`} onSubmit={handleSubmit}>
                 <div className={`flex flex-col items-center justify-center ${width > 800 ? 'w-[60%]' : 'w-full'} max-w-[48rem] border-2 px-4 py-4 border-gray-500`}>
                     <p className="font-bold text-4xl mb-8 text-center">Create an account</p>
-                    <Accordion className="flex flex-col gap-1 w-[80%] max-w-[40rem]" alwaysOpen={false}>
-                        <Accordion.Panel>
-                            <Accordion.Title className='text-xl'>
-                                <div className="text-xl flex flex-row items-center">
-                                    <span>User Details</span> {calculateUserDetails() === 3 ? 
+                    <div className="flex flex-col gap-1 w-[80%] max-w-[40rem]">
+                        <div className="text-xl flex flex-row items-center">
+                            <span>User Details</span> {calculateUserDetails() === 3 ? 
+                            (
+                                <HiOutlineCheckCircle className="text-green-400 mt-1 ms-2"/>
+                            ) : (
+                                <span className="text-red-600 ms-2">{calculateUserDetails()}/3</span>
+                            )}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
+                                <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
+                                    <Label className="ms-2 font-medium text-lg" htmlFor="firstName">User First Name<sup className="italic text-red-600">*</sup>:</Label>
+                                    <TextInput ref={userFirstNameRef} theme={textInputTheme} sizing='lg' placeholder="First Name" type="text" id="firstName" name="firstName"
+                                        onChange={(event) => {
+                                            setUserFirstName(event.target.value)
+                                            setInnerFormErrors(innerFormErrors.filter((error) => error.id !== userFirstNameRef.current?.id))
+                                        }}
+                                        color={innerFormErrors.find((error) => error.id == userFirstNameRef.current?.id) !== undefined ? 'failure' : undefined}
+                                        helperText={innerFormErrors.find((error) => error.id == userFirstNameRef.current?.id) !== undefined ? 
+                                            (<span color="text-red-600">{innerFormErrors.find((error) => error.id == userFirstNameRef.current?.id)?.message}</span>) : undefined
+                                        }
+                                    />
+                                </div>
+                                <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
+                                    <Label className="ms-2 font-medium text-lg" htmlFor="lastName">User Last Name<sup className="italic text-red-600">*</sup>:</Label>
+                                    <TextInput ref={userLastNameRef} theme={textInputTheme} sizing='lg' placeholder="Last Name" type="text" id="lastName" name="lastName" 
+                                        onChange={(event) => {
+                                            setUserLastName(event.target.value)
+                                            setInnerFormErrors(innerFormErrors.filter((error) => error.id !== userLastNameRef.current?.id))
+                                        }}
+                                        color={innerFormErrors.find((error) => error.id == userLastNameRef.current?.id) !== undefined ? 'failure' : undefined}
+                                        helperText={innerFormErrors.find((error) => error.id == userLastNameRef.current?.id) !== undefined ? 
+                                            (<span color="text-red-600">{innerFormErrors.find((error) => error.id == userLastNameRef.current?.id)?.message}</span>) : undefined
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <Label className="ms-2 font-medium text-lg" htmlFor="phoneNumber">User Phone Number<sup className="text-gray-400">1</sup>:</Label>
+                            <TextInput ref={userPhoneNumberRef} theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem] text-xl" placeholder="10-Digit Phone Number" type="tel" id="phoneNumber" name="phoneNumber" 
+                                onChange={(event) => {
+                                    const numbers = event.target.value.replace(/\D/g, "");
+                                    let num = ''
+                                    // Format phone number: (XXX) XXX-XXXX
+                                    if (numbers.length <= 3) {
+                                        num = numbers
+                                    } else if (numbers.length <= 6) {
+                                        num = `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`
+                                    } else {
+                                        num = `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`
+                                    }
+
+                                    setUserPhoneNumber(num)
+                                    setInnerFormErrors(innerFormErrors.filter((error) => error.id !== userPhoneNumberRef.current?.id))
+                                }}
+                                color={innerFormErrors.find((error) => error.id == userPhoneNumberRef.current?.id) !== undefined ? 'failure' : undefined}
+                                helperText={innerFormErrors.find((error) => error.id == userPhoneNumberRef.current?.id) !== undefined ? 
+                                    (<span color="text-red-600">{innerFormErrors.find((error) => error.id == userPhoneNumberRef.current?.id)?.message}</span>) : undefined
+                                }
+                                value={userPhoneNumber}
+                            />
+                            <Label className="ms-2 font-medium text-lg" htmlFor="email">User Email<sup className="text-gray-400">2</sup><sup className="italic text-red-600">*</sup>:</Label>
+                            <TextInput ref={userEmailRef} theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Email" type="email" id="email" name="email" 
+                                onChange={(event) => setUserEmail(event.target.value)}
+                                color={innerFormErrors.find((error) => error.id == userEmailRef.current?.id) !== undefined ? 'failure' : undefined}
+                                helperText={innerFormErrors.find((error) => error.id == userEmailRef.current?.id) !== undefined ? 
+                                    (<span color="text-red-600">{innerFormErrors.find((error) => error.id == userEmailRef.current?.id)?.message}</span>) : undefined
+                                }
+                            />
+                        </div>
+                        <div className="text-xl flex flex-row items-center">
+                            <span>Participant Details</span> {
+                                innerFormErrors.find((error) => error.id === participantFirstNameRef.current?.id || error.id === participantLastNameRef.current?.id) ? (
+                                    <HiOutlineExclamationCircle className="text-red-600 mt-1 ms-2"/>
+                                ) : (
+                                    calculateParticipantDetails() === 2 || participants.length > 0 ? 
                                     (
                                         <HiOutlineCheckCircle className="text-green-400 mt-1 ms-2"/>
                                     ) : (
-                                        <span className="text-red-600 ms-2">{calculateUserDetails()}/3</span>
-                                    )}
-                                </div>
-                            </Accordion.Title>
-                            <Accordion.Content>
-                                <div className="flex flex-col gap-1">
-                                    <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
-                                        <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
-                                            <Label className="ms-2 font-medium text-lg" htmlFor="firstName">User First Name<sup className="italic text-red-600">*</sup>:</Label>
-                                            <TextInput ref={userFirstNameRef} theme={textInputTheme} sizing='lg' placeholder="First Name" type="text" id="firstName" name="firstName"
-                                                onChange={(event) => {
-                                                    setUserFirstName(event.target.value)
-                                                    setInnerFormErrors(innerFormErrors.filter((error) => error.id !== userFirstNameRef.current?.id))
-                                                }}
-                                                color={innerFormErrors.find((error) => error.id == userFirstNameRef.current?.id) !== undefined ? 'failure' : undefined}
-                                                helperText={innerFormErrors.find((error) => error.id == userFirstNameRef.current?.id) !== undefined ? 
-                                                    (<span color="text-red-600">{innerFormErrors.find((error) => error.id == userFirstNameRef.current?.id)?.message}</span>) : undefined
-                                                }
-                                            />
-                                        </div>
-                                        <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
-                                            <Label className="ms-2 font-medium text-lg" htmlFor="lastName">User Last Name<sup className="italic text-red-600">*</sup>:</Label>
-                                            <TextInput ref={userLastNameRef} theme={textInputTheme} sizing='lg' placeholder="Last Name" type="text" id="lastName" name="lastName" 
-                                                onChange={(event) => {
-                                                    setUserLastName(event.target.value)
-                                                    setInnerFormErrors(innerFormErrors.filter((error) => error.id !== userLastNameRef.current?.id))
-                                                }}
-                                                color={innerFormErrors.find((error) => error.id == userLastNameRef.current?.id) !== undefined ? 'failure' : undefined}
-                                                helperText={innerFormErrors.find((error) => error.id == userLastNameRef.current?.id) !== undefined ? 
-                                                    (<span color="text-red-600">{innerFormErrors.find((error) => error.id == userLastNameRef.current?.id)?.message}</span>) : undefined
-                                                }
-                                            />
-                                        </div>
-                                    </div>
-                                    <Label className="ms-2 font-medium text-lg" htmlFor="phoneNumber">User Phone Number<sup className="text-gray-400">1</sup>:</Label>
-                                    <TextInput ref={userPhoneNumberRef} theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem] text-xl" placeholder="10-Digit Phone Number" type="tel" id="phoneNumber" name="phoneNumber" 
-                                        onChange={(event) => {
-                                            const numbers = event.target.value.replace(/\D/g, "");
-                                            let num = ''
-                                            // Format phone number: (XXX) XXX-XXXX
-                                            if (numbers.length <= 3) {
-                                                num = numbers
-                                            } else if (numbers.length <= 6) {
-                                                num = `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`
-                                            } else {
-                                                num = `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`
-                                            }
-
-                                            setUserPhoneNumber(num)
-                                            setInnerFormErrors(innerFormErrors.filter((error) => error.id !== userPhoneNumberRef.current?.id))
-                                        }}
-                                        color={innerFormErrors.find((error) => error.id == userPhoneNumberRef.current?.id) !== undefined ? 'failure' : undefined}
-                                        helperText={innerFormErrors.find((error) => error.id == userPhoneNumberRef.current?.id) !== undefined ? 
-                                            (<span color="text-red-600">{innerFormErrors.find((error) => error.id == userPhoneNumberRef.current?.id)?.message}</span>) : undefined
-                                        }
-                                        value={userPhoneNumber}
-                                    />
-                                    <Label className="ms-2 font-medium text-lg" htmlFor="email">User Email<sup className="text-gray-400">2</sup><sup className="italic text-red-600">*</sup>:</Label>
-                                    <TextInput ref={userEmailRef} theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Email" type="email" id="email" name="email" 
-                                        onChange={(event) => setUserEmail(event.target.value)}
-                                        color={innerFormErrors.find((error) => error.id == userEmailRef.current?.id) !== undefined ? 'failure' : undefined}
-                                        helperText={innerFormErrors.find((error) => error.id == userEmailRef.current?.id) !== undefined ? 
-                                            (<span color="text-red-600">{innerFormErrors.find((error) => error.id == userEmailRef.current?.id)?.message}</span>) : undefined
-                                        }
-                                    />
-                                </div>
-                            </Accordion.Content>
-                        </Accordion.Panel>
-                        <Accordion.Panel>
-                            <Accordion.Title className='text-xl'>
-                                <div className="text-xl flex flex-row items-center">
-                                    <span>Participant Details</span> {
-                                        innerFormErrors.find((error) => error.id === participantFirstNameRef.current?.id || error.id === participantLastNameRef.current?.id) ? (
-                                            <HiOutlineExclamationCircle className="text-red-600 mt-1 ms-2"/>
-                                        ) : (
-                                            calculateParticipantDetails() === 2 || participants.length > 0 ? 
-                                            (
-                                                <HiOutlineCheckCircle className="text-green-400 mt-1 ms-2"/>
-                                            ) : (
-                                                <span className="text-red-600 ms-2">{calculateParticipantDetails()}/2</span>
-                                            )
-                                        )
-                                    }
-                                </div>
-                            </Accordion.Title>
-                            <Accordion.Content>
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex flex-col w-full items-center">
-                                        {participants.length > 0 ? (<span>Participant(s) {participants.length}/5</span>) : (<></>)}
-                                        <div className={` ${width > 800 ? 'flex flex-row' : 'grid grid-cols-2'} gap-2`}>
-                                            {participants.map((participant, index) => {
-                                                return (
-                                                    <button key={index} type="button" onClick={() => {
-                                                        setActiveParticipant(participant)
-                                                        setParticipantContact(participant.contact)
-                                                        setParticipantFirstName(participant.firstName)
-                                                        setParticipantLastName(participant.lastName)
-                                                        setParticipantMiddleName(participant.middleName)
-                                                        setParticipantPreferredName(participant.preferredName)
-                                                        setParticipantEmail(participant.email)
-                                                        setParticipantTags(participant.userTags)
-                                                        setParticipantSameDetails(false)
-                                                    }}>
-                                                        <Badge color={activeParticipant?.id === participant.id ? 'red' : 'blue'} >
-                                                            {`${participant.preferredName ? participant.preferredName : participant.firstName} ${participant.lastName}`}
-                                                        </Badge>
-                                                    </button>
-                                                    
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
-                                    <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
-                                        <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
-                                            <Label className="ms-2 font-medium text-lg" htmlFor="participantFirstName">Participant First Name<sup className="italic text-red-600">*</sup>:</Label>
-                                            <TextInput ref={participantFirstNameRef} theme={textInputTheme} sizing='lg' placeholder="First Name" type="text" id="participantFirstName" name="participantFirstName" 
-                                                onChange={(event) => setParticipantFirstName(event.target.value)}
-                                                value={participantFirstName}
-                                            />
-                                        </div>
-                                        <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
-                                            <Label className="ms-2 font-medium text-lg" htmlFor="participantLastName">Participant Last Name<sup className="italic text-red-600">*</sup>:</Label>
-                                            <TextInput ref={participantLastNameRef} theme={textInputTheme} sizing='lg' placeholder="Last Name" type="text" id="participantLastName" name="participantLastName" 
-                                                onChange={(event) => setParticipantLastName(event.target.value)}
-                                                value={participantLastName}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
-                                    <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
-                                        <Label className="ms-2 font-medium text-lg" htmlFor="participantMiddleName">Participant Middle Name:</Label>
-                                        <TextInput theme={textInputTheme} sizing='lg' placeholder="Middle Name" type="text" id="participantMiddleName" name="participantMiddleName" 
-                                            onChange={(event) => setParticipantMiddleName(event.target.value)}
-                                            value={participantMiddleName}
-                                        />
-                                    </div>
-                                    <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
-                                        <Label className="ms-2 font-medium text-lg" htmlFor="participantPreferredName">Participant Preferred Name:</Label>
-                                        <TextInput theme={textInputTheme} sizing='lg' placeholder="Preferred Name" type="text" id="participantPreferredName" name="participantPreferredName" 
-                                            onChange={(event) => setParticipantPreferredName(event.target.value)}
-                                            value={participantPreferredName}
-                                        />
-                                    </div>
-                                    </div>
-                                    <Label className="ms-2 font-medium text-lg" htmlFor="participantEmail">Participant Email:</Label>
-                                    <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Participant's Email" type="email" id="participantEmail" name="participantEmail" 
-                                        onChange={(event) => setParticipantEmail(event.target.value)}
-                                        value={participantEmail}
-                                    />
-                                    <Label className="ms-2 font-medium text-lg" htmlFor="participantTags">User Tags:</Label>
-                                    <Dropdown
-                                        label={availableTags.length > 0 ? displayTags.length > 0 ? displayTags : 'Select' : 'None'} color='light' dismissOnClick={false}
-                                        disabled={availableTags.length == 0}
-                                    >
-                                        {availableTags.map((tag, index) => {
-                                            const activeParticipantId = activeParticipant?.id ?? '1'
-                                            return (
-                                                <Dropdown.Item key={index} 
-                                                    as="button"
-                                                    disabled={(tag.selected.selected && tag.selected.participantId !== activeParticipantId)} 
-                                                    className="flex flex-row gap-2 text-left items-center disabled:fill-gray-200"
-                                                    onClick={() => {
-                                                        const temp = [...availableTags]
-                                                        temp[index].selected.selected = !temp[index].selected.selected
-                                                        temp[index].selected.participantId = temp[index].selected.selected ? activeParticipantId : undefined
-                                                        setParticipantTags(temp.filter((tag) => tag.selected.participantId == activeParticipantId).map((tag) => tag.tag))
-                                                        setAvailableTags(temp)
-                                                    }}
-                                                >
-                                                    {tag.selected.selected ? ( tag.selected.participantId === activeParticipantId ? (
-                                                        <HiOutlineCheckCircle className="text-green-400 mt-1 ms-2"/>
-                                                    ) : (
-                                                        <HiOutlineXCircle className="text-red-600 mt-1 ms-2" />
-                                                    )) : (<p className="p-3"></p>)}
-                                                    <span className={`${tag.tag.color ? `text-${tag.tag.color}` : ''}`}>{tag.tag.name}</span>
-                                                </Dropdown.Item>
-                                                )
-                                        })}
-                                    </Dropdown>
-                                    <button className="flex flex-row gap-2 text-left items-center mb-2" onClick={() => setParticipantContact(!participantContact)} type="button">
-                                        <Checkbox className="mt-1" checked={participantContact} readOnly />
-                                        <span>Have notifications sent to participant's email</span>
-                                    </button>
-                                    <button className="flex flex-row gap-2 text-left items-center disabled:text-gray-400 disabled:cursor-not-allowed mb-2" onClick={() => {
-                                            if(!participantSameDetails){
-                                                setParticipantFirstName(userFirstName)
-                                                setParticipantLastName(userLastName)
-                                                setParticipantEmail(userEmail)
-                                                setParticipantSameDetails(true)
-                                            }
-                                            else{
-                                                setParticipantFirstName(undefined)
-                                                setParticipantLastName(undefined)
-                                                setParticipantEmail(undefined)
-                                                setParticipantSameDetails(false)
-                                            }
-                                        }} type="button" disabled={calculateUserDetails() < 3}>
-                                        <Checkbox className="mt-1" checked={participantSameDetails} readOnly />
-                                        <span>Same Details as User Details</span>
-                                    </button>
-                                    <p className="italic text-sm mb-4"><sup >*</sup>If you have more than one participant, submit your participant first then add another!</p>
-                                    <div className={`w-full flex ${width < 830 ? 'flex-col' : 'flex-row'} justify-end gap-2`}>
-                                        {activeParticipant ? (
-                                            <Button color="light" 
-                                                onClick={() => {
-                                                    setParticipants(participants.filter((participant) => participant.id !== activeParticipant.id))
-                                                    setAvailableTags(availableTags.map((tag) => {
-                                                        tag.selected.selected = false
-                                                        tag.selected.participantId = undefined
-                                                        return tag
-                                                    }))
-                                                    setActiveParticipant(undefined)
-                                                    setParticipantContact(false)
-                                                    setParticipantFirstName('')
-                                                    setParticipantLastName('')
-                                                    setParticipantMiddleName('')
-                                                    setParticipantPreferredName('')
-                                                    setParticipantEmail('')
-                                                    setParticipantTags([])
-                                                    setParticipantSameDetails(false)
-                                                }}
-                                            type="button">Delete Participant</Button>) : (<></>)}
-                                        {participants.length < 5 ? (
-                                            <Button disabled={calculateParticipantDetails() < 2} onClick={() => {
-                                                setActiveParticipant(undefined)
-                                                setParticipantContact(false)
-                                                setParticipantFirstName('')
-                                                setParticipantLastName('')
-                                                setParticipantMiddleName('')
-                                                setParticipantPreferredName('')
-                                                setParticipantEmail('')
-                                                setParticipantTags([])
-                                                setParticipantSameDetails(false)
-                                            }}>Add Participant</Button>
-                                        ) : (<></>)}
-                                        <Button disabled={calculateParticipantDetails() < 2} isProcessing={participantSubmitting} onClick={async () => {
-                                            setParticipantSubmitting(true)
-                                            if(activeParticipant === undefined){
-                                                const uid = v4()
-                                                const participant = {
-                                                    sameDetails: participantSameDetails,
-                                                    firstName: participantFirstName!,
-                                                    lastName: participantLastName!,
-                                                    id: uid,
-                                                    userTags: participantTags,
-                                                    contact: participantContact,
-                                                    middleName: participantMiddleName,
-                                                    preferredName: participantPreferredName,
-                                                    email: participantEmail,
-                                                }
-                                                const temp2 = availableTags.map((tag) => {
-                                                    tag.selected.participantId = uid
-                                                    return tag
-                                                })
-                                                const temp: SignupParticipant[] = [...participants, participant]
-                                                await new Promise(resolve => setTimeout(resolve, 500))
-                                                setParticipantSubmitting(false)
-                                                setAvailableTags(temp2)
-                                                setParticipants(temp)
+                                        <span className="text-red-600 ms-2">{calculateParticipantDetails()}/2</span>
+                                    )
+                                )
+                            }
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <div className="flex flex-col w-full items-center">
+                                {participants.length > 0 ? (<span>Participant(s) {participants.length}/5</span>) : (<></>)}
+                                <div className={` ${width > 800 ? 'flex flex-row' : 'grid grid-cols-2'} gap-2`}>
+                                    {participants.map((participant, index) => {
+                                        return (
+                                            <button key={index} type="button" onClick={() => {
                                                 setActiveParticipant(participant)
-                                            } else if(activeParticipant !== undefined) {
-                                                const updatedParticipant = {
-                                                    ...activeParticipant,
-                                                    sameDetails: participantSameDetails,
-                                                    firstName: participantFirstName!,
-                                                    lastName: participantLastName!,
-                                                    userTags: participantTags,
-                                                    contact: participantContact,
-                                                    middleName: participantMiddleName,
-                                                    preferredName: participantPreferredName,
-                                                    email: participantEmail,
-                                                }
-                                                const temp = participants.map((participant) => {
-                                                    return participant.id == updatedParticipant.id ? updatedParticipant : participant
-                                                })
-                                                await new Promise(resolve => setTimeout(resolve, 500))
-                                                setParticipantSubmitting(false)
-                                                setParticipants(temp)
-                                                setActiveParticipant(updatedParticipant)
-                                            }
-                                        }} type="button">{activeParticipant ? 'Update' : 'Submit' } Participant</Button>
-                                    </div>
-                                    
-                                </div>
-                            </Accordion.Content>
-                        </Accordion.Panel>
-                        <Accordion.Panel>
-                            <Accordion.Title className='text-xl'>
-                                <div className="text-xl flex flex-row items-center">
-                                    <span>Finish</span>
-                                </div>
-                            </Accordion.Title>
-                            <Accordion.Content>
-                                <div className="flex flex-col gap-1">
-                                    <Label className="ms-2 font-medium text-lg" htmlFor="password">Password<sup className="italic text-red-600">*</sup>:</Label>
-                                    <TextInput theme={textInputTheme} sizing='lg' className="" placeholder="Password" type="password" id="password" name="password" 
-                                        onChange={(event) => {
-                                            const password = event.target.value
+                                                setParticipantContact(participant.contact)
+                                                setParticipantFirstName(participant.firstName)
+                                                setParticipantLastName(participant.lastName)
+                                                setParticipantMiddleName(participant.middleName)
+                                                setParticipantPreferredName(participant.preferredName)
+                                                setParticipantEmail(participant.email)
+                                                setParticipantSameDetails(false)
+                                            }}>
+                                                <Badge color={activeParticipant?.id === participant.id ? 'red' : 'blue'} >
+                                                    {`${participant.preferredName ? participant.preferredName : participant.firstName} ${participant.lastName}`}
+                                                </Badge>
+                                            </button>
                                             
-                                            setPassword(password)
-                                            setPasswordMatch(password === confirmPassword)
-                                            setPasswordNumber(/\d/.test(password))
-                                            setPasswordSpecialCharacter(/[!@#$%^&*(),.?":{}|<>]/.test(password))
-                                            setPasswordUpperCharacter(/[A-Z]/.test(password))
-                                            setPasswordLowerCharacter(/[a-z]/.test(password))
-                                            setPasswordMinCharacters(password.length >= 8)
-                                        }}
-                                        helperText={
-                                            (<div className="-mt-2 mb-4 ms-2 text-sm">
-                                                <span>
-                                                    Your password must 
-                                                    <span className={`${passwordMatch ? 'text-green-500' : 'text-red-600'}`}> match</span> and include: a 
-                                                    <span className={`${passwordNumber ? 'text-green-500' : 'text-red-600'}`}> number</span>, 
-                                                    <span className={`${passwordSpecialCharacter ? 'text-green-500' : 'text-red-600'}`}> special character</span>, 
-                                                    <span className={`${passwordUpperCharacter ? 'text-green-500' : 'text-red-600'}`}> upper</span> and 
-                                                    <span className={`${passwordLowerCharacter ? 'text-green-500' : 'text-red-600'}`}> lower</span> case characters, and 
-                                                    <span className={`${passwordMinCharacters ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>.</span>
-                                            </div>)
-                                        }
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                            <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
+                                <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
+                                    <Label className="ms-2 font-medium text-lg" htmlFor="participantFirstName">Participant First Name<sup className="italic text-red-600">*</sup>:</Label>
+                                    <TextInput ref={participantFirstNameRef} theme={textInputTheme} sizing='lg' placeholder="First Name" type="text" id="participantFirstName" name="participantFirstName" 
+                                        onChange={(event) => setParticipantFirstName(event.target.value)}
+                                        value={participantFirstName}
                                     />
-                                    <Label className="ms-2 font-medium text-lg" htmlFor="confirmPassword">Confirm Password<sup className="italic text-red-600">*</sup>:</Label>
-                                    <TextInput theme={textInputTheme} sizing='lg'  placeholder="Password" type="password" id="confirmPassword" name="confirmPassword" 
-                                        onChange={(event) => {
-                                            const confirmPassword = event.target.value
-
-                                            setConfirmPassword(confirmPassword)
-                                            setPasswordMatch(password === confirmPassword)
-                                        }}/>
-                                    <p className="italic text-sm"><sup className="italic text-red-600">*</sup> Indicates required fields.</p>
-                                    <p className="italic text-sm"><sup className="text-gray-400">1</sup> US Phone numbers only, without country code. No special formatting needed.</p>
-                                    <div className="flex flex-row text-left items-center gap-2">
-                                        <button className="flex flex-row gap-2 text-left items-center" onClick={() => setTermsAndConditions(!termsAndConditions)} type="button">
-                                            <Checkbox className="mt-1" checked={termsAndConditions} readOnly />
-                                            <span>Agree to <span className="hover:underline underline-offset-2 hover:cursor-pointer text-blue-500 hover:text-blue-700" onClick={() => setTermsAndConditionsVisible(true)}>terms and conditions</span><sup className="italic text-red-600">*</sup></span>
-                                            
-                                        </button>
-                                    </div>
-                                    <button className="flex flex-row gap-2 text-left items-center mb-2" onClick={() => setPreferredContact(!preferredContact)} type="button">
-                                        <Checkbox className="mt-1" checked={preferredContact} readOnly />
-                                        <span>Prefer to be contacted by phone</span>
-                                    </button>
-                                    <div className="flex justify-between text-left items-center mb-4">
-                                        <a href='login' className="text-blue-500 hover:underline mb-2">Already have an Account? Login here!</a>
-                                        <Button className="text-xl w-[40%] max-w-[8rem]" type="submit" disabled={validate()} onClick={() => setFormSubmitting(true)} isProcessing={formSubmitting}>Register</Button>
-                                    </div>
                                 </div>
-                            </Accordion.Content>
-                        </Accordion.Panel>
-                    </Accordion>
+                                <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
+                                    <Label className="ms-2 font-medium text-lg" htmlFor="participantLastName">Participant Last Name<sup className="italic text-red-600">*</sup>:</Label>
+                                    <TextInput ref={participantLastNameRef} theme={textInputTheme} sizing='lg' placeholder="Last Name" type="text" id="participantLastName" name="participantLastName" 
+                                        onChange={(event) => setParticipantLastName(event.target.value)}
+                                        value={participantLastName}
+                                    />
+                                </div>
+                            </div>
+                            <div className={`flex ${width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
+                            <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
+                                <Label className="ms-2 font-medium text-lg" htmlFor="participantMiddleName">Participant Middle Name:</Label>
+                                <TextInput theme={textInputTheme} sizing='lg' placeholder="Middle Name" type="text" id="participantMiddleName" name="participantMiddleName" 
+                                    onChange={(event) => setParticipantMiddleName(event.target.value)}
+                                    value={participantMiddleName}
+                                />
+                            </div>
+                            <div className={`flex flex-col gap-1 ${width > 500 ? 'w-[45%]' : 'w-full' }`}>
+                                <Label className="ms-2 font-medium text-lg" htmlFor="participantPreferredName">Participant Preferred Name:</Label>
+                                <TextInput theme={textInputTheme} sizing='lg' placeholder="Preferred Name" type="text" id="participantPreferredName" name="participantPreferredName" 
+                                    onChange={(event) => setParticipantPreferredName(event.target.value)}
+                                    value={participantPreferredName}
+                                />
+                            </div>
+                            </div>
+                            <Label className="ms-2 font-medium text-lg" htmlFor="participantEmail">Participant Email:</Label>
+                            <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem]" placeholder="Participant's Email" type="email" id="participantEmail" name="participantEmail" 
+                                onChange={(event) => setParticipantEmail(event.target.value)}
+                                value={participantEmail}
+                            />
+                            <button className="flex flex-row gap-2 text-left items-center mb-2" onClick={() => setParticipantContact(!participantContact)} type="button">
+                                <Checkbox className="mt-1" checked={participantContact} readOnly />
+                                <span>Have notifications sent to participant's email</span>
+                            </button>
+                            <button className="flex flex-row gap-2 text-left items-center disabled:text-gray-400 disabled:cursor-not-allowed mb-2" onClick={() => {
+                                    if(!participantSameDetails){
+                                        setParticipantFirstName(userFirstName)
+                                        setParticipantLastName(userLastName)
+                                        setParticipantEmail(userEmail)
+                                        setParticipantSameDetails(true)
+                                    }
+                                    else{
+                                        setParticipantFirstName(undefined)
+                                        setParticipantLastName(undefined)
+                                        setParticipantEmail(undefined)
+                                        setParticipantSameDetails(false)
+                                    }
+                                }} type="button" disabled={calculateUserDetails() < 3}>
+                                <Checkbox className="mt-1" checked={participantSameDetails} readOnly />
+                                <span>Same Details as User Details</span>
+                            </button>
+                            <p className="italic text-sm mb-4"><sup >*</sup>If you have more than one participant, submit your participant first then add another!</p>
+                            <div className={`w-full flex ${width < 830 ? 'flex-col' : 'flex-row'} justify-end gap-2`}>
+                                {activeParticipant ? (
+                                    <Button color="light" 
+                                        onClick={() => {
+                                            setParticipants(participants.filter((participant) => participant.id !== activeParticipant.id))
+                                            setActiveParticipant(undefined)
+                                            setParticipantContact(false)
+                                            setParticipantFirstName('')
+                                            setParticipantLastName('')
+                                            setParticipantMiddleName('')
+                                            setParticipantPreferredName('')
+                                            setParticipantEmail('')
+                                            setParticipantSameDetails(false)
+                                        }}
+                                    type="button">Delete Participant</Button>) : (<></>)}
+                                {participants.length < 5 && (
+                                    <Button disabled={calculateParticipantDetails() < 2} onClick={() => {
+                                        setActiveParticipant(undefined)
+                                        setParticipantContact(false)
+                                        setParticipantFirstName('')
+                                        setParticipantLastName('')
+                                        setParticipantMiddleName('')
+                                        setParticipantPreferredName('')
+                                        setParticipantEmail('')
+                                        setParticipantSameDetails(false)
+                                    }}>Add Participant</Button>
+                                )}
+                                <Button disabled={calculateParticipantDetails() < 2} isProcessing={participantSubmitting} onClick={async () => {
+                                    setParticipantSubmitting(true)
+                                    if(activeParticipant === undefined){
+                                        const uid = v4()
+                                        const participant: SignupParticipant = {
+                                            sameDetails: participantSameDetails,
+                                            firstName: participantFirstName!,
+                                            lastName: participantLastName!,
+                                            id: uid,
+                                            userTags: [],
+                                            contact: participantContact,
+                                            middleName: participantMiddleName,
+                                            preferredName: participantPreferredName,
+                                            email: participantEmail,
+                                            userEmail: userEmail ?? '',
+                                        }
+                                        const temp: SignupParticipant[] = [...participants, participant]
+                                        await new Promise(resolve => setTimeout(resolve, 500))
+                                        setParticipantSubmitting(false)
+                                        setParticipants(temp)
+                                        setActiveParticipant(participant)
+                                    } else if(activeParticipant !== undefined) {
+                                        const updatedParticipant = {
+                                            ...activeParticipant,
+                                            sameDetails: participantSameDetails,
+                                            firstName: participantFirstName!,
+                                            lastName: participantLastName!,
+                                            contact: participantContact,
+                                            middleName: participantMiddleName,
+                                            preferredName: participantPreferredName,
+                                            email: participantEmail,
+                                        }
+                                        const temp = participants.map((participant) => {
+                                            return participant.id == updatedParticipant.id ? updatedParticipant : participant
+                                        })
+                                        await new Promise(resolve => setTimeout(resolve, 500))
+                                        setParticipantSubmitting(false)
+                                        setParticipants(temp)
+                                        setActiveParticipant(updatedParticipant)
+                                    }
+                                }} type="button">{activeParticipant ? 'Update' : 'Submit' } Participant</Button>
+                            </div>
+                        </div>
+                        <div className="text-xl flex flex-row items-center">
+                            <span>Create Password</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <Label className="ms-2 font-medium text-lg" htmlFor="password">Password<sup className="italic text-red-600">*</sup>:</Label>
+                            <TextInput theme={textInputTheme} sizing='lg' className="" placeholder="Password" type="password" id="password" name="password" 
+                                onChange={(event) => {
+                                    const password = event.target.value
+                                    
+                                    setPassword(password)
+                                    setPasswordMatch(password === confirmPassword)
+                                    setPasswordNumber(/\d/.test(password))
+                                    setPasswordSpecialCharacter(/[!@#$%^&*(),.?":{}|<>]/.test(password))
+                                    setPasswordUpperCharacter(/[A-Z]/.test(password))
+                                    setPasswordLowerCharacter(/[a-z]/.test(password))
+                                    setPasswordMinCharacters(password.length >= 8)
+                                }}
+                                helperText={
+                                    (<div className="-mt-2 mb-4 ms-2 text-sm">
+                                        <span>
+                                            Your password must 
+                                            <span className={`${passwordMatch ? 'text-green-500' : 'text-red-600'}`}> match</span> and include: a 
+                                            <span className={`${passwordNumber ? 'text-green-500' : 'text-red-600'}`}> number</span>, 
+                                            <span className={`${passwordSpecialCharacter ? 'text-green-500' : 'text-red-600'}`}> special character</span>, 
+                                            <span className={`${passwordUpperCharacter ? 'text-green-500' : 'text-red-600'}`}> upper</span> and 
+                                            <span className={`${passwordLowerCharacter ? 'text-green-500' : 'text-red-600'}`}> lower</span> case characters, and 
+                                            <span className={`${passwordMinCharacters ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>.</span>
+                                    </div>)
+                                }
+                            />
+                            <Label className="ms-2 font-medium text-lg" htmlFor="confirmPassword">Confirm Password<sup className="italic text-red-600">*</sup>:</Label>
+                            <TextInput theme={textInputTheme} sizing='lg'  placeholder="Password" type="password" id="confirmPassword" name="confirmPassword" 
+                                onChange={(event) => {
+                                    const confirmPassword = event.target.value
+
+                                    setConfirmPassword(confirmPassword)
+                                    setPasswordMatch(password === confirmPassword)
+                                }}/>
+                            <p className="italic text-sm"><sup className="italic text-red-600">*</sup> Indicates required fields.</p>
+                            <p className="italic text-sm"><sup className="text-gray-400">1</sup> US Phone numbers only, without country code. No special formatting needed.</p>
+                            <div className="flex flex-row text-left items-center gap-2">
+                                <button className="flex flex-row gap-2 text-left items-center" onClick={() => setTermsAndConditions(!termsAndConditions)} type="button">
+                                    <Checkbox className="mt-1" checked={termsAndConditions} readOnly />
+                                    <span>Agree to <span className="hover:underline underline-offset-2 hover:cursor-pointer text-blue-500 hover:text-blue-700" onClick={() => setTermsAndConditionsVisible(true)}>terms and conditions</span><sup className="italic text-red-600">*</sup></span>
+                                    
+                                </button>
+                            </div>
+                            <button className="flex flex-row gap-2 text-left items-center mb-2" onClick={() => setPreferredContact(!preferredContact)} type="button">
+                                <Checkbox className="mt-1" checked={preferredContact} readOnly />
+                                <span>Prefer to be contacted by phone</span>
+                            </button>
+                            <div className="flex justify-between text-left items-center mb-4">
+                                <a href='login' className="text-blue-500 hover:underline mb-2">Already have an Account? Login here!</a>
+                                <Button className="text-xl w-[40%] max-w-[8rem]" type="submit" disabled={validate()} onClick={() => setFormSubmitting(true)} isProcessing={formSubmitting}>Register</Button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </>

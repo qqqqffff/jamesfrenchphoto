@@ -183,7 +183,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             contentChildren={(
               <div className='flex flex-row justify-between w-full'>
                 <div className="flex flex-row gap-1 font-thin opacity-90 items-center justify-start">
-                  <Tooltip content={(<p>Collection Has {collection.published ? 'Been Published' : 'Not Been Published'}</p>)}>
+                  <Tooltip content={(<p>Collection is {collection.published ? 'Published' : 'Not Published'}</p>)}>
                     <p className={`${collection.published ? 'text-green-400' : 'text-gray-600 italic'}`}>{collection.name}</p>
                   </Tooltip>
                   <p>&bull;</p>

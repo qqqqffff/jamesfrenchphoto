@@ -18,7 +18,8 @@ export default {
     extend: {
       fontFamily: {
         main: ['Main Font'],
-        birthstone: ['Birthstone']
+        birthstone: ['Birthstone'],
+        bodoni: ['Bodoni Moda']
       },
       colors: {
         ...colors

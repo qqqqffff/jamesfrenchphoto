@@ -57,6 +57,7 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
                     contact: false,
                     timeslot: undefined,
                     middleName: undefined,
+                    userEmail: userProfile.email
                 }
             }
         }
