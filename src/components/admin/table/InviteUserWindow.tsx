@@ -1,6 +1,6 @@
 import { Dropdown } from "flowbite-react"
-import { Participant, Table, TableColumn } from "../../../types"
-import { useState } from "react"
+import { Participant, Table, TableColumn, UserProfile } from "../../../types"
+import { Dispatch, SetStateAction, useState } from "react"
 import { HiOutlinePlusCircle } from "react-icons/hi2"
 import { v4 } from 'uuid'
 import { useMutation } from "@tanstack/react-query"
@@ -10,20 +10,24 @@ interface InviteUserWindowProps {
   email: string,
   table: Table,
   rowIndex: number,
+  submit: Dispatch<SetStateAction<UserProfile | undefined>>
 }
 
 export const InviteUserWindow = (props: InviteUserWindowProps) => {
-  const [firstNameColumn, setFirstNameColumn] = useState<TableColumn>()
-  const [lastNameColumn, setLastNameColumn] = useState<TableColumn>()
+  const [firstName, setFirstName] = useState<string>('')
+  const [lastName, setLastName] = useState<string>('')
   const [selectedColumns, setSelectedColumns] = useState<[TableColumn, string, "first" | 'last' | 'preferred' | 'email'][]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
 
   const inviteUser = useMutation({
-    mutationFn: (params: InviteUserParams) => inviteUserMutation(params)
+    mutationFn: (params: InviteUserParams) => inviteUserMutation(params),
   })
 
+  const link = window.location.href
+    .replace(new RegExp(/admin.*/g), 'register')
+
   return (
-    <div className="flex flex-col text-xs overflow-auto max-h-[320px] min-w-[250px]">
+    <div className="flex flex-col text-xs overflow-auto max-h-[320px] w-[250px]">
       <div className="flex flex-col px-2 pb-1 gap-1">
         <div className="flex flex-row gap-2 items-center text-nowrap">
           <span>Email:</span>
@@ -31,20 +35,33 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
         </div>
         <div className="flex flex-row gap-2 items-center text-nowrap">
           <span>First Name:</span>
+          <input
+            className={`
+              font-thin p-0 text-xs border-transparent ring-transparent w-full border-b-gray-400 
+              border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
+            `}
+            placeholder="First Name..."
+            onChange={(event) => {
+              const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'first')
+
+              setSelectedColumns(temp)
+              setFirstName(event.target.value)
+            }}
+            value={firstName}
+          />
           <Dropdown
             inline
-            label={(
-              <span>{!firstNameColumn ? 'Column #' : firstNameColumn.values[props.rowIndex]}</span>
-            )}
           >
             {props.table.columns
-              .filter((column) => column.type === 'value')
-              .filter((column) => ![firstNameColumn, lastNameColumn, ...(selectedColumns.map((col) => col[0]))].some((col) => col?.id === column.id))
+              .filter(() => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user'))
               .map((column) => {
                 return (
                   <Dropdown.Item 
                     className="text-xs"
-                    onClick={() => setFirstNameColumn(column)}
+                    onClick={() => {
+                      setFirstName(column.values[props.rowIndex])
+                      setSelectedColumns([...selectedColumns, [column, 'user', 'first']])
+                    }}
                   >
                     {column.header}
                   </Dropdown.Item>
@@ -55,22 +72,33 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
         </div>
         <div className="flex flex-row gap-2 items-center text-nowrap">
           <span>Last Name:</span>
+          <input
+            className={`
+              font-thin p-0 text-xs border-transparent ring-transparent w-full border-b-gray-400 
+              border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
+            `}
+            placeholder="Last Name..."
+            onChange={(event) => {
+              const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'last')
+
+              setSelectedColumns(temp)
+              setFirstName(event.target.value)
+            }}
+            value={lastName}
+          />
           <Dropdown
             inline
-            label={(
-              <span>{!lastNameColumn ? 'Column #' : 
-                lastNameColumn.values[props.rowIndex] !== undefined && lastNameColumn.values[props.rowIndex] !== '' ? 
-                lastNameColumn.values[props.rowIndex] : 'Undefined'}</span>
-            )}
           >
             {props.table.columns
-              .filter((column) => column.type === 'value')
-              .filter((column) => ![firstNameColumn, lastNameColumn, ...(selectedColumns.map((col) => col[0]))].some((col) => col?.id === column.id))
+              .filter(() => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user'))
               .map((column) => {
                 return (
                   <Dropdown.Item 
                     className="text-xs"
-                    onClick={() => setLastNameColumn(column)}
+                    onClick={() => {
+                      setLastName(column.values[props.rowIndex])
+                      setSelectedColumns([...selectedColumns, [column, 'user', 'last']])
+                    }}
                   >
                     {column.header}
                   </Dropdown.Item>
@@ -91,6 +119,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
               lastName: '',
               userTags: [],
               contact: false,
+              userEmail: props.email,
             }
             setParticipants([...participants, temp])
           }}
@@ -135,8 +164,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   inline
                 >
                   {props.table.columns
-                    .filter((column) => column.type === 'value')
-                    .filter((column) => ![firstNameColumn, lastNameColumn, ...(selectedColumns.map((col) => col[0]))].some((col) => col?.id === column.id))
+                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
                     .map((column) => {
                       return (
                         <Dropdown.Item 
@@ -200,8 +228,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   inline
                 >
                   {props.table.columns
-                    .filter((column) => column.type === 'value')
-                    .filter((column) => ![firstNameColumn, lastNameColumn, ...(selectedColumns.map((col) => col[0]))].some((col) => col?.id === column.id))
+                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
                     .map((column) => {
                       return (
                         <Dropdown.Item 
@@ -265,8 +292,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   inline
                 >
                   {props.table.columns
-                    .filter((column) => column.type === 'value')
-                    .filter((column) => ![firstNameColumn, lastNameColumn, ...(selectedColumns.map((col) => col[0]))].some((col) => col?.id === column.id))
+                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
                     .map((column) => {
                       return (
                         <Dropdown.Item 
@@ -330,8 +356,8 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   inline
                 >
                   {props.table.columns
-                    .filter((column) => column.type === 'value')
-                    .filter((column) => ![firstNameColumn, lastNameColumn, ...(selectedColumns.map((col) => col[0]))].some((col) => col?.id === column.id))
+
+                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
                     .map((column) => {
                       return (
                         <Dropdown.Item 
@@ -375,17 +401,28 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
         })}
       </div>
       <button 
-        onClick={() => 
+        onClick={() => {
           inviteUser.mutate({
             email: props.email,
-            firstName: firstNameColumn!.values[props.rowIndex],
-            lastName: lastNameColumn!.values[props.rowIndex],
+            firstName: firstName,
+            lastName: lastName,
             participants: participants,
+            baseLink: link,
             options: {
               logging: true
             }
           })
-        }
+
+          props.submit({
+            email: props.email,
+            firstName: firstName,
+            lastName: lastName,
+            participant: participants,
+            sittingNumber: 0,
+            userTags: [],
+            preferredContact: 'EMAIL'
+          })
+        }}
         className="self-end me-2 mb-1 border rounded-lg py-1 px-2 hover:bg-gray-50 hover:border-gray-300"
       >
         Invite

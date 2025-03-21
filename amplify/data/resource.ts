@@ -150,7 +150,8 @@ const schema = a.schema({
       color: a.hasMany('ColumnColorMapping', 'columnId'),
       tag: a.string().array(),
       tableId: a.id().required(),
-      table: a.belongsTo('Table', 'tableId')
+      table: a.belongsTo('Table', 'tableId'),
+      order: a.integer().required()
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tableId')])
@@ -193,7 +194,10 @@ const schema = a.schema({
       participantEmail: a.string(),
       participant: a.hasMany('Participant', 'userEmail'),
       activeParticipant: a.id(),
-      favorites: a.hasMany('UserFavorites', 'userEmail')
+      favorites: a.hasMany('UserFavorites', 'userEmail'),
+      temporaryCreate: a.hasOne('TemporaryCreateUsersTokens', 'userEmail'),
+      firstName: a.string(),
+      lastName: a.string(),
     })
     .identifier(['email'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create', 'get'])]),
@@ -249,8 +253,8 @@ const schema = a.schema({
   TemporaryCreateUsersTokens: a
     .model({
       id: a.string().required(),
-      tags: a.string().array(),
-      sittingNumberPrefix: a.integer(),
+      userProfile: a.belongsTo('UserProfile', 'userEmail'),
+      userEmail: a.string().required(),
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.guest().to(['get'])]),

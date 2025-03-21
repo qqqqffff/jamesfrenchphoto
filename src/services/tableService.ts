@@ -3,6 +3,7 @@ import { Schema } from '../../amplify/data/resource'
 import { TableGroup, Table, TableColumn, ColumnColor, UserTag } from '../types'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
+import { defaultColumnColors } from '../utils'
 
 const client = generateClient<Schema>()
 
@@ -73,7 +74,7 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
     }))
     const mappedTable: Table = {
         ...tableResponse.data,
-        columns: mappedColumns,
+        columns: mappedColumns.sort((a, b) => a.order - b.order),
      }
     return mappedTable
 }
@@ -194,7 +195,8 @@ export interface CreateTableColumnParams {
     choices?: string[],
     tags?: string[],
     tableId: string,
-    values?: string[]
+    values?: string[],
+    order: number,
     options?: {
         logging?: boolean
     }
@@ -205,7 +207,8 @@ export async function createTableColumnMutation(params: CreateTableColumnParams)
         type: params.type,
         choices: params.choices,
         tag: params.tags,
-        tableId: params.tableId
+        tableId: params.tableId,
+        order: params.order
     })
     if(params.options?.logging) console.log(response)
     if(response && response.data) {
@@ -250,11 +253,44 @@ export async function updateTableColumnsMutation(params: UpdateTableColumnParams
             ): undefined,
             type: params.type ?? params.column.type,
             tag: params.tags ?? params.column.tags.map((tag) => tag.id),
+            order: params.order ?? params.column.order
         })
         if(params.options?.logging) console.log(response)
     }
 }
 
+export interface CreateChoiceParams {
+    column: TableColumn,
+    choices: string,
+    color: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function createChoiceMutation(params: CreateChoiceParams): Promise<ColumnColor | undefined> {
+    const columnResponse = await client.models.TableColumn.update({
+        id: params.column.id,
+        choices: [...(params.column.choices ?? []), params.choices]
+    })
+    if(params.options?.logging) console.log(columnResponse)
+
+    const createColor = await client.models.ColumnColorMapping.create({
+        columnId: params.column.id,
+        textColor: defaultColumnColors[params.color].text,
+        bgColor: defaultColumnColors[params.color].bg,
+        value: params.choices
+    })
+
+    if(createColor.data) {
+        const mappedColor: ColumnColor = {
+            ...createColor.data,
+            bgColor: defaultColumnColors[params.color].bg,
+            textColor: defaultColumnColors[params.color].text,
+        }
+        return mappedColor
+    }
+    return
+}
 export interface AppendTableRowParams {
     table: Table,
     options?: {
@@ -303,11 +339,14 @@ export async function deleteTableRowMutation(params: DeleteTableRowParams) {
 
 export interface DeleteTableColumnParams {
     column: TableColumn,
+    table: Table,
     options?: {
-        logging: boolean
+        logging?: boolean,
+        metric?: boolean
     }
 }
 export async function deleteTableColumnMutation(params: DeleteTableColumnParams){
+    const start = new Date().getTime()
     const response = await client.models.TableColumn.delete({ id: params.column.id })
 
     if(params.options?.logging) console.log(response)
@@ -315,8 +354,22 @@ export async function deleteTableColumnMutation(params: DeleteTableColumnParams)
     const columnMappingResponse = await Promise.all((params.column.color ?? []).map(async (color) => {
         return client.models.ColumnColorMapping.delete({ id: color.id })
     }))
-
     if(params.options?.logging) console.log(columnMappingResponse)
+
+    const orderUpdateResponse = await Promise.all(params.table.columns
+        .filter((column) => column.id !== params.column.id)
+        .sort((a, b) => a.order - b.order)
+        .map(async (column, index) => {
+            const response = await client.models.TableColumn.update({
+                id: column.id,
+                order: index,
+            })
+
+            return response
+        }
+    ))
+    if(params.options?.logging) console.log(orderUpdateResponse)
+    if(params.options?.metric) console.log(`DELETECOLUMN: ${new Date().getTime() - start}ms`)
 }
 
 

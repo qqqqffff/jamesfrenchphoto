@@ -59,7 +59,7 @@ function RouteComponent() {
           <Button
             color="gray"
             onClick={() => {
-                navigate({ to: '/admin/dashboard/collection' })
+                navigate({ to: '/admin/dashboard/collection', search: { collection: undefined, set: undefined, console: 'sets' }})
             }}
             className={activeConsoleClassName('collection')}
           >

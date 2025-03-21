@@ -52,7 +52,7 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
 
   return (
     <span
-      className="text-2xl ms-4 mb-2 flex flex-row items-center gap-2" 
+      className="text-2xl ms-4 mb-2 flex flex-row items-center gap-1" 
       onMouseEnter={() => setShowEdit(true)}
       onMouseLeave={() => setShowEdit(false)}
     >
@@ -105,7 +105,7 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
               handleSubmit()
             }
           }}
-          className="hover:text-gray-500 hover:cursor-pointer"
+          className="hover:text-gray-500 hover:cursor-pointer -ms-1"
         >
           {(!editing) ? (
             <HiOutlinePencil size={24} />

@@ -1,11 +1,12 @@
-import { UseQueryResult } from "@tanstack/react-query";
+import { useQuery, UseQueryResult } from "@tanstack/react-query";
 import { ComponentProps, useEffect, useRef, useState } from "react";
 import Loading from "../../common/Loading";
-import { Participant, Table, UserData } from "../../../types";
+import { Participant, Table, UserData, UserProfile } from "../../../types";
 import { Tooltip } from "flowbite-react";
 import { HiOutlineXMark } from 'react-icons/hi2'
 import validator from 'validator'
 import { InviteUserWindow } from "./InviteUserWindow";
+import { getAllTemporaryUsersQueryOptions } from "../../../services/userService";
 
 interface UserCellProps extends ComponentProps<'td'> {
   value: string,
@@ -13,18 +14,29 @@ interface UserCellProps extends ComponentProps<'td'> {
   userData: UseQueryResult<UserData[] | undefined, Error>,
   table: Table,
   rowIndex: number,
+  columnId: string,
 }
 
 export const UserCell = (props: UserCellProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
+  const [tempProfile, setTempProfile] = useState<UserProfile>()
   
   useEffect(() => {
     if(props.value !== value){
       setValue(props.value)
     }
   }, [props.value])
+
+  const tempUsersQuery = useQuery(getAllTemporaryUsersQueryOptions())
+
+  const tempUsers: [string, 'tempUser'][] = (tempUsersQuery.data ?? [])
+    .map((data) => ([data.email, 'tempUser']))
+
+  if(tempProfile){
+    tempUsers.push([tempProfile.email, 'tempUser'])
+  }
 
   const users: [string, 'user'][] = (props.userData.data ?? [])
     .map((data) => ([data.email, 'user']))
@@ -50,23 +62,21 @@ export const UserCell = (props: UserCellProps) => {
     .map((data) => ([data, 'participant']))
 
   
-  const mergedResults: Record<string, 'user' | 'participant'> = Object.fromEntries([...users, ...participants])
+  const mergedResults: Record<string, 'user' | 'participant' | 'tempUser'> = Object.fromEntries([...users, ...participants, ...tempUsers])
 
   const filteredItems = Object.entries(mergedResults)
     .filter((data) => (
-      data[0].toLowerCase().trim().includes(value.toLowerCase())
+      (data[0] ?? '').toLowerCase().trim().includes((value ?? '').toLowerCase())
     ))
 
-  const foundUser: 'user' | 'participant' | undefined = mergedResults[props.value]
+  const foundUser: 'user' | 'participant' | 'tempUser' | undefined = mergedResults[props.value]
 
   const displayUserPannel = foundUser !== undefined && props.value === value && isFocused
   const displayNoResults = foundUser === undefined && props.value !== value && !validator.isEmail(value) && filteredItems && filteredItems.length === 0 && isFocused
   const displayInvite = foundUser === undefined && props.value === value && isFocused && validator.isEmail(props.value) && isFocused
   const displaySearchResults = isFocused && ((props.value !== value || foundUser === undefined) && !validator.isEmail(value)) && filteredItems && filteredItems.length > 0
 
-  console.log(displayUserPannel, displayNoResults, displayInvite, displaySearchResults, props.value)
-
-  function userPannel(type: 'user' | 'participant', value: string): JSX.Element | undefined {
+  function userPannel(type: 'user' | 'participant' | 'tempUser', value: string): JSX.Element | undefined {
     let profile: UserData | undefined
     let participant: Participant | undefined
     if(type === 'user'){
@@ -83,7 +93,25 @@ export const UserCell = (props: UserCellProps) => {
       })
       if(!participant) return
     }
-    return type === 'user' && profile ? (
+    else if(type === 'tempUser') {
+      let userProfile = tempUsersQuery.data?.find((data) => data.email === value)
+
+      if(!userProfile && tempProfile) {
+        userProfile = tempProfile
+      }
+      if(!userProfile) return
+
+      profile = {
+        email: value,
+        verified: false,
+        first: userProfile.firstName ?? 'Undefined',
+        last: userProfile.lastName ?? 'Undefined',
+        userId: 'N/A',
+        status: 'N/A',
+        profile: userProfile
+      }
+    }
+    return (type === 'user' || type === 'tempUser') && profile ? (
       <div className="flex flex-col px-2 text-xs">
         <div className="flex flex-row gap-2 items-center text-nowrap">
           <span>First Name:</span>
@@ -93,20 +121,22 @@ export const UserCell = (props: UserCellProps) => {
           <span>Last Name:</span>
           <span className="italic">{profile.last}</span>
         </div>
-        <div className="flex flex-row gap-2 items-center text-nowrap">
-          <span>Created:</span>
-          <span className="italic">
-          {
-            profile.created?.toLocaleString('en-US', { timeZone: 'America/Chicago' })
-            .replace('T', ' ')
-            .replace(/[.].*/g, '')
-          }
-          </span>
-        </div>
+        {profile.created && (
+          <div className="flex flex-row gap-2 items-center text-nowrap">
+            <span>Created:</span>
+            <span className="italic">
+            {
+              profile.created.toLocaleString('en-US', { timeZone: 'America/Chicago' })
+              .replace('T', ' ')
+              .replace(/[.].*/g, '')
+            }
+            </span>
+          </div>
+        )}
         <div className="border-gray-300 border mb-1"/>
-        {profile.profile?.participant.map((participant) => {
+        {profile.profile?.participant.map((participant, index) => {
           return (
-            <div className="flex flex-col">
+            <div className="flex flex-col" key={index}>
               <span className="underline">Participant:</span>
               <div className="flex flex-row gap-2 items-center text-nowrap">
                 <span>First Name:</span>
@@ -150,10 +180,17 @@ export const UserCell = (props: UserCellProps) => {
             <span>Last Name:</span>
             <span className="italic">{participant.lastName}</span>
           </div>
+          {participant.userEmail && (
+            <div className="flex flex-row gap-2 items-center text-nowrap">
+              <span>User Email:</span>
+              <span className="italic">{participant.userEmail}</span>
+            </div>
+          )}
         </div>
       ) : undefined
     )
   }
+
   return (
     <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
       <input
@@ -164,7 +201,8 @@ export const UserCell = (props: UserCellProps) => {
           border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
           ${!isFocused ? (
             mergedResults[value] !== undefined ? (
-              mergedResults[value] === 'participant' ? 'text-purple-400' : 'text-blue-400'
+              mergedResults[value] === 'participant' ? 'text-purple-400' : 
+              mergedResults[value] === 'tempUser' ? 'text-orange-400' : 'text-blue-400'
             ) : 'text-red-500'
           ) : ''}
         `}
@@ -197,7 +235,7 @@ export const UserCell = (props: UserCellProps) => {
               }
               setIsFocused(false)
             }
-          }, 1)
+          }, 250)
         }}
         onFocus={() => setIsFocused(true)}
       />
@@ -208,9 +246,10 @@ export const UserCell = (props: UserCellProps) => {
             {filteredItems.map((item, index) => {
               return (
                 <Tooltip 
+                  key={index}
                   content={(
                     <div className="flex flex-col">
-                      <span className={`${item[1] === 'participant' ? 'text-purple-400' : 'text-blue-400'}`}>
+                      <span className={`${item[1] === 'participant' ? 'text-purple-400' : item[1] === 'tempUser' ? 'text-orange-400' : 'text-blue-400'}`}>
                         {item[1] === 'participant' ? 'Participant' : 'User'}
                       </span>
                       {userPannel(item[1], item[0])}
@@ -220,8 +259,7 @@ export const UserCell = (props: UserCellProps) => {
                   placement="bottom"
                 >
                   <li
-                    key={index}
-                    className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${item[1] === 'participant' ? 'text-purple-400' : 'text-blue-400'}`}
+                    className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${item[1] === 'participant' ? 'text-purple-400' : item[1] === 'tempUser' ? 'text-orange-400' : 'text-blue-400'}`}
                     onClick={() => {
                       setValue(item[0])
                       props.updateValue(item[0])
@@ -238,7 +276,7 @@ export const UserCell = (props: UserCellProps) => {
       )}
 
       {props.userData.isLoading && isFocused && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
+        <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
           <p className="px-4 py-2 text-gray-500 flex flex-row">
             Loading
             <Loading />
@@ -247,7 +285,7 @@ export const UserCell = (props: UserCellProps) => {
       )}
 
       {displayNoResults && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
+        <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
           <p className="px-4 py-2 text-gray-500">No results found</p>
         </div>
       )}
@@ -255,8 +293,8 @@ export const UserCell = (props: UserCellProps) => {
       {displayUserPannel && (
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col gap-2 ">
           <div className="flex flex-row p-1 justify-between w-full border-b">
-            <span className={`${foundUser === 'participant' ? 'text-purple-400' : 'text-blue-400'} ms-2`}>
-              {foundUser === 'participant' ? 'Participant' : 'User'}
+            <span className={`${foundUser === 'participant' ? 'text-purple-400' : foundUser === 'tempUser' ? 'text-orange-400' : 'text-blue-400'} ms-2`}>
+              {foundUser === 'participant' ? 'Participant' : foundUser === 'tempUser' ? 'Pending User' : 'User'}
             </span>
             <button 
               className=""
@@ -286,8 +324,12 @@ export const UserCell = (props: UserCellProps) => {
           </div>
           <InviteUserWindow 
             email={props.value}
-            table={props.table}
+            table={{
+              ...props.table,
+              columns: props.table.columns.filter((column) => column.id !== props.columnId)
+            }}
             rowIndex={props.rowIndex}
+            submit={setTempProfile}
           />
         </div>
       )}

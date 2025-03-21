@@ -37,6 +37,8 @@ export interface UserProfile {
     participantEmail?: string,
     participant: Participant[],
     activeParticipant?: Participant,
+    firstName?: string,
+    lastName?: string
 }
 
 export interface Participant {
@@ -49,6 +51,7 @@ export interface Participant {
     email?: string,
     contact: boolean,
     timeslot?: Timeslot[],
+    userEmail: string,
 }
 
 export type User = {
@@ -159,6 +162,7 @@ export interface TableColumn {
     tags: UserTag[],
     sort?: 'ASC' | 'DSC',
     tableId: string,
+    order: number,
 }
 
 export type ColumnColor = {
@@ -166,6 +170,7 @@ export type ColumnColor = {
     value: string
     bgColor?: string
     textColor?: string
+    columnId: string
 }
 
 export interface TemporaryAccessToken {

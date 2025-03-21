@@ -1,6 +1,13 @@
 import { Dispatch, SetStateAction, useRef, useState } from "react"
 import { Table, TableColumn, TableGroup, UserData } from "../../../types"
-import { HiOutlineCalendar, HiOutlineListBullet, HiOutlinePencil, HiOutlinePlusCircle, HiOutlineUserCircle, HiOutlineXCircle } from 'react-icons/hi2'
+import { 
+  HiOutlineCalendar, 
+  HiOutlineListBullet, 
+  HiOutlinePencil, 
+  HiOutlinePlusCircle, 
+  HiOutlineUserCircle, 
+  HiOutlineXCircle 
+} from 'react-icons/hi2'
 import { Dropdown } from "flowbite-react"
 import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import { 
@@ -134,6 +141,7 @@ export const TableComponent = (props: TableComponentProps) => {
       header: '',
       type: type,
       tags: [],
+      order: props.table.columns.length,
       tableId: props.table.id
     }
 
@@ -217,6 +225,7 @@ export const TableComponent = (props: TableComponentProps) => {
             const column: TableColumn = refColumn.current
 
             deleteColumn.mutate({
+              table: props.table,
               column: column,
               options: {
                 logging: true
@@ -291,6 +300,9 @@ export const TableComponent = (props: TableComponentProps) => {
                                 header: text,
                                 tableId: props.table.id,
                                 type: columnType.current,
+                                values: props.table.columns.length > 0 && props.table.columns[0].values.length > 0 ?
+                                  props.table.columns[0].values.fill('') : undefined,
+                                order: props.table.columns.length,
                                 options: {
                                   logging: true
                                 }
@@ -572,7 +584,7 @@ export const TableComponent = (props: TableComponentProps) => {
             </tr>
           </thead>
           <tbody>
-            {tableRows.length > 0 && tableRows.map((row, i) => {
+            {tableRows.length > 0 && tableRows.map((row: [string, "value" | "user" | "date" | "choice" | "tag" | "file", string][], i: number) => {
                 return (
                   <tr key={i} className="bg-white border-b">
                     {row.map(([v, t, id], j) => {
@@ -582,11 +594,12 @@ export const TableComponent = (props: TableComponentProps) => {
                           return (
                             <UserCell
                               key={j}
-                              value={v}
+                              value={v ?? ''}
                               updateValue={(text) => updateValue(id, text, i)}
                               userData={props.userData}
                               table={props.table}
                               rowIndex={i}
+                              columnId={id}
                             />
                           )
                         }
@@ -605,6 +618,8 @@ export const TableComponent = (props: TableComponentProps) => {
                               key={j}
                               value={v}
                               updateValue={(text) => console.log(text)}
+                              column={props.table.columns.find((col) => col.id === id)!}
+                              updateParentTable={props.parentUpdateTable}
                             />
                           )
                         }
