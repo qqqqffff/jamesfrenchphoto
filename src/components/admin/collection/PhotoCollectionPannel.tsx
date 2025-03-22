@@ -539,17 +539,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                     setSetList(updatedSetList)
                     setSelectedSet(undefined)
                   }}
-                  parentUpdateSet={(updatedSet) => {
-                    const temp = setList.map((set) => {
-                      if(set.id === updatedSet.id){
-                        return updatedSet
-                      }
-                      return set
-                    })
-                    setSetList(temp)
-                    setSelectedSet(updatedSet)
-                  }}
-                  updateParentCollection={updateParentCollection}
+                  parentUpdateSet={setSelectedSet}
+                  parentUpdateCollection={updateParentCollection}
                   auth={auth}
                 />
               )

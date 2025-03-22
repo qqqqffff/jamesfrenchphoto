@@ -1,4 +1,4 @@
-import { Dispatch, FC, SetStateAction, useCallback, useRef, useState } from "react"
+import { Dispatch, FC, SetStateAction, useCallback, useState } from "react"
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
 import { 
   HiOutlineCog6Tooth,
@@ -7,12 +7,9 @@ import {
 } from "react-icons/hi2";
 import { Alert, Dropdown, FlowbiteColors, TextInput, ToggleSwitch, Tooltip } from "flowbite-react";
 import { ConfirmationModal, UploadImagesModal } from "../../modals";
-import { FixedSizeGrid } from "react-window";
-import AutoSizer from "react-virtualized-auto-sizer";
-import useWindowDimensions from "../../../hooks/windowDimensions";
 import { DynamicStringEnumKeysOf, parsePathName, textInputTheme } from "../../../utils";
 import { SetControls } from "./SetControls";
-import { SetRow } from "./SetRow";
+import { SetPictureTable } from "./SetPictureTable";
 import { EditableTextField } from "../../common/EditableTextField";
 import { useMutation, useQueries } from "@tanstack/react-query";
 import { 
@@ -36,17 +33,16 @@ export type PhotoCollectionProps = {
   photoSet: PhotoSet;
   paths: PicturePath[],
   deleteParentSet: (setId: string) => void,
-  parentUpdateSet: (updatedSet: PhotoSet) => void,
-  updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
+  parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
+  parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
   auth: AuthContext
 }
 
 export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ 
   photoCollection, photoSet, 
   paths, deleteParentSet, parentUpdateSet,
-  updateParentCollection, auth
+  parentUpdateCollection, auth
 }) => {
-  const gridRef = useRef<FixedSizeGrid>(null)
   const [picturePaths, setPicturePaths] = useState(paths)
   const [searchText, setSearchText] = useState<string>('')
   const [selectedPhotos, setSelectedPhotos] = useState<PicturePath[]>([])
@@ -56,9 +52,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
   const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
   const [uploads, setUploads] = useState<UploadData[]>([])
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
-
-  const dimensions = useWindowDimensions()
-
+  
   const updateSet = useMutation({
     mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
   })
@@ -66,7 +60,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
   function pictureStyle(id: string){
     const conditionalBackground = selectedPhotos.find((path) => path.id === id) !== undefined ? 
     `bg-gray-100 border-cyan-400` : `bg-transparent border-gray-500 border-gray-500`
-    return 'relative px-2 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent ' + conditionalBackground
+    return 'relative px-4 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent ' + conditionalBackground
   }
 
   function controlsEnabled(id: string, override: boolean){
@@ -80,7 +74,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
     queries: picturePaths
       .sort((a, b) => a.order - b.order)
       .map((path) => {
-        return getPathQueryOptions(path.path)
+        return getPathQueryOptions(path.path, path.id)
       })
   })
 
@@ -101,7 +95,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
 
   const uploadImages = useMutation({
     mutationFn: (params: UploadImagesMutationParams) => uploadImagesMutation(params),
-    onSettled: () => updateParentCollection({
+    onSettled: () => parentUpdateCollection({
       ...photoCollection,
       items: photoCollection.sets.reduce((prev, cur) => {
         if(cur.id === photoSet.id){
@@ -220,11 +214,13 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
     {selectedPhotos.length > 0 && (
       <SetControls 
         collection={photoCollection}
-        photos={picturePaths}
-        setPhotos={setPicturePaths}
+        set={photoSet}
+        paths={picturePaths}
+        parentUpdatePaths={setPicturePaths}
+        parentUpdateSet={parentUpdateSet}
+        parentUpdateCollection={parentUpdateCollection}
         selectedPhotos={selectedPhotos} 
-        setSelectedPhotos={setSelectedPhotos}
-        gridRef={gridRef}
+        parentUpdateSelectedPhotos={setSelectedPhotos}
       />
     )}
     <div className="border-gray-400 border rounded-2xl p-4 flex flex-col items-center w-full">
@@ -242,9 +238,26 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                 logging: true
               }
             })
-            parentUpdateSet({
+            const tempSet: PhotoSet = {
               ...photoSet,
               name: text
+            }
+            parentUpdateSet(tempSet)
+            parentUpdateCollection((prev) => {
+              if(prev) {
+                const temp: PhotoCollection = {
+                  ...prev,
+                  sets: prev.sets.map((set) => {
+                    if(set.id === photoSet.id) {
+                      return tempSet
+                    }
+                    return set
+                  })
+                }
+
+                return temp
+              }
+              return prev
             })
           }} 
           onSubmitError={(message) => {
@@ -307,27 +320,6 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
                     label="Display Photo Titles"
                 />
               </Dropdown.Item>
-              {/* <Dropdown.Item 
-                onClick={() => {
-                  const index = picturePaths.findIndex((path) => {
-                    return path.path === cover
-                  })
-                  if(index === -1) {
-                    setNotification({text: 'No Cover Photo', color: 'red'})
-                    clearTimeout(activeTimeout)
-                    activeTimeout = setTimeout(() => {
-                      setNotification(undefined)
-                      activeTimeout = undefined
-                    }, 5000)
-                    return
-                  }
-                  gridRef.current?.scrollToItem({
-                    rowIndex: (index / 4)
-                  })
-                }}
-              >
-                Go To Cover
-              </Dropdown.Item> */}
               <Dropdown.Item as='label' htmlFor="setting-upload-file" className="">
                 <input 
                   id='setting-upload-file' 
@@ -368,54 +360,32 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
             <span className="opacity-100 font-semibold text-2xl animate-pulse">Drop files here</span>
           </div>
         )}
-        <AutoSizer className='w-full self-center' style={{ minHeight: `${dimensions.height - 100}px`}}>
-          {({ height, width }: { height: number; width: number }) => {
-            return (
-              <FixedSizeGrid
-                ref={gridRef}
-                style={{
-                    left: ((width - 940) / 2),
-                }}
-                height={height}
-                rowCount={Number(Number(filteredPhotos.length / 4).toFixed(1)) + 1}
-                columnCount={4}
-                rowHeight={400}
-                width={width - ((width - 940) / 2)}
-                columnWidth={240}
-                itemData={{
-                    collection: photoCollection,
-                    set: photoSet,
-                    data: filteredPhotos
-                      .sort((a, b) => a.order - b.order)
-                      .filter((path) => path.path && path.id),
-                    updateData: setPicturePaths,
-                    urls: pathUrls
-                      .filter((path) => {
-                        return filteredPhotos.find((filteredPath) => path.id === filteredPath.id) !== undefined
-                      }),
-                    pictureStyle,
-                    selectedPhotos,
-                    setSelectedPhotos,
-                    setDisplayPhotoControls,
-                    controlsEnabled,
-                    setPicturePaths,
-                    displayTitleOverride,
-                    notify: (text, color) => {
-                      setNotification({text, color})
-                      clearTimeout(activeTimeout)
-                      activeTimeout = setTimeout(() => {
-                        setNotification(undefined)
-                        activeTimeout = undefined
-                      }, 5000)
-                    },
-                    setFilesUploading,
-                    userEmail: auth.user?.profile.email,
-                }}
-              >
-                {SetRow}
-              </FixedSizeGrid>
-            )}}
-        </AutoSizer>
+        <SetPictureTable 
+          collection={photoCollection}
+          set={photoSet}
+          paths={filteredPhotos
+            .sort((a, b) => a.order - b.order)
+            .filter((path) => path.path && path.id)
+          }
+          parentUpdatePaths={setPicturePaths}
+          urls={pathUrls}
+          pictureStyle={pictureStyle}
+          selectedPhotos={selectedPhotos}
+          setSelectedPhotos={setSelectedPhotos}
+          setDisplayPhotoControls={setDisplayPhotoControls}
+          controlsEnabled={controlsEnabled}
+          displayTitleOverride={displayTitleOverride}
+          notify={(text, color) => {
+            setNotification({text, color})
+            clearTimeout(activeTimeout)
+            activeTimeout = setTimeout(() => {
+              setNotification(undefined)
+              activeTimeout = undefined
+            }, 5000)
+          }}
+          setFilesUploading={setFilesUploading}
+          userEmail={auth.user?.profile.email}
+        />
       </div>
     </div>
   </>
