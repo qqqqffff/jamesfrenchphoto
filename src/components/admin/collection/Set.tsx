@@ -47,12 +47,13 @@ interface SetProps {
   set: PhotoSet, 
   onClick: () => void, 
   collection?: PhotoCollection,
+  selectedSet: boolean
   onSubmit: (set: PhotoSet) => void,
   onCancel: () => void,
   updateParent: (name: string) => void
 }
 
-export const Set: FC<SetProps> = ({ set, onClick, collection, onSubmit, onCancel, updateParent }) => {
+export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSubmit, onCancel, updateParent }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<SetState>(idle);
   const [allowDragging, setAllowDragging] = useState(false)
@@ -153,7 +154,7 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, onSubmit, onCancel
         <div
           data-task-id={set.id}
           ref={ref}
-          className={`flex text-sm bg-white flex-row items-center border border-solid rounded p-2 pl-0 ${collection === undefined ? 'hover:bg-gray-100' : ''} ${stateStyles[state.type] ?? ''}`}
+          className={`flex text-sm ${selectedSet ? 'bg-gray-200' : 'bg-white'} flex-row items-center border border-gray-300 border-solid rounded p-2 pl-0 ${collection === undefined ? 'hover:bg-gray-100' : ''} ${stateStyles[state.type] ?? ''}`}
           onClick={onClick}
         >
           <button className="w-6 flex justify-center hover:cursor-grab" 

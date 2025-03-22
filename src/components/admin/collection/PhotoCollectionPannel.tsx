@@ -375,15 +375,20 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               <div className="w-full">
                 <SetList 
                   setList={setList}
-                  setSelectedSet={(set: PhotoSet) => {
+                  selectedSet={selectedSet}
+                  setSelectedSet={(set: PhotoSet | undefined) => {
+                    if(set) {
+                      setQuery.refetch()
+                    }
+                    
                     navigate({
                       to: '.', search: {
                         collection: collection.id,
-                        set: set.id,
+                        set: set?.id,
                         console: activeConsole as string
                       }
                     })
-                    setQuery.refetch()
+                    
                     setSelectedSet(set)
                   } }
                   collection={collection}
