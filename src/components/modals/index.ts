@@ -7,7 +7,6 @@ import { TermsAndConditionsModal as termsAndConditions } from './TermsAndConditi
 import { CreatePackageModal as createPackage } from './CreatePackage';
 import { CreateCollectionModal as createCollection } from './CreateCollection';
 import { EditTimeslotModal as editTimeslot } from './EditTimeslotModal';
-import { ShareCollectionModal as shareCollection } from './ShareCollection';
 import { UnauthorizedEmailModal as unauthorizedEmail } from './UnauthorizedEmail';
 
 
@@ -25,5 +24,4 @@ export const TermsAndConditionsModal = termsAndConditions
 export const CreatePackageModal = createPackage
 export const CreateCollectionModal = createCollection
 export const EditTimeslotModal = editTimeslot
-export const ShareCollectionModal = shareCollection
 export const UnauthorizedEmailModal = unauthorizedEmail

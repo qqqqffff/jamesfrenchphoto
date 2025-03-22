@@ -27,9 +27,9 @@ export const SetCarousel = (props: SetCarouselProps) => {
   
   return (
     <div className="relative overflow-hidden py-2 flex flex-col rounded-xl">
-      <div className="h-auto relative">
+      <div className="h-auto relative w-full">
         <div
-          className="flex transition-transform duration-500 ease-out h-full px-2"
+          className="flex transition-transform duration-500 ease-out h-full px-2 w-full"
           style={{
             transform: `translateX(calc(50% - ${offset}px))`
           }}

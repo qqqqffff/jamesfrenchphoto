@@ -52,7 +52,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
   const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
   const [uploads, setUploads] = useState<UploadData[]>([])
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
-  
+
   const updateSet = useMutation({
     mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
   })
@@ -184,6 +184,8 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
         }}
         updateUpload={setUploads}
         updatePicturePaths={setPicturePaths}
+        parentUpdateSet={parentUpdateSet}
+        parentUpdateCollection={parentUpdateCollection}
         onClose={() => setFilesUploading(undefined)}
         open={filesUploading !== undefined}
       />
@@ -280,7 +282,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
           value={searchText}
         />
         <div className="flex flex-row items-center gap-3 place-self-end h-full mb-1">
-          <span>Items: {photoSet.paths.length}</span>
+          <span>Items: {picturePaths.length}</span>
           {duplicates.length > 0 && (
             <Tooltip style='light' content={(
               <div className="flex flex-col">
@@ -368,6 +370,8 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
             .filter((path) => path.path && path.id)
           }
           parentUpdatePaths={setPicturePaths}
+          parentUpdateSet={parentUpdateSet}
+          parentUpdateCollection={parentUpdateCollection}
           urls={pathUrls}
           pictureStyle={pictureStyle}
           selectedPhotos={selectedPhotos}

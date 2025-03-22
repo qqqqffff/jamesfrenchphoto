@@ -14,16 +14,15 @@ import { GoTriangleDown, GoTriangleUp } from "react-icons/go";
 import { UploadData } from "./UploadToast";
 import { v4 } from 'uuid'
 
-
-//TODO: add updating live
-
 interface UploadImagesProps extends ModalProps {
   collection: PhotoCollection,
   set: PhotoSet;
   files: Map<string, File>,
   createUpload: (params: UploadImagesMutationParams) => void,
   updateUpload: Dispatch<SetStateAction<UploadData[]>>
-  updatePicturePaths: Dispatch<SetStateAction<PicturePath[]>>
+  updatePicturePaths: Dispatch<SetStateAction<PicturePath[]>>,
+  parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
+  parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
 }
 
 async function validateFiles(
@@ -174,7 +173,8 @@ async function validateFiles(
 
 export const UploadImagesModal: FC<UploadImagesProps> = ({ 
   open, onClose, collection, set, files, 
-  createUpload, updateUpload, updatePicturePaths
+  createUpload, updateUpload, updatePicturePaths,
+  parentUpdateSet, parentUpdateCollection
 }) => {
   const [filesUpload, setFilesUpload] = useState<Map<string, File>>(files)
   const [filesPreview, setFilesPreview] = useState<Map<string, File>>()
@@ -222,6 +222,8 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
         files: filesUpload,
         updateUpload: updateUpload,
         updatePaths: updatePicturePaths,
+        parentUpdateSet: parentUpdateSet,
+        parentUpdateCollection: parentUpdateCollection,
         totalUpload: totalUpload,
         duplicates: Object.fromEntries(set.paths
           .filter((path) => filesUpload.get(parsePathName(path.path)) !== undefined)

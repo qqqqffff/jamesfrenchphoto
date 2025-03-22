@@ -49,8 +49,15 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
 
     if(!setResponse || !setResponse.data) return null
 
-    const pathsResponse = await setResponse.data.paths()
-    const mappedPaths: PicturePath[] = (await Promise.all(pathsResponse.data.map(async (path) => {
+    let pathsResponse = await setResponse.data.paths()
+    
+    let responseData = pathsResponse.data
+    while(pathsResponse.nextToken) {
+        pathsResponse = await setResponse.data.paths({ nextToken: pathsResponse.nextToken })
+        responseData.push(...pathsResponse.data)
+    }
+
+    const mappedPaths: PicturePath[] = (await Promise.all(responseData.map(async (path) => {
         let favorite: undefined | string
         if(options?.user){
             favorite = (await path.favorites()).data.find((favorite) => favorite.userEmail === options.user)?.id
@@ -229,6 +236,8 @@ export interface UploadImagesMutationParams {
     files: Map<string, File>,
     updateUpload: Dispatch<SetStateAction<UploadData[]>>
     updatePaths: Dispatch<SetStateAction<PicturePath[]>>
+    parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
+    parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
     totalUpload: number,
     duplicates: Record<string, PicturePath>,
     options?: {
@@ -345,9 +354,24 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
                 
                 if(!mappedPath) return false
 
+                const tempSet: PhotoSet = {
+                    ...params.set,
+                    paths: [...params.set.paths, mappedPath]
+                }
+                const tempCollection: PhotoCollection = { 
+                    ...params.collection,
+                    sets: params.collection.sets.map((set) => {
+                        if(set.id === tempSet.id){
+                            return tempSet
+                        }
+                        return set
+                    })
+                }
                 params.updatePaths((prev) => {
                     return [...prev, mappedPath]
                 })
+                params.parentUpdateSet(tempSet)
+                params.parentUpdateCollection(tempCollection)
                 params.updateUpload((prev) => {
                     return prev.map((upload) => {
                         if(upload.id === params.uploadId){
