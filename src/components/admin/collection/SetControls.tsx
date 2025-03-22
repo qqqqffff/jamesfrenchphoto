@@ -1,19 +1,20 @@
 import { HiOutlineCheckCircle } from "react-icons/hi";
 import { Tooltip } from "flowbite-react"
 import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash } from "react-icons/hi2";
-import { ComponentProps, RefObject } from "react";
-import { PhotoCollection, PicturePath } from "../../../types";
+import { ComponentProps, Dispatch, SetStateAction } from "react";
+import { PhotoCollection, PhotoSet, PicturePath } from "../../../types";
 import { useMutation } from "@tanstack/react-query";
 import { deleteImagesMutation, DeleteImagesMutationParams, reorderPathsMutation, ReorderPathsParams } from "../../../services/photoSetService";
-import { FixedSizeGrid } from "react-window";
 
 interface SetControlsProps extends ComponentProps<'div'> {
-  collection: PhotoCollection
-  photos: PicturePath[],
-  setPhotos: (photos: PicturePath[]) => void
+  collection: PhotoCollection,
+  set: PhotoSet,
+  paths: PicturePath[],
+  parentUpdatePaths: Dispatch<SetStateAction<PicturePath[]>>,
+  parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
+  parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
   selectedPhotos: PicturePath[],
-  setSelectedPhotos: (photos: PicturePath[]) => void,
-  gridRef: RefObject<FixedSizeGrid>
+  parentUpdateSelectedPhotos: Dispatch<SetStateAction<PicturePath[]>>,
 }
 
 export const SetControls = (props: SetControlsProps) => {
@@ -29,13 +30,13 @@ export const SetControls = (props: SetControlsProps) => {
 
   return (
     <div 
-      className="fixed py-1.5 px-4 rounded-lg shadow inset-x-0 bottom-0 left-[400px] ml-2 mb-2 border place-self-center z-50 bg-white flex flex-row gap-1"
+      className="fixed py-1.5 px-4 rounded-lg shadow inset-x-0 bottom-0 ml-2 mb-2 border place-self-center z-50 bg-white flex flex-row gap-1"
     >
       <Tooltip content={'Unselect All'}>
         <button 
           className={componentClass}
           onClick={() => {
-            props.setSelectedPhotos([])
+            props.parentUpdateSelectedPhotos([])
           }}
         >
           <HiOutlineCheckCircle size={24} />
@@ -45,19 +46,41 @@ export const SetControls = (props: SetControlsProps) => {
         <button 
           className={componentClass}
           onClick={() => {
-            //TODO: connect api
-
             const mappedSelectedPhotos = props.selectedPhotos.map((path) => path.id)
 
             deletePhotos.mutate({
               collection: props.collection,
               picturePaths: props.selectedPhotos,
             })
+
+            const newPaths = props.paths.filter((path) => 
+              !mappedSelectedPhotos.some((removed) => removed === path.id)
+            )
+
+            const tempSet: PhotoSet = {
+              ...props.set,
+              paths: newPaths
+            }
             
-            props.setPhotos(props.photos.filter((path) => 
-              !mappedSelectedPhotos.includes(path.id)
-            ))
-            props.setSelectedPhotos([])
+            props.parentUpdatePaths(newPaths)
+            props.parentUpdateSet(tempSet)
+            props.parentUpdateCollection((prev) => {
+              if(prev) {
+                const temp: PhotoCollection = {
+                  ...prev,
+                  sets: prev.sets.map((set) => {
+                    if(set.id === tempSet.id) {
+                      return tempSet
+                    }
+                    return set
+                  }),
+                  items: prev.items - props.selectedPhotos.length
+                }
+                return temp
+              }
+              return prev
+            })
+            props.parentUpdateSelectedPhotos([])
           }}
         >
           <HiOutlineTrash size={24} />
@@ -67,10 +90,9 @@ export const SetControls = (props: SetControlsProps) => {
         <button 
           className={componentClass}
           onClick={() => {
-            //TODO: connect api
             const mappedSelectedPhotos = props.selectedPhotos.map((path) => path.id)
 
-            const partialPhotos = props.photos.filter((path) => 
+            const partialPhotos = props.paths.filter((path) => 
               !mappedSelectedPhotos.includes(path.id)
             )
 
@@ -85,9 +107,27 @@ export const SetControls = (props: SetControlsProps) => {
               paths: updatedPhotos,
             })
 
-            props.setPhotos(updatedPhotos)
-            props.gridRef.current?.scrollToItem({
-              rowIndex: 0
+            const tempSet: PhotoSet = {
+              ...props.set,
+              paths: updatedPhotos
+            }
+
+            props.parentUpdatePaths(updatedPhotos)
+            props.parentUpdateSet(tempSet)
+            props.parentUpdateCollection((prev) => {
+              if(prev) {
+                const temp: PhotoCollection = {
+                  ...prev,
+                  sets: prev.sets.map((set) => {
+                    if(set.id === tempSet.id) {
+                      return tempSet
+                    }
+                    return set
+                  }),
+                }
+                return temp
+              }
+              return prev
             })
           }}
         >
@@ -98,10 +138,9 @@ export const SetControls = (props: SetControlsProps) => {
         <button 
           className={componentClass}
           onClick={() => {
-            //TODO: connect api
             const mappedSelectedPhotos = props.selectedPhotos.map((path) => path.id)
 
-            const partialPhotos = props.photos.filter((path) => 
+            const partialPhotos = props.paths.filter((path) => 
               !mappedSelectedPhotos.includes(path.id)
             )
 
@@ -119,9 +158,27 @@ export const SetControls = (props: SetControlsProps) => {
               }
             })
 
-            props.setPhotos(updatedPhotos)
-            props.gridRef.current?.scrollToItem({
-              rowIndex: props.photos.length / 4
+            const tempSet: PhotoSet = {
+              ...props.set,
+              paths: updatedPhotos
+            }
+
+            props.parentUpdatePaths(updatedPhotos)
+            props.parentUpdateSet(tempSet)
+            props.parentUpdateCollection((prev) => {
+              if(prev) {
+                const temp: PhotoCollection = {
+                  ...prev,
+                  sets: prev.sets.map((set) => {
+                    if(set.id === tempSet.id) {
+                      return tempSet
+                    }
+                    return set
+                  }),
+                }
+                return temp
+              }
+              return prev
             })
           }}
         >

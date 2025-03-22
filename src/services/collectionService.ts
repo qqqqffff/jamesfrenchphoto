@@ -200,10 +200,15 @@ async function getCollectionById(collectionId: string, options?: GetPhotoCollect
     const sets: PhotoSet[] = []
     if(!options || options.siSets){
         sets.push(...await Promise.all((await collection.data.sets()).data.map((async (set) => {
-            const paths = await set.paths()
+            let pathsResponse = await set.paths()
+            let paths = pathsResponse.data
+            while(pathsResponse.nextToken) {
+                pathsResponse = await set.paths({ nextToken: pathsResponse.nextToken })
+                paths.push(...pathsResponse.data)
+            }
             const mappedPaths: PicturePath[] = []
             if(!options || options?.siPaths) {
-                mappedPaths.push(...await Promise.all(paths.data.map(async (path) => {
+                mappedPaths.push(...await Promise.all(paths.map(async (path) => {
                     let favorite: undefined | string
                     if(options?.user){
                         favorite = (await path.favorites()).data.find((favorite) => favorite.userEmail === options.user)?.id
@@ -426,14 +431,24 @@ export async function publishCollectionMutation(params: PublishCollectionParams)
 }
 
 export interface DeleteCollectionParams {
-    collection: PhotoCollection,
+    collectionId: string,
     options?: {
         logging: boolean
     }
 }
 export async function deleteCollectionMutation(params: DeleteCollectionParams) {
+    const collection = await getCollectionById(params.collectionId, { siPaths: true, siSets: true })
+    
+    if(!collection) return
+
+    if(collection.publicCoverPath) {
+        const responsePublic = await client.queries.DeletePublicPhoto({ path: collection.publicCoverPath })
+    
+        if(params.options?.logging) console.log(responsePublic)
+    }
+
     const deletePathsResponse = await Promise.all(
-        (await Promise.all(params.collection.sets
+        (await Promise.all(collection.sets
             .map(async (set) => {
                 const response = await client.models.PhotoSet.delete({
                     id: set.id,
@@ -459,7 +474,7 @@ export async function deleteCollectionMutation(params: DeleteCollectionParams) {
     if(params.options?.logging) console.log(deletePathsResponse)
 
     const response = await client.models.PhotoCollection.delete({
-        id: params.collection.id
+        id: params.collectionId
     })
     if(params.options?.logging) console.log(response)
 }

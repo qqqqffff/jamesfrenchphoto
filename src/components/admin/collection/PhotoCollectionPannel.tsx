@@ -6,10 +6,12 @@ import { getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
 import { CollectionThumbnail } from "./CollectionThumbnail"
 import { HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineTrash } from "react-icons/hi2"
 import { SetList } from "./SetList"
-import { CreateCollectionModal, ShareCollectionModal } from "../../modals"
+import { ConfirmationModal, CreateCollectionModal } from "../../modals"
 import { useNavigate } from "@tanstack/react-router"
 import { PhotoSetPannel } from "./PhotoSetPannel"
 import { 
+  deleteCollectionMutation,
+  DeleteCollectionParams,
   deleteCoverMutation, 
   DeleteCoverParams, 
   getPathQueryOptions, 
@@ -59,7 +61,6 @@ interface Publishable {
   warning?: string[]
 }
 
-//TODO: update cover should update parent
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
   watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
@@ -71,24 +72,28 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
   const [coverPath, setCoverPath] = useState(collection.coverPath)
-  const [shareVisible, setShareVisible] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<ShareTemplate>()
+  const [deleteCollectionVisible, setDeleteCollectionVisible] = useState(false)
 
   const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share'>(parentActiveConsole)
 
   const navigate = useNavigate()
 
   const deleteImage = useMutation({
-      mutationFn: (params: DeleteCoverParams) => deleteCoverMutation(params),
+    mutationFn: (params: DeleteCoverParams) => deleteCoverMutation(params),
   })
 
   const updateCollection = useMutation({
-      mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params)
+    mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params)
+  })
+
+  const deleteCollection = useMutation({
+    mutationFn: (params: DeleteCollectionParams) => deleteCollectionMutation(params)
   })
 
   const setQuery = useQuery({
-      ...getPhotoSetByIdQueryOptions(selectedSet?.id, { resolveUrls: false, user: auth.user?.profile.email }),
-      enabled: selectedSet !== undefined
+    ...getPhotoSetByIdQueryOptions(selectedSet?.id, { resolveUrls: false, user: auth.user?.profile.email }),
+    enabled: selectedSet !== undefined
   })
 
   const uploadWatermarks = useMutation({
@@ -124,35 +129,35 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
 
   //all cover paths, each set has paths, warn if less than 20 and if has duplicates
   const publishable: Publishable = (() => {
-      let publishable: Publishable = { status: true }
-      const updatePublishable = (a: Publishable, warning?: string, reason?: string) => {
-          if(reason){
-              a.reason = [reason, ...(a.reason ?? [])]
-              a.status = false
-          }
-          if(warning){
-              a.warning = [warning, ...(a.warning ?? [])]
-          }
-          return a
+    let publishable: Publishable = { status: true }
+    const updatePublishable = (a: Publishable, warning?: string, reason?: string) => {
+      if(reason){
+        a.reason = [reason, ...(a.reason ?? [])]
+        a.status = false
       }
-      publishable = collection.coverPath === undefined ? updatePublishable(publishable, undefined, 'Collection has No Cover Photo'): publishable
-
-      const tempSetList = setList.sort((a, b) => b.order - a.order)
-      for(let i = 0; i < tempSetList.length; i++) {
-          publishable = tempSetList[i].paths.length > 0 ? (
-              tempSetList[i].paths.length < 20 ? (
-                  updatePublishable(publishable, `${tempSetList[i].name} has Few Pictures`)
-              ) : (
-                  publishable
-              )
-          ) : (
-              updatePublishable(publishable, undefined, `${tempSetList[i].name} has a No Pictures`)
-          )
-          const duplicates = detectDuplicates(tempSetList[i].paths)
-          publishable = duplicates.length > 0 ? updatePublishable(publishable, `${tempSetList[i].name} has Duplicates`) : publishable
+      if(warning){
+        a.warning = [warning, ...(a.warning ?? [])]
       }
+      return a
+    }
+    publishable = collection.coverPath === undefined ? updatePublishable(publishable, undefined, 'Collection has No Cover Photo'): publishable
 
-      return publishable
+    const tempSetList = setList.sort((a, b) => b.order - a.order)
+    for(let i = 0; i < tempSetList.length; i++) {
+      publishable = tempSetList[i].paths.length > 0 ? (
+        tempSetList[i].paths.length < 20 ? (
+          updatePublishable(publishable, `${tempSetList[i].name} has Few Pictures`)
+        ) : (
+          publishable
+        )
+      ) : (
+        updatePublishable(publishable, undefined, `${tempSetList[i].name} has a No Pictures`)
+      )
+      const duplicates = detectDuplicates(tempSetList[i].paths)
+      publishable = duplicates.length > 0 ? updatePublishable(publishable, `${tempSetList[i].name} has Duplicates`) : publishable
+    }
+
+    return publishable
   })()
 
   return (
@@ -168,10 +173,21 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
         open={updateCollectionVisible} 
         onClose={() => setUpdateCollectionVisible(false)}
       />
-      <ShareCollectionModal 
-        collection={collection}
-        open={shareVisible}
-        onClose={() => setShareVisible(false)}
+      <ConfirmationModal 
+        title='Delete Collection'
+        body='This action will <b>Delete</b> this collection <b>AND</b> any associated sets and pictures. This action is permanent and <b>CANNOT</b> be undone!'
+        denyText="Cancel"
+        confirmText="Delete"
+        confirmAction={async () => {
+          await deleteCollection.mutateAsync({
+            collectionId: collection.id,
+            options: {
+              logging: true
+            }
+          })
+        }}
+        onClose={() => setDeleteCollectionVisible(false)}
+        open={deleteCollectionVisible}
       />
       <div className="flex flex-row mx-4 mt-4 gap-4">
         <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
@@ -199,15 +215,23 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   </Dropdown.Item>
                   <Dropdown.Item 
                     disabled={collection.coverPath === undefined}
-                    onClick={() => deleteImage.mutate({
-                      collectionId: collection.id,
-                      cover: collection.coverPath
-                    })}
+                    onClick={() => {
+                      deleteImage.mutate({
+                        collectionId: collection.id,
+                        cover: collection.coverPath
+                      })
+
+                      const tempCollection: PhotoCollection = {
+                        ...collection,
+                        coverPath: undefined
+                      }
+                      updateParentCollection(tempCollection)
+                    }}
                   >
                     Remove Cover Photo
                   </Dropdown.Item>
                   <Dropdown.Item
-                    onClick={() => console.log(navigate({ to: `/photo-collection/${collection.id}`, search: { set: selectedSet?.id }})) }
+                    onClick={() => navigate({ to: `/photo-collection/${collection.id}`, search: { set: selectedSet?.id }}) }
                   >
                     Preview Collection
                   </Dropdown.Item>
@@ -270,19 +294,16 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                       })()}
                       className={`disabled:cursor-not-allowed flex flex-row gap-2 ${publishCollection.isPending ? 'cursor-wait' : ''}`}
                     >
-                      {/* TODO: display a loading spinner */}
                       {publishCollection.isPending && (
                         <CgSpinner size={24} className="animate-spin text-gray-600"/>
                       )}
-                      <span className={`${!publishable.status ? 'text-gray-500' : ''}`}>{!collection.published ? 'Publish' : 'Unpublish'}</span>
+                      <span className={`${!publishable.status ? 'text-gray-500' : ''}`}>{!collection.published ? 'Publish Collection' : 'Unpublish Collection'}</span>
                     </Dropdown.Item>
                   </Tooltip>
                   <Dropdown.Item
-                    onClick={() => {
-                      setShareVisible(true)
-                    }}
+                    onClick={() => setDeleteCollectionVisible(true)}
                   >
-                    Share
+                    Delete Collection
                   </Dropdown.Item>
                 </Dropdown>
               </div>
@@ -354,15 +375,20 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               <div className="w-full">
                 <SetList 
                   setList={setList}
-                  setSelectedSet={(set: PhotoSet) => {
+                  selectedSet={selectedSet}
+                  setSelectedSet={(set: PhotoSet | undefined) => {
+                    if(set) {
+                      setQuery.refetch()
+                    }
+                    
                     navigate({
                       to: '.', search: {
                         collection: collection.id,
-                        set: set.id,
+                        set: set?.id,
                         console: activeConsole as string
                       }
                     })
-                    setQuery.refetch()
+                    
                     setSelectedSet(set)
                   } }
                   collection={collection}
@@ -539,17 +565,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                     setSetList(updatedSetList)
                     setSelectedSet(undefined)
                   }}
-                  parentUpdateSet={(updatedSet) => {
-                    const temp = setList.map((set) => {
-                      if(set.id === updatedSet.id){
-                        return updatedSet
-                      }
-                      return set
-                    })
-                    setSetList(temp)
-                    setSelectedSet(updatedSet)
-                  }}
-                  updateParentCollection={updateParentCollection}
+                  parentUpdateSet={setSelectedSet}
+                  parentUpdateCollection={updateParentCollection}
                   auth={auth}
                 />
               )

@@ -12,7 +12,8 @@ import { reorderSetsMutation, ReorderSetsParams } from '../../../services/collec
 
 interface SetListProps extends ComponentProps<'div'> {
   setList: PhotoSet[],
-  setSelectedSet: (set: PhotoSet) => void, 
+  selectedSet: PhotoSet | undefined
+  setSelectedSet: (set?: PhotoSet) => void
   collection: PhotoCollection,
   updateSetList: (set: PhotoSet[]) => void,
   creatingSet: boolean,
@@ -121,10 +122,16 @@ export const SetList = (props: SetListProps) => {
                 set={set} 
                 onClick={() => {
                   if(set.id !== 'creating'){
-                    props.setSelectedSet(set)
+                    if(props.selectedSet?.id === set.id) {
+                      props.setSelectedSet(undefined)
+                    }
+                    else {
+                      props.setSelectedSet(set)
+                    }
                   }
                 }} 
                 collection={set.id === 'creating' ? props.collection : undefined}
+                selectedSet={props.selectedSet?.id === set.id}
                 onSubmit={(submittedSet) => {
                   if(set.id === 'creating'){
                     const updatedSets = sets.map((set) => {
