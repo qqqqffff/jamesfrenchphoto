@@ -4,7 +4,7 @@ import { favoriteImageMutation, FavoriteImageMutationParams, getAllPicturePathsB
 import { PhotoCollection, PhotoSet, PicturePath, UserProfile } from '../types'
 import { useEffect, useRef, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
-import { Button, Tooltip } from 'flowbite-react'
+import { Button } from 'flowbite-react'
 import { useMutation, useQueries } from '@tanstack/react-query'
 import { SetCarousel } from '../components/collection/SetCarousel'
 import { CgArrowsExpandRight } from 'react-icons/cg'
@@ -16,7 +16,7 @@ import { UnauthorizedEmailModal } from '../components/modals'
 interface PhotoCollectionParams {
   set?: string,
 }
-//TODO: validation on route
+
 export const Route = createFileRoute('/_auth/photo-collection/$id')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): PhotoCollectionParams => ({
@@ -90,7 +90,6 @@ function RouteComponent() {
 
   useEffect(() => {
     if(coverPhotoRef && coverPhotoRef.current) {
-      console.log('effected')
       coverPhotoRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
     if(!tempUser && !data.auth.isAuthenticated && !emailInputVisible){
@@ -186,7 +185,6 @@ function RouteComponent() {
         }}
         open={emailInputVisible}
         onSubmit={(data) => {
-          console.log(data)
           if(data) {
             setTempUser(data)
           }
@@ -307,81 +305,81 @@ function RouteComponent() {
                           </>
                         )}
                         <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
-                          <Tooltip content={<p>{picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}</p>} placement='bottom' className='whitespace-nowrap' style='light'>
-                            <button
-                              onClick={() => {
-                                if(!picture.favorite && data.auth.user?.profile.email || tempUser?.email){
-                                  favorite.mutate({
-                                    pathId: picture.id,
-                                    user: data.auth.user?.profile.email ?? tempUser!.email,
-                                    options: {
-                                      logging: true
+                          <button
+                            title={`${picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`}
+                            onClick={() => {
+                              if(!picture.favorite && data.auth.user?.profile.email || tempUser?.email){
+                                favorite.mutate({
+                                  pathId: picture.id,
+                                  user: data.auth.user?.profile.email ?? tempUser!.email,
+                                  options: {
+                                    logging: true
+                                  }
+                                })
+                                setSet({
+                                  ...set,
+                                  paths: set.paths.map((path) => {
+                                    if(path.id === picture.id){
+                                      return ({
+                                        ...path,
+                                        favorite: 'temp'
+                                      })
                                     }
+                                    return path
                                   })
-                                  setSet({
-                                    ...set,
-                                    paths: set.paths.map((path) => {
-                                      if(path.id === picture.id){
-                                        return ({
-                                          ...path,
-                                          favorite: 'temp'
-                                        })
-                                      }
-                                      return path
-                                    })
+                                })
+                              }
+                              else if(picture.favorite && picture.favorite !== 'temp'){
+                                unfavorite.mutate({
+                                  id: picture.favorite,
+                                })
+                                setSet({
+                                  ...set,
+                                  paths: set.paths.map((path) => {
+                                    if(path.id === picture.id){
+                                      return ({
+                                        ...path,
+                                        favorite: undefined
+                                      })
+                                    }
+                                    return path
                                   })
-                                }
-                                else if(picture.favorite && picture.favorite !== 'temp'){
-                                  unfavorite.mutate({
-                                    id: picture.favorite,
-                                  })
-                                  setSet({
-                                    ...set,
-                                    paths: set.paths.map((path) => {
-                                      if(path.id === picture.id){
-                                        return ({
-                                          ...path,
-                                          favorite: undefined
-                                        })
-                                      }
-                                      return path
-                                    })
-                                  })
-                                }
-                              }}
-                            >
-                              <HiOutlineHeart size={20} className={`${picture.favorite !== undefined ? 'fill-red-400' : ''}`}/>
-                            </button>
-                          </Tooltip>
+                                })
+                              }
+                            }}
+                          >
+                            <HiOutlineHeart size={20} className={`${picture.favorite !== undefined ? 'fill-red-400' : ''}`}/>
+                          </button>
                           {collection.downloadable && (
-                            <Tooltip content={(<p>Download</p>)} placement="bottom" className="" style='light'>
-                              <button className={`${downloadImage.isPending ? 'cursor-wait' : ''}`} onClick={() => {
+                            <button 
+                              title='Download' 
+                              className={`${downloadImage.isPending ? 'cursor-wait' : ''}`} 
+                              onClick={() => {
                                 if(!downloadImage.isPending){
                                   downloadImage.mutate({
                                     path: picture.path
                                   })
                                 }
-                              }}>
-                                <HiOutlineDownload size={20} />
-                              </button>
-                            </Tooltip>
-                          )}
-                          <Tooltip content={(<p>Preview Fullscreen</p>)} placement="bottom" className="whitespace-nowrap" style='light'>
-                            <button
-                              onClick={() => {
-                                navigate({
-                                  to: `/photo-fullscreen`,
-                                  search: {
-                                    set: set.id,
-                                    path: picture.id,
-                                    temporaryToken: data.token
-                                  }
-                                })
                               }}
                             >
-                              <CgArrowsExpandRight size={20} />
+                              <HiOutlineDownload size={20} />
                             </button>
-                          </Tooltip>
+                          )}
+                          <button
+                            title='Preview Fullscreen'
+                            onClick={() => {
+                              navigate({
+                                to: `/photo-fullscreen`,
+                                search: {
+                                  set: set.id,
+                                  path: picture.id,
+                                  temporaryToken: data.token
+                                }
+                              })
+                            }}
+                          >
+                            <CgArrowsExpandRight size={20} />
+                          </button>
                         </div>
                       </div>
                     )
@@ -397,7 +395,6 @@ function RouteComponent() {
             className="m-4 self-center"
             onClick={() => {
               if(coverPhotoRef && coverPhotoRef.current){
-                console.log('returned to top')
                 coverPhotoRef.current.scrollIntoView({
                   behavior: 'smooth',
                   block: 'start'

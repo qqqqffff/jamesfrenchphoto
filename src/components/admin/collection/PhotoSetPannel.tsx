@@ -263,12 +263,12 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
             })
           }} 
           onSubmitError={(message) => {
-              setNotification({text: message, color: 'red'})
-              clearTimeout(activeTimeout)
-              activeTimeout = setTimeout(() => {
-                setNotification(undefined)
-                activeTimeout = undefined
-              }, 5000)
+            setNotification({text: message, color: 'red'})
+            clearTimeout(activeTimeout)
+            activeTimeout = setTimeout(() => {
+              setNotification(undefined)
+              activeTimeout = undefined
+            }, 5000)
           }}
         />
         <TextInput 
@@ -313,13 +313,13 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
           <Tooltip content="Photo Set Settings">
             <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={24} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
               <Dropdown.Item 
-                  onClick={() => setDisplayTitleOverride(!displayTitleOverride)}
-                  as='div'
+                onClick={() => setDisplayTitleOverride(!displayTitleOverride)}
+                as='div'
               >
                 <ToggleSwitch 
-                    checked={displayTitleOverride} 
-                    onChange={() => setDisplayTitleOverride(!displayTitleOverride)}
-                    label="Display Photo Titles"
+                  checked={displayTitleOverride} 
+                  onChange={() => setDisplayTitleOverride(!displayTitleOverride)}
+                  label="Display Photo Titles"
                 />
               </Dropdown.Item>
               <Dropdown.Item as='label' htmlFor="setting-upload-file" className="">
