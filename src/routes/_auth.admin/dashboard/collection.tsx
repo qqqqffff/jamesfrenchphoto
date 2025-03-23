@@ -121,30 +121,13 @@ function RouteComponent() {
         onSubmit={async (collection) => {
           if (collection) {
             collections.refetch()
-            // setSelectedCollection(collection)
+            setSelectedCollection(collection)
+            navigate({ to: '.', search: { collection: collection.id }})
           }
           //TODO: error handle
         }}
         availableTags={availableTags}
       />
-      
-      {/* <ConfirmationModal TODO: move me
-        title={'Delete Collection'}
-        body={`Deleting Event <b>${selectedCollection?.name}</b> will delete <b>ALL</b> collections,\n and <b>ALL</b> associated photos. This action <b>CANNOT</b> be undone!`}
-        denyText={'Cancel'}
-        confirmText={'Delete'}
-        confirmAction={async () => {
-          if (selectedCollection) {
-            setLoading(true)
-            deleteCollection.mutate({ collection: selectedCollection})
-            setSelectedCollection(undefined)
-          } else {
-            //TODO: error handle
-          }
-        }}
-        open={deleteConfirmationVisible}
-        onClose={() => setDeleteConfirmationVisible(false)}
-      /> */}
       {!selectedCollection ? (
         <div className="flex flex-col w-full items-center justify-center mt-2">
           <div className="w-[80%] flex flex-col">

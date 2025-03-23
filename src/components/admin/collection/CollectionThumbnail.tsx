@@ -26,7 +26,10 @@ export const CollectionThumbnail= ({
   const [fileUpload, setFileUpload] = useState<File>()
   const [confirmationOpen, setConfirmationOpen] = useState(false)
 
-  const coverPath = useQuery(getPathQueryOptions(cover ?? ''))
+  const coverPath = useQuery({
+    ...getPathQueryOptions(cover ?? ''),
+    enabled: cover !== undefined
+  })
   
   const uploadCover = useMutation({
     mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
@@ -105,26 +108,26 @@ export const CollectionThumbnail= ({
         open={confirmationOpen}
       />
       <div className="flex flex-col">
-        {(loading || coverPath.isLoading) ? (
-            <div className="flex flex-col justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] cursor-wait">
-                <CgSpinner size={64} className="animate-spin text-gray-600"/>
-            </div>
+        {(loading || coverPath.isLoading) && cover !== undefined ? (
+          <div className="flex flex-col justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] cursor-wait">
+            <CgSpinner size={64} className="animate-spin text-gray-600"/>
+          </div>
         ) : (
           !dropzone ? (
-              <button 
-                  className={`flex flex-row relative justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] ${onClick !== undefined ? 'hover:bg-gray-300 hover:text-gray-500' : 'pointer-events-none cursor-default'}`}
-                  onClick={() => {if(onClick !== undefined) onClick()}}
-                  onMouseEnter={() => setHovering(true)}
-                  onMouseLeave={() => setHovering(false)}
-              >
-                  {(coverPath && coverPath.data) ? (
-                      <img src={coverPath.data[1]} className="h-[238px] max-w-[358px] rounded-lg"/>
-                  ) : (
-                      <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
-                          <p className={`font-thin opacity-90 text-2xl`}>No Cover</p>
-                      </div>
-                  )}
-              </button>
+            <button 
+              className={`flex flex-row relative justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] ${onClick !== undefined ? 'hover:bg-gray-300 hover:text-gray-500' : 'pointer-events-none cursor-default'}`}
+              onClick={() => {if(onClick !== undefined) onClick()}}
+              onMouseEnter={() => setHovering(true)}
+              onMouseLeave={() => setHovering(false)}
+            >
+              {(coverPath && coverPath.data) ? (
+                <img src={coverPath.data[1]} className="h-[238px] max-w-[358px] rounded-lg"/>
+              ) : (
+                <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
+                  <p className={`font-thin opacity-90 text-2xl`}>No Cover</p>
+                </div>
+              )}
+            </button>
           ) : (
             <label 
               htmlFor="dropzone-collection-thumbnail"

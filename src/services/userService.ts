@@ -8,6 +8,7 @@ import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
 import { updateUserAttributes } from "aws-amplify/auth";
 import { Duration } from "luxon";
+import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
 
 const client = generateClient<Schema>()
 
@@ -203,9 +204,17 @@ export async function getAuthUsers(client: V6Client<Schema>, filter?: string | n
     const start = new Date().getTime()
     const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
             
-    const users = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput
-    if(!users || !users.Users) return
-    const parsedUsersData = (await Promise.all(users.Users.map(async (user) => {
+    const usersResponse = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput[]
+    
+    let users = usersResponse.reduce((prev, cur) => {
+        if(cur.Users) {
+            prev.push(...cur.Users)
+        }
+
+        return prev
+    }, [] as UserType[])
+
+    const parsedUsersData = (await Promise.all(users.map(async (user) => {
         let attributes = new Map<string, string>()
         if(user.Attributes){
             user.Attributes.filter((attribute) => attribute.Name && attribute.Value).forEach((attribute) => {

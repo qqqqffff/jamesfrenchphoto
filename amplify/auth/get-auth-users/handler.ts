@@ -7,8 +7,20 @@ const client = new CognitoIdentityProviderClient()
 
 export const handler: Handler = async (event) => {
     const command = new ListUsersCommand({
-        UserPoolId: env.AMPLIFY_AUTH_USERPOOL_ID
+        UserPoolId: env.AMPLIFY_AUTH_USERPOOL_ID,
     })
-    const response = await client.send(command)
-    return response
+    let response = await client.send(command)
+
+    let aggregatedResponse = [response]
+    while(response.PaginationToken){
+        const paginatedCommand = new ListUsersCommand({
+            UserPoolId: env.AMPLIFY_AUTH_USERPOOL_ID,
+            PaginationToken: response.PaginationToken
+        })
+        response = await client.send(paginatedCommand)
+
+        aggregatedResponse.push(response)
+    }
+
+    return aggregatedResponse
 }

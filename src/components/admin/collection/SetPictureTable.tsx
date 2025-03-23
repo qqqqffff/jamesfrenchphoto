@@ -15,7 +15,6 @@ import {
 import { 
   HiOutlineBarsArrowDown, 
   HiOutlineBarsArrowUp, 
-  HiOutlineStar, 
   HiOutlineTrash
 } from "react-icons/hi2";
 import { HiOutlineDownload, HiOutlineHeart } from "react-icons/hi"
@@ -24,7 +23,6 @@ import { useNavigate } from "@tanstack/react-router"
 import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
 import { UploadImagePlaceholder } from "./UploadImagePlaceholder"
 import { downloadImageMutation, DownloadImageMutationParams } from "../../../services/photoPathService"
-import { updateCollectionMutation, UpdateCollectionParams } from "../../../services/collectionService"
 
 export interface SetPictureTableProps {
   collection: PhotoCollection,
@@ -77,8 +75,11 @@ const LazyImage = (props: ComponentProps<'img'>) => {
           {...props}
         />
       ) : (
-        // TODO: put in a placeholder
-        <div></div>
+        <div className="flex items-center justify-center w-[200px] h-[300px] bg-gray-300 rounded sm:w-96">
+          <svg className="w-10 h-10 text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
+            <path d="M18 0H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2Zm-5.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm4.376 10.481A1 1 0 0 1 16 15H4a1 1 0 0 1-.895-1.447l3.5-7A1 1 0 0 1 7.468 6a.965.965 0 0 1 .9.5l2.775 4.757 1.546-1.887a1 1 0 0 1 1.618.1l2.541 4a1 1 0 0 1 .028 1.011Z"/>
+          </svg>
+        </div>
       )}
     </div>
   )
@@ -132,10 +133,6 @@ export const SetPictureTable = (props: SetPictureTableProps) => {
         }
       }
     }
-  })
-
-  const updateCollection = useMutation({
-    mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params)
   })
 
   return (
@@ -396,31 +393,6 @@ export const SetPictureTable = (props: SetPictureTableProps) => {
                   }}
                 >
                   <HiOutlineBarsArrowDown size={20} />
-                </button>
-                <button 
-                  title='Set as Cover' 
-                  className={`disabled:cursor-wait ${props.collection.coverPath === path.path ? 'fill-yellow-200' : ''}`} 
-                  disabled={updateCollection.isPending}
-                  onClick={() => {
-                    updateCollection.mutate({
-                      collection: props.collection,
-                      published: props.collection.published,
-                      cover: path.path
-                    })
-
-                    props.parentUpdateCollection((prev) => {
-                      if(prev) {
-                        const temp: PhotoCollection = { 
-                          ...prev,
-                          coverPath: path.path
-                        }
-                        return temp
-                      }
-                      return prev
-                    })
-                  }}
-                >
-                  <HiOutlineStar size={20} />
                 </button>
                 <button 
                   title='Delete' 

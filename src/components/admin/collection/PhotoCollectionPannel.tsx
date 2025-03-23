@@ -1,4 +1,4 @@
-import { Dispatch, FC, SetStateAction, useState } from "react"
+import { Dispatch, FC, SetStateAction, useEffect, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet, ShareTemplate } from "../../../types"
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
@@ -64,7 +64,7 @@ interface Publishable {
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
   watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
-  updateShareTemplates
+  updateShareTemplates,
 }) => {
   const [createSet, setCreateSet] = useState(false)
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
@@ -86,6 +86,26 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const updateCollection = useMutation({
     mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params)
   })
+
+  useEffect(() => {
+    const aggregateItems = setList.reduce((prev, cur) => {
+      if(cur.id === selectedSet?.id) {
+        return prev + selectedSet.paths.length
+      }
+      return prev + cur.paths.length
+    }, 0)
+    if(aggregateItems !== collection.items) {
+      updateParentCollection({
+        ...collection,
+        items: aggregateItems,
+      })
+      updateCollection.mutate({
+        collection: collection,
+        published: collection.published,
+        items: aggregateItems
+      })
+    }
+  }, [collection.items])
 
   const deleteCollection = useMutation({
     mutationFn: (params: DeleteCollectionParams) => deleteCollectionMutation(params)
@@ -185,6 +205,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               logging: true
             }
           })
+          updateParentCollection(undefined)
         }}
         onClose={() => setDeleteCollectionVisible(false)}
         open={deleteCollectionVisible}
@@ -207,7 +228,12 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   <p>&bull;</p>
                   <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
                 </div>
-                <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
+                <Dropdown 
+                  dismissOnClick={false} 
+                  label={(<HiOutlineCog6Tooth size={20} className="hover:text-gray-600"/>)} 
+                  inline 
+                  arrowIcon={false}
+                >
                   <Dropdown.Item
                     onClick={() => setUpdateCollectionVisible(true)}
                   >
@@ -390,7 +416,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                     })
                     
                     setSelectedSet(set)
-                  } }
+                  }}
                   collection={collection}
                   updateSetList={setSetList}
                   creatingSet={createSet}
