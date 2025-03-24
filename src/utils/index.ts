@@ -134,10 +134,10 @@ export const getColumnTypeColor = (value?: 'value' | 'user' | 'date' | 'choice' 
             return 'red-500'
         }
         case 'date': {
-            return 'sky-400'
+            return 'cyan-400'
         }
         case 'choice': {
-            return 'cyan-400'
+            return 'blue-500'
         }
         case 'tag': {
             return 'fuchsia-600'

@@ -1,5 +1,5 @@
-import { Dispatch, SetStateAction, useRef, useState } from "react"
-import { ColumnColor, Table, TableColumn, TableGroup, UserData } from "../../../types"
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
+import { ColumnColor, Participant, Table, TableColumn, TableGroup, UserData } from "../../../types"
 import { 
   HiOutlineCalendar, 
   HiOutlineDocumentText, 
@@ -36,6 +36,7 @@ import { ChoiceCell } from "./ChoiceCell"
 import { TagCell } from "./TagCell"
 import { FileCell } from "./FileCell"
 import { invariant } from "@tanstack/react-router"
+import { AggregateCell } from "./AggregateCell"
 
 interface TableComponentProps {
   table: Table,
@@ -179,6 +180,62 @@ export const TableComponent = (props: TableComponentProps) => {
       }
     }
   })
+
+  useEffect(() => {
+    if(props.table.columns.length > 0) {
+      let max = 0
+      for(let i = 0; i < props.table.columns.length; i++){
+        if(props.table.columns[i].values.length > max){
+          max = props.table.columns[i].values.length
+        }
+      }
+      if(props.table.columns.some((col) => col.values.length !== max)) {
+        appendRow.mutate({
+          table: props.table,
+          length: max,
+          options: {
+            logging: true
+          }
+        })
+
+        const temp: Table = {
+          ...props.table,
+          columns: props.table.columns.map((col) => {
+            const temp = [...col.values]
+            while(temp.length < max){
+              temp.push('')
+            }
+            return {
+              ...col,
+              values: temp,
+            }
+          })
+        }
+
+        const updateGroup = (prev: TableGroup[]) => {
+          const pTemp: TableGroup[] = [...prev]
+            .map((group) => {
+              if(group.id === temp.tableGroupId){
+                return {
+                  ...group,
+                  tables: group.tables.map((table) => {
+                    if(table.id === temp.id) return temp
+                    return table
+                  })
+                }
+              }
+              return group
+            })
+
+          return pTemp
+        }
+
+        props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+        props.parentUpdateTableGroups((prev) => updateGroup(prev))
+        props.parentUpdateTable(temp)
+      }
+    }
+  }, [props.table])
 
   const pushColumn = (type: 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file') => {
     const temp: TableColumn = {
@@ -640,9 +697,20 @@ export const TableComponent = (props: TableComponentProps) => {
                       <Dropdown.Item  
                         as='button'
                         className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
+                        onClick={() => pushColumn('choice')}
+                      >
+                        <HiOutlineListBullet size={32} className="bg-blue-500 border-4 border-blue-500 rounded-lg"/>
+                        <div className="flex flex-col">
+                          <span className="whitespace-nowrap">Choice Column</span>
+                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column can have different choices to pick.</span>
+                        </div>
+                      </Dropdown.Item >
+                      <Dropdown.Item  
+                        as='button'
+                        className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
                         onClick={() => pushColumn('date')}
                       >
-                        <HiOutlineCalendar size={32} className="bg-sky-400 border-4 border-sky-400 rounded-lg"/>
+                        <HiOutlineCalendar size={32} className="bg-cyan-400 border-4 border-cyan-400 rounded-lg"/>
                         <div className="flex flex-col">
                           <span className="whitespace-nowrap">Timeslot Column</span>
                           <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column syncs with a participant's timeslot.</span>
@@ -651,14 +719,14 @@ export const TableComponent = (props: TableComponentProps) => {
                       <Dropdown.Item  
                         as='button'
                         className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
-                        onClick={() => pushColumn('choice')}
+                        onClick={() => pushColumn('file')}
                       >
-                        <HiOutlineListBullet size={32} className="bg-cyan-400 border-4 border-cyan-400 rounded-lg"/>
+                        <HiOutlineDocumentText size={32} className="bg-purple-600 border-4 border-purple-600 rounded-lg"/>
                         <div className="flex flex-col">
-                          <span className="whitespace-nowrap">Choice Column</span>
-                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column has multiple expected values to choose from.</span>
+                          <span className="whitespace-nowrap">File Column</span>
+                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds files uploaded by the user.</span>
                         </div>
-                      </Dropdown.Item >
+                      </Dropdown.Item>
                       <Dropdown.Item  
                         as='button'
                         className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
@@ -670,17 +738,6 @@ export const TableComponent = (props: TableComponentProps) => {
                           <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column syncs with a participant's tags.</span>
                         </div>
                       </Dropdown.Item >
-                      <Dropdown.Item  
-                        as='button'
-                        className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
-                        onClick={() => pushColumn('file')}
-                      >
-                        <HiOutlineDocumentText size={32} className="bg-purple-600 border-4 border-purple-600 rounded-lg"/>
-                        <div className="flex flex-col">
-                          <span className="whitespace-nowrap">File Column</span>
-                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds files.</span>
-                        </div>
-                      </Dropdown.Item>
                     </div>
                   </div>
                 </Dropdown>
@@ -692,7 +749,7 @@ export const TableComponent = (props: TableComponentProps) => {
                 return (
                   <tr key={i} className="bg-white border-b">
                     {row.map(([v, t, id], j) => {
-                      //TODO: continue implementation 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file'
+                      //TODO: continue implementation 'date' | 'tag' | 'file'
                       switch(t){
                         case 'user': {
                           return (
@@ -713,6 +770,19 @@ export const TableComponent = (props: TableComponentProps) => {
                               key={j}
                               value={v}
                               updateValue={(text) => console.log(text)}
+                              table={props.table}
+                              participants={props.userData.data
+                                ?.map((data) => {
+                                  if(data.profile?.participant) return data.profile.participant
+                                  return [] as Participant[]
+                                })
+                                .reduce((prev, cur) => {
+                                  prev.push(...cur.filter((part) => !prev.some((prevPart) => prevPart.id === part.id)))
+                                  return prev
+                                }, []) ?? []
+                              }
+                              rowIndex={i}
+                              columnId={id}
                             />
                           )
                         }
@@ -821,9 +891,9 @@ export const TableComponent = (props: TableComponentProps) => {
                 {props.table.columns.map((col) => {
                   if(col.type === 'choice') {
                     return (
-                      <td className="text-ellipsis border py-3 px-3 justify-center max-w-[150px]">
-                        Aggregate
-                      </td>
+                      <AggregateCell
+                        column={col}
+                      />
                     )
                   }
                   return (<td className="text-ellipsis border py-3 px-3 max-w-[150px]" />)
@@ -837,6 +907,7 @@ export const TableComponent = (props: TableComponentProps) => {
                     onClick={() => {
                       appendRow.mutate({
                         table: props.table,
+                        length: props.table.columns[0].values.length + 1,
                         options: {
                           logging: true
                         }

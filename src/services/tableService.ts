@@ -288,15 +288,20 @@ export async function createChoiceMutation(params: CreateChoiceParams): Promise<
 }
 export interface AppendTableRowParams {
     table: Table,
+    length: number,
     options?: {
         logging?: boolean
     }
 }
 export async function appendTableRowMutation(params: AppendTableRowParams){
     const response = await Promise.all(params.table.columns.map(async (column) => {
+        const temp = [...column.values]
+        while(temp.length < params.length){
+            temp.push('')
+        }
         return client.models.TableColumn.update({
             id: column.id,
-            values: [...column.values]
+            values: temp
         })
     }))
 

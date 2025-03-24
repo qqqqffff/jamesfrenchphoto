@@ -14,7 +14,6 @@ interface ChoiceCellProps extends ComponentProps<'td'> {
   createChoice: (choice: string, color: string) => void,
 }
 
-//TODO: continue implementing me
 export const ChoiceCell = (props: ChoiceCellProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [value, setValue] = useState('')
@@ -83,6 +82,7 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
           )}
         </div>
       )}
+      
       {creatingOption && (
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px] ">
           <div className="w-full whitespace-nowrap border-b p-1 text-base self-center flex flex-row justify-between">
