@@ -161,11 +161,11 @@ export const defaultColumnColors: Record<string, {text: string, bg: string}> = {
     'sky-400': {text: 'sky-600', bg: 'sky-200'},
     'cyan-400': {text: 'cyan-600', bg: 'cyan-200'},
     'emerald-500': {text: 'emerald-600', bg: 'emerald-200'},
-    'green-400': {text: 'green-600', bg: 'green-200'},
+    'green-500': {text: 'green-600', bg: 'green-200'},
     'lime-400': {text: 'lime-700', bg: 'lime-200'},
-    'yellow-400': {text: 'yellow-600', bg: 'yellow-200'},
+    'yellow-300': {text: 'yellow-600', bg: 'yellow-200'},
     'orange-400': {text: 'orange-600', bg: 'orange-200'},
-    'amber-400': {text: 'amber-700', bg: 'amber-200'},
+    'amber-600': {text: 'amber-700', bg: 'amber-200'},
 }
 
 export const badgeColorThemeMap_hoverable: CustomFlowbiteTheme['badge'] = {

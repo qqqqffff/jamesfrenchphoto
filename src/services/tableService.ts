@@ -261,16 +261,16 @@ export async function updateTableColumnsMutation(params: UpdateTableColumnParams
 
 export interface CreateChoiceParams {
     column: TableColumn,
-    choices: string,
+    choice: string,
     color: string,
     options?: {
         logging?: boolean
     }
 }
-export async function createChoiceMutation(params: CreateChoiceParams): Promise<ColumnColor | undefined> {
+export async function createChoiceMutation(params: CreateChoiceParams): Promise<[string, string] | undefined> {
     const columnResponse = await client.models.TableColumn.update({
         id: params.column.id,
-        choices: [...(params.column.choices ?? []), params.choices]
+        choices: [...(params.column.choices ?? []), params.choice]
     })
     if(params.options?.logging) console.log(columnResponse)
 
@@ -278,16 +278,11 @@ export async function createChoiceMutation(params: CreateChoiceParams): Promise<
         columnId: params.column.id,
         textColor: defaultColumnColors[params.color].text,
         bgColor: defaultColumnColors[params.color].bg,
-        value: params.choices
+        value: params.choice
     })
 
     if(createColor.data) {
-        const mappedColor: ColumnColor = {
-            ...createColor.data,
-            bgColor: defaultColumnColors[params.color].bg,
-            textColor: defaultColumnColors[params.color].text,
-        }
-        return mappedColor
+        return [createColor.data.id, params.column.id]
     }
     return
 }
