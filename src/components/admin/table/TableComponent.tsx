@@ -769,7 +769,7 @@ export const TableComponent = (props: TableComponentProps) => {
                             <DateCell
                               key={j}
                               value={v}
-                              updateValue={(text) => console.log(text)}
+                              updateValue={(text) => updateValue(id, text, i)}
                               table={props.table}
                               participants={props.userData.data
                                 ?.map((data) => {
@@ -888,15 +888,16 @@ export const TableComponent = (props: TableComponentProps) => {
             }
             {props.table.columns.some((column) => column.type === 'choice') && (
               <tr className="bg-white border-b">
-                {props.table.columns.map((col) => {
+                {props.table.columns.map((col, index) => {
                   if(col.type === 'choice') {
                     return (
                       <AggregateCell
+                        key={index}
                         column={col}
                       />
                     )
                   }
-                  return (<td className="text-ellipsis border py-3 px-3 max-w-[150px]" />)
+                  return (<td key={index} className="text-ellipsis border py-3 px-3 max-w-[150px]" />)
                 })}
               </tr>
             )}
