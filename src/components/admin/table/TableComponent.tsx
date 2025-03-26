@@ -800,7 +800,6 @@ export const TableComponent = (props: TableComponentProps) => {
                           )
                         }
                         case 'tag': {
-                          console.log(props.tagData.data)
                           return (
                             <TagCell
                               key={j}
@@ -816,7 +815,48 @@ export const TableComponent = (props: TableComponentProps) => {
                             <FileCell
                               key={j}
                               value={v}
-                              updateValue={(text) => console.log(text)}
+                              updateValue={(text) => {
+                                const tempTable: Table = {
+                                  ...props.table,
+                                  columns: props.table.columns.map((column) => {
+                                    if(column.id === id) {
+                                      const temp = [...column.values]
+                                      temp[i] = text
+                                      return {
+                                        ...column,
+                                        values: temp
+                                      }
+                                    }
+                                    return column
+                                  })
+                                }
+
+                                const updateGroup = (prev: TableGroup[]) => {
+                                  const pTemp: TableGroup[] = [...prev]
+                                    .map((group) => {
+                                      if(group.id === tempTable.tableGroupId) {
+                                        return {
+                                          ...group,
+                                          tables: group.tables.map((table) => {
+                                            if(table.id === tempTable.id) {
+                                              return tempTable
+                                            }
+                                            return table
+                                          })
+                                        }
+                                      }
+                                      return group
+                                    })
+
+                                  return pTemp
+                                }
+
+                                props.parentUpdateTable(tempTable)
+                                props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                                props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                              }}
+                              column={props.table.columns.find((column) => column.id === id)!}
+                              rowIndex={i}
                             />
                           )
                         }

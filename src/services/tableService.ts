@@ -4,6 +4,8 @@ import { TableGroup, Table, TableColumn, ColumnColor, UserTag } from '../types'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { defaultColumnColors } from '../utils'
+import { remove, uploadData } from 'aws-amplify/storage'
+import { v4 } from 'uuid'
 
 const client = generateClient<Schema>()
 
@@ -370,6 +372,49 @@ export async function deleteTableColumnMutation(params: DeleteTableColumnParams)
     ))
     if(params.options?.logging) console.log(orderUpdateResponse)
     if(params.options?.metric) console.log(`DELETECOLUMN: ${new Date().getTime() - start}ms`)
+}
+
+export interface UploadColumnFileParams {
+    column: TableColumn,
+    index: number,
+    file?: File,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function uploadColumnFileMutation(params: UploadColumnFileParams) {
+    if((!params.file && params.column.values[params.index] !== '') || 
+        params.column.values[params.index] !== ''
+    ){
+        const deleteResponse = await remove({
+            path: params.column.values[params.index]
+        })
+
+        if(params.options?.logging) console.log(deleteResponse)
+    }
+
+    if(params.file) {
+        const path = `table-files/${params.column.id}/${v4()}_${params.file.name}`
+        const uploadResponse = await uploadData({
+            path: path,
+            data: params.file
+        }).result
+        if(params.options?.logging) console.log(uploadResponse)
+        
+        const temp = [...params.column.values]
+        temp[params.index] = path
+
+        const dynamoResponse = await client.models.TableColumn.update({
+            id: params.column.id,
+            values: temp
+        })
+        if(params.options?.logging) console.log(dynamoResponse)
+
+        return path
+    }
+    else {
+        return ''
+    }
 }
 
 
