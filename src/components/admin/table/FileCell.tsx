@@ -59,28 +59,33 @@ export const FileCell = (props: FileCellProps) => {
         open={replaceFileVisible}
       />
       <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
-        <label 
-          className="
-            italic text-gray-700 text-sm cursor-pointer border py-1 px-2 rounded-lg
-            hover:bg-gray-100 hover:border-gray-500 flex flex-row gap-2
-          " 
-          htmlFor="file-upload"
-        >
-          <span>{value === '' ? 'Upload File' : parsePathName(value)}</span>
-          <button
-            onClick={() => {
-              uploadFile.mutate({
-                column: props.column,
-                index: props.rowIndex,
-                options: {
-                  logging: true
-                }
-              })
-            }}
+        <div className="flex flex-row items-center gap-2">
+          <label 
+            className="
+              italic text-gray-700 text-sm cursor-pointer border py-1 px-2 rounded-lg
+              hover:bg-gray-100 hover:border-gray-500
+            " 
+            htmlFor="file-upload"
           >
-            <HiOutlineXCircle size={16} className="text-gray-400 hover:text-gray-800" />
-          </button>
-        </label>
+            <span>{value === '' ? 'Upload File' : parsePathName(value)}</span>
+          </label>
+          {value !== '' && (
+            <button
+              onClick={() => {
+                uploadFile.mutate({
+                  column: props.column,
+                  index: props.rowIndex,
+                  options: {
+                    logging: true
+                  }
+                })
+              }}
+            >
+              <HiOutlineXCircle size={16} className="text-gray-400 hover:text-gray-800" />
+            </button>
+          )}
+        </div>
+        
         <input
           multiple={false}
           id="file-upload"
