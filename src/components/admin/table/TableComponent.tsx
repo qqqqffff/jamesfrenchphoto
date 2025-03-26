@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
-import { ColumnColor, Participant, Table, TableColumn, TableGroup, UserData } from "../../../types"
+import { ColumnColor, Participant, Table, TableColumn, TableGroup, UserData, UserTag } from "../../../types"
 import { 
   HiOutlineCalendar, 
   HiOutlineDocumentText, 
@@ -45,6 +45,7 @@ interface TableComponentProps {
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
   parentDeleteColumns: Dispatch<SetStateAction<TableColumn[]>>
   userData: UseQueryResult<UserData[] | undefined, Error>
+  tagData: UseQueryResult<UserTag[], Error>
 }
 
 export const TableComponent = (props: TableComponentProps) => {
@@ -749,7 +750,7 @@ export const TableComponent = (props: TableComponentProps) => {
                 return (
                   <tr key={i} className="bg-white border-b">
                     {row.map(([v, t, id], j) => {
-                      //TODO: continue implementation 'date' | 'tag' | 'file'
+                      //TODO: continue implementation 'tag' | 'file'
                       switch(t){
                         case 'user': {
                           return (
@@ -804,6 +805,7 @@ export const TableComponent = (props: TableComponentProps) => {
                               key={j}
                               value={v}
                               updateValue={(text) => console.log(text)}
+                              tags={props.tagData.data ?? []}
                             />
                           )
                         }

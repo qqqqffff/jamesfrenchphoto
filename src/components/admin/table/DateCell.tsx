@@ -1,4 +1,4 @@
-import { ComponentProps, useEffect, useRef, useState } from "react";
+import { ComponentProps, useEffect, useState } from "react";
 import { Participant, Table } from "../../../types";
 import { Dropdown, ToggleSwitch, Tooltip } from "flowbite-react";
 import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineXMark } from "react-icons/hi2";
@@ -14,9 +14,7 @@ interface DateCellProps extends ComponentProps<'td'> {
   columnId: string,
 }
 
-//TODO: continue implementing me
 export const DateCell = (props: DateCellProps) => {
-  const inputRef = useRef<HTMLInputElement | null>(null)
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [source, setSource] = useState<{id: string, header: string}>()
@@ -52,7 +50,6 @@ export const DateCell = (props: DateCellProps) => {
   return (
     <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
       <input
-        ref={inputRef}
         placeholder="Pick Source..."
         className="
           font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 

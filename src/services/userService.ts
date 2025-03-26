@@ -17,8 +17,15 @@ interface GetAllUserTagsOptions {
 }
 async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
     console.log('api call')
-    const userTagsResponse = await client.models.UserTag.list()
-    const mappedTags = await Promise.all(userTagsResponse.data.map(async (tag) => {
+    let userTagsResponse = await client.models.UserTag.list()
+    let userTagData = userTagsResponse.data
+
+    while(userTagsResponse.nextToken) {
+        userTagsResponse = await client.models.UserTag.list({ nextToken: userTagsResponse.nextToken })
+        userTagData.push(...userTagsResponse.data)
+    }
+
+    const mappedTags = await Promise.all(userTagData.map(async (tag) => {
         const collections: PhotoCollection[] = []
         if(!options || options.siCollections) {
             collections.push(...(await getAllCollectionsFromUserTags(client, [{

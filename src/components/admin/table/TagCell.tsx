@@ -1,14 +1,17 @@
-import { ComponentProps, useEffect, useRef, useState } from "react";
+import { ComponentProps, useEffect, useState } from "react";
+import { UserTag } from "../../../types";
+import { Tooltip } from "flowbite-react";
 
 interface TagCellProps extends ComponentProps<'td'> {
   value: string,
-  updateValue: (text: string) => void
+  updateValue: (text: string) => void,
+  tags: UserTag[]
 }
 
 //TODO: continue implementing me
 export const TagCell = (props: TagCellProps) => {
-  const inputRef = useRef<HTMLInputElement | null>(null)
   const [value, setValue] = useState('')
+  const [isFocused, setIsFocused] = useState(false)
   
   useEffect(() => {
     if(props.value !== value){
@@ -19,35 +22,46 @@ export const TagCell = (props: TagCellProps) => {
   return (
     <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
       <input
-        ref={inputRef}
-        placeholder="Pick Tag"
+        placeholder="Pick Tag..."
         className="
           font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
           border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
+          hover:cursor-pointer
         "
-        
-        onChange={(event) => {
-          setValue(event.target.value)
-        }}
         value={value}
-        onKeyDown={async (event) => {
-          if(inputRef.current){
-            if(event.key === 'Enter'){
-              inputRef.current.blur()
-            }
-            else if(event.key === 'Escape') {
-              setValue(props.value)
-              await new Promise(resolve => setTimeout(resolve, 1))
-              inputRef.current.blur()
-            }
-          }
-        }}
         onBlur={() => {
-          if(props.value !== value){
-            props.updateValue(value)
-          }
+          setTimeout(() => {
+            setIsFocused(false)
+          }, 200)
         }}
+        onFocus={() => setIsFocused(true)}
+        readOnly
       />
+      {isFocused && value === '' && (
+        <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
+          <div className="w-full whitespace-nowrap border-b py-1 px-2 mb-2 text-base self-center flex flex-row">
+            <span>Choose A Tag</span>
+          </div>
+          <ul className="max-h-60 overflow-y-auto py-1 min-w-max">
+            {props.tags.map((tag, index) => {
+              return (
+                <Tooltip
+                  key={index}
+                  content={(
+                    <div className="flex flex-col">
+                      <span className={`text-${tag.color ?? 'black'}`}>
+
+                      </span>
+                    </div>
+                  )}
+                >
+                  <li>{tag.name}</li>
+                </Tooltip>
+              )
+            })}
+          </ul>
+        </div>
+      )}
     </td>
   )
 }
