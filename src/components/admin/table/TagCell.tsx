@@ -23,7 +23,7 @@ export const TagCell = (props: TagCellProps) => {
     if(props.value !== value){
       setValue(props.value)
     }
-    if(tags.some((tag) => !props.tags.some((parentTag) => parentTag.id === tag.id))) {
+    if(props.tags.some((tag) => !tags.some((parentTag) => parentTag.id === tag.id))) {
       setTags(props.tags)
     }
   }, [props.value, props.tags])

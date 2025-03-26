@@ -800,6 +800,7 @@ export const TableComponent = (props: TableComponentProps) => {
                           )
                         }
                         case 'tag': {
+                          console.log(props.tagData.data)
                           return (
                             <TagCell
                               key={j}

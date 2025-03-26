@@ -76,11 +76,18 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
     return timeslots
 }
 
-async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag: UserTag) {
+export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag: UserTag) {
     console.log('api call')
-    const mappedTimeslots = (await Promise.all((await client.models.TimeslotTag
-        .listTimeslotTagByTagId({ tagId: userTag.id }))
-        .data.map(async (timeslotTag) => {
+    let timeslotTagsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: userTag.id })
+    let timeslotTagsData = timeslotTagsResponse.data
+
+    while(timeslotTagsResponse.nextToken) {
+        timeslotTagsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: userTag.id }, { nextToken: timeslotTagsResponse.nextToken })
+        timeslotTagsData.push(...timeslotTagsResponse.data)
+    }
+
+    const mappedTimeslots = (await Promise.all(timeslotTagsData
+        .map(async (timeslotTag) => {
             const timeslot = await timeslotTag.timeslot()
             if(!timeslot || !timeslot.data) return
             const participant = await timeslot.data.participant()

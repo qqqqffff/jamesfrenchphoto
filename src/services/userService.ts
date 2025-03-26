@@ -9,11 +9,13 @@ import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provide
 import { updateUserAttributes } from "aws-amplify/auth";
 import { Duration } from "luxon";
 import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
+import { getAllTimeslotsByUserTag } from "./timeslotService";
 
 const client = generateClient<Schema>()
 
 interface GetAllUserTagsOptions {
-    siCollections: boolean
+    siCollections?: boolean
+    siTimeslots?: boolean
 }
 async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
     console.log('api call')
@@ -27,13 +29,23 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
 
     const mappedTags = await Promise.all(userTagData.map(async (tag) => {
         const collections: PhotoCollection[] = []
+        const timeslots: Timeslot[] = []
         if(!options || options.siCollections) {
             collections.push(...(await getAllCollectionsFromUserTags(client, [{
                     ...tag,
                     collections: [],
                     color: undefined,
-                }])
+                }], {
+                    siTags: false
+                })
             ))
+        }
+        if(options?.siTimeslots) {
+            timeslots.push(...(await getAllTimeslotsByUserTag(client, {
+                ...tag, 
+                collections: [], 
+                color: undefined
+            })))
         }
         const mappedTag: UserTag = {
             ...tag,
@@ -562,9 +574,19 @@ export async function updateTagMutation(params: UpdateTagParams) {
     const removedCollections = params.tag.collections?.filter((oldCol) => !params.collections?.some((newCol) => newCol.id === oldCol.id))
     const newCollections = params.collections?.filter((newCol) => params.tag.collections?.some((oldCol) => oldCol.id === newCol.id))
 
-    const removedTimeslotsResponse = await Promise.all((removedTimeslots ?? []).map(async (timeslot) => {
-        const response = await client.models.TimeslotTag.delete({ timeslotId: timeslot.id })
-        return response
+    let timeslotsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: params.tag.id })
+    let timeslotsData = timeslotsResponse.data
+
+    while(timeslotsResponse.nextToken) {
+        timeslotsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: params.tag.id }, { nextToken: timeslotsResponse.nextToken })
+        timeslotsData.push(...timeslotsResponse.data)
+    }
+
+    const removedTimeslotsResponse = await Promise.all(timeslotsData.map(async (timeslotTag) => {
+        if(removedTimeslots?.some((timeslot) => timeslot.id === timeslotTag.timeslotId)){
+            const response = await client.models.TimeslotTag.delete({ id: timeslotTag.id })
+            return response
+        }
     }))
     if(params.options?.logging) console.log(removedTimeslotsResponse)
 
@@ -577,9 +599,19 @@ export async function updateTagMutation(params: UpdateTagParams) {
     }))
     if(params.options?.logging) console.log(newTimeslotsResponse)
 
-    const removedCollectionsResponse = await Promise.all((removedCollections ?? []).map(async (collection) => {
-        const response = await client.models.CollectionTag.delete({ collectionId: collection.id })
-        return response
+    let collectionsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: params.tag.id })
+    let collectionsData = collectionsResponse.data
+
+    while(collectionsResponse.nextToken) {
+        collectionsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: params.tag.id }, { nextToken: collectionsResponse.nextToken })
+        collectionsData.push(...collectionsResponse.data)
+    }
+
+    const removedCollectionsResponse = await Promise.all(collectionsData.map(async (collectionTag) => {
+        if(removedCollections?.some((collection) => collection.id === collectionTag.collectionId)){
+            const response = await client.models.CollectionTag.delete({ id: collectionTag.id })
+            return response
+        }
     }))
     if(params.options?.logging) console.log(removedCollectionsResponse)
 

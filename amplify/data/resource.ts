@@ -30,10 +30,12 @@ const schema = a.schema({
       tags: a.hasMany('CollectionTag', 'collectionId'),
       sets: a.hasMany('PhotoSet', 'collectionId'),
       tokens: a.hasMany('TemporaryAccessToken', 'collectionId'),
+      participants: a.hasMany('ParticipantCollections', 'collectionId'),
       watermarkPath: a.string(),
       downloadable: a.boolean().default(false),
       items: a.integer().default(0),
       published: a.boolean().default(false),
+
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
@@ -93,22 +95,24 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
   CollectionTag: a
     .model({
+      id: a.id().required(),
       collectionId: a.id().required(),
       collection: a.belongsTo('PhotoCollection', 'collectionId'),
       tagId: a.id().required(),
       tag: a.belongsTo('UserTag', 'tagId')
     })
-    .identifier(['collectionId'])
+    .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId'), index('collectionId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   TimeslotTag: a
     .model({
+      id: a.id().required(),
       tagId: a.id().required(),
       tag: a.belongsTo('UserTag', 'tagId'),
       timeslotId: a.id().required(),
       timeslot: a.belongsTo('Timeslot', 'timeslotId')
     })
-    .identifier(['timeslotId'])
+    .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   Package: a
@@ -215,10 +219,22 @@ const schema = a.schema({
       preferredName: a.string(),
       contact: a.boolean().default(false),
       email: a.string(),
+      collections: a.hasMany('ParticipantCollections', 'participantId')
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('userEmail')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update']), allow.guest().to(['create'])]),
+  ParticipantCollections: a.
+    model({
+      id: a.id().required(),
+      participant: a.belongsTo('Participant', 'participantId'),
+      participantId: a.id().required(),
+      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      collectionId: a.id().required()
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('participantId'), index('collectionId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
   GetAuthUsers: a
     .query()
     .authorization((allow) => [allow.group('ADMINS')])

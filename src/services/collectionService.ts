@@ -106,22 +106,36 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
 }
 
 interface GetAllCollectionsFromUserTagsOptions {
-    siTags: boolean
+    siTags?: boolean
+    siSets?: boolean
+    siPaths?: boolean
 }
 export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, tags: UserTag[], options?: GetAllCollectionsFromUserTagsOptions): Promise<PhotoCollection[]> {
     console.log('api call')
     const collections: PhotoCollection[] = (await Promise.all(tags.map(async (tag) => {
-        const collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByTagId({
-            tagId: tag.id
-        })
+        let collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: tag.id })
+        let collectionTagsData = collectionTagsResponse.data
 
-        const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagsResponse.data.map(async (collectionTag) => {
+        while(collectionTagsResponse.nextToken) {
+            collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: tag.id }, { nextToken: collectionTagsResponse.nextToken })
+            collectionTagsData.push(...collectionTagsResponse.data)
+        }
+
+        const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagsData.map(async (collectionTag) => {
             const collectionResponse = await collectionTag.collection()
             if(!collectionResponse.data || !collectionResponse.data) return
             const tags: UserTag[] = []
             
             if(!options || options.siTags){
-                tags.push(...(await Promise.all((await collectionResponse.data.tags()).data.map(async (collTag) => {
+                let tagsResponse = await collectionResponse.data.tags()
+                let tagsData = tagsResponse.data
+
+                while(tagsResponse.nextToken) {
+                    tagsResponse = await collectionResponse.data.tags({ nextToken: tagsResponse.nextToken })
+                    tagsData.push(...tagsResponse.data)
+                }
+
+                tags.push(...(await Promise.all(tagsData.map(async (collTag) => {
                     const tag = await collTag.tag()
                     if(!tag || !tag.data) return
                     const mappedTag: UserTag = {
@@ -130,6 +144,47 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
                     }
                     return mappedTag
                 }))).filter((tag) => tag !== undefined))
+            }
+
+            const sets: PhotoSet[] = []
+
+            if(options?.siSets) {
+                let setsResponse = await collectionResponse.data.sets()
+                let setsData = setsResponse.data
+
+                while(setsResponse.nextToken) {
+                    setsResponse = await collectionResponse.data.sets({ nextToken: setsResponse.nextToken })
+                    setsData.push(...setsResponse.data)
+                }
+
+                sets.push(...(await Promise.all(setsData.map(async (set) => {
+                    const mappedPaths: PicturePath[] = []
+                    if(options.siPaths) {
+                        let pathsResponse = await set.paths()
+                        let pathsData = pathsResponse.data
+
+                        while(pathsResponse.nextToken) {
+                            pathsResponse = await set.paths({ nextToken: pathsResponse.nextToken })
+                            pathsData.push(...pathsResponse.data)
+                        }
+
+                        mappedPaths.push(...pathsData.map((path) => {
+                            const mappedPath: PicturePath = {
+                                ...path,
+                                url: ''
+                            }
+                            return mappedPath
+                        }))
+                    }
+
+                    const mappedSet: PhotoSet = {
+                        ...set,
+                        watermarkPath: set.watermarkPath ?? undefined,
+                        paths: mappedPaths,
+                    }
+
+                    return mappedSet
+                }))))
             }
     
             const mappedCollection: PhotoCollection = {
@@ -141,8 +196,7 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
                 tags: tags,
                 items: collectionResponse.data.items ?? 0,
                 published: collectionResponse.data.published ?? false,
-                //unnecessary
-                sets: [], //TODO: implement me
+                sets: sets
             }
     
             return mappedCollection
@@ -367,20 +421,23 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
     }))
     if(params.options?.logging) console.log(createTagResponse)
 
-    const removeTagsResponse = await Promise.all((await client.models.CollectionTag
-        .listCollectionTagByCollectionId({
-            collectionId: params.collection.id
-        }))
-        .data
-        .filter((tag) => 
-            (removedTags.find((removedTag) => removedTag.id == tag.tagId) !== undefined)
-        )
-        .map(async (collectionTag) => {
-            const response = await client.models.CollectionTag.delete({
-                id: collectionTag.id,
-            })
+    let collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByCollectionId({ collectionId: params.collection.id })
+    let collectionTagsData = collectionTagsResponse.data
 
-            return response
+    while(collectionTagsResponse.nextToken) {
+        collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByCollectionId({ collectionId: params.collection.id }, { nextToken: collectionTagsResponse.nextToken })
+        collectionTagsData.push(...collectionTagsResponse.data)
+    }
+
+    const removeTagsResponse = await Promise.all(
+        collectionTagsData
+        .map(async (colTag) => {
+            if(removedTags.some((tag) => tag.id === colTag.tagId)) {
+                const response = await client.models.CollectionTag.delete({
+                    id: colTag.id
+                })
+                return response
+            }
         }))
     if(params.options?.logging) console.log(removeTagsResponse)
     

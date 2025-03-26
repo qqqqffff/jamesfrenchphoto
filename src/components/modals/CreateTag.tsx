@@ -56,10 +56,14 @@ export const CreateTagModal: FC<CreateTagProps> = ({ open, onClose, existingTag,
   }
 
   return (
-      <Modal show={open} onClose={() => {
-        clearStates()
-        onClose()
-      }}>
+      <Modal 
+        size="2xl"
+        show={open} 
+        onClose={() => {
+          clearStates()
+          onClose()
+        }}
+      >
         <Modal.Header>{existingTag ? 'Update Tag' : 'Create a New Tag'}</Modal.Header>
         <Modal.Body>
           <div className="grid grid-cols-2 gap-8 mb-4">
@@ -77,11 +81,14 @@ export const CreateTagModal: FC<CreateTagProps> = ({ open, onClose, existingTag,
                 onChange={(event) => setTagName(event.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label className="ms-2 font-medium text-lg">Collection: {
-                activeCollections.length > 0 ? activeCollections.reduce((prev, cur) => (prev === '' ? '' : prev + ', ') + cur.name, '') : 'None'
-              }</Label>
-              <Dropdown color={'light'} label='Collection' placement="bottom-start" dismissOnClick={false}>
+            <div className="flex flex-col gap-2 h-full justify-end">
+              <Dropdown 
+                color={'light'} 
+                label={(<span className="h-min">Select Collections</span>)} 
+                placement="bottom-start"
+                className=""
+                dismissOnClick={false}
+              >
                 {collections.data?.map((collection, index) => {
                   const tempMap = activeCollections.map((collection) => collection.id)
                   return (
