@@ -750,7 +750,7 @@ export const TableComponent = (props: TableComponentProps) => {
                 return (
                   <tr key={i} className="bg-white border-b">
                     {row.map(([v, t, id], j) => {
-                      //TODO: continue implementation 'tag' | 'file'
+                      //TODO: continue implementation 'file'
                       switch(t){
                         case 'user': {
                           return (
@@ -804,8 +804,9 @@ export const TableComponent = (props: TableComponentProps) => {
                             <TagCell
                               key={j}
                               value={v}
-                              updateValue={(text) => console.log(text)}
+                              updateValue={(text) => updateValue(id, text, i)}
                               tags={props.tagData.data ?? []}
+                              refetchTags={() => props.tagData.refetch()}
                             />
                           )
                         }

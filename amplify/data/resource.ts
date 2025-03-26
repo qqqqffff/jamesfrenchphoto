@@ -98,6 +98,7 @@ const schema = a.schema({
       tagId: a.id().required(),
       tag: a.belongsTo('UserTag', 'tagId')
     })
+    .identifier(['collectionId'])
     .secondaryIndexes((index) => [index('tagId'), index('collectionId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   TimeslotTag: a
