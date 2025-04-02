@@ -75,7 +75,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const [selectedTemplate, setSelectedTemplate] = useState<ShareTemplate>()
   const [deleteCollectionVisible, setDeleteCollectionVisible] = useState(false)
 
-  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share'>(parentActiveConsole)
+  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share' | 'users'>(parentActiveConsole)
 
   const navigate = useNavigate()
 
@@ -382,6 +382,17 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             >
               Share
             </button>
+            <button
+              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'share' ? 'text-black' : 'text-gray-400'}`}
+              onClick={() => {
+                if(activeConsole !== 'users') {
+                  navigate({ to: '.', search: { collection: collection.id, console: 'users' }})
+                  setActiveConsole('users')
+                }
+              }}
+            >
+              Users
+            </button>
           </div>
           {activeConsole === 'sets' ? (
             <>
@@ -623,14 +634,19 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             />
           </div>
         ) : (
-          <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-            <SharePannel 
-              collection={collection}
-              selectedTemplate={selectedTemplate}
-              updateParentSelectedTemplate={setSelectedTemplate}
-              updateParentTemplates={updateShareTemplates}
-            />
-          </div>
+          activeConsole === 'share' ? (
+            <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+              <SharePannel 
+                collection={collection}
+                selectedTemplate={selectedTemplate}
+                updateParentSelectedTemplate={setSelectedTemplate}
+                updateParentTemplates={updateShareTemplates}
+              />
+            </div>
+          ) : (
+            <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+            </div>
+          )
         )))}
       </div>
     </>

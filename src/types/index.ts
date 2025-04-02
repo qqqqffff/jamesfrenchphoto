@@ -128,6 +128,7 @@ export type UserTag = {
     name: string,
     color?: string,
     collections?: PhotoCollection[],
+    timeslots?: Timeslot[]
     package?: Package,
 }
 

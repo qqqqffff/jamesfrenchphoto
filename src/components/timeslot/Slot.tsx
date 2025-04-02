@@ -92,7 +92,7 @@ export const CompactSlotComponent: FC<SlotProps> = ({ timeslot }) => {
     return (
         <div className="flex flex-row border border-black items-center rounded-lg py-2 text-sm justify-between px-4 italic text-gray-800">
             <span>{formatTime(timeslot.start, {timeString: false})}</span>
-            <span>{createTimeString(timeslot)}</span>
+            <span className="text-xs">{createTimeString(timeslot)}</span>
         </div>
     )
 }

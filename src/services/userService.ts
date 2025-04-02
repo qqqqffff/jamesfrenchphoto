@@ -9,24 +9,43 @@ import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provide
 import { updateUserAttributes } from "aws-amplify/auth";
 import { Duration } from "luxon";
 import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
+import { getAllTimeslotsByUserTag } from "./timeslotService";
 
 const client = generateClient<Schema>()
 
 interface GetAllUserTagsOptions {
-    siCollections: boolean
+    siCollections?: boolean
+    siTimeslots?: boolean
 }
 async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
     console.log('api call')
-    const userTagsResponse = await client.models.UserTag.list()
-    const mappedTags = await Promise.all(userTagsResponse.data.map(async (tag) => {
+    let userTagsResponse = await client.models.UserTag.list()
+    let userTagData = userTagsResponse.data
+
+    while(userTagsResponse.nextToken) {
+        userTagsResponse = await client.models.UserTag.list({ nextToken: userTagsResponse.nextToken })
+        userTagData.push(...userTagsResponse.data)
+    }
+
+    const mappedTags = await Promise.all(userTagData.map(async (tag) => {
         const collections: PhotoCollection[] = []
+        const timeslots: Timeslot[] = []
         if(!options || options.siCollections) {
             collections.push(...(await getAllCollectionsFromUserTags(client, [{
                     ...tag,
                     collections: [],
                     color: undefined,
-                }])
+                }], {
+                    siTags: false
+                })
             ))
+        }
+        if(options?.siTimeslots) {
+            timeslots.push(...(await getAllTimeslotsByUserTag(client, {
+                ...tag, 
+                collections: [], 
+                color: undefined
+            })))
         }
         const mappedTag: UserTag = {
             ...tag,
@@ -198,7 +217,6 @@ interface GetAuthUsersOptions {
     logging?: boolean
     metric?: boolean
 }
-
 export async function getAuthUsers(client: V6Client<Schema>, filter?: string | null, options?: GetAuthUsersOptions): Promise<UserData[] | undefined> {
     console.log('api call')
     const start = new Date().getTime()
@@ -394,6 +412,7 @@ export async function updateUserAttributeMutation(params: UpdateUserAttributesMu
     return updated
 }
 
+//TODO: improve me
 export interface UpdateParticipantMutationParams{
     firstName: string,
     lastName: string,
@@ -401,7 +420,9 @@ export interface UpdateParticipantMutationParams{
     middleName?: string,
     contact: boolean,
     email?: string,
-    participant: Participant
+    participant: Participant,
+    userTags: UserTag[],
+
 }
 export async function updateParticipantMutation(params: UpdateParticipantMutationParams){
     return client.models.Participant.update({
@@ -411,7 +432,8 @@ export async function updateParticipantMutation(params: UpdateParticipantMutatio
         lastName: params.lastName,
         preferredName: params.preferredName,
         middleName: params.middleName,
-        contact: params.contact
+        contact: params.contact,
+        userTags: params.userTags.map((tag) => tag.id)
     })
 }
 
@@ -496,6 +518,136 @@ export async function inviteUserMutation(params: InviteUserParams) {
     })
 
     if(params.options?.logging) console.log(shareResponse)
+}
+
+export interface CreateTagParams {
+    name: string,
+    color?: string,
+    timeslots: Timeslot[],
+    collections: PhotoCollection[],
+    options?: {
+        logging?: boolean
+    }
+}
+export async function createTagMutation(params: CreateTagParams) {
+    const createTagResponse = await client.models.UserTag.create({
+        name: params.name,
+        color: params.color
+    })
+
+    if(params.options?.logging) console.log(createTagResponse)
+    
+    if(createTagResponse !== null && createTagResponse.data !== null) {
+        const collectionTagging = await Promise.all(params.collections.map(async (collection) => {
+            const response = await client.models.CollectionTag.create({
+                collectionId: collection.id,
+                tagId: createTagResponse.data!.id
+            })
+            return response
+        }))
+        if(params.options?.logging) console.log(collectionTagging)
+
+        const timeslotTagging = await Promise.all(params.timeslots.map(async (timeslot) => {
+            const response = await client.models.TimeslotTag.create({
+                timeslotId: timeslot.id,
+                tagId: createTagResponse.data!.id
+            })
+            return response
+        }))
+        if(params.options?.logging) console.log(timeslotTagging)
+        
+        const mappedTag: UserTag = {
+            id: createTagResponse.data.id,
+            name: params.name,
+            color: params.color,
+            collections: params.collections,
+            timeslots: params.timeslots
+        }
+
+        return mappedTag
+    }
+}
+
+export interface UpdateTagParams extends Partial<CreateTagParams> {
+    tag: UserTag
+}
+export async function updateTagMutation(params: UpdateTagParams) {
+    const removedTimeslots = params.tag.timeslots?.filter((oldTs) => !params.timeslots?.some((newTs) => newTs.id === oldTs.id))
+    const newTimeslots = params.timeslots?.filter((newTs) => !params.tag.timeslots?.some((oldTs) => oldTs.id === newTs.id))
+
+    const removedCollections = params.tag.collections?.filter((oldCol) => !params.collections?.some((newCol) => newCol.id === oldCol.id))
+    const newCollections = params.collections?.filter((newCol) => params.tag.collections?.some((oldCol) => oldCol.id === newCol.id))
+
+    let timeslotsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: params.tag.id })
+    let timeslotsData = timeslotsResponse.data
+
+    while(timeslotsResponse.nextToken) {
+        timeslotsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: params.tag.id }, { nextToken: timeslotsResponse.nextToken })
+        timeslotsData.push(...timeslotsResponse.data)
+    }
+
+    const removedTimeslotsResponse = await Promise.all(timeslotsData.map(async (timeslotTag) => {
+        if(removedTimeslots?.some((timeslot) => timeslot.id === timeslotTag.timeslotId)){
+            const response = await client.models.TimeslotTag.delete({ id: timeslotTag.id })
+            return response
+        }
+    }))
+    if(params.options?.logging) console.log(removedTimeslotsResponse)
+
+    const newTimeslotsResponse = await Promise.all((newTimeslots ?? []).map(async (timeslot) => {
+        const response = await client.models.TimeslotTag.create({ 
+            timeslotId: timeslot.id, 
+            tagId: params.tag.id
+        })
+        return response
+    }))
+    if(params.options?.logging) console.log(newTimeslotsResponse)
+
+    let collectionsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: params.tag.id })
+    let collectionsData = collectionsResponse.data
+
+    while(collectionsResponse.nextToken) {
+        collectionsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: params.tag.id }, { nextToken: collectionsResponse.nextToken })
+        collectionsData.push(...collectionsResponse.data)
+    }
+
+    const removedCollectionsResponse = await Promise.all(collectionsData.map(async (collectionTag) => {
+        if(removedCollections?.some((collection) => collection.id === collectionTag.collectionId)){
+            const response = await client.models.CollectionTag.delete({ id: collectionTag.id })
+            return response
+        }
+    }))
+    if(params.options?.logging) console.log(removedCollectionsResponse)
+
+    const newCollectionsResponse = await Promise.all((newCollections ?? []).map(async (collection) => {
+        const response = await client.models.CollectionTag.create({
+            collectionId: collection.id,
+            tagId: params.tag.id
+        })
+        return response
+    }))
+    if(params.options?.logging) console.log(newCollectionsResponse)
+
+    if(
+        params.tag.name !== params.name ||
+        params.tag.color !== params.color
+    ) {
+        const response = await client.models.UserTag.update({
+            id: params.tag.id,
+            name: params.name ?? params.tag.name,
+            color: params.color ?? params.tag.color
+        })
+        if(params.options?.logging) console.log(response)
+    }
+
+    const updatedTag: UserTag = {
+        id: params.tag.id,
+        name: params.name ?? params.tag.name,
+        color: params.color ?? params.tag.color,
+        collections: params.collections ?? params.tag.collections,
+        timeslots: params.timeslots ?? params.tag.timeslots,
+    }
+    return updatedTag
 }
 
 export const getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({

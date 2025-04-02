@@ -4,6 +4,8 @@ import { TableGroup, Table, TableColumn, ColumnColor, UserTag } from '../types'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { defaultColumnColors } from '../utils'
+import { remove, uploadData } from 'aws-amplify/storage'
+import { v4 } from 'uuid'
 
 const client = generateClient<Schema>()
 
@@ -261,16 +263,16 @@ export async function updateTableColumnsMutation(params: UpdateTableColumnParams
 
 export interface CreateChoiceParams {
     column: TableColumn,
-    choices: string,
+    choice: string,
     color: string,
     options?: {
         logging?: boolean
     }
 }
-export async function createChoiceMutation(params: CreateChoiceParams): Promise<ColumnColor | undefined> {
+export async function createChoiceMutation(params: CreateChoiceParams): Promise<[string, string] | undefined> {
     const columnResponse = await client.models.TableColumn.update({
         id: params.column.id,
-        choices: [...(params.column.choices ?? []), params.choices]
+        choices: [...(params.column.choices ?? []), params.choice]
     })
     if(params.options?.logging) console.log(columnResponse)
 
@@ -278,30 +280,30 @@ export async function createChoiceMutation(params: CreateChoiceParams): Promise<
         columnId: params.column.id,
         textColor: defaultColumnColors[params.color].text,
         bgColor: defaultColumnColors[params.color].bg,
-        value: params.choices
+        value: params.choice
     })
 
     if(createColor.data) {
-        const mappedColor: ColumnColor = {
-            ...createColor.data,
-            bgColor: defaultColumnColors[params.color].bg,
-            textColor: defaultColumnColors[params.color].text,
-        }
-        return mappedColor
+        return [createColor.data.id, params.column.id]
     }
     return
 }
 export interface AppendTableRowParams {
     table: Table,
+    length: number,
     options?: {
         logging?: boolean
     }
 }
 export async function appendTableRowMutation(params: AppendTableRowParams){
     const response = await Promise.all(params.table.columns.map(async (column) => {
+        const temp = [...column.values]
+        while(temp.length < params.length){
+            temp.push('')
+        }
         return client.models.TableColumn.update({
             id: column.id,
-            values: [...column.values]
+            values: temp
         })
     }))
 
@@ -370,6 +372,64 @@ export async function deleteTableColumnMutation(params: DeleteTableColumnParams)
     ))
     if(params.options?.logging) console.log(orderUpdateResponse)
     if(params.options?.metric) console.log(`DELETECOLUMN: ${new Date().getTime() - start}ms`)
+}
+
+export interface UploadColumnFileParams {
+    column: TableColumn,
+    index: number,
+    file?: File,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function uploadColumnFileMutation(params: UploadColumnFileParams): Promise<string> {
+    if((!params.file && params.column.values[params.index] !== '') || 
+        params.column.values[params.index] !== ''
+    ){
+        const deleteResponse = await remove({
+            path: params.column.values[params.index]
+        })
+
+        if(params.options?.logging) console.log(deleteResponse)
+
+        //deleting
+        if(!params.file) {
+            const tempValues = [...params.column.values]
+            tempValues[params.index] = ''
+
+            const dynamoResponse = await client.models.TableColumn.update({
+                id: params.column.id,
+                values: tempValues
+            })
+
+            if(params.options?.logging) console.log(dynamoResponse)
+
+            return ''
+        }
+    }
+
+    if(params.file) {
+        const path = `table-files/${params.column.id}/${v4()}_${params.file.name}`
+        const uploadResponse = await uploadData({
+            path: path,
+            data: params.file
+        }).result
+        if(params.options?.logging) console.log(uploadResponse)
+        
+        const temp = [...params.column.values]
+        temp[params.index] = path
+
+        const dynamoResponse = await client.models.TableColumn.update({
+            id: params.column.id,
+            values: temp
+        })
+        if(params.options?.logging) console.log(dynamoResponse)
+
+        return path
+    }
+    else {
+        return ''
+    }
 }
 
 

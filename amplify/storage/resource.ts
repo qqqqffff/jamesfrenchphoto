@@ -29,6 +29,9 @@ export const storage = defineStorage({
             allow.guest.to(['read']),
             allow.resource(addPublicPhoto).to(['read']),
         ],
+        'table-files/*': [
+            allow.groups(['ADMINS']).to(['read', 'write', 'delete'])
+        ]
     }),
     isDefault: true
 })
