@@ -44,7 +44,8 @@ const component: FC<ParticipantFormParams> = ({width, participant, submit}) => {
                 middleName: middleName,
                 contact: contact,
                 email: email,
-                participant: participant
+                participant: participant,
+                userTags: participant.userTags,
               })
 
               updatedParticipant = {
