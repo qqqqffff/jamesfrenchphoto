@@ -251,9 +251,11 @@ function RouteComponent() {
             collectionConsole === 'share' ? (
               'share' as 'share'
             ) : (
+            collectionConsole === 'users' ? (
+              'users' as 'users'
+            ) : (
               'sets' as 'sets'
-            )
-            ))
+            ))))
           }
           shareTemplates={shareTemplates}
           updateShareTemplates={setShareTemplates}

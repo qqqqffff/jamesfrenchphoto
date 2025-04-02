@@ -14,6 +14,7 @@ import {
   DeleteCollectionParams,
   deleteCoverMutation, 
   DeleteCoverParams, 
+  getAllCollectionParticipantsQueryOptions, 
   getPathQueryOptions, 
   publishCollectionMutation, 
   PublishCollectionParams, 
@@ -40,6 +41,8 @@ import {
   DeleteShareTemplateParams,  
 } from "../../../services/shareService"
 import { CgSpinner } from "react-icons/cg"
+import { UsersPannel } from "./UsersPannel"
+import { getAllParticipantsQueryOptions } from "../../../services/userService"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
@@ -50,7 +53,7 @@ interface PhotoCollectionPannelProps {
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   set?: PhotoSet,
   auth: AuthContext,
-  parentActiveConsole: 'sets' | 'favorites' | 'watermarks' | 'share',
+  parentActiveConsole: 'sets' | 'favorites' | 'watermarks' | 'share' | 'users',
   shareTemplates: ShareTemplate[],
   updateShareTemplates: Dispatch<SetStateAction<ShareTemplate[]>>
 }
@@ -86,7 +89,6 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const updateCollection = useMutation({
     mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params)
   })
-
   useEffect(() => {
     const aggregateItems = setList.reduce((prev, cur) => {
       if(cur.id === selectedSet?.id) {
@@ -146,6 +148,10 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
       }
     }
   })
+
+  const participants = useQuery(getAllParticipantsQueryOptions({ siTags: true }))
+
+  const collectionParticipants = useQuery(getAllCollectionParticipantsQueryOptions(collection.id))
 
   //all cover paths, each set has paths, warn if less than 20 and if has duplicates
   const publishable: Publishable = (() => {
@@ -383,7 +389,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               Share
             </button>
             <button
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'share' ? 'text-black' : 'text-gray-400'}`}
+              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'users' ? 'text-black' : 'text-gray-400'}`}
               onClick={() => {
                 if(activeConsole !== 'users') {
                   navigate({ to: '.', search: { collection: collection.id, console: 'users' }})
@@ -645,6 +651,11 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             </div>
           ) : (
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+              <UsersPannel
+                collection={collection}
+                participants={participants.data ?? []}
+                collectionParticipants={collectionParticipants.data ?? []}
+              />
             </div>
           )
         )))}

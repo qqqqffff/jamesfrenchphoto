@@ -1,4 +1,4 @@
-import { PhotoCollection, PhotoSet, PicturePath, UserTag, Watermark } from "../types";
+import { Participant, PhotoCollection, PhotoSet, PicturePath, UserTag, Watermark } from "../types";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
@@ -342,6 +342,56 @@ async function getCollectionById(collectionId: string, options?: GetPhotoCollect
   return mappedCollection
 }
 
+interface GetAllCollectionParticipantsOptions {
+    siTags?: boolean
+}
+async function getAllCollectionParticipants(client: V6Client<Schema>, collectionId: string, options?: GetAllCollectionParticipantsOptions): Promise<Participant[]> {
+    const collectionResponse = await client.models.PhotoCollection.get({ id: collectionId })
+    const participants: Participant[] = []
+    if(collectionResponse.data) {
+        let participantTagResponse = await collectionResponse.data.participants()
+        const participantTagData = participantTagResponse.data
+
+        while(participantTagResponse.nextToken) {
+            participantTagResponse = await collectionResponse.data.participants({ nextToken: participantTagResponse.nextToken })
+            participantTagData.push(...participantTagResponse.data)
+        }
+
+        participants.push(...(await Promise.all(participantTagData.map(async (tagResponse) => {
+            const participant = await tagResponse.participant()
+            if(participant.data) {
+                const userTags: UserTag[] = []
+
+                if(options?.siTags) {
+                    userTags.push(...(await Promise.all((participant.data.userTags ?? []).map(async (tagId) => {
+                        if(!tagId) return
+                        const tagResponse = await client.models.UserTag.get({ id: tagId })
+                        if(tagResponse.data) {
+                            const mappedTag: UserTag = {
+                                ...tagResponse.data,
+                                color: tagResponse.data.color ?? undefined,
+                            }
+                            return mappedTag
+                        }
+                    }))).filter((tag) => tag !== undefined))
+                }
+
+                const mappedParticipant: Participant = {
+                    ...participant.data,
+                    middleName: participant.data.middleName ?? undefined,
+                    preferredName: participant.data.preferredName ?? undefined,
+                    contact: participant.data.contact ?? false,
+                    email: participant.data.email ?? undefined,
+                    timeslot: [],
+                    userTags: userTags,
+                }
+                return mappedParticipant
+            }
+        }))).filter((participant) => participant !== undefined))
+    }
+    return participants;
+}
+
 export interface CreateCollectionParams {
     name: string,
     tags:  UserTag[],
@@ -637,7 +687,34 @@ export async function reorderSetsMutation(params: ReorderSetsParams){
     if(params.options?.logging) console.log(response)
 }
 
+export interface AddCollectionParticipantParams {
+    participantId: string,
+    collectionId: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function addCollectionParticipantMutation(params: AddCollectionParticipantParams) {
+    const response = await client.models.ParticipantCollections.create({
+        participantId: params.participantId,
+        collectionId: params.collectionId,
+    })
+    if(params.options?.logging) console.log(response)
+}
 
+export interface RemoveCollectionParticipantParams extends AddCollectionParticipantParams {}
+export async function removeCollectionParticipantMutation(params: RemoveCollectionParticipantParams) {
+    const findTagResponse = await client.models.ParticipantCollections.listParticipantCollectionsByParticipantId({ participantId: params.participantId })
+
+    if(params.options?.logging) console.log(findTagResponse)
+
+    const foundTag = findTagResponse.data.find((response) => response.collectionId === params.collectionId);
+    if(foundTag) {
+        const response = await client.models.ParticipantCollections.delete({ id: foundTag.id })
+
+        if(params.options?.logging) console.log(response)
+    }
+}
 
 export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOptions({
     queryKey: ['photoCollection', client, tags],
@@ -669,4 +746,9 @@ export const getPhotoCollectionByIdQueryOptions = (collectionId: string, options
 export const getAllPhotoCollectionsQueryOptions = (options?: GetAllCollectionsOptions) => queryOptions({
     queryKey: ['photoCollections', client, options],
     queryFn: () => getAllPhotoCollections(client, options)
+})
+
+export const getAllCollectionParticipantsQueryOptions = (collectionId: string, options?: GetAllCollectionParticipantsOptions) => queryOptions({
+    queryKey: ['collectionParticipants', client, collectionId, options],
+    queryFn: () => getAllCollectionParticipants(client, collectionId, options)
 })
