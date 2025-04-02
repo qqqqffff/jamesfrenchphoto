@@ -807,6 +807,19 @@ export const TableComponent = (props: TableComponentProps) => {
                               updateValue={(text) => updateValue(id, text, i)}
                               tags={props.tagData.data ?? []}
                               refetchTags={() => props.tagData.refetch()}
+                              table={props.table}
+                              columnId={id}
+                              rowIndex={i}
+                              participants={props.userData.data
+                                ?.map((data) => {
+                                  if(data.profile?.participant) return data.profile.participant
+                                  return [] as Participant[]
+                                })
+                                .reduce((prev, cur) => {
+                                  prev.push(...cur.filter((part) => !prev.some((prevPart) => prevPart.id === part.id)))
+                                  return prev
+                                }, []) ?? []
+                              }
                             />
                           )
                         }

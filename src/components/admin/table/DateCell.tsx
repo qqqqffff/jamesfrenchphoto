@@ -32,7 +32,7 @@ export const DateCell = (props: DateCellProps) => {
   const tempSource = props.participants.find((participant) => {
     if(mode === 'column' && source) {
       const columnSource = props.table.columns.find((column) => column.id === source.id)
-      if(!columnSource) return
+      if(!columnSource || !participant.email) return
       return participant.email === columnSource.values[props.rowIndex]
     }
     else if(source) {
@@ -220,7 +220,7 @@ export const DateCell = (props: DateCellProps) => {
                   }
                 }}
               >
-                <span>Create</span>
+                <span>Sync</span>
               </button>
             </div>
           </div>

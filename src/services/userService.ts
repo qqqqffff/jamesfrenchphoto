@@ -412,6 +412,7 @@ export async function updateUserAttributeMutation(params: UpdateUserAttributesMu
     return updated
 }
 
+//TODO: improve me
 export interface UpdateParticipantMutationParams{
     firstName: string,
     lastName: string,
@@ -419,7 +420,9 @@ export interface UpdateParticipantMutationParams{
     middleName?: string,
     contact: boolean,
     email?: string,
-    participant: Participant
+    participant: Participant,
+    userTags: UserTag[],
+
 }
 export async function updateParticipantMutation(params: UpdateParticipantMutationParams){
     return client.models.Participant.update({
@@ -429,7 +432,8 @@ export async function updateParticipantMutation(params: UpdateParticipantMutatio
         lastName: params.lastName,
         preferredName: params.preferredName,
         middleName: params.middleName,
-        contact: params.contact
+        contact: params.contact,
+        userTags: params.userTags.map((tag) => tag.id)
     })
 }
 

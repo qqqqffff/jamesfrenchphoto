@@ -382,7 +382,7 @@ export interface UploadColumnFileParams {
         logging?: boolean
     }
 }
-export async function uploadColumnFileMutation(params: UploadColumnFileParams) {
+export async function uploadColumnFileMutation(params: UploadColumnFileParams): Promise<string> {
     if((!params.file && params.column.values[params.index] !== '') || 
         params.column.values[params.index] !== ''
     ){
@@ -391,6 +391,21 @@ export async function uploadColumnFileMutation(params: UploadColumnFileParams) {
         })
 
         if(params.options?.logging) console.log(deleteResponse)
+
+        //deleting
+        if(!params.file) {
+            const tempValues = [...params.column.values]
+            tempValues[params.index] = ''
+
+            const dynamoResponse = await client.models.TableColumn.update({
+                id: params.column.id,
+                values: tempValues
+            })
+
+            if(params.options?.logging) console.log(dynamoResponse)
+
+            return ''
+        }
     }
 
     if(params.file) {

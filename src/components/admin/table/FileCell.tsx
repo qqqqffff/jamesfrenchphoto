@@ -5,6 +5,9 @@ import { uploadColumnFileMutation, UploadColumnFileParams } from "../../../servi
 import { TableColumn } from "../../../types";
 import { parsePathName } from "../../../utils";
 import { HiOutlineXCircle } from "react-icons/hi2";
+import { HiOutlineDownload } from "react-icons/hi";
+import { downloadImageMutation, DownloadImageMutationParams } from "../../../services/photoPathService";
+import { CgSpinner } from "react-icons/cg";
 
 interface FileCellProps extends ComponentProps<'td'> {
   value: string,
@@ -16,6 +19,7 @@ interface FileCellProps extends ComponentProps<'td'> {
 export const FileCell = (props: FileCellProps) => {
   const [value, setValue] = useState('')
   const [replaceFileVisible, setReplaceFileVisible] = useState(false)
+  const [deleteFileVisible, setDeleteFileVisible] = useState(false)
   const fileRef = useRef<File | null>(null)
 
   useEffect(() => {
@@ -27,13 +31,29 @@ export const FileCell = (props: FileCellProps) => {
   const uploadFile = useMutation({
     mutationFn: (params: UploadColumnFileParams) => uploadColumnFileMutation(params),
     onSuccess: (data) => {
-      if(data){
-        props.updateValue(data)
-        setValue(data)
-        setReplaceFileVisible(false)
-        fileRef.current = null
-      }
+      props.updateValue(data)
+      setValue(data)
+      setReplaceFileVisible(false)
+      fileRef.current = null
     }
+  })
+
+  const downloadFile = useMutation({
+    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
+    onSettled: (file) => {
+      if (file) {
+        try {
+          const url = window.URL.createObjectURL(file)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = file.name
+          link.click()
+          window.URL.revokeObjectURL(url)
+        } catch (error) {
+          console.error(error)
+        }
+      }
+    },
   })
 
   return (
@@ -55,8 +75,31 @@ export const FileCell = (props: FileCellProps) => {
             })
           }
         }}
-        onClose={() => setReplaceFileVisible(false)}
+        onClose={() => {
+          setReplaceFileVisible(false)
+          fileRef.current = null
+        }}
         open={replaceFileVisible}
+      />
+      <ConfirmationModal
+        title="Delete File"
+        body="Continuing will <b>DELETE</b> this file, which will permanently delete this file. This action cannot be undone!"
+        denyText="Cancel"
+        confirmText="Delete"
+        confirmAction={async () => {
+          await uploadFile.mutateAsync({
+            column: props.column,
+            index: props.rowIndex,
+            options: {
+              logging: true
+            }
+          })
+        }}
+        onClose={() => {
+          setDeleteFileVisible(false)
+          fileRef.current = null
+        }}
+        open={deleteFileVisible}
       />
       <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
         <div className="flex flex-row items-center gap-2">
@@ -70,24 +113,38 @@ export const FileCell = (props: FileCellProps) => {
             <span>{value === '' ? 'Upload File' : parsePathName(value)}</span>
           </label>
           {value !== '' && (
-            <button
-              onClick={() => {
-                uploadFile.mutate({
-                  column: props.column,
-                  index: props.rowIndex,
-                  options: {
-                    logging: true
-                  }
-                })
-              }}
+            <div
+              className="flex flex-row items-center gap-1"
             >
-              <HiOutlineXCircle size={16} className="text-gray-400 hover:text-gray-800" />
-            </button>
+              <button
+                onClick={() => setDeleteFileVisible(true)}
+              >
+                <HiOutlineXCircle size={16} className="text-gray-400 hover:text-gray-800" />
+              </button>
+              <button
+                disabled={downloadFile.isPending}
+                className="disabled:hover:cursor-wait enabled:hover:cursor-pointer"
+                onClick={() => {
+                  downloadFile.mutate({
+                    path: value,
+                    options: {
+                      logging: true
+                    }
+                  })
+                }}
+              >
+                {downloadFile.isPending ? (
+                  <CgSpinner size={16} className="animate-spin text-gray-400"/>
+                ) : (
+                  <HiOutlineDownload size={16} className="text-gray-400 hover:text-gray-800"/>
+                )}
+              </button>
+            </div>
           )}
         </div>
         
         <input
-          multiple={false}
+          // multiple={false}
           id="file-upload"
           className="hidden"
           onChange={(event) => {
@@ -107,11 +164,8 @@ export const FileCell = (props: FileCellProps) => {
                 setReplaceFileVisible(true)
               }
             }
-          }}
-          onBlur={() => {
-            if(props.value !== value){
-              props.updateValue(value)
-            }
+
+            event.target.value = ''
           }}
           type="file"
         />
