@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { Participant, PhotoCollection } from "../../../types"
 import { Tooltip } from "flowbite-react"
+import { useMutation } from "@tanstack/react-query"
+import { addCollectionParticipantMutation, AddCollectionParticipantParams, removeCollectionParticipantMutation, RemoveCollectionParticipantParams } from "../../../services/collectionService"
 
 interface UsersPannelProps {
   collection: PhotoCollection,
@@ -30,6 +32,7 @@ export const UsersPannel = (props: UsersPannelProps) => {
     if(wrap) {
       return (
         <Tooltip
+          key={child.key}
           theme={{ target: '' }}
           style="light"
           content='Participant is Given Access to this Collection by User Tagging'
@@ -41,6 +44,14 @@ export const UsersPannel = (props: UsersPannelProps) => {
     }
     return child
   }
+
+  const addCollectionParticipant = useMutation({
+    mutationFn: (params: AddCollectionParticipantParams) => addCollectionParticipantMutation(params)
+  })
+
+  const removeCollectionParticipant = useMutation({
+    mutationFn: (params: RemoveCollectionParticipantParams) => removeCollectionParticipantMutation(params)
+  })
 
   return (
     <div className="flex flex-col max-h-[90vh] py-2 px-12 w-full">
@@ -73,6 +84,30 @@ export const UsersPannel = (props: UsersPannelProps) => {
                   w-full
                 `} 
                 key={index}
+                onClick={() => {
+                  if(selected) {
+                    const tempParticipants = collectionParticipants.filter((colParticipant) => colParticipant.id !== participant.id)
+                    removeCollectionParticipant.mutate({
+                      participantId: participant.id,
+                      collectionId: props.collection.id,
+                      options: {
+                        logging: true
+                      }
+                    })
+                    setCollectionParticipants(tempParticipants)
+                  }
+                  else {
+                    const tempParticipants = [...collectionParticipants, participant]
+                    addCollectionParticipant.mutate({
+                      participantId: participant.id,
+                      collectionId: props.collection.id,
+                      options: {
+                        logging: true
+                      }
+                    })
+                    setCollectionParticipants(tempParticipants)
+                  }
+                }}
               >
                 <div className="flex flex-row gap-2 items-center text-nowrap text-sm">
                   <span>First Name:</span>
