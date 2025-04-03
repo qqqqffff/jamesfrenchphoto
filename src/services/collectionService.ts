@@ -1,4 +1,4 @@
-import { Participant, PhotoCollection, PhotoSet, PicturePath, UserTag, Watermark } from "../types";
+import { CoverType, Participant, PhotoCollection, PhotoSet, PicturePath, UserTag, Watermark } from "../types";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
@@ -87,6 +87,12 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
         const mappedCollection: PhotoCollection = {
           ...collection,
           coverPath: collection.coverPath ?? undefined,
+          coverType: {
+            textColor: collection.coverType?.textColor ?? undefined,
+            bgColor: collection.coverType?.bgColor ?? undefined,
+            placement: collection.coverType?.placement ?? undefined,
+            date: collection.coverType?.date ? new Date(collection.coverType.date) : undefined
+        },
           publicCoverPath: collection.publicCoverPath ?? undefined,
           downloadable: collection.downloadable ?? false,
           watermarkPath: collection.watermarkPath ?? undefined,
@@ -191,6 +197,12 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
                 ...collectionResponse.data,
                 coverPath: collectionResponse.data.coverPath ?? undefined,
                 publicCoverPath: collectionResponse.data.publicCoverPath ?? undefined,
+                coverType: {
+                    textColor: collectionResponse.data.coverType?.textColor ?? undefined,
+                    bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
+                    placement: collectionResponse.data.coverType?.placement ?? undefined,
+                    date: collectionResponse.data.coverType?.date ? new Date(collectionResponse.data.coverType.date) : undefined
+                },
                 downloadable: collectionResponse.data.downloadable ?? false,
                 watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
                 tags: tags,
@@ -318,26 +330,32 @@ async function getCollectionById(collectionId: string, options?: GetPhotoCollect
   }
   const tags: UserTag[] = []
   if(!options || options.siTags){
-      tags.push(...(await Promise.all((await collection.data.tags()).data.map(async (colTag) => {
-          const tag = (await colTag.tag()).data
-          if(!tag) return
-          const mappedTag: UserTag = {
-              ...tag,
-              color: tag.color ?? undefined,
-          }
-          return mappedTag
-      }))).filter((tag) => tag !== undefined))
+    tags.push(...(await Promise.all((await collection.data.tags()).data.map(async (colTag) => {
+      const tag = (await colTag.tag()).data
+      if(!tag) return
+      const mappedTag: UserTag = {
+        ...tag,
+        color: tag.color ?? undefined,
+      }
+      return mappedTag
+    }))).filter((tag) => tag !== undefined))
   }
   const mappedCollection: PhotoCollection = {
-      ...collection.data,
-      watermarkPath: collection.data.watermarkPath ?? undefined,
-      downloadable: collection.data.downloadable ?? false,
-      coverPath: collection.data.coverPath ?? undefined,
-      publicCoverPath: collection.data.publicCoverPath ?? undefined,
-      items: collection.data.items ?? 0,
-      published: collection.data.published ?? false,
-      sets: sets.sort((a, b) => a.order - b.order),
-      tags: tags,
+    ...collection.data,
+    watermarkPath: collection.data.watermarkPath ?? undefined,
+    downloadable: collection.data.downloadable ?? false,
+    coverPath: collection.data.coverPath ?? undefined,
+    publicCoverPath: collection.data.publicCoverPath ?? undefined,
+    coverType: {
+        textColor: collection.data.coverType?.textColor ?? undefined,
+        bgColor: collection.data.coverType?.bgColor ?? undefined,
+        placement: collection.data.coverType?.placement ?? undefined,
+        date: collection.data.coverType?.date ? new Date(collection.data.coverType.date) : undefined
+    },
+    items: collection.data.items ?? 0,
+    published: collection.data.published ?? false,
+    sets: sets.sort((a, b) => a.order - b.order),
+    tags: tags,
   }
   return mappedCollection
 }
@@ -425,15 +443,21 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
     let coverPath: string | undefined
 
     const returnedCollection: PhotoCollection = {
-        ...collectionResponse.data,
-        coverPath: coverPath,
-        publicCoverPath: coverPath,
-        tags: params.tags,
-        downloadable: params.downloadable,
-        watermarkPath: undefined,
-        sets: [],
-        items: collectionResponse.data.items ?? 0,
-        published: collectionResponse.data.published ?? false
+      ...collectionResponse.data,
+      coverPath: coverPath,
+      publicCoverPath: coverPath,
+      coverType: {
+        textColor: collectionResponse.data.coverType?.textColor ?? undefined,
+        bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
+        placement: collectionResponse.data.coverType?.placement ?? undefined,
+        date: collectionResponse.data.coverType?.date ? new Date(collectionResponse.data.coverType.date) : undefined
+      },
+      tags: params.tags,
+      downloadable: params.downloadable,
+      watermarkPath: undefined,
+      sets: [],
+      items: collectionResponse.data.items ?? 0,
+      published: collectionResponse.data.published ?? false
     }
 
     return returnedCollection
@@ -443,7 +467,8 @@ export interface UpdateCollectionParams extends Partial<CreateCollectionParams> 
     collection: PhotoCollection,
     published: boolean,
     watermark?: Watermark | null,
-    items?: number
+    items?: number,
+    coverType?: CoverType
 }
 export async function updateCollectionMutation(params: UpdateCollectionParams): Promise<PhotoCollection> {
     let updatedCollection = {
@@ -492,10 +517,16 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
     if(params.options?.logging) console.log(removeTagsResponse)
     
     if(params.name !== params.collection.name || 
-        params.downloadable !== params.collection.downloadable ||
-        (params.cover && parsePathName(params.cover) !== parsePathName(params.collection.coverPath ?? '')) ||
-        params.published !== params.collection.published ||
-        (params.watermark && parsePathName(params.watermark.path) !== parsePathName(params.collection.watermarkPath ?? ''))
+      params.downloadable !== params.collection.downloadable ||
+      (params.cover && parsePathName(params.cover) !== parsePathName(params.collection.coverPath ?? '')) ||
+      params.published !== params.collection.published ||
+      (params.watermark && parsePathName(params.watermark.path) !== parsePathName(params.collection.watermarkPath ?? '')) ||
+      ( 
+        params.coverType?.bgColor !== params.collection.coverType?.bgColor ||
+        params.coverType?.textColor !== params.collection.coverType?.textColor ||
+        params.coverType?.placement !== params.collection.coverType?.placement ||
+        params.coverType?.date?.getTime() !== params.collection.coverType?.date?.getTime()
+      )
     ) {
         const response = await client.models.PhotoCollection.update({
             id: params.collection.id,
@@ -505,7 +536,13 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
                 params.cover !== null ? parsePathName(params.cover) : null,
             published: params.published,
             watermarkPath: params.watermark?.path ? parsePathName(params.watermark.path) : null,
-            items: params.items ? params.items : params.collection.items
+            items: params.items ? params.items : params.collection.items,
+            coverType: {
+              textColor: params.coverType ? params.coverType.textColor ?? null : params.collection.coverType?.textColor,
+              bgColor: params.coverType ? params.coverType.bgColor ?? null : params.collection.coverType?.bgColor,
+              placement: params.coverType ? params.coverType.placement ?? null : params.collection.coverType?.placement,
+              date: params.coverType ? params.coverType.date?.toISOString() ?? null : params.collection.coverType?.date?.toISOString(),
+            }
         })
         if(params.options?.logging) console.log(response)
 

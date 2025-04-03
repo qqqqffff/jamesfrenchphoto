@@ -25,7 +25,12 @@ const schema = a.schema({
       id: a.id().required(),
       coverPath: a.string(),
       publicCoverPath: a.string(),
-      coverType: a.enum(['default']),
+      coverType: a.customType({
+        textColor: a.string(),
+        bgColor: a.string(),
+        date: a.string(),
+        placement: a.enum(['center', 'left', 'right']),
+      }),
       name: a.string().required(),
       tags: a.hasMany('CollectionTag', 'collectionId'),
       sets: a.hasMany('PhotoSet', 'collectionId'),

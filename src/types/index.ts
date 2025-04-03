@@ -90,9 +90,17 @@ export type Watermark = {
     path: string,
 }
 
+export type CoverType = {
+    textColor?: string,
+    bgColor?: string,
+    placement?: 'center' | 'left' | 'right'
+    date?: Date
+}
+
 export type PhotoCollection = {
     name: string;
     coverPath?: string;
+    coverType?: CoverType
     publicCoverPath?: string;
     createdAt: string;
     id: string;

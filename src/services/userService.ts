@@ -100,8 +100,14 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                             downloadable: collection.data.downloadable ?? false,
                             items: collection.data.items ?? 0,
                             published: collection.data.published ?? false,
-                            //unnecessary
+                            coverType: {
+                                textColor: collection.data.coverType?.textColor ?? undefined,
+                                bgColor: collection.data.coverType?.bgColor ?? undefined,
+                                placement: collection.data.coverType?.placement ?? undefined,
+                                date: collection.data.coverType?.date ? new Date(collection.data.coverType.date) : undefined
+                            },
                             sets: sets,
+                            //unnecessary
                             tags: [],
                         }
                         return mappedCollection
