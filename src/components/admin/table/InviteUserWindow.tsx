@@ -54,9 +54,10 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
           >
             {props.table.columns
               .filter(() => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user'))
-              .map((column) => {
+              .map((column, index) => {
                 return (
                   <Dropdown.Item 
+                    key={index}
                     className="text-xs"
                     onClick={() => {
                       setFirstName(column.values[props.rowIndex])
@@ -91,9 +92,10 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
           >
             {props.table.columns
               .filter(() => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user'))
-              .map((column) => {
+              .map((column, index) => {
                 return (
                   <Dropdown.Item 
+                    key={index}
                     className="text-xs"
                     onClick={() => {
                       setLastName(column.values[props.rowIndex])
@@ -128,9 +130,9 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
         </button>
       </div>
       <div className="flex flex-col px-2 pb-1 gap-1">
-        {participants.map((participant) => {
+        {participants.map((participant, index) => {
           return (
-            <>
+            <div key={index} className="flex flex-col gap-1">
               <div className="flex flex-row gap-2 items-center text-nowrap">
                 <span>First Name:</span>
                 <input
@@ -165,9 +167,10 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                 >
                   {props.table.columns
                     .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .map((column) => {
+                    .map((column, index) => {
                       return (
                         <Dropdown.Item 
+                          key={index}
                           className="text-xs"
                           onClick={() => {
                             const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'first')
@@ -229,9 +232,10 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                 >
                   {props.table.columns
                     .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .map((column) => {
+                    .map((column, index) => {
                       return (
-                        <Dropdown.Item 
+                        <Dropdown.Item
+                          key={index} 
                           className="text-xs"
                           onClick={() => {
                             const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'preferred')
@@ -293,9 +297,10 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                 >
                   {props.table.columns
                     .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .map((column) => {
+                    .map((column, index) => {
                       return (
-                        <Dropdown.Item 
+                        <Dropdown.Item
+                          key={index}
                           className="text-xs"
                           onClick={() => {
                             const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'last')
@@ -356,11 +361,11 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   inline
                 >
                   {props.table.columns
-
                     .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .map((column) => {
+                    .map((column, index) => {
                       return (
                         <Dropdown.Item 
+                          key={index}
                           className="text-xs"
                           onClick={() => {
                             const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'email')
@@ -396,7 +401,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                 }}
               >Delete</button>
               <div className="border-gray-300 border mb-1 mt-1"/>
-            </>
+            </div>
           )
         })}
       </div>

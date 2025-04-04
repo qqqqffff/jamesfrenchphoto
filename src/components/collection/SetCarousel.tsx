@@ -26,7 +26,7 @@ export const SetCarousel = (props: SetCarouselProps) => {
   }, [textRefs.current[props.currentIndex]])
   
   return (
-    <div className="relative overflow-hidden py-2 flex flex-col rounded-xl">
+    <div className="relative overflow-hidden py-2 flex flex-col rounded-xl w-full mx-4">
       <div className="h-auto relative w-full">
         <div
           className="flex transition-transform duration-500 ease-out h-full px-2 w-full"

@@ -1,6 +1,6 @@
 import { Dispatch, FC, SetStateAction, useEffect, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet, ShareTemplate } from "../../../types"
-import { useMutation, useQueries, useQuery } from "@tanstack/react-query"
+import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
 import { getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
 import { CollectionThumbnail } from "./CollectionThumbnail"
@@ -43,19 +43,20 @@ import {
 import { CgSpinner } from "react-icons/cg"
 import { UsersPannel } from "./UsersPannel"
 import { getAllParticipantsQueryOptions } from "../../../services/userService"
+import { CoverPannel } from "./CoverPannel"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
   availableTags: UserTag[],
-  coverPath?: string,
   collection: PhotoCollection,
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   set?: PhotoSet,
   auth: AuthContext,
-  parentActiveConsole: 'sets' | 'favorites' | 'watermarks' | 'share' | 'users',
+  parentActiveConsole: 'sets' | 'favorites' | 'watermarks' | 'share' | 'users' | 'cover',
   shareTemplates: ShareTemplate[],
   updateShareTemplates: Dispatch<SetStateAction<ShareTemplate[]>>
+  coverPath?: UseQueryResult<[string | undefined, string] | undefined, Error>
 }
 
 interface Publishable {
@@ -67,18 +68,17 @@ interface Publishable {
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
   watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
-  updateShareTemplates,
+  updateShareTemplates, coverPath
 }) => {
   const [createSet, setCreateSet] = useState(false)
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
   const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
   const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
-  const [coverPath, setCoverPath] = useState(collection.coverPath)
   const [selectedTemplate, setSelectedTemplate] = useState<ShareTemplate>()
   const [deleteCollectionVisible, setDeleteCollectionVisible] = useState(false)
 
-  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share' | 'users'>(parentActiveConsole)
+  const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share' | 'users' | 'cover'>(parentActiveConsole)
 
   const navigate = useNavigate()
 
@@ -108,6 +108,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
       })
     }
   }, [collection.items])
+  
+  //TODO: parent state management
 
   const deleteCollection = useMutation({
     mutationFn: (params: DeleteCollectionParams) => deleteCollectionMutation(params)
@@ -152,6 +154,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const participants = useQuery(getAllParticipantsQueryOptions({ siTags: true }))
 
   const collectionParticipants = useQuery(getAllCollectionParticipantsQueryOptions(collection.id))
+
+  // const coverPathQuery = useQuery(getPathQueryOptions(coverPath))
 
   //all cover paths, each set has paths, warn if less than 20 and if has duplicates
   const publishable: Publishable = (() => {
@@ -341,7 +345,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               </div>
             )}
             parentLoading={deleteImage.isPending}
-            setCover={setCoverPath}
+            updateParentCollection={updateParentCollection}
+            updatePublishStatus={publishCollection}
           />
           <div className="grid grid-cols-3 w-full place-items-center border border-gray-400 rounded-lg py-0.5">
             <button 
@@ -399,8 +404,19 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             >
               Users
             </button>
+            <button
+              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'cover' ? 'text-black' : 'text-gray-400'}`}
+              onClick={() => {
+                if(activeConsole !== 'cover') {
+                  navigate({ to: '.', search: { collection: collection.id, console: 'cover' }})
+                  setActiveConsole('cover')
+                }
+              }}
+            >
+              Cover
+            </button>
           </div>
-          {activeConsole === 'sets' ? (
+          { activeConsole === 'sets' ? (
             <>
               <div className="flex flex-row items-center justify-between w-full">
                 <Label className="text-lg ms-2">Photo Sets</Label>
@@ -533,57 +549,59 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   )
                 })}
               </> 
-            ) : (
-              activeConsole === 'share' ? (
-                <>
-                  <div className="flex flex-row items-center justify-start w-full">
-                    <Label className="text-lg ms-2">Templates</Label>
-                  </div>
-                  <div className="border w-full"></div>
-                  {shareTemplates.map((template) => {
-                    const selected = template.id === selectedTemplate?.id
-                    return (
-                      <div 
-                        className={`border border-gray-300 px-3 py-1 flex flex-row justify-between items-center w-full rounded-lg hover:bg-gray-100 
-                          ${selected ? 'bg-gray-200' : ''}`}
-                        onClick={() => {
-                          if(!selected){
-                            setSelectedTemplate(template)
-                          }
-                        }}
-                      >
-                        <span className="italic font-light">{template.name}</span>
-                        <div className="flex flex-row gap-2 items-center">
-                          <Tooltip content={'Delete'} style="light" placement="bottom">
-                            <button
-                              onClick={() => {
-                                setSelectedTemplate((prev) => {
-                                  if(prev?.id === template.id){
-                                    return undefined
-                                  }
-                                  return prev
-                                })
-                                updateShareTemplates((prev) => {
-                                  return prev.filter((parentTemplate) => parentTemplate.id !== template.id)
-                                })
-                                deleteShareTemplate.mutate({
-                                  id: template.id
-                                })
-                              }}
-                            >
-                              <HiOutlineTrash size={20} className="hover:text-gray-700 mt-1"/>
-                            </button>
-                          </Tooltip>
-                        </div>
+          ) : (
+            activeConsole === 'share' ? (
+              <>
+                <div className="flex flex-row items-center justify-start w-full">
+                  <Label className="text-lg ms-2">Templates</Label>
+                </div>
+                <div className="border w-full"></div>
+                {shareTemplates.map((template) => {
+                  const selected = template.id === selectedTemplate?.id
+                  return (
+                    <div 
+                      className={`border border-gray-300 px-3 py-1 flex flex-row justify-between items-center w-full rounded-lg hover:bg-gray-100 
+                        ${selected ? 'bg-gray-200' : ''}`}
+                      onClick={() => {
+                        if(!selected){
+                          setSelectedTemplate(template)
+                        }
+                      }}
+                    >
+                      <span className="italic font-light">{template.name}</span>
+                      <div className="flex flex-row gap-2 items-center">
+                        <Tooltip content={'Delete'} style="light" placement="bottom">
+                          <button
+                            onClick={() => {
+                              setSelectedTemplate((prev) => {
+                                if(prev?.id === template.id){
+                                  return undefined
+                                }
+                                return prev
+                              })
+                              updateShareTemplates((prev) => {
+                                return prev.filter((parentTemplate) => parentTemplate.id !== template.id)
+                              })
+                              deleteShareTemplate.mutate({
+                                id: template.id
+                              })
+                            }}
+                          >
+                            <HiOutlineTrash size={20} className="hover:text-gray-700 mt-1"/>
+                          </button>
+                        </Tooltip>
                       </div>
-                    )
-                  })}
-                </> 
-            ) : (
+                    </div>
+                  )
+                })}
+              </> 
+          ) : (
+            activeConsole === 'cover' ? (
               <></>
-            )
+          ) : (
+            <></>
           )
-          )}
+          )))}
         </div>
         { activeConsole === 'sets' ? (
             selectedSet ? (
@@ -649,7 +667,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                 updateParentTemplates={updateShareTemplates}
               />
             </div>
-          ) : (
+        ) : (
+          activeConsole === 'users' ? (
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
               <UsersPannel
                 collection={collection}
@@ -657,8 +676,16 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                 collectionParticipants={collectionParticipants.data ?? []}
               />
             </div>
-          )
-        )))}
+        ): (
+          <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+            <CoverPannel
+              collection={collection}
+              updateParentCollection={updateParentCollection}
+              cover={coverPath}
+              updatePublishStatus={publishCollection}
+            />
+          </div>
+        )))))}
       </div>
     </>
   )

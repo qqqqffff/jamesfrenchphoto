@@ -304,7 +304,7 @@ function RouteComponent() {
                             />
                           </>
                         )}
-                        <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
+                        <div className={`absolute bottom-2 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
                           <button
                             title={`${picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`}
                             onClick={() => {

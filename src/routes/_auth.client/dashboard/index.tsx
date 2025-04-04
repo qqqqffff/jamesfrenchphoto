@@ -6,6 +6,8 @@ import PDFViewer from '../../../components/common/PDFViewer'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
+import { useQuery } from '@tanstack/react-query'
+import { getParticipantCollectionsQueryOptions } from '../../../services/collectionService'
 
 interface PackagePDFModalProps {
     pdf: File,
@@ -40,15 +42,32 @@ function RouteComponent() {
   const dimensions = useWindowDimensions()
   const navigate = useNavigate()
 
+  const participantCollections = useQuery(
+    getParticipantCollectionsQueryOptions(
+      auth.user?.profile.activeParticipant?.id, 
+      { siPaths: false, siSets: false, siTags: false }
+    )
+  )
+
   const tags: UserTag[] = auth.user?.profile.activeParticipant?.userTags ?? []
 
   const collections = tags
-        .map((tag) => tag.collections)
-        .filter((collection) => collection !== undefined)
-        .reduce((prev, cur) => {
-            prev.push(...((cur).filter((collection) => (prev.find((prevColl) => prevColl.id !== collection.id)) === undefined)))
-            return prev
-        }, [])
+    .map((tag) => tag.collections)
+    .filter((collection) => collection !== undefined)
+    .map((collection) => {
+      const filteredCollection = collection.filter((collection) => 
+        !participantCollections.data?.some((participantCollection) => participantCollection.id === collection.id))
+
+      return filteredCollection
+    })
+    .reduce((prev, cur) => {
+        prev.push(...((cur).filter((collection) => (prev.find((prevColl) => prevColl.id !== collection.id)) === undefined)))
+        return prev
+    }, [])
+
+  if(participantCollections.data) {
+    collections.push(...participantCollections.data)
+  }
 
   return (
     <>
@@ -86,6 +105,7 @@ function RouteComponent() {
             <div className={`grid grid-cols-${dimensions.width > 700 ? 2 : 1} gap-10 mb-4`}>
               {collections
                 .filter((collection) => collection.published)
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                 .map((collection, index) => {
                   return (
                     <CollectionThumbnail 

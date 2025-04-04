@@ -2,11 +2,11 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
   getAllPhotoCollectionsQueryOptions,
   getAllWatermarkObjectsQueryOptions,
-  getPhotoCollectionByIdQueryOptions,
+  getPathQueryOptions,
 } from '../../../services/collectionService'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { PhotoCollectionPannel } from '../../../components/admin/collection/PhotoCollectionPannel'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
 import { useEffect, useState } from 'react'
 import { PhotoCollection, PhotoSet, ShareTemplate, Watermark } from '../../../types'
@@ -36,14 +36,16 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
     const shareTemplates = await context.queryClient.ensureQueryData(getAllShareTemplatesQueryOptions())
     let collection: PhotoCollection | undefined
     let set: PhotoSet | undefined
+    //TODO: convert me to infinite query
+    const collections = await context.queryClient.ensureQueryData(getAllPhotoCollectionsQueryOptions())
+
     if(context.collection){
-      collection = await context.queryClient.ensureQueryData(getPhotoCollectionByIdQueryOptions(context.collection))
+      collection = collections.find((col) => col.id === context.collection)
       if(collection && context.set) {
         set = collection.sets.find((set) => context.set === set.id)
       }
-    }else{
-      collection = undefined
     }
+
     return {
       availableTags,
       watermarkObjects,
@@ -52,8 +54,21 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
       auth: context.auth,
       collectionConsole: context.console ?? 'sets',
       templates: shareTemplates,
+      collections: collections
     }
-  }
+  },
+  pendingComponent: () => (
+    <div className="self-center col-start-2 flex flex-row items-center justify-center min-w-[200px]">
+      <Progress
+        progress={100}
+        textLabel="Loading..."
+        textLabelPosition="inside"
+        labelText
+        size="lg"
+        className="min-w-[200px]"
+      />
+    </div>
+  )
 })
 
 function RouteComponent() {
@@ -64,38 +79,36 @@ function RouteComponent() {
     set, 
     auth, 
     collectionConsole,
-    templates
+    templates,
+    collections
   } = Route.useLoaderData()
   const navigate = useNavigate()
 
+  const [photoCollections, setPhotoCollections] = useState<PhotoCollection[]>(collections)
   const [watermarks, setWatermarks] = useState<Watermark[]>(watermarkObjects)
   const [shareTemplates, setShareTemplates] = useState<ShareTemplate[]>(templates)
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
   const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
   const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>(collection)
 
-  const collections = useQuery(getAllPhotoCollectionsQueryOptions({
-    siTags: true, 
-    siSets: true, 
-    siPaths: true,
-    metric: true,
-  }))
-
   useEffect(() => {
     if(collection !== selectedCollection){
       setSelectedCollection(collection)
     }
-  }, [collection])
+    if(collections.some((parentCollection) => !photoCollections.some((childCollection) => childCollection.id === parentCollection.id))) {
+      setPhotoCollections(collections)
+    }
+  }, [collection, collections])
 
   function filterItems(term: string): undefined | void {
-    if (!term || !collections.data || collections.data.length <= 0) {
+    if (!term) {
       setFilteredItems(undefined)
       return
     }
 
     const normalSearchTerm = term.trim().toLocaleLowerCase()
 
-    const data: PhotoCollection[] = collections.data
+    const data: PhotoCollection[] = photoCollections
       .filter((item) => {
         let filterResult = false
         try {
@@ -113,6 +126,19 @@ function RouteComponent() {
     setFilteredItems(data)
   }
 
+  const coverPaths = useQueries({
+    queries: photoCollections
+      .filter((collection) => collection.coverPath !== undefined)
+      .map((collection) => 
+        getPathQueryOptions(collection.coverPath)
+      )
+  }).map((query, index) => {
+    return {
+      id: photoCollections[index].id,
+      query: photoCollections[index].coverPath ? query : undefined
+    }
+  })
+
   return (
     <>
       <CreateCollectionModal
@@ -120,7 +146,7 @@ function RouteComponent() {
         onClose={() => setCreateCollectionVisible(false)}
         onSubmit={async (collection) => {
           if (collection) {
-            collections.refetch()
+            setPhotoCollections([...photoCollections, collection])
             setSelectedCollection(collection)
             navigate({ to: '.', search: { collection: collection.id }})
           }
@@ -148,28 +174,17 @@ function RouteComponent() {
               </button>
             </div>
             <div className='grid grid-cols-3 border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
-              {collections.isLoading ? (
-                <div className="self-center col-start-2 flex flex-row items-center justify-center min-w-[200px]">
-                  <Progress
-                    progress={100}
-                    textLabel="Loading..."
-                    textLabelPosition="inside"
-                    labelText
-                    size="lg"
-                    className="min-w-[200px]"
-                  />
-                </div>
-              ) : (
-                collections.data && collections.data.length > 0 ? (
+              {photoCollections && photoCollections.length > 0 ? (
                   filteredItems ? (
                     filteredItems.length > 0 ? (
                       filteredItems
                         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                         .map((collection, index) => {
+                          const path = coverPaths?.find((path) => path.id === collection.id)
                           return (
                             <CollectionThumbnail 
                               collectionId={collection.id}
-                              cover={collection.coverPath}
+                              cover={path?.query}
                               onClick={() => {
                                 navigate({to: '.', search: { collection: collection.id }})
                                 setSelectedCollection(collection)
@@ -191,17 +206,18 @@ function RouteComponent() {
                         })
                     ) : (
                       <div className="self-center col-start-2 flex flex-row items-center justify-center">
-                        <span >No results!</span>
+                        <span>No results!</span>
                       </div>
                     )
                   ) : (
-                    collections.data
+                    photoCollections
                       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                       .map((collection, index) => {
+                        const path = coverPaths?.find((path) => path.id === collection.id)
                         return (
                           <CollectionThumbnail 
                             collectionId={collection.id}
-                            cover={collection.coverPath}
+                            cover={path?.query}
                             onClick={() => {
                               navigate({to: '.', search: { collection: collection.id }})
                               setSelectedCollection(collection)
@@ -227,13 +243,13 @@ function RouteComponent() {
                     <span >No collections yet!</span>
                   </div>
                 )
-              )}
+              }
             </div>
           </div>
         </div>
       ) : (
         <PhotoCollectionPannel 
-          coverPath={selectedCollection.coverPath}
+          coverPath={coverPaths?.find((path) => path.id === selectedCollection.id)?.query}
           collection={selectedCollection}
           updateParentCollection={setSelectedCollection}
           set={set}
@@ -254,8 +270,11 @@ function RouteComponent() {
             collectionConsole === 'users' ? (
               'users' as 'users'
             ) : (
+            collectionConsole === 'cover' ? (
+              'cover' as 'cover'
+            ) : (
               'sets' as 'sets'
-            ))))
+            )))))
           }
           shareTemplates={shareTemplates}
           updateShareTemplates={setShareTemplates}

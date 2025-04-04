@@ -1,55 +1,68 @@
-import { ComponentProps, Dispatch, SetStateAction, useCallback, useState } from "react"
+import { ComponentProps, Dispatch, SetStateAction, useCallback, useRef, useState } from "react"
 import { useDropzone } from "react-dropzone"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { deleteCoverMutation, DeleteCoverParams, getPathQueryOptions, uploadCoverMutation, UploadCoverParams } from "../../../services/collectionService"
+import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query"
+import { deleteCoverMutation, DeleteCoverParams, PublishCollectionParams, uploadCoverMutation, UploadCoverParams } from "../../../services/collectionService"
 import { CgSpinner } from "react-icons/cg";
 import { ConfirmationModal } from "../../modals"
+import { PhotoCollection } from "../../../types";
 
 interface CollectionThumbnailProps extends ComponentProps<'div'> {
   collectionId: string,
-  cover?: string,
+  cover?: UseQueryResult<[string | undefined, string] | undefined, Error>,
   onClick?: () => void,
   allowUpload?: boolean,
   contentChildren?: JSX.Element,
   parentLoading?: boolean,
-  setCover?: Dispatch<SetStateAction<string | undefined>>
+  updateParentCollection?: Dispatch<SetStateAction<PhotoCollection | undefined>>
+  updatePublishStatus?: UseMutationResult<string | undefined, Error, PublishCollectionParams, unknown>
 }
 
 export const CollectionThumbnail= ({ 
-  collectionId, onClick, 
-  cover, allowUpload, 
-  contentChildren, parentLoading,
-  setCover
+  collectionId, onClick, cover, allowUpload, 
+  contentChildren, updateParentCollection,
+  updatePublishStatus
 }: CollectionThumbnailProps) => {
-  const [loading, setLoading] = useState(parentLoading ?? false)
   const [hovering, setHovering] = useState(false)
-  const [fileUpload, setFileUpload] = useState<File>()
+  const fileUpload = useRef<File | null>(null)
   const [confirmationOpen, setConfirmationOpen] = useState(false)
-
-  const coverPath = useQuery({
-    ...getPathQueryOptions(cover ?? ''),
-    enabled: cover !== undefined
-  })
   
   const uploadCover = useMutation({
     mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
     onSuccess: (path) => {
-      setLoading(false)
-      setFileUpload(undefined)
-      setCover!(path)
+      updateParentCollection!((prev) => {
+        if(prev) {
+          const temp: PhotoCollection = {
+            ...prev,
+            coverPath: path,
+            published: false,
+            publicCoverPath: undefined
+          }
+          if(prev.published) {
+            updatePublishStatus!.mutate({
+              collectionId: prev.id,
+              publishStatus: false,
+              path: prev.publicCoverPath ?? '',
+              name: '',
+              options: {
+                logging: true
+              }
+            })
+          }
+          return temp
+        }
+        
+        return prev
+      })
     },
-    onError: () => {
-      setFileUpload(undefined)
-      setLoading(false)
-    }
+    onSettled: () => fileUpload.current = null
   })
 
   const deleteCover = useMutation({
     mutationFn: (params: DeleteCoverParams) => deleteCoverMutation(params),
     onSettled: () => {
-      if(fileUpload) {
+      if(fileUpload.current) {
         uploadCover.mutate({
-          cover: fileUpload,
+          cover: fileUpload.current,
           collectionId: collectionId,
         })
       }
@@ -58,7 +71,7 @@ export const CollectionThumbnail= ({
   
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if(acceptedFiles.length > 0){
-      setFileUpload(acceptedFiles[0])
+      fileUpload.current = acceptedFiles[0]
       setConfirmationOpen(true)
     }
   }, [])
@@ -74,7 +87,7 @@ export const CollectionThumbnail= ({
     multiple: false
   }) : null
 
-  const confirmationBody = coverPath ? (
+  const confirmationBody = cover?.data ? (
     `This action will <b>Replace</b> the previous cover for this collection with the selected file.\nPress continue or cancel to proceed.`
   ) : (
     `This action will <b>Set</b> the cover for this collection to the selected file.\nPress continue or cancel to proceed.`
@@ -83,22 +96,21 @@ export const CollectionThumbnail= ({
   return (
     <>
       <ConfirmationModal 
-        title={coverPath ? 'Replace Collection Cover' : 'Set Collection Cover'}
+        title={cover?.data ? 'Replace Collection Cover' : 'Set Collection Cover'}
         body={confirmationBody}
         denyText="Cancel"
         confirmText="Continue"
         confirmAction={() => {
-          setLoading(true)
           setConfirmationOpen(false)
-          if(fileUpload){
-            if(coverPath){
-              deleteCover.mutateAsync({
-                cover: cover,
+          if(fileUpload.current){
+            if(cover?.data){
+              deleteCover.mutate({
+                cover: cover.data[1],
                 collectionId: collectionId,
               })
             } else {
               uploadCover.mutate({
-                cover: fileUpload,
+                cover: fileUpload.current,
                 collectionId: collectionId,
               })
             }
@@ -108,7 +120,7 @@ export const CollectionThumbnail= ({
         open={confirmationOpen}
       />
       <div className="flex flex-col">
-        {(loading || coverPath.isLoading) && cover !== undefined ? (
+        {(cover?.isLoading || uploadCover.isPending || deleteCover.isPending) && cover !== undefined ? (
           <div className="flex flex-col justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] cursor-wait">
             <CgSpinner size={64} className="animate-spin text-gray-600"/>
           </div>
@@ -120,8 +132,8 @@ export const CollectionThumbnail= ({
               onMouseEnter={() => setHovering(true)}
               onMouseLeave={() => setHovering(false)}
             >
-              {(coverPath && coverPath.data) ? (
-                <img src={coverPath.data[1]} className="h-[238px] max-w-[358px] rounded-lg"/>
+              {(cover && cover.data) ? (
+                <img src={cover.data[1]} className="h-[238px] max-w-[358px] rounded-lg"/>
               ) : (
                 <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
                   <p className={`font-thin opacity-90 text-2xl`}>No Cover</p>
@@ -136,9 +148,9 @@ export const CollectionThumbnail= ({
               onMouseEnter={() => setHovering(true)}
               onMouseLeave={() => setHovering(false)}
             >
-              {coverPath && coverPath.data ? (
+              {cover && cover.data ? (
                 <>
-                  <img src={coverPath.data[1]} className="h-[238px] max-w-[358px] rounded-lg"/>
+                  <img src={cover.data[1]} className="h-[238px] max-w-[358px] rounded-lg"/>
                   {hovering && (
                     <span className="absolute place-self-center">Click to upload</span>
                   )}
