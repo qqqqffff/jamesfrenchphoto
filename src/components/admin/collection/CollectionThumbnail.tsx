@@ -6,6 +6,7 @@ import { CgSpinner } from "react-icons/cg";
 import { ConfirmationModal } from "../../modals"
 import { PhotoCollection } from "../../../types";
 
+//TODO: consolidate cover uploader
 interface CollectionThumbnailProps extends ComponentProps<'div'> {
   collectionId: string,
   cover?: UseQueryResult<[string | undefined, string] | undefined, Error>,

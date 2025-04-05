@@ -31,7 +31,6 @@ export const CoverPannel = (props: CoverPannelProps) => {
         <>
           <span className="font-light italic text-xl">Cover Preview</span>
           <Cover 
-            coverType={coverType}
             path={props.cover.data[1]}
             collection={props.collection}
             style={{ maxHeight: '92vh', maxWidth: '100%' }}

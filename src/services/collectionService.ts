@@ -91,7 +91,8 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
             textColor: collection.coverType?.textColor ?? undefined,
             bgColor: collection.coverType?.bgColor ?? undefined,
             placement: collection.coverType?.placement ?? undefined,
-            date: collection.coverType?.date ? new Date(collection.coverType.date) : undefined
+            textPlacement: collection.coverType?.textPlacement ?? undefined,
+            date: collection.coverType?.date ?? undefined
           },
           publicCoverPath: collection.publicCoverPath ?? undefined,
           downloadable: collection.downloadable ?? false,
@@ -201,7 +202,8 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
             textColor: collectionResponse.data.coverType?.textColor ?? undefined,
             bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
             placement: collectionResponse.data.coverType?.placement ?? undefined,
-            date: collectionResponse.data.coverType?.date ? new Date(collectionResponse.data.coverType.date) : undefined
+            textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
+            date: collectionResponse.data.coverType?.date ?? undefined
           },
           downloadable: collectionResponse.data.downloadable ?? false,
           watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
@@ -273,9 +275,9 @@ async function getPathsDataMapFromPaths(paths: PicturePath[]): Promise<Map<strin
     return map
 }
 
-async function getPath(path?: string, id?: string): Promise<[string | undefined, string] | undefined> {
+async function getPath(path?: string, id?: string): Promise<[string | undefined, string]> {
   console.log('api call')
-  if(!path) return
+  if(!path) return [id, '']
   return [id, (await getUrl({
     path: path
   })).url.toString()]
@@ -351,7 +353,8 @@ async function getCollectionById(client: V6Client<Schema>, collectionId: string,
         textColor: collection.data.coverType?.textColor ?? undefined,
         bgColor: collection.data.coverType?.bgColor ?? undefined,
         placement: collection.data.coverType?.placement ?? undefined,
-        date: collection.data.coverType?.date ? new Date(collection.data.coverType.date) : undefined
+        textPlacement: collection.data.coverType?.textPlacement ?? undefined,
+        date: collection.data.coverType?.date ?? undefined
     },
     items: collection.data.items ?? 0,
     published: collection.data.published ?? false,
@@ -474,7 +477,8 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
         textColor: collectionResponse.data.coverType?.textColor ?? undefined,
         bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
         placement: collectionResponse.data.coverType?.placement ?? undefined,
-        date: collectionResponse.data.coverType?.date ? new Date(collectionResponse.data.coverType.date) : undefined
+        textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
+        date: collectionResponse.data.coverType?.date ?? undefined
       },
       tags: params.tags,
       downloadable: params.downloadable,
@@ -549,7 +553,8 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
         params.coverType?.bgColor !== params.collection.coverType?.bgColor ||
         params.coverType?.textColor !== params.collection.coverType?.textColor ||
         params.coverType?.placement !== params.collection.coverType?.placement ||
-        params.coverType?.date?.getTime() !== params.collection.coverType?.date?.getTime()
+        params.coverType?.textPlacement !== params.collection.coverType?.textPlacement ||
+        params.coverType?.date !== params.collection.coverType?.date
       )
     ) {
         const response = await client.models.PhotoCollection.update({
@@ -565,7 +570,8 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
               textColor: params.coverType ? params.coverType.textColor ?? null : params.collection.coverType?.textColor,
               bgColor: params.coverType ? params.coverType.bgColor ?? null : params.collection.coverType?.bgColor,
               placement: params.coverType ? params.coverType.placement ?? null : params.collection.coverType?.placement,
-              date: params.coverType ? params.coverType.date?.toISOString() ?? null : params.collection.coverType?.date?.toISOString(),
+              textPlacement: params.coverType ? params.coverType.textPlacement ?? null : params.collection.coverType?.textPlacement,
+              date: params.coverType ? params.coverType.date ?? null : params.collection.coverType?.date,
             }
         })
         if(params.options?.logging) console.log(response)

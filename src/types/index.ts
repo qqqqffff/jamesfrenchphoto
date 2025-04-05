@@ -93,8 +93,9 @@ export type Watermark = {
 export type CoverType = {
     textColor?: string,
     bgColor?: string,
-    placement?: 'center' | 'left' | 'right'
-    date?: Date
+    placement?: 'center' | 'left' | 'right',
+    textPlacement?: 'center' | 'top' | 'bottom'
+    date?: string
 }
 
 export type PhotoCollection = {

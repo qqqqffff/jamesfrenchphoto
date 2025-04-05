@@ -10,11 +10,12 @@ import { useQueries } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
 import { useEffect, useState } from 'react'
 import { PhotoCollection, PhotoSet, ShareTemplate, Watermark } from '../../../types'
-import { Progress, TextInput, Tooltip } from 'flowbite-react'
+import { TextInput, Tooltip } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
 import { getAllShareTemplatesQueryOptions } from '../../../services/shareService'
+import Loading from '../../../components/common/Loading'
 
 interface CollectionSearchParams {
   collection?: string,
@@ -37,7 +38,11 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
     let collection: PhotoCollection | undefined
     let set: PhotoSet | undefined
     //TODO: convert me to infinite query
-    const collections = await context.queryClient.ensureQueryData(getAllPhotoCollectionsQueryOptions())
+    const collections = await context.queryClient.ensureQueryData(getAllPhotoCollectionsQueryOptions({
+      siTags: true,
+      siSets: true,
+      siPaths: true
+    }))
 
     if(context.collection){
       collection = collections.find((col) => col.id === context.collection)
@@ -58,15 +63,15 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
     }
   },
   pendingComponent: () => (
-    <div className="self-center col-start-2 flex flex-row items-center justify-center min-w-[200px]">
-      <Progress
-        progress={100}
-        textLabel="Loading..."
-        textLabelPosition="inside"
-        labelText
-        size="lg"
-        className="min-w-[200px]"
-      />
+    <div className="flex flex-col w-full items-center justify-center mt-2">
+      <div className="w-[80%] flex flex-col">
+        <div className='border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
+          <div className="self-center grid grid-cols-2 min-w-[200px]">
+            <span className='flex flex-row-reverse'>Loading Collections</span>
+            <Loading className='self-start'/>
+          </div>
+        </div>
+      </div>
     </div>
   )
 })
@@ -128,9 +133,8 @@ function RouteComponent() {
 
   const coverPaths = useQueries({
     queries: photoCollections
-      .filter((collection) => collection.coverPath !== undefined)
       .map((collection) => 
-        getPathQueryOptions(collection.coverPath)
+        getPathQueryOptions(collection.coverPath, collection.id)
       )
   }).map((query, index) => {
     return {

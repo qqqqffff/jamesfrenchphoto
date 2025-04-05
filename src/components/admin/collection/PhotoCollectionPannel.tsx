@@ -1,4 +1,4 @@
-import { Dispatch, FC, SetStateAction, useEffect, useState } from "react"
+import { Dispatch, FC, SetStateAction, useEffect, useRef, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet, ShareTemplate } from "../../../types"
 import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
@@ -19,7 +19,9 @@ import {
   publishCollectionMutation, 
   PublishCollectionParams, 
   updateCollectionMutation, 
-  UpdateCollectionParams 
+  UpdateCollectionParams, 
+  uploadCoverMutation, 
+  UploadCoverParams
 } from "../../../services/collectionService"
 import Loading from "../../common/Loading"
 import { detectDuplicates } from "./utils"
@@ -44,6 +46,7 @@ import { CgSpinner } from "react-icons/cg"
 import { UsersPannel } from "./UsersPannel"
 import { getAllParticipantsQueryOptions } from "../../../services/userService"
 import { CoverPannel } from "./CoverPannel"
+import { CoverSidePannel } from "./CoverSidePannel"
 
 interface PhotoCollectionPannelProps {
   watermarkObjects: Watermark[],
@@ -77,6 +80,8 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<ShareTemplate>()
   const [deleteCollectionVisible, setDeleteCollectionVisible] = useState(false)
+  const fileUpload = useRef<File | null>(null)
+  const [uploadCoverPhotoVisible, setUploadCoverPhotoVisible] = useState(false)
 
   const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share' | 'users' | 'cover'>(parentActiveConsole)
 
@@ -155,7 +160,48 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
 
   const collectionParticipants = useQuery(getAllCollectionParticipantsQueryOptions(collection.id))
 
-  // const coverPathQuery = useQuery(getPathQueryOptions(coverPath))
+  const uploadCover = useMutation({
+    mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
+    onSuccess: (path) => {
+      updateParentCollection((prev) => {
+        if(prev) {
+          const temp: PhotoCollection = {
+            ...prev,
+            coverPath: path,
+            published: false,
+            publicCoverPath: undefined
+          }
+          if(prev.published) {
+            publishCollection.mutate({
+              collectionId: prev.id,
+              publishStatus: false,
+              path: prev.publicCoverPath ?? '',
+              name: '',
+              options: {
+                logging: true
+              }
+            })
+          }
+          return temp
+        }
+        
+        return prev
+      })
+    },
+    onSettled: () => fileUpload.current = null
+  })
+
+  const deleteCover = useMutation({
+    mutationFn: (params: DeleteCoverParams) => deleteCoverMutation(params),
+    onSettled: () => {
+      if(fileUpload.current) {
+        uploadCover.mutate({
+          cover: fileUpload.current,
+          collectionId: collection.id,
+        })
+      }
+    }
+  })
 
   //all cover paths, each set has paths, warn if less than 20 and if has duplicates
   const publishable: Publishable = (() => {
@@ -190,6 +236,12 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
     return publishable
   })()
 
+  const confirmationBody = coverPath?.data ? (
+    `This action will <b>Replace</b> the previous cover for this collection with the selected file.\nPress continue or cancel to proceed.`
+  ) : (
+    `This action will <b>Set</b> the cover for this collection to the selected file.\nPress continue or cancel to proceed.`
+  )
+
   return (
     <>
       <CreateCollectionModal
@@ -219,6 +271,30 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
         }}
         onClose={() => setDeleteCollectionVisible(false)}
         open={deleteCollectionVisible}
+      />
+      <ConfirmationModal 
+        title={coverPath?.data ? 'Replace Collection Cover' : 'Set Collection Cover'}
+        body={confirmationBody}
+        denyText="Cancel"
+        confirmText="Continue"
+        confirmAction={() => {
+          setUploadCoverPhotoVisible(false)
+          if(fileUpload.current){
+            if(coverPath?.data){
+              deleteCover.mutate({
+                cover: coverPath.data[1],
+                collectionId: collection.id,
+              })
+            } else {
+              uploadCover.mutate({
+                cover: fileUpload.current,
+                collectionId: collection.id,
+              })
+            }
+          }
+        }}
+        onClose={() => setUploadCoverPhotoVisible(false)}
+        open={uploadCoverPhotoVisible}
       />
       <div className="flex flex-row mx-4 mt-4 gap-4">
         <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
@@ -472,7 +548,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                 />
               </div>
             </>
-           ) : (
+          ) : (
             activeConsole === 'watermarks' ? (
               <>
                 <div className="flex flex-row items-center justify-between w-full">
@@ -597,7 +673,12 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               </> 
           ) : (
             activeConsole === 'cover' ? (
-              <></>
+              <CoverSidePannel 
+                setUploadCoverVisible={setUploadCoverPhotoVisible}
+                fileUpload={fileUpload}
+                updateParentCollection={updateParentCollection}
+                collection={collection}
+              />
           ) : (
             <></>
           )

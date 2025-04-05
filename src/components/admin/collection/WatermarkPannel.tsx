@@ -15,6 +15,7 @@ interface WatermarkPannelProps {
   setSelectedWatermark: Dispatch<SetStateAction<Watermark | undefined>>
 }
 
+//TODO: state updating
 export const WatermarkPannel = (props: WatermarkPannelProps) => {
   const previewRef = useRef<HTMLImageElement | null>(null)
   const [collectionWatermark, setCollectionWatermark] = useState(props.collection.watermarkPath)
@@ -27,7 +28,6 @@ export const WatermarkPannel = (props: WatermarkPannelProps) => {
     if(props.collection.watermarkPath !== collectionWatermark) return true
     return props.collection.sets.reduce((prev, cur) => {
       if(prev === true) return true
-      console.log(cur.watermarkPath, setWatermarks[cur.id])
       if(cur.watermarkPath !== setWatermarks[cur.id]) return true
       return false
     }, false)
@@ -76,11 +76,11 @@ export const WatermarkPannel = (props: WatermarkPannelProps) => {
               )}
             </div>
             <div className="flex flex-col place-self-start justify-self-center gap-1.5">
-              {props.collection.sets.map((set) => {
+              {props.collection.sets.map((set, index) => {
                 const selected = (setWatermarks[set.id] === props.selectedWatermark?.path) && props.selectedWatermark !== undefined
                 const disabled = collectionWatermark !== undefined
                 return (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col" key={index}>
                     <button 
                       className={`flex flex-row items-center gap-1 ${disabled ? 'cursor-not-allowed' : ''}`}
                       disabled={disabled}
