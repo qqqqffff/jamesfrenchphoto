@@ -23,6 +23,7 @@ interface UploadImagesProps extends ModalProps {
   updatePicturePaths: Dispatch<SetStateAction<PicturePath[]>>,
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
+  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
 }
 
 async function validateFiles(
@@ -174,7 +175,8 @@ async function validateFiles(
 export const UploadImagesModal: FC<UploadImagesProps> = ({ 
   open, onClose, collection, set, files, 
   createUpload, updateUpload, updatePicturePaths,
-  parentUpdateSet, parentUpdateCollection
+  parentUpdateSet, parentUpdateCollection,
+  parentUpdateCollections
 }) => {
   const [filesUpload, setFilesUpload] = useState<Map<string, File>>(files)
   const [filesPreview, setFilesPreview] = useState<Map<string, File>>()
@@ -224,6 +226,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
         updatePaths: updatePicturePaths,
         parentUpdateSet: parentUpdateSet,
         parentUpdateCollection: parentUpdateCollection,
+        parentUpdateCollections: parentUpdateCollections,
         totalUpload: totalUpload,
         duplicates: Object.fromEntries(set.paths
           .filter((path) => filesUpload.get(parsePathName(path.path)) !== undefined)

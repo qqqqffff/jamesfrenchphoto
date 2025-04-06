@@ -15,13 +15,14 @@ interface CollectionThumbnailProps extends ComponentProps<'div'> {
   contentChildren?: JSX.Element,
   parentLoading?: boolean,
   updateParentCollection?: Dispatch<SetStateAction<PhotoCollection | undefined>>
+  updateParentCollections?: Dispatch<SetStateAction<PhotoCollection[]>>
   updatePublishStatus?: UseMutationResult<string | undefined, Error, PublishCollectionParams, unknown>
 }
 
 export const CollectionThumbnail= ({ 
   collectionId, onClick, cover, allowUpload, 
   contentChildren, updateParentCollection,
-  updatePublishStatus
+  updatePublishStatus, updateParentCollections
 }: CollectionThumbnailProps) => {
   const [hovering, setHovering] = useState(false)
   const fileUpload = useRef<File | null>(null)
@@ -30,9 +31,10 @@ export const CollectionThumbnail= ({
   const uploadCover = useMutation({
     mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
     onSuccess: (path) => {
+      let temp: PhotoCollection | undefined
       updateParentCollection!((prev) => {
         if(prev) {
-          const temp: PhotoCollection = {
+          temp = {
             ...prev,
             coverPath: path,
             published: false,
@@ -53,6 +55,14 @@ export const CollectionThumbnail= ({
         }
         
         return prev
+      })
+      updateParentCollections!((prev) => {
+        const pTemp = [...prev]
+
+        return pTemp.map((col) => {
+          if(col.id === temp?.id) return temp
+          return col
+        })
       })
     },
     onSettled: () => fileUpload.current = null

@@ -35,13 +35,14 @@ export type PhotoCollectionProps = {
   deleteParentSet: (setId: string) => void,
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
+  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
   auth: AuthContext
 }
 
 export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ 
   photoCollection, photoSet, 
   paths, deleteParentSet, parentUpdateSet,
-  parentUpdateCollection, auth
+  parentUpdateCollection, auth, parentUpdateCollections
 }) => {
   const [picturePaths, setPicturePaths] = useState(paths)
   const [searchText, setSearchText] = useState<string>('')
@@ -59,8 +60,8 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
 
   function pictureStyle(id: string){
     const conditionalBackground = selectedPhotos.find((path) => path.id === id) !== undefined ? 
-    `bg-gray-100 border-cyan-400` : `bg-transparent border-gray-500 border-gray-500`
-    return 'relative px-4 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent ' + conditionalBackground
+    `bg-gray-100 border-cyan-400` : `bg-transparent border-gray-500`
+    return 'relative px-8 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent min-w-max ' + conditionalBackground
   }
 
   function controlsEnabled(id: string, override: boolean){
@@ -95,24 +96,35 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
 
   const uploadImages = useMutation({
     mutationFn: (params: UploadImagesMutationParams) => uploadImagesMutation(params),
-    onSettled: () => parentUpdateCollection({
-      ...photoCollection,
-      items: photoCollection.sets.reduce((prev, cur) => {
-        if(cur.id === photoSet.id){
-          return prev += picturePaths.length
-        }
-        return prev += cur.paths.length
-      }, 0),
-      sets: photoCollection.sets.map((set) => {
-        if(set.id === photoSet.id){
-          return {
-            ...set,
-            paths: picturePaths
+    onSettled: () => {
+      const temp: PhotoCollection = {
+        ...photoCollection,
+        items: photoCollection.sets.reduce((prev, cur) => {
+          if(cur.id === photoSet.id){
+            return prev += picturePaths.length
           }
-        }
-        return set
+          return prev += cur.paths.length
+        }, 0),
+        sets: photoCollection.sets.map((set) => {
+          if(set.id === photoSet.id){
+            return {
+              ...set,
+              paths: picturePaths
+            }
+          }
+          return set
+        })
+      }
+      parentUpdateCollection(temp)
+      parentUpdateCollections((prev) => {
+        const pTemp = [...prev]
+
+        return pTemp.map((col) => {
+          if(col.id === temp.id) return temp
+          return col
+        })
       })
-    })
+    }
   })
 
   const deleteSet = useMutation({
@@ -186,6 +198,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
         updatePicturePaths={setPicturePaths}
         parentUpdateSet={parentUpdateSet}
         parentUpdateCollection={parentUpdateCollection}
+        parentUpdateCollections={parentUpdateCollections}
         onClose={() => setFilesUploading(undefined)}
         open={filesUploading !== undefined}
       />
@@ -221,6 +234,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
         parentUpdatePaths={setPicturePaths}
         parentUpdateSet={parentUpdateSet}
         parentUpdateCollection={parentUpdateCollection}
+        parentUpdateCollections={parentUpdateCollections}
         selectedPhotos={selectedPhotos} 
         parentUpdateSelectedPhotos={setSelectedPhotos}
       />
@@ -244,22 +258,25 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
               ...photoSet,
               name: text
             }
-            parentUpdateSet(tempSet)
-            parentUpdateCollection((prev) => {
-              if(prev) {
-                const temp: PhotoCollection = {
-                  ...prev,
-                  sets: prev.sets.map((set) => {
-                    if(set.id === photoSet.id) {
-                      return tempSet
-                    }
-                    return set
-                  })
-                }
 
-                return temp
-              }
-              return prev
+            const tempCollection: PhotoCollection = {
+              ...photoCollection,
+              sets: photoCollection.sets.map((set) => {
+                if(set.id === photoSet.id) {
+                  return tempSet
+                }
+                return set
+              })
+            }
+            parentUpdateSet(tempSet)
+            parentUpdateCollection(tempCollection)
+            parentUpdateCollections((prev) => {
+              const temp = [...prev]
+
+              return temp.map((col) => {
+                if(col.id === tempCollection.id) return tempCollection
+                return col
+              })
             })
           }} 
           onSubmitError={(message) => {
@@ -372,6 +389,7 @@ export const PhotoSetPannel: FC<PhotoCollectionProps> = ({
           parentUpdatePaths={setPicturePaths}
           parentUpdateSet={parentUpdateSet}
           parentUpdateCollection={parentUpdateCollection}
+          parentUpdateCollections={parentUpdateCollections}
           urls={pathUrls}
           pictureStyle={pictureStyle}
           selectedPhotos={selectedPhotos}

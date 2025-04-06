@@ -12,6 +12,7 @@ import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart } from 'react-i
 import { downloadImageMutation, DownloadImageMutationParams } from '../services/photoPathService'
 import { HiOutlineDownload } from 'react-icons/hi'
 import { UnauthorizedEmailModal } from '../components/modals'
+import { Cover } from '../components/collection/Cover'
 
 interface PhotoCollectionParams {
   set?: string,
@@ -214,25 +215,12 @@ function RouteComponent() {
             </Button>
           )}
         </div>
-        <div className="flex flex-row justify-center items-center mb-2 relative bg-gray-200">
-          <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
-            <div className='bg-white bg-opacity-30 flex flex-col gap-2 px-10 py-4'>
-              <p className={`${dimensions.width > 1600 ? "text-7xl" : 'text-5xl' } font-thin font-birthstone`}>{collection.name}</p>
-              <p className="italic text-xl">{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
-            </div>
-            <button 
-              className='border rounded-lg py-1.5 px-2 animate-pulse mt-10'
-              onClick={() => {
-                if(collectionRef.current){
-                  collectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-              }}
-            >
-              Go to Sets
-            </button>
-          </div>
-          <img ref={coverPhotoRef} src={data.coverPath} style={{ maxHeight: '100vh', minHeight: '100vh' }} />
-        </div>
+        <Cover 
+          path={data.coverPath}
+          collection={collection}
+          collectionRef={collectionRef}
+          coverRef={coverPhotoRef}
+        />
         <div className='grid grid-cols-3 items-center px-8 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
           <div className='flex flex-col items-start font-bodoni'>
             <span className='font-bold text-lg'>James French Photograpahy</span>

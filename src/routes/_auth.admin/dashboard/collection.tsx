@@ -256,6 +256,7 @@ function RouteComponent() {
           coverPath={coverPaths?.find((path) => path.id === selectedCollection.id)?.query}
           collection={selectedCollection}
           updateParentCollection={setSelectedCollection}
+          updateParentCollections={setPhotoCollections}
           set={set}
           watermarkObjects={watermarks}
           updateWatermarkObjects={setWatermarks}

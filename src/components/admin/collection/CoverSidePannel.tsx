@@ -1,15 +1,19 @@
-import { Checkbox, Datepicker, Label, Radio } from "flowbite-react"
+import { Button, Checkbox, Datepicker, Label, Radio } from "flowbite-react"
 import { Dispatch, MutableRefObject, SetStateAction } from "react"
 import { HiOutlineUpload } from "react-icons/hi"
 import { PhotoCollection } from "../../../types"
 import { defaultColors } from "../../../utils"
 import { BiSolidSquareRounded } from "react-icons/bi"
+import { UseMutationResult } from "@tanstack/react-query"
+import { UpdateCollectionParams } from "../../../services/collectionService"
 
 interface CoverSidePannel {
   setUploadCoverVisible: Dispatch<SetStateAction<boolean>>
   fileUpload: MutableRefObject<File | null>
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
+  updateParentCollections: Dispatch<SetStateAction<PhotoCollection[]>>
   collection: PhotoCollection
+  updateCollectionMutation: UseMutationResult<PhotoCollection, Error, UpdateCollectionParams, unknown>
 }
 
 export const CoverSidePannel = (props: CoverSidePannel) => {
@@ -45,9 +49,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
             className="self-start flex flex-row gap-2 items-center ms-2"
             onClick={() => {
               //TODO: connect api call
+              let temp: PhotoCollection | undefined
               props.updateParentCollection((prev) => {
                 if(prev) {
-                  const temp: PhotoCollection = {
+                  temp = {
                     ...prev,
                     coverType: {
                       ...prev.coverType,
@@ -56,6 +61,14 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   }
                   return temp
                 }
+              })
+              props.updateParentCollections((prev) => {
+                const pTemp = [...prev]
+    
+                return pTemp.map((col) => {
+                  if(col.id === temp?.id) return temp
+                  return col
+                })
               })
             }}
           >
@@ -69,9 +82,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
             className="self-start flex flex-row gap-2 items-center ms-2"
             onClick={() => {
               //TODO: connect api call
+              let temp: PhotoCollection | undefined
               props.updateParentCollection((prev) => {
                 if(prev) {
-                  const temp: PhotoCollection = {
+                  temp = {
                     ...prev,
                     coverType: {
                       ...prev.coverType,
@@ -80,6 +94,14 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   }
                   return temp
                 }
+              })
+              props.updateParentCollections((prev) => {
+                const pTemp = [...prev]
+    
+                return pTemp.map((col) => {
+                  if(col.id === temp?.id) return temp
+                  return col
+                })
               })
             }}
           >
@@ -93,9 +115,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
             className="self-start flex flex-row gap-2 items-center ms-2"
             onClick={() => {
               //TODO: connect api call
+              let temp: PhotoCollection | undefined
               props.updateParentCollection((prev) => {
                 if(prev) {
-                  const temp: PhotoCollection = {
+                  temp = {
                     ...prev,
                     coverType: {
                       ...prev.coverType,
@@ -104,6 +127,14 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   }
                   return temp
                 }
+              })
+              props.updateParentCollections((prev) => {
+                const pTemp = [...prev]
+    
+                return pTemp.map((col) => {
+                  if(col.id === temp?.id) return temp
+                  return col
+                })
               })
             }}
           >
@@ -120,9 +151,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
             className="self-start flex flex-row gap-2 items-center ms-2"
             onClick={() => {
               //TODO: connect api call
+              let temp: PhotoCollection | undefined
               props.updateParentCollection((prev) => {
                 if(prev) {
-                  const temp: PhotoCollection = {
+                  temp = {
                     ...prev,
                     coverType: {
                       ...prev.coverType,
@@ -131,6 +163,14 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   }
                   return temp
                 }
+              })
+              props.updateParentCollections((prev) => {
+                const pTemp = [...prev]
+    
+                return pTemp.map((col) => {
+                  if(col.id === temp?.id) return temp
+                  return col
+                })
               })
             }}
           >
@@ -144,9 +184,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
             className="self-start flex flex-row gap-2 items-center ms-2"
             onClick={() => {
               //TODO: connect api call
+              let temp: PhotoCollection | undefined
               props.updateParentCollection((prev) => {
                 if(prev) {
-                  const temp: PhotoCollection = {
+                  temp = {
                     ...prev,
                     coverType: {
                       ...prev.coverType,
@@ -155,6 +196,14 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   }
                   return temp
                 }
+              })
+              props.updateParentCollections((prev) => {
+                const pTemp = [...prev]
+    
+                return pTemp.map((col) => {
+                  if(col.id === temp?.id) return temp
+                  return col
+                })
               })
             }}
           >
@@ -168,9 +217,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
             className="self-start flex flex-row gap-2 items-center ms-2"
             onClick={() => {
               //TODO: connect api call
+              let temp: PhotoCollection | undefined
               props.updateParentCollection((prev) => {
                 if(prev) {
-                  const temp: PhotoCollection = {
+                  temp = {
                     ...prev,
                     coverType: {
                       ...prev.coverType,
@@ -179,6 +229,14 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   }
                   return temp
                 }
+              })
+              props.updateParentCollections((prev) => {
+                const pTemp = [...prev]
+    
+                return pTemp.map((col) => {
+                  if(col.id === temp?.id) return temp
+                  return col
+                })
               })
             }}
           >
@@ -201,9 +259,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   className={className} 
                   onClick={() => {
                     if(color !== props.collection.coverType?.bgColor) { 
+                      let temp: PhotoCollection | undefined
                       props.updateParentCollection((prev) => {
                         if(prev) {
-                          const temp: PhotoCollection = {
+                          temp = {
                             ...prev,
                             coverType: {
                               ...prev.coverType,
@@ -213,10 +272,19 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                           return temp
                         }
                       })
+                      props.updateParentCollections((prev) => {
+                        const pTemp = [...prev]
+            
+                        return pTemp.map((col) => {
+                          if(col.id === temp?.id) return temp
+                          return col
+                        })
+                      })
                     } else {
+                      let temp: PhotoCollection | undefined
                       props.updateParentCollection((prev) => {
                         if(prev) {
-                          const temp: PhotoCollection = {
+                          temp = {
                             ...prev,
                             coverType: {
                               ...prev.coverType,
@@ -225,6 +293,14 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                           }
                           return temp
                         }
+                      })
+                      props.updateParentCollections((prev) => {
+                        const pTemp = [...prev]
+            
+                        return pTemp.map((col) => {
+                          if(col.id === temp?.id) return temp
+                          return col
+                        })
                       })
                     }
                   }}
@@ -245,9 +321,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   className={className} 
                   onClick={() => {
                     if(color !== props.collection.coverType?.textColor) { 
+                      let temp: PhotoCollection | undefined
                       props.updateParentCollection((prev) => {
                         if(prev) {
-                          const temp: PhotoCollection = {
+                          temp = {
                             ...prev,
                             coverType: {
                               ...prev.coverType,
@@ -257,7 +334,16 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                           return temp
                         }
                       })
+                      props.updateParentCollections((prev) => {
+                        const pTemp = [...prev]
+            
+                        return pTemp.map((col) => {
+                          if(col.id === temp?.id) return temp
+                          return col
+                        })
+                      })
                     } else {
+                      let temp: PhotoCollection | undefined
                       props.updateParentCollection((prev) => {
                         if(prev) {
                           const temp: PhotoCollection = {
@@ -269,6 +355,14 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                           }
                           return temp
                         }
+                      })
+                      props.updateParentCollections((prev) => {
+                        const pTemp = [...prev]
+            
+                        return pTemp.map((col) => {
+                          if(col.id === temp?.id) return temp
+                          return col
+                        })
                       })
                     }
                   }}
@@ -285,9 +379,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
             className="flex flex-row gap-2 items-center ms-2"
             onClick={() => {
               //TODO: connect api call
+              let temp: PhotoCollection | undefined
               props.updateParentCollection((prev) => {
                 if(prev) {
-                  const temp: PhotoCollection = {
+                  temp = {
                     ...prev,
                     coverType: {
                       ...prev.coverType,
@@ -296,6 +391,14 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   }
                   return temp
                 }
+              })
+              props.updateParentCollections((prev) => {
+                const pTemp = [...prev]
+    
+                return pTemp.map((col) => {
+                  if(col.id === temp?.id) return temp
+                  return col
+                })
               })
             }}
           >
@@ -312,9 +415,10 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
           value={props.collection.coverType?.date && props.collection.coverType.date !== 'none' ? new Date(props.collection.coverType.date) : new Date(props.collection.createdAt)}
           onChange={(event) => {
             if(event) {
+              let temp: PhotoCollection | undefined
               props.updateParentCollection((prev) => {
                 if(prev) {
-                  const temp: PhotoCollection = {
+                  temp = {
                     ...prev,
                     coverType: {
                       ...prev.coverType,
@@ -324,10 +428,38 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
                   return temp
                 }
               })
+              props.updateParentCollections((prev) => {
+                const pTemp = [...prev]
+    
+                return pTemp.map((col) => {
+                  if(col.id === temp?.id) return temp
+                  return col
+                })
+              })
             }
           }}
         />
       </div>
+      <Button 
+        className="flex flex-row gap-2 border border-gray-300 items-center hover:bg-gray-100 rounded-xl py-2 px-4 disabled:opacity-75"
+        isProcessing={props.updateCollectionMutation.isPending}
+        disabled={props.updateCollectionMutation.isPending}
+        onClick={() => {
+          props.updateCollectionMutation.mutate({
+            collection: {
+              ...props.collection,
+              coverType: undefined
+            },
+            published: props.collection.published,
+            coverType: props.collection.coverType,
+            options: {
+              logging: true
+            }
+          })
+        }}
+      >
+        <span className="">Save Changes</span>
+      </Button>
     </>
   )
 }

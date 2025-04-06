@@ -6,7 +6,6 @@ import { Cover } from "../../collection/Cover"
 
 interface CoverPannelProps {
   collection: PhotoCollection
-  updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
   cover?: UseQueryResult<[string | undefined, string] | undefined, Error>,
   updatePublishStatus: UseMutationResult<string | undefined, Error, PublishCollectionParams, unknown>
 }

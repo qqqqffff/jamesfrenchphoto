@@ -9,6 +9,7 @@ import { applyWatermarkMutation, ApplyWatermarkParams } from "../../../services/
 interface WatermarkPannelProps {
   collection: PhotoCollection
   updateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
+  updateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
   watermarkObjects: Watermark[],
   watermarkPaths: UseQueryResult<[string | undefined, string] | undefined>[],
   selectedWatermark?: Watermark,
@@ -112,7 +113,7 @@ export const WatermarkPannel = (props: WatermarkPannelProps) => {
             isProcessing={loading}
             onClick={() => {
               setLoading(true)
-              props.updateCollection({
+              const tempCollection: PhotoCollection = {
                 ...props.collection,
                 watermarkPath: collectionWatermark,
                 sets: props.collection.sets.map((set) => {
@@ -120,6 +121,15 @@ export const WatermarkPannel = (props: WatermarkPannelProps) => {
                     ...set,
                     watermarkPath: setWatermarks[set.id]
                   })
+                })
+              }
+              props.updateCollection(tempCollection)
+              props.updateCollections((prev) => {
+                const temp = [...prev]
+                
+                return temp.map((col) => {
+                  if(col.id === tempCollection.id) return tempCollection
+                  return col
                 })
               })
               applyWatermark.mutate({

@@ -54,6 +54,7 @@ interface PhotoCollectionPannelProps {
   availableTags: UserTag[],
   collection: PhotoCollection,
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
+  updateParentCollections: Dispatch<SetStateAction<PhotoCollection[]>>
   set?: PhotoSet,
   auth: AuthContext,
   parentActiveConsole: 'sets' | 'favorites' | 'watermarks' | 'share' | 'users' | 'cover',
@@ -71,7 +72,7 @@ interface Publishable {
 export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
   watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
-  updateShareTemplates, coverPath
+  updateShareTemplates, coverPath, updateParentCollections
 }) => {
   const [createSet, setCreateSet] = useState(false)
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
@@ -94,6 +95,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const updateCollection = useMutation({
     mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params)
   })
+
   useEffect(() => {
     const aggregateItems = setList.reduce((prev, cur) => {
       if(cur.id === selectedSet?.id) {
@@ -147,10 +149,22 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
     mutationFn: (params: PublishCollectionParams) => publishCollectionMutation(params),
     onSuccess: (data) => {
       if(data){
-        updateParentCollection({
+        const tempCollection: PhotoCollection = {
           ...collection,
           published: true,
           publicCoverPath: data
+        }
+
+        updateParentCollection(tempCollection),
+        updateParentCollections((prev) => {
+          const temp: PhotoCollection[] = [...prev]
+
+          return temp.map((col) => {
+            if(col.id === tempCollection.id) {
+              return tempCollection 
+            }
+            return col
+          })
         })
       }
     }
@@ -163,29 +177,33 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
   const uploadCover = useMutation({
     mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
     onSuccess: (path) => {
-      updateParentCollection((prev) => {
-        if(prev) {
-          const temp: PhotoCollection = {
-            ...prev,
-            coverPath: path,
-            published: false,
-            publicCoverPath: undefined
+      const tempCollection: PhotoCollection = {
+        ...collection,
+        coverPath: path,
+        published: false,
+        publicCoverPath: undefined
+      }
+      if(collection.published) {
+        publishCollection.mutate({
+          collectionId: collection.id,
+          publishStatus: false,
+          path: collection.publicCoverPath ?? '',
+          name: '',
+          options: {
+            logging: true
           }
-          if(prev.published) {
-            publishCollection.mutate({
-              collectionId: prev.id,
-              publishStatus: false,
-              path: prev.publicCoverPath ?? '',
-              name: '',
-              options: {
-                logging: true
-              }
-            })
+        })
+      }
+      updateParentCollection(tempCollection)
+      updateParentCollections((prev) => {
+        const temp: PhotoCollection[] = [...prev]
+
+        return temp.map((col) => {
+          if(col.id === tempCollection.id) {
+            return tempCollection
           }
-          return temp
-        }
-        
-        return prev
+          return col
+        })
       })
     },
     onSettled: () => fileUpload.current = null
@@ -249,6 +267,14 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
         onSubmit={(collection) => {
           if(collection){
             updateParentCollection(collection)
+            updateParentCollections((prev) => {
+              const temp = [...prev]
+
+              return temp.map((col) => {
+                if(collection.id === col.id) return collection
+                return col
+              })
+            })
           }
         }} 
         availableTags={availableTags} 
@@ -266,6 +292,11 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             options: {
               logging: true
             }
+          })
+          updateParentCollections((prev) => {
+            const temp = [...prev]
+
+            return temp.filter((col) => col.id !== collection.id)
           })
           updateParentCollection(undefined)
         }}
@@ -338,6 +369,14 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                         coverPath: undefined
                       }
                       updateParentCollection(tempCollection)
+                      updateParentCollections((prev) => {
+                        const temp = [...prev]
+            
+                        return temp.map((col) => {
+                          if(col.id === tempCollection.id) return tempCollection
+                          return col
+                        })
+                      })
                     }}
                   >
                     Remove Cover Photo
@@ -371,10 +410,19 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                     <Dropdown.Item
                       onClick={() => {
                         if(collection.published){
-                          updateParentCollection({
+                          const tempCollection: PhotoCollection = {
                             ...collection,
                             published: false,
                             publicCoverPath: undefined
+                          }
+                          updateParentCollection(tempCollection)
+                          updateParentCollections((prev) => {
+                            const temp = [...prev]
+                
+                            return temp.map((col) => {
+                              if(col.id === tempCollection.id) return tempCollection
+                              return col
+                            })
                           })
                           publishCollection.mutate({
                             collectionId: collection.id,
@@ -422,6 +470,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             )}
             parentLoading={deleteImage.isPending}
             updateParentCollection={updateParentCollection}
+            updateParentCollections={updateParentCollections}
             updatePublishStatus={publishCollection}
           />
           <div className="grid grid-cols-3 w-full place-items-center border border-gray-400 rounded-lg py-0.5">
@@ -541,6 +590,14 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                       })
 
                       updateParentCollection(updatedCollection)
+                      updateParentCollections((prev) => {
+                        const temp = [...prev]
+            
+                        return temp.map((col) => {
+                          if(col.id === updatedCollection.id) return updatedCollection
+                          return col
+                        })
+                      })
                       setCreateSet(false)
                     }
                     setCreateSet(false)
@@ -677,7 +734,9 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                 setUploadCoverVisible={setUploadCoverPhotoVisible}
                 fileUpload={fileUpload}
                 updateParentCollection={updateParentCollection}
+                updateParentCollections={updateParentCollections}
                 collection={collection}
+                updateCollectionMutation={updateCollection}
               />
           ) : (
             <></>
@@ -709,6 +768,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   }}
                   parentUpdateSet={setSelectedSet}
                   parentUpdateCollection={updateParentCollection}
+                  parentUpdateCollections={updateParentCollections}
                   auth={auth}
                 />
               )
@@ -732,6 +792,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             <WatermarkPannel 
               collection={collection}
               updateCollection={updateParentCollection}
+              updateCollections={updateParentCollections}
               watermarkObjects={watermarkObjects}
               watermarkPaths={watermarkPaths}
               selectedWatermark={selectedWatermark}
@@ -761,7 +822,6 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
             <CoverPannel
               collection={collection}
-              updateParentCollection={updateParentCollection}
               cover={coverPath}
               updatePublishStatus={publishCollection}
             />

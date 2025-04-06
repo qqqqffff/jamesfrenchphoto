@@ -246,6 +246,7 @@ export interface UploadImagesMutationParams {
     updatePaths: Dispatch<SetStateAction<PicturePath[]>>
     parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
     parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
+    parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
     totalUpload: number,
     duplicates: Record<string, PicturePath>,
     options?: {
@@ -380,6 +381,14 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
                 })
                 params.parentUpdateSet(tempSet)
                 params.parentUpdateCollection(tempCollection)
+                params.parentUpdateCollections((prev) => {
+                    const temp = [...prev]
+
+                    return temp.map((col) => {
+                        if(col.id === tempCollection.id) return tempCollection
+                        return col
+                    })
+                })
                 params.updateUpload((prev) => {
                     return prev.map((upload) => {
                         if(upload.id === params.uploadId){

@@ -14,8 +14,6 @@ interface CoverProps {
 export const Cover = (props: CoverProps) => {
   const dimensions = useWindowDimensions()
 
-  console.log(props.collection.coverType?.date !== 'none')
-
   return (
     <div 
       className={`
@@ -48,18 +46,16 @@ export const Cover = (props: CoverProps) => {
             <p className="italic text-xl">{new Date(props.collection.coverType?.date ?? props.collection.createdAt).toLocaleDateString()}</p>
           )}
         </div>
-        {props.collectionRef && (
-          <button 
-            className='border rounded-lg py-1.5 px-2 animate-pulse mt-10'
-            onClick={() => {
-              if(props.collectionRef?.current){
-                props.collectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }
-            }}
-          >
-            Go to Sets
-          </button>
-        )}
+        <button 
+          className='border border-gray-400 rounded-lg py-1.5 px-2 animate-pulse mt-2 w-min whitespace-nowrap self-center hover:border-gray-700 bg-gray-100 bg-opacity-50'
+          onClick={() => {
+            if(props.collectionRef?.current){
+              props.collectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+          }}
+        >
+          Go to Sets
+        </button>
       </div>
       <img ref={props.coverRef} src={props.path} style={props.style ?? { maxHeight: '100vh', minHeight: '100vh' }} />
     </div>

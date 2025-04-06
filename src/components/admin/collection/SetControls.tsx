@@ -13,6 +13,7 @@ interface SetControlsProps extends ComponentProps<'div'> {
   parentUpdatePaths: Dispatch<SetStateAction<PicturePath[]>>,
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
+  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
   selectedPhotos: PicturePath[],
   parentUpdateSelectedPhotos: Dispatch<SetStateAction<PicturePath[]>>,
 }
@@ -61,24 +62,26 @@ export const SetControls = (props: SetControlsProps) => {
               ...props.set,
               paths: newPaths
             }
+
+            const tempCollection: PhotoCollection = {
+              ...props.collection,
+              sets: props.collection.sets.map((set) => {
+                if(set.id === tempSet.id) return tempSet
+                return set
+              }),
+              items: props.collection.items - props.selectedPhotos.length
+            }
             
             props.parentUpdatePaths(newPaths)
             props.parentUpdateSet(tempSet)
-            props.parentUpdateCollection((prev) => {
-              if(prev) {
-                const temp: PhotoCollection = {
-                  ...prev,
-                  sets: prev.sets.map((set) => {
-                    if(set.id === tempSet.id) {
-                      return tempSet
-                    }
-                    return set
-                  }),
-                  items: prev.items - props.selectedPhotos.length
-                }
-                return temp
-              }
-              return prev
+            props.parentUpdateCollection(tempCollection)
+            props.parentUpdateCollections((prev) => {
+              const temp = [...prev]
+
+              return temp.map((col) => {
+                if(col.id === tempCollection.id) return tempCollection
+                return col
+              })
             })
             props.parentUpdateSelectedPhotos([])
           }}
@@ -112,22 +115,26 @@ export const SetControls = (props: SetControlsProps) => {
               paths: updatedPhotos
             }
 
+            const tempCollection: PhotoCollection = {
+              ...props.collection,
+              sets: props.collection.sets.map((set) => {
+                if(set.id === tempSet.id) {
+                  return tempSet
+                }
+                return set
+              }),
+            }
+
             props.parentUpdatePaths(updatedPhotos)
             props.parentUpdateSet(tempSet)
-            props.parentUpdateCollection((prev) => {
-              if(prev) {
-                const temp: PhotoCollection = {
-                  ...prev,
-                  sets: prev.sets.map((set) => {
-                    if(set.id === tempSet.id) {
-                      return tempSet
-                    }
-                    return set
-                  }),
-                }
-                return temp
-              }
-              return prev
+            props.parentUpdateCollection(tempCollection)
+            props.parentUpdateCollections((prev) => {
+              const temp = [...prev]
+
+              return temp.map((col) => {
+                if(col.id === tempCollection.id) return tempCollection
+                return col
+              })
             })
           }}
         >
@@ -163,22 +170,26 @@ export const SetControls = (props: SetControlsProps) => {
               paths: updatedPhotos
             }
 
+            const tempCollection: PhotoCollection = {
+              ...props.collection,
+              sets: props.collection.sets.map((set) => {
+                if(set.id === tempSet.id) {
+                  return tempSet
+                }
+                return set
+              }),
+            }
+
             props.parentUpdatePaths(updatedPhotos)
             props.parentUpdateSet(tempSet)
-            props.parentUpdateCollection((prev) => {
-              if(prev) {
-                const temp: PhotoCollection = {
-                  ...prev,
-                  sets: prev.sets.map((set) => {
-                    if(set.id === tempSet.id) {
-                      return tempSet
-                    }
-                    return set
-                  }),
-                }
-                return temp
-              }
-              return prev
+            props.parentUpdateCollection(tempCollection)
+            props.parentUpdateCollections((prev) => {
+              const temp = [...prev]
+
+              return temp.map((col) => {
+                if(col.id === tempCollection.id) return tempCollection
+                return col
+              })
             })
           }}
         >
