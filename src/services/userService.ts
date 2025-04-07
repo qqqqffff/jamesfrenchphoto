@@ -100,8 +100,15 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                             downloadable: collection.data.downloadable ?? false,
                             items: collection.data.items ?? 0,
                             published: collection.data.published ?? false,
-                            //unnecessary
+                            coverType: {
+                                textColor: collection.data.coverType?.textColor ?? undefined,
+                                bgColor: collection.data.coverType?.bgColor ?? undefined,
+                                placement: collection.data.coverType?.placement ?? undefined,
+                                textPlacement: collection.data.coverType?.textPlacement ?? undefined,
+                                date: collection.data.coverType?.date ?? undefined
+                            },
                             sets: sets,
+                            //unnecessary
                             tags: [],
                         }
                         return mappedCollection
@@ -320,6 +327,51 @@ async function getTemporaryAccessToken(client: V6Client<Schema>, id: string): Pr
 
         return mappedToken
     }
+}
+
+interface GetAllParticipantsOptions {
+    siTags?: boolean,
+    siTimeslot?: boolean, //TODO: implement me
+}
+async function getAllParticipants(client: V6Client<Schema>, options?: GetAllParticipantsOptions): Promise<Participant[]> {
+    let participantResponse = await client.models.Participant.list()
+    const participantData = participantResponse.data
+
+    while(participantResponse.nextToken) {
+        participantResponse = await client.models.Participant.list({ nextToken: participantResponse.nextToken })
+        participantData.push(...participantResponse.data)
+    }
+
+    const mappedParticipants: Participant[] = await Promise.all(participantData.map(async (participant) => {
+        const userTags: UserTag[] = []
+        
+        if(options?.siTags) {
+            userTags.push(...(await Promise.all((participant.userTags ?? []).map(async (tagId) => {
+                if(!tagId) return
+                const tagResponse = await client.models.UserTag.get({ id: tagId })
+                if(tagResponse.data) {
+                    const mappedTag: UserTag = {
+                        ...tagResponse.data,
+                        color: tagResponse.data.color ?? undefined,
+                    }
+                    return mappedTag
+                }
+            }))).filter((tag) => tag !== undefined))
+        }
+
+        const mappedParticipant: Participant = {
+            ...participant,
+            middleName: participant.middleName ?? undefined,
+            preferredName: participant.preferredName ?? undefined,
+            contact: participant.contact ?? false,
+            email: participant.email ?? undefined,
+            timeslot: [],
+            userTags: userTags,
+        }
+        return mappedParticipant
+    }))
+
+    return mappedParticipants
 }
 
 export interface CreateAccessTokenMutationParams {
@@ -678,4 +730,9 @@ export const getAllTemporaryUsersQueryOptions = (options?: GetAllTemporaryUsersO
 export const getTemporaryUserQueryOptions = (id?: string, options?: GetTemporaryUserOptions) => queryOptions({
     queryKey: ['temporaryUser', client, options],
     queryFn: () => getTemporaryUser(client, id, options)
+})
+
+export const getAllParticipantsQueryOptions = (options?: GetAllParticipantsOptions) => queryOptions({
+    queryKey: ['participants', client, options],
+    queryFn: () => getAllParticipants(client, options)
 })

@@ -54,7 +54,9 @@ const UserProfileComponent: FC<{
                     >
                         {user.profile.participant.map((participant, index) => {
                             return (
-                                <Dropdown.Item key={index} 
+                                <Dropdown.Item 
+                                    className='whitespace-nowrap flex flex-row gap-1 items-center'
+                                    key={index} 
                                     onClick={async () => {
                                         if(user.profile.activeParticipant?.id !== participant.id){
                                             await participantMutation.mutateAsync(participant.id)
@@ -62,7 +64,7 @@ const UserProfileComponent: FC<{
                                     }}
                                 >
                                     {participant.id === user.profile.activeParticipant?.id && (
-                                        <HiOutlineCheckCircle fontSize={'32'}/>
+                                        <HiOutlineCheckCircle size={20}/>
                                     )}
                                     {`${participant.preferredName && participant.preferredName !== '' ? 
                                         participant.preferredName : participant.firstName} ${participant.lastName}`}

@@ -6,6 +6,8 @@ import PDFViewer from '../../../components/common/PDFViewer'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { getParticipantCollectionsQueryOptions, getPathQueryOptions } from '../../../services/collectionService'
 
 interface PackagePDFModalProps {
     pdf: File,
@@ -40,15 +42,43 @@ function RouteComponent() {
   const dimensions = useWindowDimensions()
   const navigate = useNavigate()
 
+  const participantCollections = useQuery(
+    getParticipantCollectionsQueryOptions(
+      auth.user?.profile.activeParticipant?.id, 
+      { siPaths: false, siSets: false, siTags: false }
+    )
+  )
+
   const tags: UserTag[] = auth.user?.profile.activeParticipant?.userTags ?? []
 
   const collections = tags
-        .map((tag) => tag.collections)
-        .filter((collection) => collection !== undefined)
-        .reduce((prev, cur) => {
-            prev.push(...((cur).filter((collection) => (prev.find((prevColl) => prevColl.id !== collection.id)) === undefined)))
-            return prev
-        }, [])
+    .map((tag) => tag.collections)
+    .filter((collection) => collection !== undefined)
+    .map((collection) => {
+      const filteredCollection = collection.filter((collection) => 
+        !participantCollections.data?.some((participantCollection) => participantCollection.id === collection.id))
+
+      return filteredCollection
+    })
+    .reduce((prev, cur) => {
+        prev.push(...((cur).filter((collection) => (prev.find((prevColl) => prevColl.id !== collection.id)) === undefined)))
+        return prev
+    }, [])
+
+  if(participantCollections.data) {
+    collections.push(...participantCollections.data)
+  }
+
+  const collectionCovers = useQueries({
+    queries: collections.map((collection) => {
+      return getPathQueryOptions(collection.coverPath, collection.id)
+    })
+  }).map((query, index) => {
+    return ({
+      id: collections[index].id,
+      query: query
+    })
+  })
 
   return (
     <>
@@ -66,7 +96,7 @@ function RouteComponent() {
       )}
       <div className="grid grid-cols-6 mt-8 font-main">
         <div className="flex flex-col items-center justify-center col-start-2 col-span-4 gap-4 border-black border rounded-xl mb-4 overflow-auto">
-          <div className="flex flex-col items-center justify-center my-4">
+          <div className="flex flex-col items-center justify-center">
             {/* notifications will display here */}
             {/* {tags.length > 0 &&
               tags.map((tag, index) => {
@@ -82,22 +112,23 @@ function RouteComponent() {
           
           <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections:</span>
           
-          {collections.length > 0 ? 
-            (
-              <div className={`grid grid-cols-${dimensions.width > 700 ? 2 : 1} gap-10 mb-4`}>
+          {collections.filter((collection) => collection.published).length > 0 ? (
+            <div className={`grid grid-cols-${dimensions.width > 700 ? 2 : 1} gap-10 mb-4`}>
               {collections
                 .filter((collection) => collection.published)
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                 .map((collection, index) => {
+                  const coverPath = collectionCovers.find((col) => col.id === collection.id)
                   return (
                     <CollectionThumbnail 
                       collectionId={collection.id} 
-                      cover={collection.coverPath}
+                      cover={coverPath?.query}
                       key={index} 
                       onClick={() => {
                         navigate({ to: `/photo-collection/${collection.id}`})
                       }}
                       contentChildren={(
-                        <div className='font-thin font-mono opacity-90 text-gray-500 italic'>
+                        <div className='font-thin font-bodoni opacity-90 text-gray-500 italic'>
                           <p>{collection.name}</p>
                         </div>
                       )}
@@ -105,13 +136,13 @@ function RouteComponent() {
                   )
                 }
               )}
-            </div>) :
-            (<div className="text-xl text-gray-400 italic flex flex-col text-center mb-4">
+            </div>
+          ) : (
+            <div className="text-xl text-gray-400 italic flex flex-col text-center mb-4">
               <span>Sorry, there are no viewable collections for you right now.</span>
               <span>You will receive a notification when your collection is ready!</span>
             </div>
-            )
-          }
+          )}
           
 
           {/* <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package{packages.length > 1 ? 's' : ''}</span>

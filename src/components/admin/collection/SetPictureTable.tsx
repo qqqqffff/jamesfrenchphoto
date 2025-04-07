@@ -31,6 +31,7 @@ export interface SetPictureTableProps {
   parentUpdatePaths: Dispatch<SetStateAction<PicturePath[]>>,
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
+  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
   urls: {id: string, url: UseQueryResult<[string | undefined, string] | undefined>}[],
   pictureStyle: (id: string) => string
   selectedPhotos: PicturePath[]
@@ -136,7 +137,7 @@ export const SetPictureTable = (props: SetPictureTableProps) => {
   })
 
   return (
-    <div className="grid grid-cols-4 gap-x-8 gap-y-4 px-40 max-h-[90vh] overflow-y-auto">
+    <div className="grid grid-cols-4 gap-x-8 gap-y-4 max-h-[90vh] overflow-y-auto">
       {props.paths
         .sort((a, b) => a.order - b.order)
         .map((path, index) => {
@@ -199,7 +200,6 @@ export const SetPictureTable = (props: SetPictureTableProps) => {
                   id='image'
                   loading='lazy'  
                 />
-                // <div></div>
               )}
               <div className={`absolute bottom-0 inset-x-0 pb-1 justify-end flex-row gap-1 me-3 ${props.controlsEnabled(path.id, false)}`}>
                 <button 
@@ -228,21 +228,25 @@ export const SetPictureTable = (props: SetPictureTableProps) => {
                         ...props.set,
                         paths: temp
                       }
+
+                      const updatedCollection: PhotoCollection = {
+                        ...props.collection,
+                        sets: props.collection.sets.map((set) => {
+                          if(set.id === updatedSet.id) return updatedSet
+                          return set
+                        })
+                      }
   
                       props.parentUpdatePaths(temp)
                       props.parentUpdateSet(updatedSet)
-                      props.parentUpdateCollection((prev) => {
-                        if(prev) {
-                          const temp: PhotoCollection = {
-                            ...prev,
-                            sets: prev.sets.map((set) => {
-                              if(set.id === updatedSet.id) return updatedSet
-                              return set
-                            })
-                          }
-                          return temp
-                        }
-                        return prev
+                      props.parentUpdateCollection(updatedCollection)
+                      props.parentUpdateCollections((prev) => {
+                        const pTemp = [...prev]
+
+                        return pTemp.map((col) => {
+                          if(col.id === updatedCollection.id) return updatedCollection
+                          return col
+                        })
                       })
                     }
                     else if(props.userEmail && path.favorite === undefined){
@@ -268,21 +272,25 @@ export const SetPictureTable = (props: SetPictureTableProps) => {
                         ...props.set,
                         paths: temp
                       }
+
+                      const updatedCollection: PhotoCollection = {
+                        ...props.collection,
+                        sets: props.collection.sets.map((set) => {
+                          if(set.id === updatedSet.id) return updatedSet
+                          return set
+                        })
+                      }
   
                       props.parentUpdatePaths(temp)
                       props.parentUpdateSet(updatedSet)
-                      props.parentUpdateCollection((prev) => {
-                        if(prev) {
-                          const temp: PhotoCollection = {
-                            ...prev,
-                            sets: prev.sets.map((set) => {
-                              if(set.id === updatedSet.id) return updatedSet
-                              return set
-                            })
-                          }
-                          return temp
-                        }
-                        return prev
+                      props.parentUpdateCollection(updatedCollection)
+                      props.parentUpdateCollections((prev) => {
+                        const temp = [...prev]
+
+                        return temp.map((col) => {
+                          if(col.id === updatedCollection.id) return updatedCollection
+                          return col
+                        })
                       })
                     }
                   }}
@@ -336,20 +344,24 @@ export const SetPictureTable = (props: SetPictureTableProps) => {
                       paths: temp
                     }
 
+                    const updatedCollection: PhotoCollection = {
+                      ...props.collection,
+                      sets: props.collection.sets.map((set) => {
+                        if(set.id === updatedSet.id) return updatedSet
+                        return set
+                      })
+                    }
+
                     props.parentUpdatePaths(temp)
                     props.parentUpdateSet(updatedSet)
-                    props.parentUpdateCollection((prev) => {
-                      if(prev) {
-                        const temp: PhotoCollection = {
-                          ...prev,
-                          sets: prev.sets.map((set) => {
-                            if(set.id === updatedSet.id) return updatedSet
-                            return set
-                          })
-                        }
-                        return temp
-                      }
-                      return prev
+                    props.parentUpdateCollection(updatedCollection)
+                    props.parentUpdateCollections((prev) => {
+                      const temp = [...prev]
+
+                      return temp.map((col) => {
+                        if(col.id === updatedCollection.id) return updatedCollection
+                        return col
+                      })
                     })
                   }}
                 >
@@ -375,20 +387,24 @@ export const SetPictureTable = (props: SetPictureTableProps) => {
                       paths: temp
                     }
 
+                    const updatedCollection: PhotoCollection = {
+                      ...props.collection,
+                      sets: props.collection.sets.map((set) => {
+                        if(set.id === updatedSet.id) return updatedSet
+                        return set
+                      })
+                    }
+
                     props.parentUpdatePaths(temp)
                     props.parentUpdateSet(updatedSet)
-                    props.parentUpdateCollection((prev) => {
-                      if(prev) {
-                        const temp: PhotoCollection = {
-                          ...prev,
-                          sets: prev.sets.map((set) => {
-                            if(set.id === updatedSet.id) return updatedSet
-                            return set
-                          })
-                        }
-                        return temp
-                      }
-                      return prev
+                    props.parentUpdateCollection(updatedCollection)
+                    props.parentUpdateCollections((prev) => {
+                      const pTemp = [...prev]
+
+                      return pTemp.map((col) => {
+                        if(col.id === updatedCollection.id) return updatedCollection
+                        return col
+                      })
                     })
                   }}
                 >
@@ -413,20 +429,24 @@ export const SetPictureTable = (props: SetPictureTableProps) => {
                       paths: updatedPaths
                     }
 
+                    const updatedCollection: PhotoCollection = {
+                      ...props.collection,
+                      sets: props.collection.sets.map((set) => {
+                        if(set.id === updatedSet.id) return updatedSet
+                        return set
+                      })
+                    }
+
                     props.parentUpdatePaths(updatedPaths)
                     props.parentUpdateSet(updatedSet)
-                    props.parentUpdateCollection((prev) => {
-                      if(prev) {
-                        const temp: PhotoCollection = {
-                          ...prev,
-                          sets: prev.sets.map((set) => {
-                            if(set.id === updatedSet.id) return updatedSet
-                            return set
-                          })
-                        }
-                        return temp
-                      }
-                      return prev
+                    props.parentUpdateCollection(updatedCollection)
+                    props.parentUpdateCollections((prev) => {
+                      const temp = [...prev]
+
+                      return temp.map((col) => {
+                        if(col.id === updatedCollection.id) return updatedCollection
+                        return col
+                      })
                     })
                   }}
                 >

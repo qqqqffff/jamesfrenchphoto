@@ -1,17 +1,18 @@
 import { createFileRoute, invariant, redirect, useNavigate } from '@tanstack/react-router'
 import { getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
 import { favoriteImageMutation, FavoriteImageMutationParams, getAllPicturePathsByPhotoSetQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
-import { PhotoCollection, PhotoSet, PicturePath, UserProfile } from '../types'
+import { PhotoSet, PicturePath, UserProfile } from '../types'
 import { useEffect, useRef, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Button } from 'flowbite-react'
-import { useMutation, useQueries } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { SetCarousel } from '../components/collection/SetCarousel'
 import { CgArrowsExpandRight } from 'react-icons/cg'
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart } from 'react-icons/hi2'
 import { downloadImageMutation, DownloadImageMutationParams } from '../services/photoPathService'
 import { HiOutlineDownload } from 'react-icons/hi'
 import { UnauthorizedEmailModal } from '../components/modals'
+import { Cover } from '../components/collection/Cover'
 
 interface PhotoCollectionParams {
   set?: string,
@@ -39,9 +40,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     invariant(collection)
 
     const set = collection.sets.find((set) => set.id === context.set)
-    const watermarkUrl = (collection.watermarkPath !== undefined || set?.watermarkPath !== undefined) ?  (
-      await context.queryClient.ensureQueryData(
-        getPathQueryOptions(set?.watermarkPath ?? collection.watermarkPath ?? '')))?.[1] : undefined
+    
     const coverUrl = (await context.queryClient.ensureQueryData(
       getPathQueryOptions(collection.coverPath ?? '')
     ))?.[1]
@@ -53,18 +52,13 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     ))
     if(!coverUrl && !context.auth.admin) throw redirect({ to: destination })
 
-    const mappedCollection: PhotoCollection = {
-      ...collection,
-      watermarkPath: watermarkUrl,
-    }
-
     const mappedSet: PhotoSet = {
       ...(set ?? collection.sets[0]),
       paths: paths ?? [],
     }
 
     return {
-      collection: mappedCollection,
+      collection: collection,
       set: mappedSet,
       auth: context.auth,
       coverPath: coverUrl,
@@ -95,13 +89,20 @@ function RouteComponent() {
     if(!tempUser && !data.auth.isAuthenticated && !emailInputVisible){
       throw redirect({ to: '/login', search: { unauthorized: true }})
     }
-  }, [coverPhotoRef.current, tempUser])
+    if(set.id !== data.set.id) {
+      setSet(data.set)
+    }
+  }, [coverPhotoRef.current, tempUser, data.set])
 
   const paths = useQueries({
     queries: set.paths.map((path) => (
       getPathQueryOptions(path.path, path.id)
     ))
   })
+
+  const watermarkPath = useQuery(
+    getPathQueryOptions(set.watermarkPath ?? collection.watermarkPath, collection.id)
+  )
 
   const formattedCollection: PicturePath[][] = []
   let maxIndex = (dimensions.width > 1600 ? 5 : (
@@ -214,25 +215,12 @@ function RouteComponent() {
             </Button>
           )}
         </div>
-        <div className="flex flex-row justify-center items-center mb-2 relative bg-gray-200">
-          <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
-            <div className='bg-white bg-opacity-30 flex flex-col gap-2 px-10 py-4'>
-              <p className={`${dimensions.width > 1600 ? "text-7xl" : 'text-5xl' } font-thin font-birthstone`}>{collection.name}</p>
-              <p className="italic text-xl">{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
-            </div>
-            <button 
-              className='border rounded-lg py-1.5 px-2 animate-pulse mt-10'
-              onClick={() => {
-                if(collectionRef.current){
-                  collectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-              }}
-            >
-              Go to Sets
-            </button>
-          </div>
-          <img ref={coverPhotoRef} src={data.coverPath} style={{ maxHeight: '100vh', minHeight: '100vh' }} />
-        </div>
+        <Cover 
+          path={data.coverPath}
+          collection={collection}
+          collectionRef={collectionRef}
+          coverRef={coverPhotoRef}
+        />
         <div className='grid grid-cols-3 items-center px-8 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
           <div className='flex flex-col items-start font-bodoni'>
             <span className='font-bold text-lg'>James French Photograpahy</span>
@@ -298,13 +286,13 @@ function RouteComponent() {
                               className={`h-auto max-w-full rounded-lg border-2 ${currentControlDisplay === picture.id ? 'border-gray-300' : 'border-transparent'}`} src={url?.data?.[1]} alt="" 
                             />
                             <img 
-                              src={collection.watermarkPath}
+                              src={watermarkPath.data?.[1]}
                               className="absolute inset-0 max-w-[200px] max-h-[300px] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
                               alt=""
                             />
                           </>
                         )}
-                        <div className={`absolute bottom-0 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
+                        <div className={`absolute bottom-2 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
                           <button
                             title={`${picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`}
                             onClick={() => {
