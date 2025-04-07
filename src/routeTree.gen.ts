@@ -27,6 +27,7 @@ import { Route as AuthClientDashboardSchedulerImport } from './routes/_auth.clie
 import { Route as AuthAdminDashboardTableImport } from './routes/_auth.admin/dashboard/table'
 import { Route as AuthAdminDashboardSchedulerImport } from './routes/_auth.admin/dashboard/scheduler'
 import { Route as AuthAdminDashboardPackageImport } from './routes/_auth.admin/dashboard/package'
+import { Route as AuthAdminDashboardNotificationImport } from './routes/_auth.admin/dashboard/notification'
 import { Route as AuthAdminDashboardCollectionImport } from './routes/_auth.admin/dashboard/collection'
 
 // Create/Update Routes
@@ -128,6 +129,13 @@ const AuthAdminDashboardPackageRoute = AuthAdminDashboardPackageImport.update({
   getParentRoute: () => AuthAdminDashboardRoute,
 } as any)
 
+const AuthAdminDashboardNotificationRoute =
+  AuthAdminDashboardNotificationImport.update({
+    id: '/notification',
+    path: '/notification',
+    getParentRoute: () => AuthAdminDashboardRoute,
+  } as any)
+
 const AuthAdminDashboardCollectionRoute =
   AuthAdminDashboardCollectionImport.update({
     id: '/collection',
@@ -216,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminDashboardCollectionImport
       parentRoute: typeof AuthAdminDashboardImport
     }
+    '/_auth/admin/dashboard/notification': {
+      id: '/_auth/admin/dashboard/notification'
+      path: '/notification'
+      fullPath: '/admin/dashboard/notification'
+      preLoaderRoute: typeof AuthAdminDashboardNotificationImport
+      parentRoute: typeof AuthAdminDashboardImport
+    }
     '/_auth/admin/dashboard/package': {
       id: '/_auth/admin/dashboard/package'
       path: '/package'
@@ -265,6 +280,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthAdminDashboardRouteChildren {
   AuthAdminDashboardCollectionRoute: typeof AuthAdminDashboardCollectionRoute
+  AuthAdminDashboardNotificationRoute: typeof AuthAdminDashboardNotificationRoute
   AuthAdminDashboardPackageRoute: typeof AuthAdminDashboardPackageRoute
   AuthAdminDashboardSchedulerRoute: typeof AuthAdminDashboardSchedulerRoute
   AuthAdminDashboardTableRoute: typeof AuthAdminDashboardTableRoute
@@ -273,6 +289,7 @@ interface AuthAdminDashboardRouteChildren {
 
 const AuthAdminDashboardRouteChildren: AuthAdminDashboardRouteChildren = {
   AuthAdminDashboardCollectionRoute: AuthAdminDashboardCollectionRoute,
+  AuthAdminDashboardNotificationRoute: AuthAdminDashboardNotificationRoute,
   AuthAdminDashboardPackageRoute: AuthAdminDashboardPackageRoute,
   AuthAdminDashboardSchedulerRoute: AuthAdminDashboardSchedulerRoute,
   AuthAdminDashboardTableRoute: AuthAdminDashboardTableRoute,
@@ -327,6 +344,7 @@ export interface FileRoutesByFullPath {
   '/client/profile': typeof AuthClientProfileRoute
   '/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
   '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
+  '/admin/dashboard/notification': typeof AuthAdminDashboardNotificationRoute
   '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
   '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
   '/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
@@ -345,6 +363,7 @@ export interface FileRoutesByTo {
   '/client/profile': typeof AuthClientProfileRoute
   '/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
   '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
+  '/admin/dashboard/notification': typeof AuthAdminDashboardNotificationRoute
   '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
   '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
   '/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
@@ -366,6 +385,7 @@ export interface FileRoutesById {
   '/_auth/client/profile': typeof AuthClientProfileRoute
   '/_auth/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
   '/_auth/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
+  '/_auth/admin/dashboard/notification': typeof AuthAdminDashboardNotificationRoute
   '/_auth/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
   '/_auth/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
   '/_auth/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
@@ -388,6 +408,7 @@ export interface FileRouteTypes {
     | '/client/profile'
     | '/photo-collection/$id'
     | '/admin/dashboard/collection'
+    | '/admin/dashboard/notification'
     | '/admin/dashboard/package'
     | '/admin/dashboard/scheduler'
     | '/admin/dashboard/table'
@@ -405,6 +426,7 @@ export interface FileRouteTypes {
     | '/client/profile'
     | '/photo-collection/$id'
     | '/admin/dashboard/collection'
+    | '/admin/dashboard/notification'
     | '/admin/dashboard/package'
     | '/admin/dashboard/scheduler'
     | '/admin/dashboard/table'
@@ -424,6 +446,7 @@ export interface FileRouteTypes {
     | '/_auth/client/profile'
     | '/_auth/photo-collection/$id'
     | '/_auth/admin/dashboard/collection'
+    | '/_auth/admin/dashboard/notification'
     | '/_auth/admin/dashboard/package'
     | '/_auth/admin/dashboard/scheduler'
     | '/_auth/admin/dashboard/table'
@@ -496,6 +519,7 @@ export const routeTree = rootRoute
       "parent": "/_auth",
       "children": [
         "/_auth/admin/dashboard/collection",
+        "/_auth/admin/dashboard/notification",
         "/_auth/admin/dashboard/package",
         "/_auth/admin/dashboard/scheduler",
         "/_auth/admin/dashboard/table",
@@ -520,6 +544,10 @@ export const routeTree = rootRoute
     },
     "/_auth/admin/dashboard/collection": {
       "filePath": "_auth.admin/dashboard/collection.tsx",
+      "parent": "/_auth/admin/dashboard"
+    },
+    "/_auth/admin/dashboard/notification": {
+      "filePath": "_auth.admin/dashboard/notification.tsx",
       "parent": "/_auth/admin/dashboard"
     },
     "/_auth/admin/dashboard/package": {
