@@ -14,9 +14,10 @@ interface InviteUserWindowProps {
 }
 
 export const InviteUserWindow = (props: InviteUserWindowProps) => {
+  const [sittingNumber, setSittingNumber] = useState<string>('')
   const [firstName, setFirstName] = useState<string>('')
   const [lastName, setLastName] = useState<string>('')
-  const [selectedColumns, setSelectedColumns] = useState<[TableColumn, string, "first" | 'last' | 'preferred' | 'email'][]>([])
+  const [selectedColumns, setSelectedColumns] = useState<[TableColumn, string, "first" | 'last' | 'preferred' | 'email' | 'sitting'][]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
 
   const inviteUser = useMutation({
@@ -32,6 +33,47 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
         <div className="flex flex-row gap-2 items-center text-nowrap">
           <span>Email:</span>
           <span className="italic">{props.email}</span>
+        </div>
+        <div className="flex flex-row gap-2 items-center text-nowrap">
+          <span>Sitting Number:</span>
+          <input
+            className={`
+              font-thin p-0 text-xs border-transparent ring-transparent w-full border-b-gray-400 
+              border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
+            `}
+            placeholder="Sitting Number..."
+            onChange={(event) => {
+              const inputValue = event.target.value;
+              if (inputValue === "" || /^[0-9]+$/.test(inputValue)) {
+                const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'sitting')
+
+                setSelectedColumns(temp)
+                setSittingNumber(inputValue);
+              }
+            }}
+            value={sittingNumber}
+          />
+          <Dropdown
+            inline
+          >
+            {props.table.columns
+              .filter((col) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user') && /^[0-9]+$/.test(col.values[props.rowIndex]))
+              .map((column, index) => {
+                return (
+                  <Dropdown.Item 
+                    key={index}
+                    className="text-xs"
+                    onClick={() => {
+                      setSittingNumber(column.values[props.rowIndex])
+                      setSelectedColumns([...selectedColumns, [column, 'user', 'sitting']])
+                    }}
+                  >
+                    {column.header}
+                  </Dropdown.Item>
+                )
+              })
+            }
+          </Dropdown>
         </div>
         <div className="flex flex-row gap-2 items-center text-nowrap">
           <span>First Name:</span>
@@ -423,7 +465,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
             firstName: firstName,
             lastName: lastName,
             participant: participants,
-            sittingNumber: 0,
+            sittingNumber: /^-?\d+(\.\d+)?$/.test(sittingNumber) ? Number.parseInt(sittingNumber) : 0,
             userTags: [],
             preferredContact: 'EMAIL'
           })

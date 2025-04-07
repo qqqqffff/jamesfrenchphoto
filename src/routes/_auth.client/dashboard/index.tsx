@@ -6,8 +6,8 @@ import PDFViewer from '../../../components/common/PDFViewer'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
-import { useQuery } from '@tanstack/react-query'
-import { getParticipantCollectionsQueryOptions } from '../../../services/collectionService'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { getParticipantCollectionsQueryOptions, getPathQueryOptions } from '../../../services/collectionService'
 
 interface PackagePDFModalProps {
     pdf: File,
@@ -69,6 +69,17 @@ function RouteComponent() {
     collections.push(...participantCollections.data)
   }
 
+  const collectionCovers = useQueries({
+    queries: collections.map((collection) => {
+      return getPathQueryOptions(collection.coverPath, collection.id)
+    })
+  }).map((query, index) => {
+    return ({
+      id: collections[index].id,
+      query: query
+    })
+  })
+
   return (
     <>
       {activePackage && activePackagePDF && (
@@ -107,10 +118,11 @@ function RouteComponent() {
                 .filter((collection) => collection.published)
                 .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                 .map((collection, index) => {
+                  const coverPath = collectionCovers.find((col) => col.id === collection.id)
                   return (
                     <CollectionThumbnail 
                       collectionId={collection.id} 
-                      cover={collection.coverPath}
+                      cover={coverPath?.query}
                       key={index} 
                       onClick={() => {
                         navigate({ to: `/photo-collection/${collection.id}`})

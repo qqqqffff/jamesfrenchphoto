@@ -441,7 +441,8 @@ export const CoverSidePannel = (props: CoverSidePannel) => {
         />
       </div>
       <Button 
-        className="flex flex-row gap-2 border border-gray-300 items-center hover:bg-gray-100 rounded-xl py-2 px-4 disabled:opacity-75"
+        color='light'
+        className="flex flex-row items-center disabled:opacity-75"
         isProcessing={props.updateCollectionMutation.isPending}
         disabled={props.updateCollectionMutation.isPending}
         onClick={() => {

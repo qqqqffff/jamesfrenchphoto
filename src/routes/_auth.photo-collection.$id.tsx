@@ -1,11 +1,11 @@
 import { createFileRoute, invariant, redirect, useNavigate } from '@tanstack/react-router'
 import { getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
 import { favoriteImageMutation, FavoriteImageMutationParams, getAllPicturePathsByPhotoSetQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
-import { PhotoCollection, PhotoSet, PicturePath, UserProfile } from '../types'
+import { PhotoSet, PicturePath, UserProfile } from '../types'
 import { useEffect, useRef, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Button } from 'flowbite-react'
-import { useMutation, useQueries } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { SetCarousel } from '../components/collection/SetCarousel'
 import { CgArrowsExpandRight } from 'react-icons/cg'
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart } from 'react-icons/hi2'
@@ -40,9 +40,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     invariant(collection)
 
     const set = collection.sets.find((set) => set.id === context.set)
-    const watermarkUrl = (collection.watermarkPath !== undefined || set?.watermarkPath !== undefined) ?  (
-      await context.queryClient.ensureQueryData(
-        getPathQueryOptions(set?.watermarkPath ?? collection.watermarkPath ?? '')))?.[1] : undefined
+    
     const coverUrl = (await context.queryClient.ensureQueryData(
       getPathQueryOptions(collection.coverPath ?? '')
     ))?.[1]
@@ -54,18 +52,13 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     ))
     if(!coverUrl && !context.auth.admin) throw redirect({ to: destination })
 
-    const mappedCollection: PhotoCollection = {
-      ...collection,
-      watermarkPath: watermarkUrl,
-    }
-
     const mappedSet: PhotoSet = {
       ...(set ?? collection.sets[0]),
       paths: paths ?? [],
     }
 
     return {
-      collection: mappedCollection,
+      collection: collection,
       set: mappedSet,
       auth: context.auth,
       coverPath: coverUrl,
@@ -96,13 +89,20 @@ function RouteComponent() {
     if(!tempUser && !data.auth.isAuthenticated && !emailInputVisible){
       throw redirect({ to: '/login', search: { unauthorized: true }})
     }
-  }, [coverPhotoRef.current, tempUser])
+    if(set.id !== data.set.id) {
+      setSet(data.set)
+    }
+  }, [coverPhotoRef.current, tempUser, data.set])
 
   const paths = useQueries({
     queries: set.paths.map((path) => (
       getPathQueryOptions(path.path, path.id)
     ))
   })
+
+  const watermarkPath = useQuery(
+    getPathQueryOptions(set.watermarkPath ?? collection.watermarkPath, collection.id)
+  )
 
   const formattedCollection: PicturePath[][] = []
   let maxIndex = (dimensions.width > 1600 ? 5 : (
@@ -286,7 +286,7 @@ function RouteComponent() {
                               className={`h-auto max-w-full rounded-lg border-2 ${currentControlDisplay === picture.id ? 'border-gray-300' : 'border-transparent'}`} src={url?.data?.[1]} alt="" 
                             />
                             <img 
-                              src={collection.watermarkPath}
+                              src={watermarkPath.data?.[1]}
                               className="absolute inset-0 max-w-[200px] max-h-[300px] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
                               alt=""
                             />
