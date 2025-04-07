@@ -52,6 +52,16 @@ export interface Participant {
     contact: boolean,
     timeslot?: Timeslot[],
     userEmail: string,
+    notifications: Notification[]
+}
+
+export type Notification = {
+    id: string,
+    content: string,
+    location: 'dashboard'
+    participantId?: string
+    tagId?: string,
+    expiration?: string
 }
 
 export type User = {

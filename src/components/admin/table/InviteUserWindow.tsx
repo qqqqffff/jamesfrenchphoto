@@ -162,6 +162,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
               firstName: '',
               lastName: '',
               userTags: [],
+              notifications: [],
               contact: false,
               userEmail: props.email,
             }

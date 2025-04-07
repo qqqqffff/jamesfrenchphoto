@@ -36,6 +36,7 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
                 preferredName: participantResponse.data.preferredName ?? undefined,
                 //unnecessary
                 userTags: [],
+                notifications: [],
                 email: undefined,
                 contact: false,
                 timeslot: undefined,
@@ -57,6 +58,7 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
                     contact: false,
                     timeslot: undefined,
                     middleName: undefined,
+                    notifications: [],
                     userEmail: userProfile.email
                 }
             }
@@ -104,6 +106,7 @@ export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag
                     contact: participant.data.contact ?? false,
                     //unnecessary
                     userTags: [],
+                    notifications: [],
                     timeslot: undefined,
                 }) : undefined,
                 tag: userTag

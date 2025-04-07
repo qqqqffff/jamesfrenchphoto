@@ -95,7 +95,8 @@ const schema = a.schema({
       color: a.string(),
       collectionTags: a.hasMany('CollectionTag', 'tagId'), //TODO: improve authorization
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
-      packages: a.hasOne('Package', 'tagId')
+      packages: a.hasOne('Package', 'tagId'),
+      notifications: a.hasMany('Notifications', 'tagId')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
@@ -225,7 +226,8 @@ const schema = a.schema({
       preferredName: a.string(),
       contact: a.boolean().default(false),
       email: a.string(),
-      collections: a.hasMany('ParticipantCollections', 'participantId')
+      collections: a.hasMany('ParticipantCollections', 'participantId'),
+      notifications: a.hasMany('Notifications', 'participantId')
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('userEmail')])
@@ -240,6 +242,20 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('participantId'), index('collectionId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
+  Notifications: a.
+    model({
+      id: a.id().required(),
+      content: a.string().required(),
+      location: a.enum(['dashboard']),
+      participant: a.belongsTo('Participant', 'participantId'),
+      participantId: a.id(),
+      tag: a.belongsTo('UserTag', 'tagId'),
+      tagId: a.id(),
+      expiration: a.string(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('participantId'), index('tagId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
   GetAuthUsers: a
     .query()

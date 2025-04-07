@@ -93,6 +93,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                         middleName: middleName,
                         email: email,
                         contact: contact,
+                        notifications: []
                     }
                 } else {
                     throw new Error('Failed to create participant')

@@ -405,6 +405,7 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
                     contact: participant.data.contact ?? false,
                     email: participant.data.email ?? undefined,
                     timeslot: [],
+                    notifications: [],
                     userTags: userTags,
                 }
                 return mappedParticipant
