@@ -153,16 +153,20 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
             }))))
         }
         if(options === undefined || options.siNotifications) {
-            notifications.push(...(await participant.notifications()).data.map((notification) => {
-                const mappedNotification: Notification = {
-                    ...notification,
-                    location: notification.location ?? 'dashboard',
-                    participantId: notification.participantId ?? participant.id,
-                    tagId: notification.tagId ?? undefined,
-                    expiration: notification.expiration ?? undefined
+            notifications.push(...(await Promise.all((await participant.notifications()).data.map(async (notificationTag) => {
+                const notification = await notificationTag.notification()
+                if(notification.data){
+                    const mappedNotification: Notification = {
+                        ...notification.data,
+                        location: notification.data.location ?? 'dashboard',
+                        expiration: notification.data.expiration ?? undefined,
+                        //unnecesary
+                        participants: [],
+                        tags: []
+                    }
+                    return mappedNotification
                 }
-                return mappedNotification
-            }))
+            }))).filter((notification) => notification !== undefined))
         }
 
         const mappedParticipant: Participant = {
@@ -378,16 +382,20 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
         }
 
         if(options?.siNotifications) {
-            notifications.push(...(await participant.notifications()).data.map((notification) => {
-                const mappedNotification: Notification = {
-                    ...notification,
-                    location: notification.location ?? 'dashboard',
-                    participantId: notification.participantId ?? participant.id,
-                    tagId: notification.tagId ?? undefined,
-                    expiration: notification.expiration ?? undefined
+            notifications.push(...(await Promise.all((await participant.notifications()).data.map(async (notificationTag) => {
+                const notification = await notificationTag.notification()
+                if(notification.data){
+                    const mappedNotification: Notification = {
+                        ...notification.data,
+                        location: notification.data.location ?? 'dashboard',
+                        expiration: notification.data.expiration ?? undefined,
+                        //unnecesary
+                        participants: [],
+                        tags: []
+                    }
+                    return mappedNotification
                 }
-                return mappedNotification
-            }))
+            }))).filter((notification) => notification !== undefined))
         }
 
         const mappedParticipant: Participant = {

@@ -59,8 +59,8 @@ export type Notification = {
     id: string,
     content: string,
     location: 'dashboard'
-    participantId?: string
-    tagId?: string,
+    participants: Participant[]
+    tags: UserTag[]
     expiration?: string
 }
 

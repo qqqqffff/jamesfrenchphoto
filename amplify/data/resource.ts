@@ -96,7 +96,7 @@ const schema = a.schema({
       collectionTags: a.hasMany('CollectionTag', 'tagId'), //TODO: improve authorization
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
       packages: a.hasOne('Package', 'tagId'),
-      notifications: a.hasMany('Notifications', 'tagId')
+      notifications: a.hasMany('NotificationUserTags', 'tagId')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
@@ -227,7 +227,7 @@ const schema = a.schema({
       contact: a.boolean().default(false),
       email: a.string(),
       collections: a.hasMany('ParticipantCollections', 'participantId'),
-      notifications: a.hasMany('Notifications', 'participantId')
+      notifications: a.hasMany('NotificationParticipants', 'participantId')
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('userEmail')])
@@ -248,14 +248,33 @@ const schema = a.schema({
       id: a.id().required(),
       content: a.string().required(),
       location: a.enum(['dashboard']),
-      participant: a.belongsTo('Participant', 'participantId'),
-      participantId: a.id(),
-      tag: a.belongsTo('UserTag', 'tagId'),
-      tagId: a.id(),
+      participant: a.hasMany('NotificationParticipants', 'notificationId'),
+      tags: a.hasMany('NotificationUserTags', 'notificationId'),
       expiration: a.string(),
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('participantId'), index('tagId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
+  NotificationUserTags: a
+    .model({
+      id: a.id().required(),
+      notificationId: a.id().required(),
+      notification: a.belongsTo('Notifications', 'notificationId'),
+      tagId: a.id().required(),
+      tag: a.belongsTo('UserTag', 'tagId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('tagId'), index('notificationId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
+  NotificationParticipants: a
+    .model({
+      id: a.id().required(),
+      notificationId: a.id().required(),
+      notification: a.belongsTo('Notifications', 'notificationId'),
+      participantId: a.id().required(),
+      participant: a.belongsTo('Participant', 'participantId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('participantId'), index('notificationId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
   GetAuthUsers: a
     .query()
