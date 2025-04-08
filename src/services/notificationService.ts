@@ -9,8 +9,28 @@ const client = generateClient<Schema>()
 interface GetAllNotificationOptions {
 
 }
-async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNotificationOptions) {
+async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNotificationOptions): Promise<Notification[]> {
+  let notificationsResponse = await client.models.Notifications.list()
+  const notificationData = notificationsResponse.data
+  const mappedNotifications: Notification[] = []
 
+  while(notificationsResponse.nextToken) {
+    notificationsResponse = await client.models.Notifications.list({ nextToken: notificationsResponse.nextToken })
+    notificationData.push(...notificationsResponse.data)
+  }
+
+  mappedNotifications.push(...notificationData.map((notification) => {
+    const mappedNotification: Notification = {
+      ...notification,
+      location: notification.location ?? 'dashboard',
+      participantId: notification.participantId ?? undefined,
+      tagId: notification.tagId ?? undefined,
+      expiration: notification.expiration ?? undefined
+    }
+    return mappedNotification
+  }))
+
+  return mappedNotifications
 }
 
 interface GetAllParticipantNotificationOptions {
@@ -26,9 +46,16 @@ export interface CreateNotificationParams {
   participantId?: string,
   tagId?: string,
   expiration?: string,
+  options?: {
+    logging?: boolean
+  }
 }
 export async function createNotificationMutation(params: CreateNotificationParams) {
-
+  const response = await client.models.Notifications.create({
+    content: params.content,
+    location: params.location,
+    participantId: params.participantId,
+  })
 }
 
 export interface UpdateNotificationParams extends Partial<CreateNotificationParams> {
