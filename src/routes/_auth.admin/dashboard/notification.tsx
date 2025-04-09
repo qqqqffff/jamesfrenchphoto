@@ -3,6 +3,10 @@ import { getAllNotificationsQueryOptions } from '../../../services/notificationS
 import { useEffect, useState } from 'react'
 import { CreateNotificationPanel } from '../../../components/admin/notification/CreateNotificationPanel'
 import { Notification } from '../../../types'
+import { useQuery } from '@tanstack/react-query'
+import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
+import { NotificationPanel } from '../../../components/admin/notification/NotificationPanel'
+import { formatTime } from '../../../utils'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/notification')({
   component: RouteComponent,
@@ -28,6 +32,9 @@ function RouteComponent() {
     }
   }, [data.notifications])
 
+  const participants = useQuery(getAllParticipantsQueryOptions({ siNotifications: true, siTags: true }))
+  const userTags = useQuery(getAllUserTagsQueryOptions({ siCollections: false, siTimeslots: false, siNotifications: true }))
+
   return (
     <div className="flex flex-row mx-4 mt-4 gap-4">
       <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
@@ -44,15 +51,49 @@ function RouteComponent() {
           </button>
         </div>
         <div className="border w-full"></div>
+        {notifications
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .map((notification, index) => {
+            const selected = notification.id === selectedNotification?.id
+          
+            return (
+              <button
+                key={index}
+                className={`
+                  flex flex-row justify-between px-4 py-2 border border-gray-400
+                  hover:border-gray-700 ${selected ? 'bg-gray-200 hover:bg-gray-100' : 'hover:bg-gray-200'}
+                  rounded-lg w-full font-thin
+                `}
+                onClick={() => setSelectedNotification(selected ? undefined : notification)}
+              >
+                <span className='max-w-[60%] text-ellipsis'>{notification.content}</span>
+                <span>{formatTime(new Date(notification.updatedAt), { timeString: false })}</span>
+              </button>
+            )
+          })
+        }
       </div>
       <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
         {creatingNotification ? (
           <CreateNotificationPanel 
             parentUpdateNotification={setSelectedNotification}
             parentUpdateNotifications={setNotifications}
+            parentUpdateCreating={setCreatingNotification}
+            participants={participants}
+            tags={userTags}
           />
         ) : (
-          <></>
+          selectedNotification ? (
+            <NotificationPanel 
+              notification={selectedNotification}
+              parentUpdateNotification={setSelectedNotification}
+              parentUpdateNotifications={setNotifications}
+            />
+          ) : (
+            <div className='flex flex-row items-center justify-center w-full'>
+              <span className='font-thin italic text-xl'>Create or open an existing notification to view here.</span>
+            </div>
+          )
         )}
       </div>
     </div>

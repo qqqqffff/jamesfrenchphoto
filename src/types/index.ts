@@ -61,7 +61,9 @@ export type Notification = {
     location: 'dashboard'
     participants: Participant[]
     tags: UserTag[]
-    expiration?: string
+    expiration?: string,
+    createdAt: string,
+    updatedAt: string,
 }
 
 export type User = {

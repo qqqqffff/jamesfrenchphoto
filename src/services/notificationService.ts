@@ -114,6 +114,47 @@ async function getAllParticipantNotifications(client: V6Client<Schema>, particip
 
 }
 
+interface GetAllNotificationsFromUserTagsOptions {
+  logging?: boolean
+}
+export async function getAllNotificationsFromUserTag(client: V6Client<Schema>, memo: Notification[], tagId?: string, options?: GetAllNotificationsFromUserTagsOptions): Promise<[Notification[], Notification[]]> {
+  const mappedNotifications: Notification[] = []
+  const updatedMemo = [...memo]
+  if(!tagId) return [mappedNotifications, updatedMemo]
+
+  let tagResponse = await client.models.NotificationUserTags.listNotificationUserTagsByTagId({ tagId: tagId })
+  const tagData = tagResponse.data
+
+  while(tagResponse.nextToken) {
+    tagResponse = await client.models.NotificationUserTags.listNotificationUserTagsByTagId({ tagId: tagId }, { nextToken: tagResponse.nextToken })
+    tagData.push(...tagResponse.data)
+  }
+  
+
+  mappedNotifications.push(...(await Promise.all(tagData.map(async (tag) => {
+    const foundNotification = updatedMemo.find((notification) => notification.id === tag.notificationId)
+    if(foundNotification) {
+      return foundNotification
+    }
+    const notification = await tag.notification()
+    if(notification.data) {
+      const mappedNotification: Notification = {
+        ...notification.data,
+        location: notification.data.location ?? 'dashboard',
+        expiration: notification.data.expiration ?? undefined,
+        participants: [],
+        tags: []
+      }
+      updatedMemo.push(mappedNotification)
+      return mappedNotification
+    }
+  }))).filter((notification) => notification !== undefined))
+
+  if(options?.logging) console.log(updatedMemo)
+
+  return [mappedNotifications, updatedMemo]
+}
+
 export interface CreateNotificationParams {
   content: string,
   location: 'dashboard',

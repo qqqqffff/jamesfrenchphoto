@@ -10,12 +10,14 @@ import { updateUserAttributes } from "aws-amplify/auth";
 import { Duration } from "luxon";
 import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
 import { getAllTimeslotsByUserTag } from "./timeslotService";
+import { getAllNotificationsFromUserTag } from "./notificationService";
 
 const client = generateClient<Schema>()
 
 interface GetAllUserTagsOptions {
     siCollections?: boolean
-    siTimeslots?: boolean
+    siTimeslots?: boolean,
+    siNotifications?: boolean
 }
 async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
     console.log('api call')
@@ -27,9 +29,13 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
         userTagData.push(...userTagsResponse.data)
     }
 
+    //TODO: implement memoization
+    let notificationMemo: Notification[] = []
+
     const mappedTags = await Promise.all(userTagData.map(async (tag) => {
         const collections: PhotoCollection[] = []
         const timeslots: Timeslot[] = []
+        const notifications: Notification[] = []
         if(!options || options.siCollections) {
             collections.push(...(await getAllCollectionsFromUserTags(client, [{
                     ...tag,
@@ -46,6 +52,11 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
                 collections: [], 
                 color: undefined
             })))
+        }
+        if(options?.siNotifications) {
+            const response = await getAllNotificationsFromUserTag(client, notificationMemo, tag.id)
+            notifications.push(...response[0])
+            notificationMemo = response[1]
         }
         const mappedTag: UserTag = {
             ...tag,

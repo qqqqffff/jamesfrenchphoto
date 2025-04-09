@@ -185,6 +185,7 @@ export const badgeColorThemeMap_hoverable: CustomFlowbiteTheme['badge'] = {
             'yellow-300': "bg-yellow-200 text-yellow-600 group-hover:bg-yellow-200 hover:bg-yellow-300",
             'orange-400': "bg-orange-200 text-orange-600 group-hover:bg-orange-200 hover:bg-orange-300",
             'amber-600': "bg-amber-200 text-amber-700 group-hover:bg-amber-200 hover:bg-amber-300",
+            'gray': 'bg-gray-200 text-gray-700 hover:bg-gray-300'
         }
     },
     
