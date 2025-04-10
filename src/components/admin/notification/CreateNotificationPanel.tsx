@@ -51,6 +51,13 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
       setExpirationEnabled(props.notification.expiration !== undefined)
       setExpiration(props.notification.expiration ? new Date(props.notification.expiration) : expiration)
     }
+    else if(!props.notification) {
+      setContent('')
+      setParticipants([])
+      setTags([])
+      setExpirationEnabled(true)
+      setExpiration(new Date(currentDate.getTime() + DAY_OFFSET))
+    }
   }, [props.notification])
 
   const createNotification = useMutation({
@@ -346,7 +353,12 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
               disabled={createNotification.isPending}
               color="light"
               onClick={() => {
-                props.parentUpdateCreating(false)
+                if(props.notification) {
+                  props.parentUpdateNotification(undefined)
+                }
+                else {
+                  props.parentUpdateCreating(false)
+                }
               }}
             >Cancel</Button>
             <Button 
@@ -356,6 +368,20 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
               isProcessing={createNotification.isPending}
               onClick={() => {
                 if(!props.notification) {
+                  const tempNotification: Notification = {
+                    id: 'temp',
+                    content: content,
+                    location: 'dashboard',
+                    participants: participants,
+                    tags: tags,
+                    expiration: expirationEnabled ? expiration.toISOString() : undefined,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  }
+
+                  props.parentUpdateNotification(tempNotification)
+                  props.parentUpdateNotifications((prev) => [...prev, tempNotification])
+
                   createNotification.mutate({
                     content: content,
                     location: 'dashboard',

@@ -10,7 +10,7 @@ import { formatTime } from '../../../utils'
 export const Route = createFileRoute('/_auth/admin/dashboard/notification')({
   component: RouteComponent,
   loader: async ({ context }) => {
-    const notifications = await context.queryClient.ensureQueryData(getAllNotificationsQueryOptions())
+    const notifications = await context.queryClient.ensureQueryData(getAllNotificationsQueryOptions({ siParticipants: true, siTags: true }))
 
     return {
       notifications: notifications
@@ -71,7 +71,7 @@ function RouteComponent() {
                   setCreatingNotification(false)
                 }}
               >
-                <span className='max-w-[60%] text-ellipsis'>{notification.content}</span>
+                <span className='max-w-[60%] overflow-hidden whitespace-nowrap text-ellipsis'>{notification.content}</span>
                 <span>{formatTime(new Date(notification.updatedAt), { timeString: false })}</span>
               </button>
             )
@@ -81,6 +81,7 @@ function RouteComponent() {
       <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
         {creatingNotification ? (
           <CreateNotificationPanel 
+            notification={undefined}
             parentUpdateNotification={setSelectedNotification}
             parentUpdateNotifications={setNotifications}
             parentUpdateCreating={setCreatingNotification}

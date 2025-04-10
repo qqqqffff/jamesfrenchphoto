@@ -1,18 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 
 export const AutoExpandTextarea = (props: { stateUpdate: (value: string) => void, parentValue?: string, placeholder: string}) => {
-  const [text, setText] = useState(props.parentValue);
+  const [text, setText] = useState<string>(props.parentValue ?? '');
   const textareaRef = useRef(null);
 
   useEffect(() => {
-    if(props.parentValue){
-      setText((prev) => {
-        if(prev !== props.parentValue){
-          return props.parentValue
-        }
-        return prev
-      })
-    }
+    setText((prev) => {
+      if(prev !== props.parentValue){
+        return props.parentValue ?? ''
+      }
+      return prev
+    })
   }, [props.parentValue])
 
   return (
