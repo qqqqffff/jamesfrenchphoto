@@ -5,7 +5,6 @@ import { CreateNotificationPanel } from '../../../components/admin/notification/
 import { Notification } from '../../../types'
 import { useQuery } from '@tanstack/react-query'
 import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
-import { NotificationPanel } from '../../../components/admin/notification/NotificationPanel'
 import { formatTime } from '../../../utils'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/notification')({
@@ -44,7 +43,10 @@ function RouteComponent() {
             className="flex flex-row gap-2 border border-gray-300 items-center enabled:hover:bg-gray-100 rounded-xl py-1 px-3 disabled:bg-gray-200 disabled:cursor-not-allowed disabled:text-gray-600"
             disabled={creatingNotification}
             onClick={() => {
-              if(!creatingNotification) setCreatingNotification(true)
+              if(!creatingNotification) {
+                setSelectedNotification(undefined)
+                setCreatingNotification(true)
+              }
             }}
           >
             <span className="text-sm">Create Notification</span>
@@ -64,7 +66,10 @@ function RouteComponent() {
                   hover:border-gray-700 ${selected ? 'bg-gray-200 hover:bg-gray-100' : 'hover:bg-gray-200'}
                   rounded-lg w-full font-thin
                 `}
-                onClick={() => setSelectedNotification(selected ? undefined : notification)}
+                onClick={() => {
+                  setSelectedNotification(selected ? undefined : notification)
+                  setCreatingNotification(false)
+                }}
               >
                 <span className='max-w-[60%] text-ellipsis'>{notification.content}</span>
                 <span>{formatTime(new Date(notification.updatedAt), { timeString: false })}</span>
@@ -84,10 +89,13 @@ function RouteComponent() {
           />
         ) : (
           selectedNotification ? (
-            <NotificationPanel 
+            <CreateNotificationPanel 
               notification={selectedNotification}
               parentUpdateNotification={setSelectedNotification}
               parentUpdateNotifications={setNotifications}
+              parentUpdateCreating={setCreatingNotification}
+              participants={participants}
+              tags={userTags}
             />
           ) : (
             <div className='flex flex-row items-center justify-center w-full'>
