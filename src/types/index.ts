@@ -151,6 +151,7 @@ export type UserTag = {
     collections?: PhotoCollection[],
     timeslots?: Timeslot[]
     package?: Package,
+    notifications?: Notification[]
 }
 
 export type Package = {

@@ -2,18 +2,22 @@ import { createFileRoute } from '@tanstack/react-router'
 import { getAllNotificationsQueryOptions } from '../../../services/notificationService'
 import { useEffect, useState } from 'react'
 import { CreateNotificationPanel } from '../../../components/admin/notification/CreateNotificationPanel'
-import { Notification } from '../../../types'
-import { useQuery } from '@tanstack/react-query'
+import { Notification, Participant, UserTag } from '../../../types'
 import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
 import { formatTime } from '../../../utils'
+import { NotificationSidePanel } from '../../../components/admin/notification/NotificationSidePanel'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/notification')({
   component: RouteComponent,
   loader: async ({ context }) => {
-    const notifications = await context.queryClient.ensureQueryData(getAllNotificationsQueryOptions({ siParticipants: true, siTags: true }))
-
+    const notifications = context.queryClient.ensureQueryData(getAllNotificationsQueryOptions({ siParticipants: true, siTags: true }))
+    const participants = context.queryClient.ensureQueryData(getAllParticipantsQueryOptions({ siNotifications: true, siTags: true }))
+    const userTags = context.queryClient.ensureQueryData(getAllUserTagsQueryOptions({ siCollections: false, siTimeslots: false, siNotifications: true }))
+  
     return {
-      notifications: notifications
+      notifications: await notifications,
+      participants: await participants,
+      userTags: await userTags
     }
   }
 })
@@ -24,15 +28,20 @@ function RouteComponent() {
   const [creatingNotification, setCreatingNotification] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [selectedNotification, setSelectedNotification] = useState<Notification>()
+  const [participants, setParticipants] = useState<Participant[]>([])
+  const [userTags, setUserTags] = useState<UserTag[]>([])
 
   useEffect(() => {
     if(data.notifications.some((pNoti) => !notifications.some((noti) => pNoti.id === noti.id))) {
       setNotifications(data.notifications)
     }
-  }, [data.notifications])
-
-  const participants = useQuery(getAllParticipantsQueryOptions({ siNotifications: true, siTags: true }))
-  const userTags = useQuery(getAllUserTagsQueryOptions({ siCollections: false, siTimeslots: false, siNotifications: true }))
+    if(data.participants.some((pPart) => !participants.some((part) => pPart.id === part.id))) {
+      setParticipants(data.participants)
+    }
+    if(data.userTags.some((pTag) => !userTags.some((tag) => pTag.id === tag.id))) {
+      setUserTags(data.userTags)
+    }
+  }, [data.notifications, data.userTags, data,participants])
 
   return (
     <div className="flex flex-row mx-4 mt-4 gap-4">
@@ -77,6 +86,10 @@ function RouteComponent() {
             )
           })
         }
+        <NotificationSidePanel 
+          notifications={notifications}
+          userTags={userTags}
+        />
       </div>
       <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
         {creatingNotification ? (
@@ -85,6 +98,8 @@ function RouteComponent() {
             parentUpdateNotification={setSelectedNotification}
             parentUpdateNotifications={setNotifications}
             parentUpdateCreating={setCreatingNotification}
+            parentUpdateParticipants={setParticipants}
+            parentUpdateTags={setUserTags}
             participants={participants}
             tags={userTags}
           />
@@ -95,6 +110,8 @@ function RouteComponent() {
               parentUpdateNotification={setSelectedNotification}
               parentUpdateNotifications={setNotifications}
               parentUpdateCreating={setCreatingNotification}
+              parentUpdateParticipants={setParticipants}
+              parentUpdateTags={setUserTags}
               participants={participants}
               tags={userTags}
             />

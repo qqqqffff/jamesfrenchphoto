@@ -86,6 +86,7 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
           const mappedTag: UserTag = {
             ...tag.data,
             color: tag.data.color ?? undefined,
+            notifications: undefined
           }
           tagMemo.set(mappedTag.id, mappedTag)
 

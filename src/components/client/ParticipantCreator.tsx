@@ -40,6 +40,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
 
     const [submitting, setSubmitting] = useState(false)
 
+    //TODO: validate me
     async function tagValidation(): Promise<UserTag[] | undefined>{
         const userTags: (UserTag | undefined)[] = (await Promise.all(tags
                 .filter((tag) => tag !== '' && tag !== undefined)
@@ -49,6 +50,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                     const userTag: UserTag = {
                         ...tagResponse.data,
                         color: tagResponse.data.color ?? undefined,
+                        notifications: undefined
                     }
                     return userTag
                 }

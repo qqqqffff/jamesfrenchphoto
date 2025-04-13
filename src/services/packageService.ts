@@ -46,6 +46,7 @@ async function getAllPackages(client: V6Client<Schema>){
             tag: {
                 ...tagResponse.data,
                 color: tagResponse.data.color ?? undefined,
+                notifications: undefined
             },
             pdfPath: (await getUrl({
                 path: pack.pdfPath

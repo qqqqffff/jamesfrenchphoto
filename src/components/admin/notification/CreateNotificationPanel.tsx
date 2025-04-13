@@ -3,8 +3,7 @@ import { Notification, Participant, UserTag } from "../../../types"
 import { Badge, Button, Checkbox, Datepicker, Dropdown, TextInput, Tooltip } from "flowbite-react"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea"
-import { useMutation, UseQueryResult } from "@tanstack/react-query"
-import Loading from "../../common/Loading"
+import { useMutation } from "@tanstack/react-query"
 import { badgeColorThemeMap_hoverable, currentDate, DAY_OFFSET, textInputTheme } from "../../../utils"
 import { HiOutlineX } from "react-icons/hi"
 import { ParticipantPanel } from "../../common/ParticipantPanel"
@@ -15,10 +14,13 @@ interface CreateNotificationPanelProps {
   parentUpdateNotification: Dispatch<SetStateAction<Notification | undefined>>
   parentUpdateNotifications: Dispatch<SetStateAction<Notification[]>>
   parentUpdateCreating: Dispatch<SetStateAction<boolean>>
-  participants: UseQueryResult<Participant[], Error>
-  tags: UseQueryResult<UserTag[], Error>
+  parentUpdateParticipants: Dispatch<SetStateAction<Participant[]>>
+  parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
+  participants: Participant[]
+  tags: UserTag[]
 }
 
+//TODO: wieghted filtering of participants tf
 export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => {
   const tagAdded = useRef(false)
   const participantAdded = useRef(false)
@@ -169,41 +171,38 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
             {searchParticipantFocused && (
               <div className="absolute mt-0.5 z-10 bg-white border border-gray-200 rounded-md shadow-lg">
                 <ul className="max-h-60 overflow-y-auto py-1 min-w-max">
-                  {!props.participants.data ? (
-                    <li className="flex flex-row">Loading<Loading /></li>
-                  ) : (
-                    (props.participants.data ?? [])
-                      .filter((participant) => ((
-                        participant.email?.toLowerCase().trim().includes(searchParticipant.toLowerCase()) ||
-                        participant.firstName.toLowerCase().trim().includes(searchParticipant.toLowerCase()) ||
-                        participant.lastName.toLowerCase().trim().includes(searchParticipant.toLowerCase()) ||
-                        participant.preferredName?.toLowerCase().trim().includes(searchParticipant.toLowerCase()) 
-                      ) && !participants.some((part) => part.id === participant.id)))
-                      .map((participant, index) => {
-                        return (
-                          <Tooltip 
-                            theme={{ target: undefined }}
-                            key={index}
-                            content={(
-                              <ParticipantPanel participant={participant} />
-                            )}
-                            style="light"
-                            placement="bottom"
+                  {props.participants
+                    .filter((participant) => ((
+                      participant.email?.toLowerCase().trim().includes(searchParticipant.toLowerCase()) ||
+                      participant.firstName.toLowerCase().trim().includes(searchParticipant.toLowerCase()) ||
+                      participant.lastName.toLowerCase().trim().includes(searchParticipant.toLowerCase()) ||
+                      participant.preferredName?.toLowerCase().trim().includes(searchParticipant.toLowerCase()) 
+                    ) && !participants.some((part) => part.id === participant.id)))
+                    .map((participant, index) => {
+                      return (
+                        <Tooltip 
+                          theme={{ target: undefined }}
+                          key={index}
+                          content={(
+                            <ParticipantPanel participant={participant} />
+                          )}
+                          style="light"
+                          placement="bottom"
+                        >
+                          <li 
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                            onClick={() => {
+                              const temp = [...participants, participant]
+                              setParticipants(temp)
+                              participantAdded.current = props.participants.some((part) => !temp.some((tPart) => tPart.id === part.id))
+                            }}
                           >
-                            <li 
-                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                              onClick={() => {
-                                const temp = [...participants, participant]
-                                setParticipants(temp)
-                                participantAdded.current = (props.participants.data ?? []).some((part) => !temp.some((tPart) => tPart.id === part.id))
-                              }}
-                            >
-                              {!participant.email ? `${participant.firstName}, ${participant.lastName}` : participant.email}
-                            </li>
-                          </Tooltip>
-                        )
-                      })
-                  )}
+                            {!participant.email ? `${participant.firstName}, ${participant.lastName}` : participant.email}
+                          </li>
+                        </Tooltip>
+                      )
+                    })
+                  }
                 </ul>
               </div>
             )}
@@ -259,29 +258,26 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
             {searchTagFocused && (
               <div className="absolute mt-0.5 z-10 bg-white border border-gray-200 rounded-md shadow-lg">
                 <ul className="max-h-60 overflow-y-auto py-1 min-w-max">
-                {!props.tags.data ? (
-                    <li className="flex flex-row">Loading<Loading /></li>
-                ) : (
-                  (props.tags.data ?? [])
-                    .filter((tag) => ((
-                      tag.name.toLowerCase().trim().includes(searchTag.toLowerCase()) 
-                    ) && !tags.some((t) => t.id === tag.id)))
-                    .map((tag, index) => {
-                      return (
-                        <li 
-                          key={index}
-                          className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-${tag.color ?? 'black'}`}
-                          onClick={() => {
-                            const temp = [...tags, tag]
-                            setTags(temp)
-                            tagAdded.current = (props.tags.data ?? []).some((t) => !temp.some((tT) => tT.id === t.id))
-                          }}
-                        >
-                          {tag.name}
-                        </li>
-                      )
-                    })
-                )}
+                {props.tags
+                  .filter((tag) => ((
+                    tag.name.toLowerCase().trim().includes(searchTag.toLowerCase()) 
+                  ) && !tags.some((t) => t.id === tag.id)))
+                  .map((tag, index) => {
+                    return (
+                      <li 
+                        key={index}
+                        className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-${tag.color ?? 'black'}`}
+                        onClick={() => {
+                          const temp = [...tags, tag]
+                          setTags(temp)
+                          tagAdded.current = props.tags.some((t) => !temp.some((tT) => tT.id === t.id))
+                        }}
+                      >
+                        {tag.name}
+                      </li>
+                    )
+                  })
+                }
                 </ul>
               </div>
             )}
@@ -381,6 +377,34 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
 
                   props.parentUpdateNotification(tempNotification)
                   props.parentUpdateNotifications((prev) => [...prev, tempNotification])
+                  props.parentUpdateParticipants((prev) => {
+                    const temp = [...prev]
+                      .map((part) => {
+                        if(participants.some((p) => p.id === part.id)) {
+                          return {
+                            ...part,
+                            notifications: [...part.notifications, tempNotification]
+                          }
+                        }
+                        return part
+                      })
+
+                    return temp
+                  })
+                  props.parentUpdateTags((prev) => {
+                    const temp = [...prev]
+                      .map((tag) => {
+                        if(tags.some((t) => t.id === tag.id)) {
+                          return {
+                            ...tag,
+                            notifications: [...tag.notifications ?? [], tempNotification],
+                          }
+                        }
+                        return tag
+                      })
+
+                    return temp
+                  })
 
                   createNotification.mutate({
                     content: content,
@@ -411,6 +435,52 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
                       }
                       return notification
                     })
+                  })
+                  props.parentUpdateParticipants((prev) => {
+                    const temp = [...prev]
+                      .map((part) => {
+                        if(participants.some((p) => p.id === part.id)) {
+                          return {
+                            ...part,
+                            notifications: [...part.notifications
+                              .filter((notification) => notification.id !== tempNotification.id),
+                              tempNotification
+                            ]
+                          }
+                        }
+                        if(part.notifications.some((notification) => notification.id === tempNotification.id)) {
+                          return {
+                            ...part,
+                            notifications: part.notifications.filter((notification) => notification.id !== tempNotification.id)
+                          }
+                        }
+                        return part
+                      })
+
+                    return temp
+                  })
+                  props.parentUpdateTags((prev) => {
+                    const temp = [...prev]
+                      .map((tag) => {
+                        if(tags.some((t) => t.id === tag.id)) {
+                          return {
+                            ...tag,
+                            notifications: [...(tag.notifications ?? [])
+                              .filter((notification) => notification.id !== tempNotification.id),
+                              tempNotification
+                            ],
+                          }
+                        }
+                        if(tag.notifications?.some((notification) => notification.id === tempNotification.id)) {
+                          return {
+                            ...tag,
+                            notifications: (tag.notifications ?? []).filter((notification) => notification.id !== tempNotification.id)
+                          }
+                        }
+                        return tag
+                      })
+
+                    return temp
                   })
                   updateNotification.mutate({
                     notification: props.notification,
