@@ -10,14 +10,14 @@ import { TableComponent } from "./TableComponent"
 import Loading from "../../common/Loading"
 import { getAllUserTagsQueryOptions, getAuthUsersQueryOptions } from "../../../services/userService"
 
-interface TablePannelProps {
+interface TablePanelProps {
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   selectedTable: Table
   parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>>
 }
 
-export const TablePannel = (props: TablePannelProps) => {
+export const TablePanel = (props: TablePanelProps) => {
   const [searchText, setSearchText] = useState('')
   const [deletedColumns, setDeletedColumns] = useState<TableColumn[]>([])
 

@@ -7,7 +7,7 @@ import { BiSolidSquareRounded } from "react-icons/bi"
 import { UseMutationResult } from "@tanstack/react-query"
 import { UpdateCollectionParams } from "../../../services/collectionService"
 
-interface CoverSidePannel {
+interface CoverSidePanel {
   setUploadCoverVisible: Dispatch<SetStateAction<boolean>>
   fileUpload: MutableRefObject<File | null>
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
@@ -16,7 +16,7 @@ interface CoverSidePannel {
   updateCollectionMutation: UseMutationResult<PhotoCollection, Error, UpdateCollectionParams, unknown>
 }
 
-export const CoverSidePannel = (props: CoverSidePannel) => {
+export const CoverSidePanel = (props: CoverSidePanel) => {
 
   return (
     <>

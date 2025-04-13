@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { CreateNotificationPanel } from '../../../components/admin/notification/CreateNotificationPanel'
 import { Notification, Participant, UserTag } from '../../../types'
 import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
-import { formatTime } from '../../../utils'
 import { NotificationSidePanel } from '../../../components/admin/notification/NotificationSidePanel'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/notification')({
@@ -62,33 +61,12 @@ function RouteComponent() {
           </button>
         </div>
         <div className="border w-full"></div>
-        {notifications
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .map((notification, index) => {
-            const selected = notification.id === selectedNotification?.id
-          
-            return (
-              <button
-                key={index}
-                className={`
-                  flex flex-row justify-between px-4 py-2 border border-gray-400
-                  hover:border-gray-700 ${selected ? 'bg-gray-200 hover:bg-gray-100' : 'hover:bg-gray-200'}
-                  rounded-lg w-full font-thin
-                `}
-                onClick={() => {
-                  setSelectedNotification(selected ? undefined : notification)
-                  setCreatingNotification(false)
-                }}
-              >
-                <span className='max-w-[60%] overflow-hidden whitespace-nowrap text-ellipsis'>{notification.content}</span>
-                <span>{formatTime(new Date(notification.updatedAt), { timeString: false })}</span>
-              </button>
-            )
-          })
-        }
         <NotificationSidePanel 
           notifications={notifications}
           userTags={userTags}
+          selectedNotification={selectedNotification}
+          parentUpdateSelectedNotification={setSelectedNotification}
+          parentUpdateCreatingNotification={setCreatingNotification}
         />
       </div>
       <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">

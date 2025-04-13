@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
 import { Notification, Participant, UserTag } from "../../../types"
-import { Badge, Button, Checkbox, Datepicker, Dropdown, TextInput, Tooltip } from "flowbite-react"
+import { Badge, Button, Checkbox, Datepicker, Dropdown, Radio, TextInput, Tooltip } from "flowbite-react"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea"
 import { useMutation } from "@tanstack/react-query"
@@ -30,6 +30,8 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
   const [participants, setParticipants] = useState<Participant[]>([])
   const [searchParticipant, setSearchParticipant] = useState('')
   const [searchParticipantFocused, setSearchParticipantFocused] = useState(false)
+  const [participantFilterTag, setParticipantFilterTag] = useState<string>('')
+  const [filterParticipantTag, setFilterParticipantTag] = useState<string>('')
 
   const [tags, setTags] = useState<UserTag[]>([])
   const [searchTag, setSearchTag] = useState('')
@@ -44,7 +46,8 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
         props.notification.content !== content ||
         props.notification.participants.some((participant) => !participants.some((cPart) => cPart.id === participant.id)) ||
         props.notification.tags.some((tag) => !tags.some((cTag) => cTag.id === tag.id)) ||
-        (props.notification.expiration && new Date(props.notification.expiration).getTime() == expiration.getTime())
+        (props.notification.expiration && new Date(props.notification.expiration).getTime() == expiration.getTime()) ||
+        (!props.notification.expiration !== expirationEnabled)
       )
     ){
       setContent(props.notification.content)
@@ -149,25 +152,73 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
         <div className="flex flex-col gap-1 max-w-[500px]">
           <span className="font-thin text-lg italic mt-2">Users</span>
           <div className="relative">
-            <TextInput
-              theme={textInputTheme}
-              sizing="sm"
-              placeholder="Search for participants" 
-              onChange={(event) => {
-                setSearchParticipant(event.target.value)
-              }}
-              onFocus={() => setSearchParticipantFocused(true)}
-              onBlur={() => 
-                setTimeout(() => {
-                  if(!participantAdded.current) {
-                    setSearchParticipantFocused(false)
-                  }
-                  else {
-                    participantAdded.current = false
-                  }
-                }, 200)
-              }
-            />
+            <div className="flex flex-row w-full gap-4 items-center">
+              <TextInput
+                theme={textInputTheme}
+                sizing="sm"
+                className="w-full"
+                placeholder="Search for participants" 
+                onChange={(event) => {
+                  setSearchParticipant(event.target.value)
+                }}
+                onFocus={() => setSearchParticipantFocused(true)}
+                onBlur={() => 
+                  setTimeout(() => {
+                    if(!participantAdded.current) {
+                      setSearchParticipantFocused(false)
+                    }
+                    else {
+                      participantAdded.current = false
+                    }
+                  }, 200)
+                }
+              />
+              <Dropdown
+                color="light"
+                size="sm"
+                label={<span className="text-nowrap whitespace-nowrap">Filter Tags</span>}
+                dismissOnClick={false}
+              >
+                <TextInput 
+                  theme={textInputTheme} 
+                  sizing="sm" 
+                  className="w-full place-self-center mb-2 " 
+                  placeholder="Search for Tag"
+                  onKeyDown={(event) => {
+                    event.stopPropagation()
+                  }}
+                  onChange={(event) => {
+                    setFilterParticipantTag(event.target.value)
+                  }}
+                  value={filterParticipantTag}
+                />
+                {props.tags
+                  .filter((tag) => tag.name.toLocaleLowerCase().trim().includes(filterParticipantTag.toLocaleLowerCase().trim()))
+                  .map((tag) => {
+                    return (
+                      <Dropdown.Item 
+                        className="flex flex-row items-center justify-start gap-2" 
+                        as='label' 
+                        htmlFor={tag.id} 
+                        key={tag.id} 
+                        onClick={() => {
+                          setParticipantFilterTag(tag.id)
+                        }}
+                      >
+                        <Radio name='tag' id={tag.id} checked={participantFilterTag === tag.id} />
+                        <span className={`text-${tag.color ?? 'black'}`}>{tag.name}</span>
+                      </Dropdown.Item>
+                    )
+                  })
+                }
+                <Dropdown.Item
+                  onClick={() => {
+                    setParticipantFilterTag('')
+                    setFilterParticipantTag('')
+                  }}
+                >Clear</Dropdown.Item>
+              </Dropdown>
+            </div>
             {searchParticipantFocused && (
               <div className="absolute mt-0.5 z-10 bg-white border border-gray-200 rounded-md shadow-lg">
                 <ul className="max-h-60 overflow-y-auto py-1 min-w-max">
@@ -177,7 +228,9 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
                       participant.firstName.toLowerCase().trim().includes(searchParticipant.toLowerCase()) ||
                       participant.lastName.toLowerCase().trim().includes(searchParticipant.toLowerCase()) ||
                       participant.preferredName?.toLowerCase().trim().includes(searchParticipant.toLowerCase()) 
-                    ) && !participants.some((part) => part.id === participant.id)))
+                    ) && !participants.some((part) => part.id === participant.id) &&
+                      (participantFilterTag === '' || participant.userTags.some((tag) => tag.id === participantFilterTag))
+                    ))
                     .map((participant, index) => {
                       return (
                         <Tooltip 
@@ -313,7 +366,7 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
               <div className="flex flex-row ">
                 <Datepicker 
                   minDate={new Date(currentDate.getTime() + DAY_OFFSET)}
-                  disabled={expirationEnabled}
+                  disabled={!expirationEnabled}
                   showClearButton={false}
                   showTodayButton={false}
                   onChange={(event) => {
@@ -329,7 +382,7 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
                 onClick={() => setExpirationEnabled(!expirationEnabled)}
               >
                 <Checkbox 
-                  checked={!expirationEnabled}
+                  checked={expirationEnabled}
                   className="text-sm"
                   readOnly
                 />
@@ -360,8 +413,8 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
             <Button 
               className="max-w-min disabled:cursor-not-allowed"
               //TODO: add in sanity check
-              disabled={createNotification.isPending}
-              isProcessing={createNotification.isPending}
+              disabled={createNotification.isPending || updateNotification.isPending}
+              isProcessing={createNotification.isPending || updateNotification.isPending}
               onClick={() => {
                 if(!props.notification) {
                   const tempNotification: Notification = {
@@ -425,6 +478,7 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
                     tags: tags,
                     expiration: expirationEnabled ? expiration.toISOString() : undefined,
                   }
+
                   props.parentUpdateNotification(tempNotification)
                   props.parentUpdateNotifications((prev) => {
                     const temp = [...prev]
@@ -482,13 +536,15 @@ export const CreateNotificationPanel = (props: CreateNotificationPanelProps) => 
 
                     return temp
                   })
+
+                  
                   updateNotification.mutate({
                     notification: props.notification,
                     content: content,
                     location: 'dashboard',
                     participantIds: participants.map((participant) => participant.id),
                     tagIds: tags.map((tag) => tag.id),
-                    expiration: expirationEnabled ? expiration.toISOString() : undefined,
+                    expiration: expirationEnabled ? expiration.toISOString() : 'none',
                     options: {
                       logging: true,
                     }

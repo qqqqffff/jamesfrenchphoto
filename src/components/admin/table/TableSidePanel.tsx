@@ -9,7 +9,7 @@ import { Dropdown } from "flowbite-react"
 import { ConfirmationModal } from "../../modals"
 import { useNavigate } from "@tanstack/react-router"
 
-interface TableSidePannelParams {
+interface TableSidePanelParams {
   tableGroups: TableGroup[],
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   selectedTableGroups: TableGroup[],
@@ -18,7 +18,7 @@ interface TableSidePannelParams {
   parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>> 
 }
 
-export const TableSidePannel = (props: TableSidePannelParams) => {
+export const TableSidePanel = (props: TableSidePanelParams) => {
   const tableGroupName = useRef<string | null>(null)
   const tableName = useRef<string | null>(null)
   const selectedGroupId = useRef<string | null>(null)

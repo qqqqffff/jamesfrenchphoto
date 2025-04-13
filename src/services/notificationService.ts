@@ -280,13 +280,13 @@ export async function updateNotificationMutation(params: UpdateNotificationParam
 
   if(params.content !== params.notification.content ||
     params.location !== params.notification.location ||
-    params.expiration !== params.expiration
+    params.expiration !== params.notification.expiration
   ) {
     const response = await client.models.Notifications.update({
       id: params.notification.id,
       content: params.content ?? params.notification.content,
       location: params.location ?? params.notification.location,
-      expiration: params.expiration ?? params.notification.expiration,
+      expiration: params.expiration === 'none' ? null : params.expiration ?? params.notification.expiration,
     })
 
     if(params.options?.logging) console.log(response)
