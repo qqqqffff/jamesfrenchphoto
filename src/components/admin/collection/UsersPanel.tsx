@@ -4,13 +4,13 @@ import { Tooltip } from "flowbite-react"
 import { useMutation } from "@tanstack/react-query"
 import { addCollectionParticipantMutation, AddCollectionParticipantParams, removeCollectionParticipantMutation, RemoveCollectionParticipantParams } from "../../../services/collectionService"
 
-interface UsersPannelProps {
+interface UsersPanelProps {
   collection: PhotoCollection,
   participants: Participant[]
   collectionParticipants: Participant[]
 }
 
-export const UsersPannel = (props: UsersPannelProps) => {
+export const UsersPanel = (props: UsersPanelProps) => {
   const [participants, setParticipants] = useState<Participant[]>([])
   const [collectionParticipants, setCollectionParticipants] = useState<Participant[]>([])
   const [search, setSearch] = useState<string>('')

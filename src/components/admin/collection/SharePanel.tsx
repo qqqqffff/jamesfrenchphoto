@@ -18,14 +18,14 @@ import validator from 'validator'
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea";
 import { createAccessTokenMutation, CreateAccessTokenMutationParams } from "../../../services/userService";
 
-interface SharePannelProps {
+interface SharePanelProps {
   collection: PhotoCollection,
   selectedTemplate?: ShareTemplate,
   updateParentSelectedTemplate: Dispatch<SetStateAction<ShareTemplate | undefined>>
   updateParentTemplates: Dispatch<SetStateAction<ShareTemplate[]>>
 }
 
-export const SharePannel = (props: SharePannelProps) => {
+export const SharePanel = (props: SharePanelProps) => {
   const [mode, setMode] = useState<'header' | 'header2' | 'body' | 'footer'>('header')
   const [header, setHeader] = useState<string | undefined>(props.selectedTemplate?.header)
   const [header2, setHeader2] = useState<string | undefined>(props.selectedTemplate?.header2)

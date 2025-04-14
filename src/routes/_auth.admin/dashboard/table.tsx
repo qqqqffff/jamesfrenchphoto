@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { getAllTableGroupsQueryOptions } from '../../../services/tableService'
 import { useState } from 'react'
 import { Table, TableGroup } from '../../../types'
-import { TableSidePannel } from '../../../components/admin/table/TableSidePannel'
-import { TablePannel } from '../../../components/admin/table/TablePannel'
+import { TableSidePanel } from '../../../components/admin/table/TableSidePanel'
+import { TablePanel } from '../../../components/admin/table/TablePanel'
 
 interface ManagementTablesSearchParams {
   table?: string,
@@ -48,7 +48,7 @@ function RouteComponent() {
   return (
     <>
       <div className='flex flex-row mx-4 gap-4 h-[98vh] my-[1vh]'>
-        <TableSidePannel 
+        <TableSidePanel 
           tableGroups={tableGroups} 
           parentUpdateTableGroups={setTableGroups} 
           selectedTableGroups={selectedGroups}
@@ -57,7 +57,7 @@ function RouteComponent() {
           parentUpdateSelectedTable={setSelectedTable}
         />
         { selectedTable ? (
-          <TablePannel
+          <TablePanel
             parentUpdateSelectedTableGroups={setSelectedGroups}
             parentUpdateTableGroups={setTableGroups}
             parentUpdateSelectedTable={setSelectedTable}

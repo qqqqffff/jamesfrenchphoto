@@ -2,6 +2,7 @@ import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { Button } from 'flowbite-react'
 import {
   HiOutlineCalendar,
+  HiOutlineChat,
   // HiOutlineCalendar,
   // HiOutlineChat,
   HiOutlineClipboardList,
@@ -65,9 +66,13 @@ function RouteComponent() {
           >
             <HiOutlineClipboardList className="mt-1 me-1" /> Collection Manager
           </Button>
-          {/* <Button color='gray' onClick={() => setActiveConsole('notificationCenter')} className={activeConsoleClassName('notificationCenter')}>
-                        <HiOutlineChat className="mt-1 me-1"/> Notification Center
-                    </Button> */}
+          <Button 
+            color='gray' 
+            onClick={() => navigate({ to: '/admin/dashboard/notification' })} 
+            className={activeConsoleClassName('notification')}
+          >
+            <HiOutlineChat className="mt-1 me-1"/> Notification Center
+          </Button>
           <Button
             color="gray"
             onClick={() => {

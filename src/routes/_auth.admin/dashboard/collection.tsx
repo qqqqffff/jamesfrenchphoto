@@ -5,7 +5,7 @@ import {
   getPathQueryOptions,
 } from '../../../services/collectionService'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
-import { PhotoCollectionPannel } from '../../../components/admin/collection/PhotoCollectionPannel'
+import { PhotoCollectionPanel } from '../../../components/admin/collection/PhotoCollectionPanel'
 import { useQueries } from '@tanstack/react-query'
 import { CreateCollectionModal } from '../../../components/modals'
 import { useEffect, useState } from 'react'
@@ -252,7 +252,7 @@ function RouteComponent() {
           </div>
         </div>
       ) : (
-        <PhotoCollectionPannel 
+        <PhotoCollectionPanel 
           coverPath={coverPaths?.find((path) => path.id === selectedCollection.id)?.query}
           collection={selectedCollection}
           updateParentCollection={setSelectedCollection}

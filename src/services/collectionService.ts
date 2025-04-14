@@ -79,6 +79,7 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
             const mappedTag: UserTag = {
               ...tag.data,
               color: tag.data.color ?? undefined,
+              notifications: undefined
             }
             return mappedTag
           }))).filter((tag) => tag !== undefined))
@@ -148,6 +149,7 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
             const mappedTag: UserTag = {
                 ...tag.data,
                 color: tag.data.color ?? undefined,
+                notifications: undefined
             }
             return mappedTag
           }))).filter((tag) => tag !== undefined))
@@ -339,6 +341,7 @@ async function getCollectionById(client: V6Client<Schema>, collectionId: string,
       const mappedTag: UserTag = {
         ...tag,
         color: tag.color ?? undefined,
+        notifications: undefined
       }
       return mappedTag
     }))).filter((tag) => tag !== undefined))
@@ -392,6 +395,7 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
                             const mappedTag: UserTag = {
                                 ...tagResponse.data,
                                 color: tagResponse.data.color ?? undefined,
+                                notifications: undefined
                             }
                             return mappedTag
                         }
@@ -405,6 +409,7 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
                     contact: participant.data.contact ?? false,
                     email: participant.data.email ?? undefined,
                     timeslot: [],
+                    notifications: [],
                     userTags: userTags,
                 }
                 return mappedParticipant

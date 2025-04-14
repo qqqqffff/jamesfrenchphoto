@@ -52,6 +52,18 @@ export interface Participant {
     contact: boolean,
     timeslot?: Timeslot[],
     userEmail: string,
+    notifications: Notification[]
+}
+
+export type Notification = {
+    id: string,
+    content: string,
+    location: 'dashboard'
+    participants: Participant[]
+    tags: UserTag[]
+    expiration?: string,
+    createdAt: string,
+    updatedAt: string,
 }
 
 export type User = {
@@ -139,6 +151,7 @@ export type UserTag = {
     collections?: PhotoCollection[],
     timeslots?: Timeslot[]
     package?: Package,
+    notifications?: Notification[]
 }
 
 export type Package = {

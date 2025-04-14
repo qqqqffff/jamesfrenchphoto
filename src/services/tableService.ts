@@ -67,6 +67,7 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
                 const mappedTag: UserTag = {
                     ...tagResponse.data,
                     color: tagResponse.data.color ?? undefined,
+                    notifications: undefined
                 }
                 return mappedTag
             }))).filter((tag) => tag !== undefined) : [],

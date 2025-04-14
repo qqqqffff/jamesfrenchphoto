@@ -28,7 +28,7 @@ import { useDropzone } from "react-dropzone";
 import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
 import { AuthContext } from "../../../auth";
 
-export type PhotoCollectionProps = {
+export type PhotoSetPanelProps = {
   photoCollection: PhotoCollection;
   photoSet: PhotoSet;
   paths: PicturePath[],
@@ -39,7 +39,7 @@ export type PhotoCollectionProps = {
   auth: AuthContext
 }
 
-export const PhotoSetPannel: FC<PhotoCollectionProps> = ({ 
+export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
   photoCollection, photoSet, 
   paths, deleteParentSet, parentUpdateSet,
   parentUpdateCollection, auth, parentUpdateCollections

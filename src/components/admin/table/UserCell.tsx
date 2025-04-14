@@ -71,12 +71,12 @@ export const UserCell = (props: UserCellProps) => {
 
   const foundUser: 'user' | 'participant' | 'tempUser' | undefined = mergedResults[props.value]
 
-  const displayUserPannel = foundUser !== undefined && props.value === value && isFocused
+  const displayUserPanel = foundUser !== undefined && props.value === value && isFocused
   const displayNoResults = foundUser === undefined && props.value !== value && !validator.isEmail(value) && filteredItems && filteredItems.length === 0 && isFocused
   const displayInvite = foundUser === undefined && props.value === value && isFocused && validator.isEmail(props.value) && isFocused
   const displaySearchResults = isFocused && ((props.value !== value || foundUser === undefined) && !validator.isEmail(value)) && filteredItems && filteredItems.length > 0
 
-  function userPannel(type: 'user' | 'participant' | 'tempUser', value: string): JSX.Element | undefined {
+  function userPanel(type: 'user' | 'participant' | 'tempUser', value: string): JSX.Element | undefined {
     let profile: UserData | undefined
     let participant: Participant | undefined
     if(type === 'user'){
@@ -252,7 +252,7 @@ export const UserCell = (props: UserCellProps) => {
                       <span className={`${item[1] === 'participant' ? 'text-purple-400' : item[1] === 'tempUser' ? 'text-orange-400' : 'text-blue-400'}`}>
                         {item[1] === 'participant' ? 'Participant' : 'User'}
                       </span>
-                      {userPannel(item[1], item[0])}
+                      {userPanel(item[1], item[0])}
                     </div>
                   )}
                   style='light'
@@ -290,7 +290,7 @@ export const UserCell = (props: UserCellProps) => {
         </div>
       )}
 
-      {displayUserPannel && (
+      {displayUserPanel && (
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col gap-2 ">
           <div className="flex flex-row p-1 justify-between w-full border-b">
             <span className={`${foundUser === 'participant' ? 'text-purple-400' : foundUser === 'tempUser' ? 'text-orange-400' : 'text-blue-400'} ms-2`}>
@@ -305,7 +305,7 @@ export const UserCell = (props: UserCellProps) => {
               <HiOutlineXMark size={16} className="text-gray-400"/>
             </button>
           </div>
-          {userPannel(foundUser, props.value)}
+          {userPanel(foundUser, props.value)}
         </div>
       )}
 

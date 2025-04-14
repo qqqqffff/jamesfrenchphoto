@@ -1,7 +1,7 @@
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from "../../amplify/data/resource";
-import { Participant, PhotoCollection, PhotoSet, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { Notification, Participant, PhotoCollection, PhotoSet, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
 import { getAllCollectionsFromUserTags } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
@@ -10,12 +10,14 @@ import { updateUserAttributes } from "aws-amplify/auth";
 import { Duration } from "luxon";
 import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
 import { getAllTimeslotsByUserTag } from "./timeslotService";
+import { getAllNotificationsFromUserTag } from "./notificationService";
 
 const client = generateClient<Schema>()
 
 interface GetAllUserTagsOptions {
     siCollections?: boolean
-    siTimeslots?: boolean
+    siTimeslots?: boolean,
+    siNotifications?: boolean
 }
 async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
     console.log('api call')
@@ -27,13 +29,18 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
         userTagData.push(...userTagsResponse.data)
     }
 
+    //TODO: implement memoization
+    let notificationMemo: Notification[] = []
+
     const mappedTags = await Promise.all(userTagData.map(async (tag) => {
         const collections: PhotoCollection[] = []
         const timeslots: Timeslot[] = []
+        const notifications: Notification[] = []
         if(!options || options.siCollections) {
             collections.push(...(await getAllCollectionsFromUserTags(client, [{
                     ...tag,
                     collections: [],
+                    notifications: [],
                     color: undefined,
                 }], {
                     siTags: false
@@ -43,14 +50,22 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
         if(options?.siTimeslots) {
             timeslots.push(...(await getAllTimeslotsByUserTag(client, {
                 ...tag, 
-                collections: [], 
+                collections: [],
+                notifications: [],
                 color: undefined
             })))
+        }
+        if(options?.siNotifications) {
+            const response = await getAllNotificationsFromUserTag(client, notificationMemo, tag.id)
+            notifications.push(...response[0])
+            notificationMemo = response[1]
         }
         const mappedTag: UserTag = {
             ...tag,
             collections: collections,
             color: tag.color ?? undefined,
+            notifications: notifications
+
         }
         return mappedTag
     }))
@@ -62,6 +77,7 @@ interface GetUserProfileByEmailOptions {
     siTimeslot?: boolean,
     siCollections?: boolean,
     siSets?: boolean,
+    siNotifications?: boolean
     unauthenticated?: boolean
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
@@ -69,12 +85,16 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
     const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
     if(!profileResponse || !profileResponse.data) return
     const participantResponse = await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+
+    const notificationMemo: Notification[] = []
     const mappedParticipants: Participant[] = await Promise.all(participantResponse.data.map(async (participant) => {
         const tags: UserTag[] = []
         const timeslots: Timeslot[] = []
+        const notifications: Notification[] = []
         if(options === undefined || options.siTags){
              tags.push(...(await Promise.all((participant.userTags ?? []).filter((tag) => tag !== null).map(async (tag) => {
                 const tagResponse = await client.models.UserTag.get({ id: tag }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+                const notifications: Notification[] = []
                 if(!tagResponse || !tagResponse.data) return
                 const mappedCollections: PhotoCollection[] = []
                 if(!options || options.siCollections){
@@ -114,10 +134,17 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                         return mappedCollection
                     }))).filter((item) => item !== undefined))
                 }
+                if(!options?.unauthenticated) {
+                    const notificationResponse = await getAllNotificationsFromUserTag(client, notificationMemo, tag)
+                    notificationMemo.push(...notificationResponse[1])
+                    notifications.push(...notificationResponse[0])
+                }
+                
                 const mappedTag: UserTag = {
                     ...tagResponse.data,
                     color: tagResponse.data.color ?? undefined,
-                    collections: mappedCollections
+                    collections: mappedCollections,
+                    notifications: notifications
                 }
                 return mappedTag
             }))).filter((tag) => tag !== undefined))
@@ -134,7 +161,8 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                     if(tagResponse && tagResponse.data){
                         mappedTag = {
                             ...tagResponse.data,
-                            color: tagResponse.data.color ?? undefined
+                            color: tagResponse.data.color ?? undefined,
+                            notifications: undefined
                         }
                     }
                 }
@@ -150,7 +178,23 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                 return mappedTimeslot
             }))))
         }
-        
+        if(options === undefined || options.siNotifications) {
+            notifications.push(...(await Promise.all((await participant.notifications()).data.map(async (notificationTag) => {
+                const notification = await notificationTag.notification()
+                if(notification.data){
+                    const mappedNotification: Notification = {
+                        ...notification.data,
+                        location: notification.data.location ?? 'dashboard',
+                        expiration: notification.data.expiration ?? undefined,
+                        //unnecesary
+                        participants: [],
+                        tags: []
+                    }
+                    return mappedNotification
+                }
+            }))).filter((notification) => notification !== undefined))
+        }
+
         const mappedParticipant: Participant = {
             ...participant,
             userTags: tags,
@@ -159,6 +203,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
             email: participant.email ?? undefined,
             contact: participant.contact ?? false,
             timeslot: timeslots,
+            notifications: notifications
         }
         return mappedParticipant
     }))
@@ -183,6 +228,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                     return mappedTag
                 }))).filter((tag) => tag !== undefined),
                 userEmail: email,
+                notifications: []
             },
         }))
     }
@@ -332,6 +378,7 @@ async function getTemporaryAccessToken(client: V6Client<Schema>, id: string): Pr
 interface GetAllParticipantsOptions {
     siTags?: boolean,
     siTimeslot?: boolean, //TODO: implement me
+    siNotifications?: boolean
 }
 async function getAllParticipants(client: V6Client<Schema>, options?: GetAllParticipantsOptions): Promise<Participant[]> {
     let participantResponse = await client.models.Participant.list()
@@ -344,6 +391,7 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
 
     const mappedParticipants: Participant[] = await Promise.all(participantData.map(async (participant) => {
         const userTags: UserTag[] = []
+        const notifications: Notification[] = []
         
         if(options?.siTags) {
             userTags.push(...(await Promise.all((participant.userTags ?? []).map(async (tagId) => {
@@ -353,10 +401,28 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
                     const mappedTag: UserTag = {
                         ...tagResponse.data,
                         color: tagResponse.data.color ?? undefined,
+                        notifications: undefined
                     }
                     return mappedTag
                 }
             }))).filter((tag) => tag !== undefined))
+        }
+
+        if(options?.siNotifications) {
+            notifications.push(...(await Promise.all((await participant.notifications()).data.map(async (notificationTag) => {
+                const notification = await notificationTag.notification()
+                if(notification.data){
+                    const mappedNotification: Notification = {
+                        ...notification.data,
+                        location: notification.data.location ?? 'dashboard',
+                        expiration: notification.data.expiration ?? undefined,
+                        //unnecesary
+                        participants: [],
+                        tags: []
+                    }
+                    return mappedNotification
+                }
+            }))).filter((notification) => notification !== undefined))
         }
 
         const mappedParticipant: Participant = {
@@ -367,6 +433,7 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
             email: participant.email ?? undefined,
             timeslot: [],
             userTags: userTags,
+            notifications: notifications
         }
         return mappedParticipant
     }))

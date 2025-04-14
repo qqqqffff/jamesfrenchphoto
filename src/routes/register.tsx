@@ -184,7 +184,8 @@ export function RouteComponent(){
                     contact: participantContact,
                     userTags: [],
                     sameDetails: false,
-                    userEmail: userEmail
+                    userEmail: userEmail,
+                    notifications: []
                 }
                 tempParticipants.push(participant)
             }
@@ -641,6 +642,7 @@ export function RouteComponent(){
                                             preferredName: participantPreferredName,
                                             email: participantEmail,
                                             userEmail: userEmail ?? '',
+                                            notifications: []
                                         }
                                         const temp: SignupParticipant[] = [...participants, participant]
                                         await new Promise(resolve => setTimeout(resolve, 500))

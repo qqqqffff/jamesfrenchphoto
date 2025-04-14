@@ -6,7 +6,7 @@ import { Button, Checkbox } from "flowbite-react"
 import { parsePathName } from "../../../utils"
 import { applyWatermarkMutation, ApplyWatermarkParams } from "../../../services/watermarkService"
 
-interface WatermarkPannelProps {
+interface WatermarkPanelProps {
   collection: PhotoCollection
   updateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   updateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
@@ -17,7 +17,7 @@ interface WatermarkPannelProps {
 }
 
 //TODO: state updating
-export const WatermarkPannel = (props: WatermarkPannelProps) => {
+export const WatermarkPanel = (props: WatermarkPanelProps) => {
   const previewRef = useRef<HTMLImageElement | null>(null)
   const [collectionWatermark, setCollectionWatermark] = useState(props.collection.watermarkPath)
   const [setWatermarks, setSetWatermarks] = useState<Record<string, string | undefined>>(

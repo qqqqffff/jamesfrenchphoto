@@ -8,7 +8,7 @@ import { HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineTrash } from "react-i
 import { SetList } from "./SetList"
 import { ConfirmationModal, CreateCollectionModal } from "../../modals"
 import { useNavigate } from "@tanstack/react-router"
-import { PhotoSetPannel } from "./PhotoSetPannel"
+import { PhotoSetPanel } from "./PhotoSetPanel"
 import { 
   deleteCollectionMutation,
   DeleteCollectionParams,
@@ -27,7 +27,7 @@ import Loading from "../../common/Loading"
 import { detectDuplicates } from "./utils"
 import { PublishableItems } from "./PublishableItems"
 import { AuthContext } from "../../../auth"
-import { FavoritePannel } from "./FavoritePannel"
+import { FavoritePanel } from "./FavoritePanel"
 import { HiOutlineUpload } from "react-icons/hi"
 import { 
   deleteWatermarkMutation, 
@@ -36,19 +36,19 @@ import {
   WatermarkUploadParams 
 } from "../../../services/watermarkService"
 import { parsePathName } from "../../../utils"
-import { WatermarkPannel } from "./WatermarkPannel"
-import { SharePannel } from "./SharePannel"
+import { WatermarkPanel } from "./WatermarkPanel"
+import { SharePanel } from "./SharePanel"
 import { 
   deleteShareTemplateMutation, 
   DeleteShareTemplateParams,  
 } from "../../../services/shareService"
 import { CgSpinner } from "react-icons/cg"
-import { UsersPannel } from "./UsersPannel"
+import { UsersPanel } from "./UsersPanel"
 import { getAllParticipantsQueryOptions } from "../../../services/userService"
-import { CoverPannel } from "./CoverPannel"
-import { CoverSidePannel } from "./CoverSidePannel"
+import { CoverPanel } from "./CoverPanel"
+import { CoverSidePanel } from "./CoverSidePanel"
 
-interface PhotoCollectionPannelProps {
+interface PhotoCollectionPanelProps {
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
   availableTags: UserTag[],
@@ -69,7 +69,7 @@ interface Publishable {
   warning?: string[]
 }
 
-export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({ 
+export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({ 
   watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
   updateShareTemplates, coverPath, updateParentCollections
@@ -730,7 +730,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
               </> 
           ) : (
             activeConsole === 'cover' ? (
-              <CoverSidePannel 
+              <CoverSidePanel 
                 setUploadCoverVisible={setUploadCoverPhotoVisible}
                 fileUpload={fileUpload}
                 updateParentCollection={updateParentCollection}
@@ -753,7 +753,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
                   </div>
                 </div>
               ) : (
-                <PhotoSetPannel 
+                <PhotoSetPanel 
                   photoCollection={collection} 
                   photoSet={setQuery.data ?? selectedSet} 
                   paths={setQuery.data?.paths ?? []}
@@ -782,14 +782,14 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
         ) : (
           activeConsole === 'favorites' ? (
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-            <FavoritePannel 
+            <FavoritePanel 
               collection={collection}
             />
           </div>
         ) : (
           activeConsole === 'watermarks' ? (
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-            <WatermarkPannel 
+            <WatermarkPanel 
               collection={collection}
               updateCollection={updateParentCollection}
               updateCollections={updateParentCollections}
@@ -802,7 +802,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
         ) : (
           activeConsole === 'share' ? (
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-              <SharePannel 
+              <SharePanel 
                 collection={collection}
                 selectedTemplate={selectedTemplate}
                 updateParentSelectedTemplate={setSelectedTemplate}
@@ -812,7 +812,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
         ) : (
           activeConsole === 'users' ? (
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-              <UsersPannel
+              <UsersPanel
                 collection={collection}
                 participants={participants.data ?? []}
                 collectionParticipants={collectionParticipants.data ?? []}
@@ -820,7 +820,7 @@ export const PhotoCollectionPannel: FC<PhotoCollectionPannelProps> = ({
             </div>
         ): (
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-            <CoverPannel
+            <CoverPanel
               collection={collection}
               cover={coverPath}
               updatePublishStatus={publishCollection}

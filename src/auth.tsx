@@ -54,10 +54,11 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         const attributes = await fetchUserAttributes()
         const groups = JSON.stringify(session.tokens?.accessToken.payload['cognito:groups'])
         const profile = await getUserProfileByEmail(client, username, 
-            !groups.includes('ADMINS') && groups.includes('USERS') ? {
+            groups.includes('ADMINS') || groups.includes('USERS') ? {
                 siTags: true,
                 siTimeslot: true,
-                siCollections: true
+                siCollections: true,
+                siNotifications: true
             } : {}
         )
         if(!profile) throw new Error('Failed to query profile')

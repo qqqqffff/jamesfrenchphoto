@@ -11,11 +11,11 @@ import { v4 } from 'uuid'
 import { useNavigate } from "@tanstack/react-router"
 import { formatTime } from "../../../utils"
 
-interface FavoritePannelProps {
+interface FavoritePanelProps {
   collection: PhotoCollection
 }
 
-export const FavoritePannel = (props: FavoritePannelProps) => {
+export const FavoritePanel = (props: FavoritePanelProps) => {
   const [downloads, setDownloads] = useState<DownloadData[]>([])
   const navigate = useNavigate()
 
