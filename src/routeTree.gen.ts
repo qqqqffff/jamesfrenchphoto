@@ -11,6 +11,7 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as TestImport } from './routes/test'
 import { Route as RegisterImport } from './routes/register'
 import { Route as LoginImport } from './routes/login'
 import { Route as AuthImport } from './routes/_auth'
@@ -31,6 +32,12 @@ import { Route as AuthAdminDashboardNotificationImport } from './routes/_auth.ad
 import { Route as AuthAdminDashboardCollectionImport } from './routes/_auth.admin/dashboard/collection'
 
 // Create/Update Routes
+
+const TestRoute = TestImport.update({
+  id: '/test',
+  path: '/test',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const RegisterRoute = RegisterImport.update({
   id: '/register',
@@ -173,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterImport
+      parentRoute: typeof rootRoute
+    }
+    '/test': {
+      id: '/test'
+      path: '/test'
+      fullPath: '/test'
+      preLoaderRoute: typeof TestImport
       parentRoute: typeof rootRoute
     }
     '/_auth/favorites-fullscreen': {
@@ -337,6 +351,7 @@ export interface FileRoutesByFullPath {
   '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/test': typeof TestRoute
   '/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
   '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
   '/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
@@ -358,6 +373,7 @@ export interface FileRoutesByTo {
   '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/test': typeof TestRoute
   '/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
   '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
   '/client/profile': typeof AuthClientProfileRoute
@@ -378,6 +394,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/test': typeof TestRoute
   '/_auth/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
   '/_auth/photo-fullscreen': typeof AuthPhotoFullscreenRoute
   '/_auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
@@ -401,6 +418,7 @@ export interface FileRouteTypes {
     | ''
     | '/login'
     | '/register'
+    | '/test'
     | '/favorites-fullscreen'
     | '/photo-fullscreen'
     | '/admin/dashboard'
@@ -421,6 +439,7 @@ export interface FileRouteTypes {
     | ''
     | '/login'
     | '/register'
+    | '/test'
     | '/favorites-fullscreen'
     | '/photo-fullscreen'
     | '/client/profile'
@@ -439,6 +458,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/login'
     | '/register'
+    | '/test'
     | '/_auth/favorites-fullscreen'
     | '/_auth/photo-fullscreen'
     | '/_auth/admin/dashboard'
@@ -461,6 +481,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  TestRoute: typeof TestRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -468,6 +489,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  TestRoute: TestRoute,
 }
 
 export const routeTree = rootRoute
@@ -483,7 +505,8 @@ export const routeTree = rootRoute
         "/",
         "/_auth",
         "/login",
-        "/register"
+        "/register",
+        "/test"
       ]
     },
     "/": {
@@ -505,6 +528,9 @@ export const routeTree = rootRoute
     },
     "/register": {
       "filePath": "register.tsx"
+    },
+    "/test": {
+      "filePath": "test.tsx"
     },
     "/_auth/favorites-fullscreen": {
       "filePath": "_auth.favorites-fullscreen.tsx",

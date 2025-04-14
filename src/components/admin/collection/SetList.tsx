@@ -102,7 +102,7 @@ export const SetList = (props: SetListProps) => {
           props.updateSetList(newSets)
         });
 
-        const element = document.querySelector(`[data-task-id="${sourceData.setId}"]`);
+        const element = document.querySelector(`[data-set-id="${sourceData.setId}"]`);
         if (element instanceof HTMLElement) {
           triggerPostMoveFlash(element);
         }

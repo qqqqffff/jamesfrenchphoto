@@ -1,6 +1,5 @@
 import { PhotoSet } from "../../../types";
 
-
 const setDataKey = Symbol('set');
 
 export type PhotoSetData = { [setDataKey]: true; setId: PhotoSet['id'] };

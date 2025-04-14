@@ -152,7 +152,7 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSub
     <>
       <div className="relative">
         <div
-          data-task-id={set.id}
+          data-set-id={set.id}
           ref={ref}
           className={`flex text-sm ${selectedSet ? 'bg-gray-200' : 'bg-white'} flex-row items-center border border-gray-300 border-solid rounded p-2 pl-0 ${collection === undefined ? 'hover:bg-gray-100' : ''} ${stateStyles[state.type] ?? ''}`}
           onClick={onClick}
