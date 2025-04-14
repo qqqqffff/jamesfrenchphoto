@@ -2,6 +2,7 @@ on: [pull_request]
 
 env:
   AWS_REGION: 'us-east-1'
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
 
 permissions:
   id-token: write
@@ -24,7 +25,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       - name: Validate Sandbox
         run: |
-          npx ampx sandbox --identifier apollo
+          npx ampx generate outputs --app-id ${{ secrets.APP_ID }} --branch ${{ env.BRANCH_NAME }}
       # - name: Stubbing amplify outputs
       #   run: echo {} > amplify_outputs.json
       - name: Run Build
