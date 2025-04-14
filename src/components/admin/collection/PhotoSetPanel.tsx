@@ -9,9 +9,8 @@ import { Alert, Dropdown, FlowbiteColors, TextInput, ToggleSwitch, Tooltip } fro
 import { ConfirmationModal, UploadImagesModal } from "../../modals";
 import { DynamicStringEnumKeysOf, parsePathName, textInputTheme } from "../../../utils";
 import { SetControls } from "./SetControls";
-import { SetPictureTable } from "./SetPictureTable";
 import { EditableTextField } from "../../common/EditableTextField";
-import { useMutation, useQueries } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { 
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
@@ -22,11 +21,11 @@ import {
   uploadImagesMutation, 
   UploadImagesMutationParams
 } from "../../../services/photoSetService";
-import { getPathQueryOptions } from "../../../services/collectionService";
 import { detectDuplicates } from "./utils";
 import { useDropzone } from "react-dropzone";
 import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
 import { AuthContext } from "../../../auth";
+import { PictureList } from "./PictureTable/PictureList";
 
 export type PhotoSetPanelProps = {
   photoCollection: PhotoCollection;
@@ -70,23 +69,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   }
 
   let activeTimeout: NodeJS.Timeout | undefined
-
-  const urls = useQueries({
-    queries: picturePaths
-      .sort((a, b) => a.order - b.order)
-      .map((path) => {
-        return getPathQueryOptions(path.path, path.id)
-      })
-  })
-
-  const pathUrls = picturePaths
-    .sort((a, b) => a.order - b.order)
-    .map((path, index) => {
-      return ({
-        id: path.id,
-        url: urls[index]
-      })
-    })
 
   const duplicates = detectDuplicates(picturePaths)
 
@@ -379,7 +361,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
             <span className="opacity-100 font-semibold text-2xl animate-pulse">Drop files here</span>
           </div>
         )}
-        <SetPictureTable 
+        <PictureList 
           collection={photoCollection}
           set={photoSet}
           paths={filteredPhotos
@@ -390,7 +372,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           parentUpdateSet={parentUpdateSet}
           parentUpdateCollection={parentUpdateCollection}
           parentUpdateCollections={parentUpdateCollections}
-          urls={pathUrls}
           pictureStyle={pictureStyle}
           selectedPhotos={selectedPhotos}
           setSelectedPhotos={setSelectedPhotos}

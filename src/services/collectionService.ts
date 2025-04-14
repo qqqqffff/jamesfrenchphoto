@@ -741,22 +741,22 @@ export async function uploadCoverMutation(params: UploadCoverParams){
 }
 
 export interface ReorderSetsParams {
-    collectionId: string,
-    sets: PhotoSet[],
-    options?: {
-        logging: boolean
-    }
+  collectionId: string,
+  sets: PhotoSet[],
+  options?: {
+    logging: boolean
+  }
 }
 export async function reorderSetsMutation(params: ReorderSetsParams){
-    const response = await Promise.all(params.sets.map(async (set) => {
-        const dynamoResponse = await client.models.PhotoSet.update({
-            id: set.id,
-            order: set.order,
-        })
-        return dynamoResponse
-    }))
+  const response = await Promise.all(params.sets.map(async (set) => {
+    const dynamoResponse = await client.models.PhotoSet.update({
+      id: set.id,
+      order: set.order,
+    })
+    return dynamoResponse
+  }))
 
-    if(params.options?.logging) console.log(response)
+  if(params.options?.logging) console.log(response)
 }
 
 export interface AddCollectionParticipantParams {

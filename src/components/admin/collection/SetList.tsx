@@ -72,9 +72,19 @@ export const SetList = (props: SetListProps) => {
           return;
         }
 
+        const updatedSets = sets.map((set) => {
+          if(set.id === sourceData.setId){
+            set.order = indexOfTarget
+          }
+          else if(set.id === targetData.setId){
+            set.order = indexOfSource
+          }
+          return set
+        })
+
         reorderSets.mutate({
           collectionId: props.collection.id,
-          sets: sets,
+          sets: updatedSets,
           options: {
             logging: true
           }
@@ -84,15 +94,7 @@ export const SetList = (props: SetListProps) => {
 
         flushSync(() => {
           const newSets = reorderWithEdge({
-            list: sets.map((set) => {
-              if(set.id === sourceData.setId){
-                set.order = indexOfTarget
-              }
-              else if(set.id === targetData.setId){
-                set.order = indexOfSource
-              }
-              return set
-            }),
+            list: updatedSets,
             startIndex: indexOfSource,
             indexOfTarget,
             closestEdgeOfTarget,

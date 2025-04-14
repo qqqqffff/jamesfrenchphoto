@@ -1,20 +1,49 @@
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ComponentProps, useEffect, useState } from "react";
+import { ComponentProps, Dispatch, SetStateAction, useEffect, useState } from "react";
 import { isPictureData } from "./PictureData";
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { flushSync } from "react-dom";
 import { reorderWithEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge';
 import { triggerPostMoveFlash } from "@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash";
 import { Picture } from "./Picture";
+import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
+import { DynamicStringEnumKeysOf } from '../../../../utils';
+import { FlowbiteColors } from 'flowbite-react';
+import { useMutation, useQueries, UseQueryResult } from '@tanstack/react-query';
+import { getPathQueryOptions } from '../../../../services/collectionService';
+import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/photoSetService';
+import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
 
 interface PictureListProps extends ComponentProps<'div'> {
-  itemList: { id: string, content: string }[]
+  set: PhotoSet,
+  collection: PhotoCollection
+  paths: PicturePath[],
+  parentUpdatePaths: Dispatch<SetStateAction<PicturePath[]>>
+  parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
+  parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
+  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
+  pictureStyle: (id: string) => string,
+  selectedPhotos: PicturePath[]
+  setSelectedPhotos: (photos: PicturePath[]) => void
+  setDisplayPhotoControls: (id?: string) => void
+  controlsEnabled: (id: string, override: boolean) => string
+  displayTitleOverride: boolean
+  notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
+  setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
+  userEmail?: string
 }
 
 export const PictureList = (props: PictureListProps) => {
-  const [pictures, setPictures] = useState<{id: string, content: string}[]>(props.itemList)
+  const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
+
+  const reorderPaths = useMutation({
+    mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+  })
 
   useEffect(() => {
+    if(pictures.some((picture) => !props.paths.some((pPicture) => pPicture.id !== picture.id))) {
+      setPictures(props.paths)
+    }
     return monitorForElements({
       canMonitor({ source }) {
         return isPictureData(source.data)
@@ -39,19 +68,34 @@ export const PictureList = (props: PictureListProps) => {
           return
         }
 
-        //TODO: add mutation here
+        const updatedPaths = pictures.map((path) => {
+          if(path.id === sourceData.pictureId) {
+            return {
+              ...path,
+              order: indexOfSource
+            }
+          }
+          else if(path.id === targetData.pictureId) {
+            return {
+              ...path,
+              order: indexOfTarget
+            }
+          }
+          return path
+        })
+
+        reorderPaths.mutate({
+          paths: updatedPaths,
+          options: {
+            logging: true
+          }
+        })
 
         const closestEdgeOfTarget = extractClosestEdge(targetData)
 
         flushSync(() => {
           const newPictures = reorderWithEdge({
-            list: pictures,
-              // TODO: implement reordering
-              // .map((picture) => {
-              //   if(picture.id === sourceData.pictureId) {
-              //     picture.
-              //   }
-              // })
+            list: updatedPaths,
             startIndex: indexOfSource,
             indexOfTarget,
             closestEdgeOfTarget,
@@ -66,18 +110,59 @@ export const PictureList = (props: PictureListProps) => {
         }
       }
     })
-  }, [pictures, props.itemList])
+  }, [pictures, props.paths])
+
+  const urls: Record<string, UseQueryResult<[string | undefined, string], Error>> = 
+    Object.fromEntries(
+      useQueries({
+        queries: pictures
+          .map((path) => {
+            return getPathQueryOptions(path.path, path.id)
+          })
+      })
+      .map((query, index) => {
+        return [
+          pictures[index].id,
+          query
+        ]
+      })
+    )
+
 
   return (
     <div className="pt-6 my-0 mx-auto">
-      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow">
-        {pictures.map((item) => {
+      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2">
+        {pictures.map((item, index) => {
           return (
             <Picture 
-              item={item}
+              key={index}
+              index={index}
+              set={props.set}
+              collection={props.collection}
+              paths={props.paths}
+              picture={item}
+              url={urls[item.id]}
+              parentUpdatePaths={props.parentUpdatePaths}
+              parentUpdateSet={props.parentUpdateSet}
+              parentUpdateCollection={props.parentUpdateCollection}
+              parentUpdateCollections={props.parentUpdateCollections}
+              pictureStyle={props.pictureStyle}
+              selectedPhotos={props.selectedPhotos}
+              setSelectedPhotos={props.setSelectedPhotos}
+              setDisplayPhotoControls={props.setDisplayPhotoControls}
+              controlsEnabled={props.controlsEnabled}
+              displayTitleOverride={props.displayTitleOverride}
+              notify={props.notify}
+              setFilesUploading={props.setFilesUploading}
+              userEmail={props.userEmail}
+              reorderPaths={reorderPaths}
             />
           )
         })}
+        <UploadImagePlaceholder
+          setFilesUploading={props.setFilesUploading}
+          className="h-full place-self-center w-full"
+        />
       </div>
     </div>
   )

@@ -1,12 +1,11 @@
-// import { PicturePath } from "../../../../types"
+import { PicturePath } from "../../../../types"
 
 const pictureDataKey = Symbol('picture')
 
-export type PictureData = { [pictureDataKey]: true, pictureId: string }
+export type PictureData = { [pictureDataKey]: true, pictureId: PicturePath['id'] }
 
-//TODO: replace me
-export function getPictureData(item: string): PictureData {
-  return { [pictureDataKey]: true, pictureId: item }
+export function getPictureData(item: PicturePath): PictureData {
+  return { [pictureDataKey]: true, pictureId: item.id }
 }
 
 export function isPictureData(data: Record<string | symbol, unknown>): data is PictureData {
