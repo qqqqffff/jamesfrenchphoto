@@ -251,6 +251,11 @@ const schema = a.schema({
       participant: a.hasMany('NotificationParticipants', 'notificationId'),
       tags: a.hasMany('NotificationUserTags', 'notificationId'),
       expiration: a.string(),
+      //TODO: implment me
+      closable: a.boolean(),
+      textSettings: a.customType({
+        alignment: a.enum(['center', 'left', 'right'])
+      })
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),

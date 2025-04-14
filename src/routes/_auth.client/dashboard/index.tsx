@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Package, UserTag } from '../../../types'
 import { FC, useState } from 'react'
-import { Button, Modal } from 'flowbite-react'
+import { Alert, Button, Modal } from 'flowbite-react'
 import PDFViewer from '../../../components/common/PDFViewer'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { getParticipantCollectionsQueryOptions, getPathQueryOptions } from '../../../services/collectionService'
+import { currentDate } from '../../../utils'
 
 interface PackagePDFModalProps {
     pdf: File,
@@ -96,7 +97,19 @@ function RouteComponent() {
       )}
       <div className="grid grid-cols-6 mt-8 font-main">
         <div className="flex flex-col items-center justify-center col-start-2 col-span-4 gap-4 border-black border rounded-xl mb-4 overflow-auto">
-          <div className="flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center justify-center w-full">
+            {auth.user?.profile.activeParticipant?.notifications
+              .filter((notification) => 
+                !notification.expiration || 
+                currentDate.getTime() < new Date(notification.expiration).getTime())
+              .map((notification, index) => {
+                return (
+                  <Alert color="gray" key={index} className='w-full'>
+                    {notification.content}
+                  </Alert>
+                )
+              })
+            }
             {/* notifications will display here */}
             {/* {tags.length > 0 &&
               tags.map((tag, index) => {

@@ -108,12 +108,12 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
   return mappedNotifications
 }
 
-interface GetAllParticipantNotificationOptions {
+// interface GetAllParticipantNotificationOptions {
 
-}
-async function getAllParticipantNotifications(client: V6Client<Schema>, participantId?: string, options?: GetAllParticipantNotificationOptions) {
+// }
+// async function getAllParticipantNotifications(client: V6Client<Schema>, participantId?: string, options?: GetAllParticipantNotificationOptions) {
 
-}
+// }
 
 interface GetAllNotificationsFromUserTagsOptions {
   logging?: boolean
@@ -310,7 +310,7 @@ export const getAllNotificationsQueryOptions = (options?: GetAllNotificationOpti
   queryFn: () => getAllNotifications(client, options)
 })
 
-export const getAllParticipantNotificationsQueryOptions = (participantId?: string, options?: GetAllParticipantNotificationOptions) => queryOptions({
-  queryKey: ['participantNotifications', client, options],
-  queryFn: () => getAllParticipantNotifications(client, participantId, options)
-})
+// export const getAllParticipantNotificationsQueryOptions = (participantId?: string, options?: GetAllParticipantNotificationOptions) => queryOptions({
+//   queryKey: ['participantNotifications', client, options],
+//   queryFn: () => getAllParticipantNotifications(client, participantId, options)
+// })
