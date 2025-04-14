@@ -25,9 +25,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       - name: Validate Sandbox
         run: |
-          npx ampx generate outputs --app-id ${{ secrets.APP_ID }} --branch ${{ env.BRANCH_NAME }}
-      # - name: Stubbing amplify outputs
-      #   run: echo {} > amplify_outputs.json
+          npx ampx sandbox --identifier apollo --once
       - name: Run Build
         run: npm run build
     
