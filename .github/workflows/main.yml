@@ -17,16 +17,16 @@ jobs:
       - name: Install Dependencies
         run: npm ci 
       - name: Configure AWS
-        uses: aws-actions/configure-aws-credentials@v1.7.0
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE }}
           role-session-name: Github_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
-      - name: Sts GetCallerIdentity
+      - name: Validate Sandbox
         run: |
-          aws sts get-caller-identity
-      - name: Stubbing amplify outputs
-        run: echo {} > amplify_outputs.json
+          npx ampx sandbox --identifier apollo
+      # - name: Stubbing amplify outputs
+      #   run: echo {} > amplify_outputs.json
       - name: Run Build
         run: npm run build
     
