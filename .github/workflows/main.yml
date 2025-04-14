@@ -1,5 +1,12 @@
 on: [pull_request]
 
+env:
+  AWS_REGION: 'us-east-1'
+
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     name: Build Validation
@@ -9,6 +16,15 @@ jobs:
       - uses: actions/setup-node@v3
       - name: Install Dependencies
         run: npm ci 
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assum: ${{ secrets.AWS_ROLE }}
+          role-session-name: Github_to_AWS_via_FederatedOIDC
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Sts GetCallerIdentity
+        run: |
+          aws sts get-caller-identity
       - name: Stubbing amplify outputs
         run: echo {} > amplify_outputs.json
       - name: Run Build
