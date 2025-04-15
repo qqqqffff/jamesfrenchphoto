@@ -27,6 +27,7 @@ import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
 import { AuthContext } from "../../../auth";
 import { PictureList } from "./picture-table/PictureList";
 import { getInfinitePathsQueryOptions } from "../../../services/photoPathService";
+import Loading from "../../common/Loading";
 
 export type PhotoSetPanelProps = {
   photoCollection: PhotoCollection;
@@ -425,41 +426,48 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
         )}
       </div>
       <div className="w-full p-1 relative" {...getRootProps()}>
-        { isDragActive && (
+        {isDragActive && (
           <div 
             className="absolute w-full h-full items-center justify-center flex flex-col opacity-50 z-10 bg-gray-200 border-2 border-gray-400 border-dashed rounded-lg"
           >
             <span className="opacity-100 font-semibold text-2xl animate-pulse">Drop files here</span>
           </div>
         )}
-        <PictureList 
-          collection={photoCollection}
-          set={photoSet}
-          paths={filteredPhotos
-            .sort((a, b) => a.order - b.order)
-            .filter((path) => path.path && path.id)
-          }
-          parentUpdatePaths={setPicturePaths}
-          parentUpdateSet={parentUpdateSet}
-          parentUpdateCollection={parentUpdateCollection}
-          parentUpdateCollections={parentUpdateCollections}
-          pictureStyle={pictureStyle}
-          selectedPhotos={selectedPhotos}
-          setSelectedPhotos={setSelectedPhotos}
-          setDisplayPhotoControls={setDisplayPhotoControls}
-          controlsEnabled={controlsEnabled}
-          displayTitleOverride={displayTitleOverride}
-          notify={(text, color) => {
-            setNotification({text, color})
-            clearTimeout(activeTimeout)
-            activeTimeout = setTimeout(() => {
-              setNotification(undefined)
-              activeTimeout = undefined
-            }, 5000)
-          }}
-          setFilesUploading={setFilesUploading}
-          userEmail={auth.user?.profile.email}
-        />
+        {pathsQuery.isPending ? (
+          <div className="w-full flex flex-row justify-center items-center">
+            <span>Loading Pictures</span>
+            <Loading />
+          </div>
+        ) : (
+          <PictureList 
+            collection={photoCollection}
+            set={photoSet}
+            paths={filteredPhotos
+              .sort((a, b) => a.order - b.order)
+              .filter((path) => path.path && path.id)
+            }
+            parentUpdatePaths={setPicturePaths}
+            parentUpdateSet={parentUpdateSet}
+            parentUpdateCollection={parentUpdateCollection}
+            parentUpdateCollections={parentUpdateCollections}
+            pictureStyle={pictureStyle}
+            selectedPhotos={selectedPhotos}
+            setSelectedPhotos={setSelectedPhotos}
+            setDisplayPhotoControls={setDisplayPhotoControls}
+            controlsEnabled={controlsEnabled}
+            displayTitleOverride={displayTitleOverride}
+            notify={(text, color) => {
+              setNotification({text, color})
+              clearTimeout(activeTimeout)
+              activeTimeout = setTimeout(() => {
+                setNotification(undefined)
+                activeTimeout = undefined
+              }, 5000)
+            }}
+            setFilesUploading={setFilesUploading}
+            userEmail={auth.user?.profile.email}
+          />
+        )}
       </div>
     </div>
   </>

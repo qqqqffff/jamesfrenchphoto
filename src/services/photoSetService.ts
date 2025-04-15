@@ -545,6 +545,18 @@ export async function unfavoriteImageMutation(params: UnfavoriteImageMutationPar
     if(params.options?.logging) console.log(response)
 }
 
+export interface AdjustSetItemsParams {
+    setId: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function adjustSetItems(params: AdjustSetItemsParams) {
+    getPhotoSetById(client, params.setId, {
+        
+    })
+}
+
 export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string, options?: GetAllPicturePathsByPhotoSetOptions) => queryOptions({
     queryKey: ['photoPaths', client, setId, options],
     queryFn: () => getAllPicturePathsByPhotoSet(client, setId, options),
