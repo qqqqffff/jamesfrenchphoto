@@ -25,7 +25,7 @@ import { detectDuplicates } from "./utils";
 import { useDropzone } from "react-dropzone";
 import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
 import { AuthContext } from "../../../auth";
-import { PictureList } from "./PictureTable/PictureList";
+import { PictureList } from "./picture-table/PictureList";
 
 export type PhotoSetPanelProps = {
   photoCollection: PhotoCollection;
@@ -145,13 +145,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           .includes(trimmedText)
       })
     }
-
-    tempFiles.push({
-      id: 'upload',
-      path: '1',
-      url: '',
-      order: tempFiles.length,
-    })
 
     return tempFiles
   })()

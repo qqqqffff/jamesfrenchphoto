@@ -35,13 +35,14 @@ interface PictureListProps extends ComponentProps<'div'> {
 
 export const PictureList = (props: PictureListProps) => {
   const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
+  console.log(pictures)
 
   const reorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
   })
 
   useEffect(() => {
-    if(pictures.some((picture) => !props.paths.some((pPicture) => pPicture.id !== picture.id))) {
+    if(props.paths.some((pPicture) => !pictures.some((picture) => pPicture.id === picture.id))) {
       setPictures(props.paths)
     }
     return monitorForElements({
@@ -72,13 +73,13 @@ export const PictureList = (props: PictureListProps) => {
           if(path.id === sourceData.pictureId) {
             return {
               ...path,
-              order: indexOfSource
+              order: indexOfTarget
             }
           }
           else if(path.id === targetData.pictureId) {
             return {
               ...path,
-              order: indexOfTarget
+              order: indexOfSource
             }
           }
           return path
