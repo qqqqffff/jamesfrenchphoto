@@ -94,6 +94,7 @@ export type PicturePath = {
     path: string;
     order: number;
     favorite?: string;
+    setId: string;
 }
 
 export type Watermark = {
@@ -133,6 +134,7 @@ export type PhotoSet = {
     paths: PicturePath[],
     order: number,
     collectionId: string;
+    items: number;
 }
 
 export type Timeslot = {

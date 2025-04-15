@@ -54,6 +54,7 @@ const schema = a.schema({
       collection: a.belongsTo('PhotoCollection', 'collectionId'),
       collectionId: a.id().required(),
       watermarkPath: a.string(),
+      items: a.integer().default(0)
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('collectionId')])

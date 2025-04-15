@@ -3,7 +3,7 @@ import { FC, FormEvent, useState } from "react"
 import { HiOutlineCheckCircle } from "react-icons/hi2"
 import { ModalProps } from "."
 import { PhotoCollection, UserTag } from "../../types";
-import { badgeColorThemeMap, parsePathName, textInputTheme } from "../../utils";
+import { badgeColorThemeMap, textInputTheme } from "../../utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createCollectionMutation, CreateCollectionParams, updateCollectionMutation, UpdateCollectionParams } from "../../services/collectionService";
 
@@ -15,7 +15,6 @@ interface CreateCollectionProps extends ModalProps {
 
 export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose, onSubmit, availableTags, collection }) => {
     const [name, setName] = useState('')
-    const [cover, setCover] = useState<string | null>(null)
     const [downloadable, setDownloadable] = useState(false)
     const [selectedTags, setSelectedTags] = useState<UserTag[]>([])
 
@@ -25,7 +24,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
 
     if(!loaded && collection){
       setName(collection.name)
-      setCover(collection.coverPath ? parsePathName(collection.coverPath) : null)
       setSelectedTags(collection.tags)
       setLoaded(true)
     }
@@ -66,7 +64,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
       const createCollectionParams: CreateCollectionParams = {
         name,
         tags: selectedTags,
-        cover,
         downloadable,
       }
 
@@ -85,7 +82,6 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
 
     function clearState(){
       setName('')
-      setCover(null)
       setSubmitting(false)
       setLoaded(false)
       setSelectedTags([])

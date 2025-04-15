@@ -108,6 +108,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                                     ...set,
                                     watermarkPath: set.watermarkPath ?? undefined,
                                     paths: [],
+                                    items: set.items ?? 0
                                 }
                                 return mappedSet
                             }))

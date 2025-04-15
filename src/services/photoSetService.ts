@@ -8,6 +8,7 @@ import { queryOptions } from '@tanstack/react-query'
 import { Dispatch, SetStateAction } from 'react'
 import { UploadData } from '../components/modals/UploadImages/UploadToast'
 import { getAuthUsers, getUserProfileByEmail } from './userService'
+import { getCollectionById } from './collectionService'
 
 const client = generateClient<Schema>()
 
@@ -76,17 +77,23 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
         ...setResponse.data,
         watermarkPath: setResponse.data.watermarkPath ?? undefined,
         paths: mappedPaths,
+        items: setResponse.data.items ?? 0
     }
 }
 
+
+//TODO: make more effecient with memoization
 interface GetFavoritesFromPhotoCollectionOptions {
     logging?: boolean
     metric?: boolean
 }
-async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collection: PhotoCollection, options?: GetFavoritesFromPhotoCollectionOptions): Promise<Map<User, Favorite[]>> {
+async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collectionId: string, options?: GetFavoritesFromPhotoCollectionOptions): Promise<Map<User, Favorite[]>> {
     console.log('api call')
     const start = new Date().getTime()
     const favoriteMap = new Map<string, Favorite[]>()
+
+    const collection = await getCollectionById(client, collectionId, { siSets: true, siPaths: true, siTags: false })
+    if(!collection) return new Map<User, Favorite[]>()
 
     const response = await Promise.all(collection.sets.map(async (set) => {
         const pathsResponse = await Promise.all(set.paths.map(async (path) => {
@@ -117,13 +124,21 @@ async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collect
         return pathsResponse
     }))
 
+    if(options?.logging) console.log(response)
     
     const returnMap = new Map<User, Favorite[]>()
 
     const authUsers = await getAuthUsers(client)
 
     const profileMapping = await Promise.all(Array.from(favoriteMap.entries()).map(async (entry) => {
-        const foundProfile =  await getUserProfileByEmail(client, entry[0], { siCollections: false, siSets: false, siTags: false, siTimeslot: false })
+        const foundProfile =  await getUserProfileByEmail(client, entry[0], { 
+            siCollections: false, 
+            siSets: false, 
+            siTags: false, 
+            siTimeslot: false, 
+            siNotifications: false 
+        })
+
         if(!foundProfile){
             returnMap.set({ 
                 user: {
@@ -178,7 +193,8 @@ export async function createSetMutation(params: CreateSetParams) {
         paths: [],
         order: params.collection.sets.length,
         name: params.collection.name,
-        collectionId: params.collection.id
+        collectionId: params.collection.id,
+        items: 0
     }
     return mappedSet
 }
@@ -365,7 +381,8 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
 
                 const tempSet: PhotoSet = {
                     ...params.set,
-                    paths: [...params.set.paths, mappedPath]
+                    paths: [...params.set.paths, mappedPath],
+                    items: params.set.items + 1
                 }
                 const tempCollection: PhotoCollection = { 
                     ...params.collection,
@@ -427,6 +444,7 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
 
 export interface DeleteImagesMutationParams {
     collection: PhotoCollection,
+    set: PhotoSet,
     picturePaths: PicturePath[],
     progress?: (paths: PicturePath[]) => void,
     options?: {
@@ -448,12 +466,19 @@ export async function deleteImagesMutation(params: DeleteImagesMutationParams){
     }))
     if(params.options?.logging) console.log(response)
     
-    const adjustItemsResponse = await client.models.PhotoCollection.update({
+    const adjustColItemsResponse = await client.models.PhotoCollection.update({
         id: params.collection.id,
         items: params.collection.items - params.picturePaths.length
     })
 
-    if(params.options?.logging) console.log(adjustItemsResponse)
+    if(params.options?.logging) console.log(adjustColItemsResponse)
+
+    const adjustSetItemsResponse = await client.models.PhotoSet.update({
+        id: params.set.id,
+        items: params.set.items - params.picturePaths.length
+    })
+
+    if(params.options?.logging) console.log(adjustSetItemsResponse)
 }
 
 export interface DeleteSetMutationParams {
@@ -466,6 +491,7 @@ export interface DeleteSetMutationParams {
 export async function deleteSetMutation(params: DeleteSetMutationParams){
     await deleteImagesMutation({
         collection: params.collection,
+        set: params.set,
         picturePaths: params.set.paths,
         options: params.options,
     })
@@ -530,7 +556,7 @@ export const getPhotoSetByIdQueryOptions = (setId?: string, options?: GetPhotoSe
     queryFn: () => getPhotoSetById(client, setId, options),
 })
 
-export const getFavoritesFromPhotoCollectionQueryOptions = (collection: PhotoCollection, options?: GetFavoritesFromPhotoCollectionOptions) => queryOptions({
-    queryKey: ['favorites', client, collection, options],
-    queryFn: () => getFavoritesFromPhotoCollection(client, collection, options)
+export const getFavoritesFromPhotoCollectionQueryOptions = (collectionId: string, options?: GetFavoritesFromPhotoCollectionOptions) => queryOptions({
+    queryKey: ['favorites', client, collectionId, options],
+    queryFn: () => getFavoritesFromPhotoCollection(client, collectionId, options)
 })

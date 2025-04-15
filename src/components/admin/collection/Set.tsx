@@ -166,7 +166,7 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSub
           {collection === undefined ? (
             <div className='flex w-full justify-between items-center ms-1'>
               <span className="truncate flex-grow flex-shrink w-full text-start h-full hover:cursor-pointer">{set.name}</span>
-              <span className='opacity-50 me-1 italic text-xs' title='Number of Items'>({set.paths.length})</span>
+              <span className='opacity-50 me-1 italic text-xs' title='Number of Items'>({set.items})</span>
             </div>
           ) : (
             <div className='flex flex-row justify-between w-full'>

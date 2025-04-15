@@ -29,7 +29,8 @@ export const SetList = (props: SetListProps) => {
       name: '',
       paths: [],
       order: props.setList.length,
-      collectionId: props.collection.id
+      collectionId: props.collection.id,
+      items: 0
     }])
   }
   else if(!props.creatingSet && sets.find((set) => set.id === 'creating') !== undefined){

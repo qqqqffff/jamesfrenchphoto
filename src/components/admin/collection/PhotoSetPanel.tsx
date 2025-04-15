@@ -1,4 +1,4 @@
-import { Dispatch, FC, SetStateAction, useCallback, useState } from "react"
+import { Dispatch, FC, SetStateAction, useCallback, useEffect, useState } from "react"
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
 import { 
   HiOutlineCog6Tooth,
@@ -10,7 +10,7 @@ import { ConfirmationModal, UploadImagesModal } from "../../modals";
 import { DynamicStringEnumKeysOf, parsePathName, textInputTheme } from "../../../utils";
 import { SetControls } from "./SetControls";
 import { EditableTextField } from "../../common/EditableTextField";
-import { useMutation } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { 
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
@@ -26,11 +26,11 @@ import { useDropzone } from "react-dropzone";
 import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
 import { AuthContext } from "../../../auth";
 import { PictureList } from "./picture-table/PictureList";
+import { getInfinitePathsQueryOptions } from "../../../services/photoPathService";
 
 export type PhotoSetPanelProps = {
   photoCollection: PhotoCollection;
   photoSet: PhotoSet;
-  paths: PicturePath[],
   deleteParentSet: (setId: string) => void,
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
@@ -40,10 +40,10 @@ export type PhotoSetPanelProps = {
 
 export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
   photoCollection, photoSet, 
-  paths, deleteParentSet, parentUpdateSet,
+  deleteParentSet, parentUpdateSet,
   parentUpdateCollection, auth, parentUpdateCollections
 }) => {
-  const [picturePaths, setPicturePaths] = useState(paths)
+  const [picturePaths, setPicturePaths] = useState<PicturePath[]>([])
   const [searchText, setSearchText] = useState<string>('')
   const [selectedPhotos, setSelectedPhotos] = useState<PicturePath[]>([])
   const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
@@ -52,6 +52,52 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
   const [uploads, setUploads] = useState<UploadData[]>([])
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
+
+  const pathsQuery = useInfiniteQuery(
+    getInfinitePathsQueryOptions(photoSet.id),
+  )
+
+  useEffect(() => {
+    if(pathsQuery.data) {
+      //does not replace current paths
+      setPicturePaths((parentPrev) => {
+        let temp = [...parentPrev]
+
+        temp.push(...pathsQuery.data.pages
+          .reduce((prev, cur) => {
+            prev.push(...cur.memo)
+            return prev
+          }, [] as PicturePath[])
+          .reduce((prev, cur) => {
+            if(!prev.some((path) => path.id === cur.id)) {
+              prev.push(cur)
+            }
+            return prev
+          }, [] as PicturePath[])
+        )
+
+        return temp.reduce((prev, cur) => {
+          if(!prev.some((path) => path.id === cur.id)) {
+            prev.push(cur)
+          }
+          return prev
+        }, [] as PicturePath[])
+      })
+    }
+  }, [pathsQuery.data])
+
+  useEffect(() => {
+    setPicturePaths((prev) => 
+      prev
+        .filter((path) => path.setId === photoSet.id)
+        .reduce((prev, cur) => {
+          if(!prev.some((path) => path.id === cur.id)) {
+            prev.push(cur)
+          }
+          return prev
+        }, [] as PicturePath[])
+    )
+  }, [photoSet])
 
   const updateSet = useMutation({
     mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
@@ -274,7 +320,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           value={searchText}
         />
         <div className="flex flex-row items-center gap-3 place-self-end h-full mb-1">
-          <span>Items: {picturePaths.length}</span>
+          <span>Items: {photoSet.items}</span>
           {duplicates.length > 0 && (
             <Tooltip style='light' content={(
               <div className="flex flex-col">
@@ -285,11 +331,43 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
                       onClick={() => {
                         deleteImages.mutate({
                           collection: photoCollection,
-                          picturePaths: duplicates
+                          picturePaths: duplicates,
+                          set: photoSet,
                         })
-                        setPicturePaths(picturePaths.filter((path) => {
-                          return (duplicates.find((dup) => dup.id === path.id) === undefined)
-                        }))
+
+                        const tempSet: PhotoSet = {
+                          ...photoSet,
+                          paths: picturePaths.filter((path) => {
+                            return (duplicates.find((dup) => dup.id === path.id) === undefined)
+                          }),
+                          items: photoSet.items - duplicates.length
+                        }
+
+                        const tempCollection: PhotoCollection = {
+                          ...photoCollection,
+                          sets: photoCollection.sets.map((set) => {
+                            if(set.id === tempSet.id) {
+                              return tempSet
+                            }
+                            return set
+                          })
+                        }
+
+                        //State updating
+                        parentUpdateCollection(tempCollection)
+                        parentUpdateCollections((prev) => {
+                          const temp = [...prev]
+                            .map((col) => {
+                              if(col.id === tempCollection.id) {
+                                return tempCollection
+                              }
+                              return col
+                            })
+
+                          return temp
+                        })
+                        parentUpdateSet(tempSet)
+                        setPicturePaths(tempSet.paths)
                         setSearchText('')
                       }}
                     >

@@ -35,16 +35,14 @@ interface PictureListProps extends ComponentProps<'div'> {
 
 export const PictureList = (props: PictureListProps) => {
   const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
-  console.log(pictures)
 
   const reorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
   })
 
   useEffect(() => {
-    if(props.paths.some((pPicture) => !pictures.some((picture) => pPicture.id === picture.id))) {
-      setPictures(props.paths)
-    }
+    setPictures(props.paths)
+
     return monitorForElements({
       canMonitor({ source }) {
         return isPictureData(source.data)
@@ -111,7 +109,7 @@ export const PictureList = (props: PictureListProps) => {
         }
       }
     })
-  }, [pictures, props.paths])
+  }, [props.paths])
 
   const urls: Record<string, UseQueryResult<[string | undefined, string], Error>> = 
     Object.fromEntries(
@@ -131,7 +129,7 @@ export const PictureList = (props: PictureListProps) => {
 
 
   return (
-    <div className="pt-6 my-0 mx-auto">
+    <div className="pt-6 my-0 mx-auto max-h-[90vh] overflow-y-auto px-4">
       <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2">
         {pictures.map((item, index) => {
           return (
@@ -140,7 +138,7 @@ export const PictureList = (props: PictureListProps) => {
               index={index}
               set={props.set}
               collection={props.collection}
-              paths={props.paths}
+              paths={pictures}
               picture={item}
               url={urls[item.id]}
               parentUpdatePaths={props.parentUpdatePaths}

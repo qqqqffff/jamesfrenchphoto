@@ -58,7 +58,8 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
             const mappedSet: PhotoSet = {
               ...set,
               watermarkPath: set.watermarkPath ?? undefined,
-              paths: mappedPaths
+              paths: mappedPaths,
+              items: set.items ?? 0
             }
             return mappedSet
           })))
@@ -190,6 +191,7 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
               ...set,
               watermarkPath: set.watermarkPath ?? undefined,
               paths: mappedPaths,
+              items: set.items ?? 0
             }
 
             return mappedSet
@@ -293,10 +295,11 @@ interface GetPhotoCollectionByIdOptions {
   user?: string,
   unauthenticated?: boolean
 }
-async function getCollectionById(client: V6Client<Schema>, collectionId: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | undefined> {
+export async function getCollectionById(client: V6Client<Schema>, collectionId?: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | null> {
+  if(!collectionId) return null
   console.log('api call')
   const collection = await client.models.PhotoCollection.get({ id: collectionId }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
-  if(!collection || !collection.data) return
+  if(!collection || !collection.data) return null
   const sets: PhotoSet[] = []
   if(!options || options.siSets){
     sets.push(...await Promise.all((await collection.data.sets()).data.map((async (set) => {
@@ -329,6 +332,7 @@ async function getCollectionById(client: V6Client<Schema>, collectionId: string,
           ...set,
           watermarkPath: set.watermarkPath ?? undefined,
           paths: mappedPaths,
+          items: set.items ?? 0
       }
       return mappedSet
     }))))
@@ -437,7 +441,7 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
     const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagData.map(async (collectionTag) => {
       const mappedCollection = await getCollectionById(client, collectionTag.collectionId, { ...options })
       return mappedCollection
-    }))).filter((collection) => collection !== undefined)
+    }))).filter((collection) => collection !== null)
 
     return mappedCollections
 }
@@ -445,7 +449,7 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
 export interface CreateCollectionParams {
     name: string,
     tags:  UserTag[],
-    cover: string | null,
+    cover?: string,
     downloadable: boolean,
     options?: {
         logging: boolean
@@ -810,7 +814,7 @@ export const getPathQueryOptions = (path?: string, id?: string) => queryOptions(
     queryFn: () => getPath(path, id)
 })
 
-export const getPhotoCollectionByIdQueryOptions = (collectionId: string, options?: GetPhotoCollectionByIdOptions) => queryOptions({
+export const getPhotoCollectionByIdQueryOptions = (collectionId?: string, options?: GetPhotoCollectionByIdOptions) => queryOptions({
     queryKey: ['photoCollection', client, collectionId, options],
     queryFn: () => getCollectionById(client, collectionId, options)
 })

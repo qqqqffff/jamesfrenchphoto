@@ -18,6 +18,7 @@ import {
 } from 'react-icons/hi'
 import { PhotoCarousel } from '../components/admin/collection/PhotoCarousel'
 import useWindowDimensions from '../hooks/windowDimensions'
+import { PicturePath } from '../types'
 
 interface FavoritesFullScreenParams {
   favorites: string[]
@@ -37,8 +38,10 @@ export const Route = createFileRoute('/_auth/favorites-fullscreen')({
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if (context.favorites.length === 0) throw redirect({ to: destination })
 
+      
+    const filteredFavorites = Array.from(new Set(context.favorites))
     const paths = await context.queryClient.ensureQueryData(
-      getPathsFromFavoriteIdsQueryOptions(context.favorites),
+      getPathsFromFavoriteIdsQueryOptions(filteredFavorites),
     )
 
     const firstSubstring = paths[0].path.substring(
@@ -50,18 +53,24 @@ export const Route = createFileRoute('/_auth/favorites-fullscreen')({
       )
     )
 
-    if(paths.length !== context.favorites.length || !collection) throw redirect({ to: destination })
-
     let path = paths.find((queryPath) => queryPath.id === context.path)
 
     if (!path) {
       path = paths[0]
     }
 
+    if(paths.length !== context.favorites.length || !collection) throw redirect({ to: destination })
+
+    //TODO: improved visual for de-duplication
     return {
       collection: collection,
-      favorites: context.favorites,
-      paths: paths,
+      favorites: filteredFavorites,
+      paths: paths.reduce((prev, cur) => {
+        if(!prev.some((path) => parsePathName(path.path) === parsePathName(cur.path))) {
+          prev.push(cur)
+        }
+        return prev
+      }, [] as PicturePath[]),
       path: path,
       auth: context.auth,
     }
@@ -74,11 +83,14 @@ function RouteComponent() {
   const navigate = Route.useNavigate()
   const dimensions = useWindowDimensions()
 
+  console.log(new Set(data.favorites))
+
   const paths = useQueries({
     queries: data.paths.map((path) =>
       getPathQueryOptions(path.path ?? '', path.id),
     ),
   })
+
 
   const downloadImage = useMutation({
     mutationFn: (params: DownloadImageMutationParams) =>

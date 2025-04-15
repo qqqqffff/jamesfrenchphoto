@@ -2,7 +2,6 @@ import { Dispatch, FC, SetStateAction, useEffect, useRef, useState } from "react
 import { UserTag, Watermark, PhotoCollection, PhotoSet, ShareTemplate } from "../../../types"
 import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
-import { getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
 import { CollectionThumbnail } from "./CollectionThumbnail"
 import { HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineTrash } from "react-icons/hi2"
 import { SetList } from "./SetList"
@@ -115,16 +114,15 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
       })
     }
   }, [collection.items])
+
+  useEffect(() => {
+    setSetList(collection.sets)
+  }, [collection.sets])
   
   //TODO: parent state management
 
   const deleteCollection = useMutation({
     mutationFn: (params: DeleteCollectionParams) => deleteCollectionMutation(params)
-  })
-
-  const setQuery = useQuery({
-    ...getPhotoSetByIdQueryOptions(selectedSet?.id, { resolveUrls: false, user: auth.user?.profile.email }),
-    enabled: selectedSet !== undefined
   })
 
   const uploadWatermarks = useMutation({
@@ -561,10 +559,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                   setList={setList}
                   selectedSet={selectedSet}
                   setSelectedSet={(set: PhotoSet | undefined) => {
-                    if(set) {
-                      setQuery.refetch()
-                    }
-                    
                     navigate({
                       to: '.', search: {
                         collection: collection.id,
@@ -745,33 +739,29 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
         </div>
         { activeConsole === 'sets' ? (
             selectedSet ? (
-              setQuery.isLoading || setQuery.isRefetching ? (
-                <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-                  <div className="flex flex-row items-center justify-center">
-                    <p>Loading</p>
-                    <Loading />
-                  </div>
-                </div>
-              ) : (
-                <PhotoSetPanel 
-                  photoCollection={collection} 
-                  photoSet={setQuery.data ?? selectedSet} 
-                  paths={setQuery.data?.paths ?? []}
-                  deleteParentSet={(setId) => {
-                    const updatedSetList = setList
-                        .filter((set) => set.id !== setId)
-                        .sort((a, b) => a.order - b.order)
-                        .map((set, index) => ({ ...set, order: index}))
-                    
-                    setSetList(updatedSetList)
-                    setSelectedSet(undefined)
-                  }}
-                  parentUpdateSet={setSelectedSet}
-                  parentUpdateCollection={updateParentCollection}
-                  parentUpdateCollections={updateParentCollections}
-                  auth={auth}
-                />
-              )
+                // <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+                //   <div className="flex flex-row items-center justify-center">
+                //     <p>Loading</p>
+                //     <Loading />
+                //   </div>
+                // </div>
+              <PhotoSetPanel 
+                photoCollection={collection} 
+                photoSet={selectedSet} 
+                deleteParentSet={(setId) => {
+                  const updatedSetList = setList
+                      .filter((set) => set.id !== setId)
+                      .sort((a, b) => a.order - b.order)
+                      .map((set, index) => ({ ...set, order: index}))
+                  
+                  setSetList(updatedSetList)
+                  setSelectedSet(undefined)
+                }}
+                parentUpdateSet={setSelectedSet}
+                parentUpdateCollection={updateParentCollection}
+                parentUpdateCollections={updateParentCollections}
+                auth={auth}
+              />
             ) : (
               <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
                 <div className="flex flex-row items-center justify-center">

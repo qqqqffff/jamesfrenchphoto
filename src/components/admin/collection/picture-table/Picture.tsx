@@ -256,14 +256,13 @@ export const Picture: FC<PictureProps> = (props: PictureProps) => {
               title={`${props.picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`} 
               className="" 
               onClick={() => {
-                console.log(props.picture.favorite)
                 if(props.picture.favorite !== undefined && props.picture.favorite !== 'temp'){
-                //   unfavorite.mutate({
-                //     id: props.picture.favorite,
-                //     options: {
-                //       logging: true
-                //     }
-                //   })
+                  unfavorite.mutate({
+                    id: props.picture.favorite,
+                    options: {
+                      logging: true
+                    }
+                  })
 
                   const temp = props.paths.map((parentPath) => {
                     if(props.picture.id === parentPath.id) {
@@ -301,50 +300,50 @@ export const Picture: FC<PictureProps> = (props: PictureProps) => {
                     })
                   })
                 }
-                // else if(props.userEmail && props.picture.favorite === undefined){
-                //   favorite.mutate({
-                //     pathId: props.picture.id,
-                //     user: props.userEmail,
-                //     options: {
-                //       logging: true
-                //     }
-                //   })
+                else if(props.userEmail && props.picture.favorite === undefined){
+                  favorite.mutate({
+                    pathId: props.picture.id,
+                    user: props.userEmail,
+                    options: {
+                      logging: true
+                    }
+                  })
 
-                //   const temp = props.paths.map((parentPath) => {
-                //     if(props.picture.id === parentPath.id){
-                //       return ({
-                //         ...parentPath,
-                //         favorite: 'temp'
-                //       })
-                //     }
-                //     return parentPath
-                //   })
+                  const temp = props.paths.map((parentPath) => {
+                    if(props.picture.id === parentPath.id){
+                      return ({
+                        ...parentPath,
+                        favorite: 'temp'
+                      })
+                    }
+                    return parentPath
+                  })
                   
-                //   const updatedSet: PhotoSet = {
-                //     ...props.set,
-                //     paths: temp
-                //   }
+                  const updatedSet: PhotoSet = {
+                    ...props.set,
+                    paths: temp
+                  }
 
-                //   const updatedCollection: PhotoCollection = {
-                //     ...props.collection,
-                //     sets: props.collection.sets.map((set) => {
-                //       if(set.id === updatedSet.id) return updatedSet
-                //       return set
-                //     })
-                //   }
+                  const updatedCollection: PhotoCollection = {
+                    ...props.collection,
+                    sets: props.collection.sets.map((set) => {
+                      if(set.id === updatedSet.id) return updatedSet
+                      return set
+                    })
+                  }
 
-                //   props.parentUpdatePaths(temp)
-                //   props.parentUpdateSet(updatedSet)
-                //   props.parentUpdateCollection(updatedCollection)
-                //   props.parentUpdateCollections((prev) => {
-                //     const temp = [...prev]
+                  props.parentUpdatePaths(temp)
+                  props.parentUpdateSet(updatedSet)
+                  props.parentUpdateCollection(updatedCollection)
+                  props.parentUpdateCollections((prev) => {
+                    const temp = [...prev]
 
-                //     return temp.map((col) => {
-                //       if(col.id === updatedCollection.id) return updatedCollection
-                //       return col
-                //     })
-                //   })
-                // }
+                    return temp.map((col) => {
+                      if(col.id === updatedCollection.id) return updatedCollection
+                      return col
+                    })
+                  })
+                }
               }}
             >
               <HiOutlineHeart size={20} className={`${props.picture.favorite !== undefined ? 'fill-red-400' : ''}`}/>
@@ -469,6 +468,7 @@ export const Picture: FC<PictureProps> = (props: PictureProps) => {
                 deletePath.mutate({
                   picturePaths: [props.picture],
                   collection: props.collection,
+                  set: props.set,
                   options: {
                     logging: true
                   }

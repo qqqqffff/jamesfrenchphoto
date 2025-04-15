@@ -7,7 +7,7 @@ import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../amplify/data/resource";
 import { DownloadData } from "../components/common/DownloadToast";
 import { V6Client } from '@aws-amplify/api-graphql'
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 const client = generateClient<Schema>()
 
@@ -34,6 +34,34 @@ async function getPathsFromFavoriteIds(client: V6Client<Schema>, ids: string[], 
   }))).filter((path) => path !== undefined)
 
   return paths
+}
+
+interface GetInfinitePathsData {
+  memo: PicturePath[],
+  nextToken?: string,
+}
+interface GetInfinitePathsOptions {
+  maxItems: number,
+}
+async function getInfinitePaths(client: V6Client<Schema>, setId: string, initial: GetInfinitePathsData, options?: GetInfinitePathsOptions): Promise<GetInfinitePathsData> {
+  const response = await client.models.PhotoPaths.listPhotoPathsBySetId(
+    { setId: setId }, 
+    { limit: options?.maxItems ?? 24, nextToken: initial.nextToken } //Max calculated by 4x4 = max photos in frame * 1.5 for padding
+  )
+
+  const returnData: GetInfinitePathsData = {
+    memo: [...initial.memo, ...response.data.map((path) => {
+        const mappedPath: PicturePath = {
+          ...path,
+          url: ''
+        }
+        return mappedPath
+      })
+    ],
+    nextToken: response.nextToken ?? undefined
+  }
+
+  return returnData
 }
 
 export interface DownloadImageMutationParams {
@@ -120,4 +148,14 @@ export async function downloadFavoritesMutation(params: DownloadFavoritesMutatio
 export const getPathsFromFavoriteIdsQueryOptions = (ids: string[], options?: GetPathsFromFavoriteIdsOptions) => queryOptions({
   queryKey: ['favorites', client, ids, options],
   queryFn: () => getPathsFromFavoriteIds(client, ids, options)
+})
+
+export const getInfinitePathsQueryOptions = (setId: string, options?: GetInfinitePathsOptions) => infiniteQueryOptions({
+  queryKey: ['infinitePhotoPaths', client, setId, options],
+  queryFn: ({ pageParam }) => getInfinitePaths(client, setId, pageParam, options),
+  getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
+  initialPageParam: ({
+    memo: [] as PicturePath[],
+  } as GetInfinitePathsData),
+  refetchOnWindowFocus: false,
 })
