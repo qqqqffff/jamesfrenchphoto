@@ -1,5 +1,5 @@
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ComponentProps, Dispatch, SetStateAction, useEffect, useState } from "react";
+import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { isPictureData } from "./PictureData";
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { flushSync } from "react-dom";
@@ -9,10 +9,12 @@ import { Picture } from "./Picture";
 import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
 import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
-import { useMutation, useQueries, UseQueryResult } from '@tanstack/react-query';
+import { InfiniteData, UseInfiniteQueryResult, useMutation, useQueries, UseQueryResult } from '@tanstack/react-query';
 import { getPathQueryOptions } from '../../../../services/collectionService';
 import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
+import { GetInfinitePathsData } from '../../../../services/photoPathService';
+import Loading from '../../../common/Loading';
 
 interface PictureListProps extends ComponentProps<'div'> {
   set: PhotoSet,
@@ -30,11 +32,14 @@ interface PictureListProps extends ComponentProps<'div'> {
   displayTitleOverride: boolean
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
   setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
-  userEmail?: string
+  userEmail?: string,
+  pathsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePathsData, unknown>, Error>
 }
 
 export const PictureList = (props: PictureListProps) => {
   const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const picturesRef = useRef<[HTMLDivElement | null][]>([])
 
   const reorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
@@ -111,6 +116,38 @@ export const PictureList = (props: PictureListProps) => {
     })
   }, [props.paths])
 
+  useEffect(() => {
+    if(!observerRef.current) {
+      observerRef.current = new IntersectionObserver((entries) => {
+        const [entry] = entries
+
+        if(entry.isIntersecting && props.pathsQuery.hasNextPage && !props.pathsQuery.isFetchingNextPage) {
+          props.pathsQuery.fetchNextPage()
+        }
+      }, {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1
+      })
+    }
+
+    const loadingElement = document.getElementById('set-image-loading-trigger')
+    if(loadingElement) {
+      observerRef.current.observe(loadingElement)
+    }
+
+    return () => {
+      if(observerRef.current && loadingElement) {
+        observerRef.current.unobserve(loadingElement)
+      }
+      observerRef.current = null
+    }
+  }, [
+    props.pathsQuery.fetchNextPage, 
+    props.pathsQuery.hasNextPage, 
+    props.pathsQuery.isFetchingNextPage,
+  ])
+
   const urls: Record<string, UseQueryResult<[string | undefined, string], Error>> = 
     Object.fromEntries(
       useQueries({
@@ -127,13 +164,16 @@ export const PictureList = (props: PictureListProps) => {
       })
     )
 
-
+    //TODO: observe an item of the second to last row (len - 4)
+    //TODO: sorting the picture set by alphabetical
   return (
     <div className="pt-6 my-0 mx-auto max-h-[90vh] overflow-y-auto px-4">
-      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2">
+      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2" ref={}>
         {pictures.map((item, index) => {
+          
           return (
             <Picture 
+              ref={picturesRef.current[index]}
               key={index}
               index={index}
               set={props.set}
@@ -158,6 +198,16 @@ export const PictureList = (props: PictureListProps) => {
             />
           )
         })}
+        {props.pathsQuery.hasNextPage && (
+          <div id="set-picture-loading-trigger" className="h-5 my-3 text-center text-sm text-gray-500">
+            {props.pathsQuery.isFetchingNextPage && (
+              <>
+                <span>Loading</span>
+                <Loading />
+              </>
+            )}
+          </div>
+        )}
         <UploadImagePlaceholder
           setFilesUploading={props.setFilesUploading}
           className="h-full place-self-center w-full"

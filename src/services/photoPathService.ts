@@ -36,7 +36,7 @@ async function getPathsFromFavoriteIds(client: V6Client<Schema>, ids: string[], 
   return paths
 }
 
-interface GetInfinitePathsData {
+export interface GetInfinitePathsData {
   memo: PicturePath[],
   nextToken?: string,
 }
@@ -46,7 +46,15 @@ interface GetInfinitePathsOptions {
 async function getInfinitePaths(client: V6Client<Schema>, setId: string, initial: GetInfinitePathsData, options?: GetInfinitePathsOptions): Promise<GetInfinitePathsData> {
   const response = await client.models.PhotoPaths.listPhotoPathsBySetId(
     { setId: setId }, 
-    { limit: options?.maxItems ?? 24, nextToken: initial.nextToken } //Max calculated by 4x4 = max photos in frame * 1.5 for padding
+    { 
+      //TODO: fix me
+      // filter: { 
+      // order: { 
+      //   lt: 8,
+      //   gt: 0
+      // }
+    // }, 
+    limit: 9, nextToken: initial.nextToken }
   )
 
   const returnData: GetInfinitePathsData = {
@@ -60,6 +68,8 @@ async function getInfinitePaths(client: V6Client<Schema>, setId: string, initial
     ],
     nextToken: response.nextToken ?? undefined
   }
+
+  // console.log(response, returnData)
 
   return returnData
 }

@@ -1,4 +1,4 @@
-import { Dispatch, FC, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react";
+import { Dispatch, FC, HTMLAttributes, MutableRefObject, SetStateAction, useEffect, useRef, useState } from "react";
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../../types";
 import { attachClosestEdge, extractClosestEdge, type Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { invariant, useNavigate } from "@tanstack/react-router";
@@ -43,6 +43,7 @@ const idle: PictureState = { type: 'idle' }
 
 interface PictureProps {
   index: number,
+  ref: MutableRefObject<HTMLDivElement | null>,
   paths: PicturePath[]
   set: PhotoSet
   collection: PhotoCollection
@@ -189,7 +190,7 @@ export const Picture: FC<PictureProps> = (props: PictureProps) => {
 
   return (
     <>
-      <div className="relative" id='image-parent-container'>
+      <div className="relative" ref={props.ref}>
         <div
           data-picture-id={props.picture.id}
           id='image-container'

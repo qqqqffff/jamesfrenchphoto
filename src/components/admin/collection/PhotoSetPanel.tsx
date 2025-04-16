@@ -104,6 +104,8 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
     mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
   })
 
+  pathsQuery
+
   function pictureStyle(id: string){
     const conditionalBackground = selectedPhotos.find((path) => path.id === id) !== undefined ? 
     `bg-gray-100 border-cyan-400` : `bg-transparent border-gray-500`
@@ -466,6 +468,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
             }}
             setFilesUploading={setFilesUploading}
             userEmail={auth.user?.profile.email}
+            pathsQuery={pathsQuery}
           />
         )}
       </div>
