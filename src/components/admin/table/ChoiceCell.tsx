@@ -1,9 +1,10 @@
 import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { BiSolidSquareRounded } from "react-icons/bi";
 import { HiOutlinePlusCircle, HiOutlineXMark } from 'react-icons/hi2'
-import { defaultColors, defaultColumnColors, GetColorComponent } from "../../../utils";
+import { defaultColors, defaultColumnColors } from "../../../utils";
 import { Label } from "flowbite-react";
 import { ColumnColor, Table, TableColumn } from "../../../types";
+import { ColorComponent } from "../../common/ColorComponent";
 
 
 interface ChoiceCellProps extends ComponentProps<'td'> {
@@ -112,7 +113,7 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
                 value={choiceName}
               />
             </div>
-            <Label className="text-sm mt-2">Color: <GetColorComponent activeColor={activeColor} /></Label>
+            <Label className="text-sm mt-2">Color: <ColorComponent activeColor={activeColor} /></Label>
             <div className="grid grid-cols-5 gap-1">
               {defaultColors
                 .filter((color) => !props.column.color?.some((colColor) => {

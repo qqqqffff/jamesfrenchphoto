@@ -5,6 +5,7 @@ import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
 import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
+import { getAllPaths } from "./photoPathService";
 
 const client = generateClient<Schema>()
 
@@ -790,6 +791,97 @@ export async function removeCollectionParticipantMutation(params: RemoveCollecti
 
         if(params.options?.logging) console.log(response)
     }
+}
+
+export interface RepairPathsParams {
+  collectionId: string,
+  setId: string,
+  options?: {
+    logging?: boolean
+  }
+}
+export async function repairPathsMutation(params: RepairPathsParams) {
+  const repairPathsResponse = await client.queries.RepairPaths({
+    collection: params.collectionId,
+    set: params.setId
+  })
+
+  if(params.options?.logging) console.log(repairPathsResponse)
+
+  if(repairPathsResponse.data) {
+    try {
+      const returnResponse = JSON.parse(repairPathsResponse.data) as 
+      {
+        paths: PicturePath[],
+        responses: {
+          set: any,
+          paths: any,
+        }
+      }
+
+      if(params.options?.logging) console.log(returnResponse.responses)
+      return returnResponse.paths
+    } catch(err) {
+      if(params.options?.logging) console.log(err)
+      return undefined
+    }
+  }
+}
+
+export interface RepairItemCountsParams {
+  collection: PhotoCollection,
+  refetchAllSets?: boolean,
+  options?: {
+    logging?: boolean
+  }
+}
+export async function repairItemCountMutation (params: RepairItemCountsParams): Promise<PhotoCollection | undefined> {
+  const collectionResponse = params.refetchAllSets ?
+    await getCollectionById(client, params.collection.id, {
+      siPaths: false,
+      siSets: true,
+      siTags: false,
+    }) : params.collection
+
+  if(collectionResponse) {
+    const updatedSets: { response: any, set: PhotoSet }[] = (await Promise.all(collectionResponse.sets
+      .map(async (set) => {
+        const paths = await getAllPaths(client, set.id)
+
+        const updateSetResponse = await client.models.PhotoSet.update({
+          id: set.id,
+          items: paths.length
+        })
+
+        return ({
+          response: updateSetResponse,
+          set: {
+            ...set,
+            items: paths.length
+          }
+        })
+      })
+    ))
+
+    if(params.options?.logging) console.log(updatedSets.map((set) => set.response))
+
+    const itemCount = updatedSets
+      .map((set) => set.set)
+      .reduce((prev, cur) => prev += cur.items, 0)
+
+    const updateResponse = await client.models.PhotoCollection.update({
+      id: collectionResponse.id,
+      items: itemCount
+    })
+
+    if(params.options?.logging) console.log(updateResponse)
+
+    return {
+      ...params.collection,
+      sets: updatedSets.map((set) => set.set),
+      items: itemCount
+    }
+  }
 }
 
 export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOptions({

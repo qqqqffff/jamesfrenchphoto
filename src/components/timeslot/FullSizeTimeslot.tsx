@@ -1,9 +1,10 @@
 import { FC } from "react";
 import { TimeslotDisplayProps } from "./Timeslot";
 import { Badge, Dropdown, Label, Tooltip } from "flowbite-react";
-import { badgeColorThemeMap, GetColorComponent, normalizeDate } from "../../utils";
+import { badgeColorThemeMap, normalizeDate } from "../../utils";
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineInformationCircle } from "react-icons/hi"
 import { Timeslot } from "../../types";
+import { ColorComponent } from "../common/ColorComponent";
 
 const component: FC<TimeslotDisplayProps> = ({timeslots, setActiveDate, activeDate, formatTimeslot, formatRegisteredTimeslot }) => {
   return (
@@ -108,7 +109,7 @@ const component: FC<TimeslotDisplayProps> = ({timeslots, setActiveDate, activeDa
                       <div key={index} className="flex flex-col items-center justify-center">
                         <span>Dates for:</span>
                         <Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 text-md">{tag.name}</Badge>
-                        <GetColorComponent activeColor={tag.color} customText={formattedDateString} />
+                        <ColorComponent activeColor={tag.color} customText={formattedDateString} />
                       </div>
                     )
               })}

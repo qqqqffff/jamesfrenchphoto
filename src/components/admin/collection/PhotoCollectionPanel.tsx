@@ -23,7 +23,6 @@ import {
   UploadCoverParams
 } from "../../../services/collectionService"
 import Loading from "../../common/Loading"
-import { detectDuplicates } from "./utils"
 import { PublishableItems } from "./PublishableItems"
 import { AuthContext } from "../../../auth"
 import { FavoritePanel } from "./FavoritePanel"
@@ -94,26 +93,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   const updateCollection = useMutation({
     mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params)
   })
-
-  useEffect(() => {
-    const aggregateItems = setList.reduce((prev, cur) => {
-      if(cur.id === selectedSet?.id) {
-        return prev + selectedSet.paths.length
-      }
-      return prev + cur.paths.length
-    }, 0)
-    if(aggregateItems !== collection.items) {
-      updateParentCollection({
-        ...collection,
-        items: aggregateItems,
-      })
-      updateCollection.mutate({
-        collection: collection,
-        published: collection.published,
-        items: aggregateItems
-      })
-    }
-  }, [collection.items])
 
   useEffect(() => {
     setSetList(collection.sets)
@@ -236,8 +215,8 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
 
     const tempSetList = setList.sort((a, b) => b.order - a.order)
     for(let i = 0; i < tempSetList.length; i++) {
-      publishable = tempSetList[i].paths.length > 0 ? (
-        tempSetList[i].paths.length < 20 ? (
+      publishable = tempSetList[i].items > 0 ? (
+        tempSetList[i].items < 20 ? (
           updatePublishable(publishable, `${tempSetList[i].name} has Few Pictures`)
         ) : (
           publishable
@@ -245,8 +224,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
       ) : (
         updatePublishable(publishable, undefined, `${tempSetList[i].name} has a No Pictures`)
       )
-      const duplicates = detectDuplicates(tempSetList[i].paths)
-      publishable = duplicates.length > 0 ? updatePublishable(publishable, `${tempSetList[i].name} has Duplicates`) : publishable
     }
 
     return publishable

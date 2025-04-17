@@ -28,6 +28,8 @@ import { AuthContext } from "../../../auth";
 import { PictureList } from "./picture-table/PictureList";
 import { getInfinitePathsQueryOptions } from "../../../services/photoPathService";
 import Loading from "../../common/Loading";
+import { repairPathsMutation, RepairPathsParams } from "../../../services/collectionService";
+import { CgSpinner } from "react-icons/cg";
 
 export type PhotoSetPanelProps = {
   photoCollection: PhotoCollection;
@@ -104,8 +106,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
     mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
   })
 
-  pathsQuery
-
   function pictureStyle(id: string){
     const conditionalBackground = selectedPhotos.find((path) => path.id === id) !== undefined ? 
     `bg-gray-100 border-cyan-400` : `bg-transparent border-gray-500`
@@ -160,6 +160,39 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
   const deleteSet = useMutation({
     mutationFn: (params: DeleteSetMutationParams) => deleteSetMutation(params)
+  })
+
+  const repairPaths = useMutation({
+    mutationFn: (params: RepairPathsParams) => repairPathsMutation(params),
+    onSuccess: (data) => {
+      if(data) {
+        const temp: PhotoSet = {
+          ...photoSet,
+          paths: data,
+          items: data.length,
+        }
+
+        const tempCollection: PhotoCollection = {
+          ...photoCollection,
+          sets: photoCollection.sets.map((set) => {
+            return set.id === temp.id ? temp : set
+          }),
+          items: photoCollection.items - photoSet.items + temp.items
+        }
+
+        setPicturePaths(data)
+        parentUpdateSet(temp)
+        parentUpdateCollection(tempCollection)
+        parentUpdateCollections((prev) => {
+          const pTemp = [...prev]
+            .map((collection) => {
+              return collection.id === tempCollection.id ? tempCollection : collection
+            })
+
+          return pTemp
+        })
+      }
+    }
   })
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -410,6 +443,23 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
                     }
                   }}
                 />Upload Pictures
+              </Dropdown.Item>
+              <Dropdown.Item
+                className="disabled:cursor-wait flex flex-row items-center gap-2"
+                disabled={repairPaths.isPending}
+                onClick={() => {
+                  //TODO: display a notification if something happens
+                  repairPaths.mutate({
+                    collectionId: photoCollection.id,
+                    setId: photoSet.id,
+                    options: {
+                      logging: true
+                    }
+                  })
+                }}
+              >
+                {repairPaths.isPending && (<CgSpinner size={24} className="animate-spin text-gray-600"/>)}
+                <span>Repair Photo Paths</span>
               </Dropdown.Item>
               <Dropdown.Item 
                 onClick={() => setDeleteConfirmation(true)}

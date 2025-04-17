@@ -12,36 +12,11 @@ import { getCollectionById } from './collectionService'
 
 const client = generateClient<Schema>()
 
-interface GetAllPicturePathsByPhotoSetOptions {
+interface GetPhotoSetByIdOptions { 
     resolveUrls?: boolean,
     user?: string,
     unauthenticated?: boolean
-} 
-async function getAllPicturePathsByPhotoSet(client: V6Client<Schema>, setId?: string, options?: GetAllPicturePathsByPhotoSetOptions): Promise<PicturePath[] | null> {
-    console.log('api call')
-    if(!setId) return null
-    const pathResponse = await client.models.PhotoPaths.listPhotoPathsBySetId({
-        setId: setId
-    }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
-    const mappedPaths: PicturePath[] = await Promise.all(pathResponse.data.map(async (path) => {
-        let favorite: undefined | string
-        if(options?.user){
-            favorite = (await path.favorites()).data.find((favorite) => favorite.userEmail === options.user)?.id
-        }
-        const mappedPath: PicturePath = {
-            ...path,
-            url: options?.resolveUrls ? (await getUrl({
-                path: path.path,
-            })).url.toString() : '',
-            favorite: favorite,
-        }
-        return mappedPath
-    }))
-    return mappedPaths
 }
-
-
-interface GetPhotoSetByIdOptions extends GetAllPicturePathsByPhotoSetOptions { }
 async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options?: GetPhotoSetByIdOptions): Promise<PhotoSet | null> {
     if(!setId) return null
     const setResponse = await client.models.PhotoSet.get({
@@ -544,24 +519,6 @@ export async function unfavoriteImageMutation(params: UnfavoriteImageMutationPar
     })
     if(params.options?.logging) console.log(response)
 }
-
-export interface AdjustSetItemsParams {
-    setId: string,
-    options?: {
-        logging?: boolean
-    }
-}
-export async function adjustSetItems(params: AdjustSetItemsParams) {
-    getPhotoSetById(client, params.setId, {
-        
-    })
-}
-
-export const getAllPicturePathsByPhotoSetQueryOptions = (setId?: string, options?: GetAllPicturePathsByPhotoSetOptions) => queryOptions({
-    queryKey: ['photoPaths', client, setId, options],
-    queryFn: () => getAllPicturePathsByPhotoSet(client, setId, options),
-    gcTime: 1000 * 15 * 60 //15 minutes
-})
 
 export const getPhotoSetByIdQueryOptions = (setId?: string, options?: GetPhotoSetByIdOptions) => queryOptions({
     queryKey: ['photoSet', client, setId, options],

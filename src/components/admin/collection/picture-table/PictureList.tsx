@@ -1,5 +1,5 @@
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { ComponentProps, Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { isPictureData } from "./PictureData";
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { flushSync } from "react-dom";
@@ -10,7 +10,7 @@ import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
 import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
 import { InfiniteData, UseInfiniteQueryResult, useMutation, useQueries, UseQueryResult } from '@tanstack/react-query';
-import { getPathQueryOptions } from '../../../../services/collectionService';
+import { getPathQueryOptions, repairItemCountMutation, RepairItemCountsParams } from '../../../../services/collectionService';
 import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
 import { GetInfinitePathsData } from '../../../../services/photoPathService';
@@ -39,11 +39,33 @@ interface PictureListProps extends ComponentProps<'div'> {
 export const PictureList = (props: PictureListProps) => {
   const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
   const observerRef = useRef<IntersectionObserver | null>(null)
-  const picturesRef = useRef<[HTMLDivElement | null][]>([])
+  const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
 
   const reorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
   })
+
+  const repairItemCounts = useMutation({
+    mutationFn: (params: RepairItemCountsParams) => repairItemCountMutation(params),
+    onSuccess: (data) => {
+      if(data) {
+        props.parentUpdateCollection(data)
+        props.parentUpdateCollections((prev) => {
+          const temp = [...prev]
+            .map((collection) => {
+              return collection.id === data.id ? data : collection
+            })
+
+          return temp
+        })
+        props.parentUpdateSet(data.sets.find((set) => set.id === props.set.id))
+      }
+    }
+  })
+
+  const getTriggerItems = useCallback((allItems: PicturePath[]): PicturePath => {
+    return allItems[allItems.length - allItems.length % 4 - 4]
+  }, [])
 
   useEffect(() => {
     setPictures(props.paths)
@@ -117,13 +139,23 @@ export const PictureList = (props: PictureListProps) => {
   }, [props.paths])
 
   useEffect(() => {
+    if(props.paths.length == 0) return
+
     if(!observerRef.current) {
       observerRef.current = new IntersectionObserver((entries) => {
-        const [entry] = entries
-
-        if(entry.isIntersecting && props.pathsQuery.hasNextPage && !props.pathsQuery.isFetchingNextPage) {
-          props.pathsQuery.fetchNextPage()
-        }
+        entries.forEach(entry => {
+          if(entry.isIntersecting && props.pathsQuery.hasNextPage && !props.pathsQuery.isFetchingNextPage) {
+            props.pathsQuery.fetchNextPage()
+          }
+          else if(entry.isIntersecting && !props.pathsQuery.hasNextPage && props.paths.length !== props.set.items) {
+            repairItemCounts.mutate({
+              collection: props.collection,
+              options: {
+                logging: true
+              }
+            })
+          }
+        })
       }, {
         root: null,
         rootMargin: '0px',
@@ -131,22 +163,34 @@ export const PictureList = (props: PictureListProps) => {
       })
     }
 
-    const loadingElement = document.getElementById('set-image-loading-trigger')
-    if(loadingElement) {
-      observerRef.current.observe(loadingElement)
+    const triggerItem = getTriggerItems(props.paths)
+
+    observerRef.current.disconnect();
+
+    const el = picturesRef.current.get(triggerItem.id)
+    if(el && observerRef.current) {
+      observerRef.current.observe(el)
     }
 
     return () => {
-      if(observerRef.current && loadingElement) {
-        observerRef.current.unobserve(loadingElement)
+      if(observerRef.current){
+        observerRef.current.disconnect()
       }
       observerRef.current = null
     }
   }, [
+    props.paths,
     props.pathsQuery.fetchNextPage, 
     props.pathsQuery.hasNextPage, 
     props.pathsQuery.isFetchingNextPage,
+    getTriggerItems,
   ])
+
+  const setItemRef = useCallback((el: HTMLDivElement | null, id: string) => {
+    if(el) {
+      picturesRef.current.set(id, el)
+    }
+  }, [])
 
   const urls: Record<string, UseQueryResult<[string | undefined, string], Error>> = 
     Object.fromEntries(
@@ -163,39 +207,40 @@ export const PictureList = (props: PictureListProps) => {
         ]
       })
     )
-
-    //TODO: observe an item of the second to last row (len - 4)
-    //TODO: sorting the picture set by alphabetical
+    
   return (
     <div className="pt-6 my-0 mx-auto max-h-[90vh] overflow-y-auto px-4">
-      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2" ref={}>
+      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2">
         {pictures.map((item, index) => {
-          
           return (
-            <Picture 
-              ref={picturesRef.current[index]}
+            <div 
+              className="relative" 
+              ref={el => setItemRef(el, item.id)}
               key={index}
-              index={index}
-              set={props.set}
-              collection={props.collection}
-              paths={pictures}
-              picture={item}
-              url={urls[item.id]}
-              parentUpdatePaths={props.parentUpdatePaths}
-              parentUpdateSet={props.parentUpdateSet}
-              parentUpdateCollection={props.parentUpdateCollection}
-              parentUpdateCollections={props.parentUpdateCollections}
-              pictureStyle={props.pictureStyle}
-              selectedPhotos={props.selectedPhotos}
-              setSelectedPhotos={props.setSelectedPhotos}
-              setDisplayPhotoControls={props.setDisplayPhotoControls}
-              controlsEnabled={props.controlsEnabled}
-              displayTitleOverride={props.displayTitleOverride}
-              notify={props.notify}
-              setFilesUploading={props.setFilesUploading}
-              userEmail={props.userEmail}
-              reorderPaths={reorderPaths}
-            />
+            >
+              <Picture 
+                index={index}
+                set={props.set}
+                collection={props.collection}
+                paths={pictures}
+                picture={item}
+                url={urls[item.id]}
+                parentUpdatePaths={props.parentUpdatePaths}
+                parentUpdateSet={props.parentUpdateSet}
+                parentUpdateCollection={props.parentUpdateCollection}
+                parentUpdateCollections={props.parentUpdateCollections}
+                pictureStyle={props.pictureStyle}
+                selectedPhotos={props.selectedPhotos}
+                setSelectedPhotos={props.setSelectedPhotos}
+                setDisplayPhotoControls={props.setDisplayPhotoControls}
+                controlsEnabled={props.controlsEnabled}
+                displayTitleOverride={props.displayTitleOverride}
+                notify={props.notify}
+                setFilesUploading={props.setFilesUploading}
+                userEmail={props.userEmail}
+                reorderPaths={reorderPaths}
+              />
+            </div>
           )
         })}
         {props.pathsQuery.hasNextPage && (

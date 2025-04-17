@@ -11,6 +11,7 @@ import { shareCollection } from '../functions/share-collection/resource';
 import { addPublicPhoto } from '../functions/add-public-photo/resource';
 import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
 import { shareUserInvite } from '../functions/share-user-invite/resource';
+import { repairPaths } from '../functions/repair-paths/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -76,8 +77,11 @@ const schema = a.schema({
       favorites: a.hasMany('UserFavorites', 'pathId')
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('setId')])
+    .secondaryIndexes((index) => [
+      index('setId').sortKeys(['order']),
+    ])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['read'])]),
+  
   UserFavorites: a
     .model({
       id: a.id().required(),
@@ -407,6 +411,15 @@ const schema = a.schema({
     .handler(a.handler.function(addPublicPhoto))
     .authorization((allow) => [allow.group('ADMINS')])
     .returns(a.string()),
+  RepairPaths: a
+    .query()
+    .arguments({
+      collection: a.string().required(),
+      set: a.string().required(),
+    })
+    .handler(a.handler.function(repairPaths))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.string()),
   DeletePublicPhoto: a
     .query()
     .arguments({
@@ -429,7 +442,8 @@ const schema = a.schema({
 .authorization((allow) => [
   allow.resource(postConfirmation),
   allow.resource(addCreateUserQueue),
-  allow.resource(shareUserInvite)
+  allow.resource(shareUserInvite),
+  allow.resource(repairPaths)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

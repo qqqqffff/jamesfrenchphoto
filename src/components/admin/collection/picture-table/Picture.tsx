@@ -1,4 +1,4 @@
-import { Dispatch, FC, HTMLAttributes, MutableRefObject, SetStateAction, useEffect, useRef, useState } from "react";
+import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react";
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../../types";
 import { attachClosestEdge, extractClosestEdge, type Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { invariant, useNavigate } from "@tanstack/react-router";
@@ -43,7 +43,6 @@ const idle: PictureState = { type: 'idle' }
 
 interface PictureProps {
   index: number,
-  ref: MutableRefObject<HTMLDivElement | null>,
   paths: PicturePath[]
   set: PhotoSet
   collection: PhotoCollection
@@ -65,7 +64,7 @@ interface PictureProps {
   reorderPaths: UseMutationResult<void, Error, ReorderPathsParams, unknown>
 }
 
-export const Picture: FC<PictureProps> = (props: PictureProps) => {
+export const Picture = (props: PictureProps) => {
   const ref = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<PictureState>(idle)
   const navigate = useNavigate()
@@ -190,261 +189,102 @@ export const Picture: FC<PictureProps> = (props: PictureProps) => {
 
   return (
     <>
-      <div className="relative" ref={props.ref}>
-        <div
-          data-picture-id={props.picture.id}
-          id='image-container'
-          ref={ref}
-          className={`
-            ${props.pictureStyle(props.picture.id)} ${stateStyles[state.type] ?? ''}
-          `}
-          // onClick={(event) => {
-          //   const temp = [...props.selectedPhotos]
-          //   if((event.target as HTMLElement).id.includes('image')){
-          //     if(props.selectedPhotos.find((parentPath) => props.picture.id === parentPath.id) !== undefined){
-          //       props.setSelectedPhotos(props.selectedPhotos.filter((parentPath) => parentPath.id !== props.picture.id))
-          //     }
-          //     else if(event.shiftKey && temp.length > 0){
-          //       let minIndex = -1
-          //       let maxIndex = props.index
-          //       for(let i = 0; i < props.paths.length; i++){
-          //         if(props.selectedPhotos.find((path) => path.id === props.paths[i].id) !== undefined){
-          //           minIndex = i
-          //           break
-          //         }
-          //       }
-          //       for(let i = props.paths.length - 1; props.index < i; i--){
-          //         if(props.selectedPhotos.find((path) => path.id === props.paths[i].id) !== undefined){
-          //           maxIndex = i
-          //           break
-          //         }
-          //       }
-          //       minIndex = props.index < minIndex ? props.index : minIndex
-          //       if(minIndex > -1){
-          //         props.setSelectedPhotos(props.paths.filter((_, i) => i >= minIndex && i <= maxIndex))
-          //       }
-          //     }
-          //     else{
-          //       temp.push(props.picture)
-          //       props.setSelectedPhotos(temp)
-          //     }
-          //   }
-          // }}
-          onMouseEnter={() => {
-            props.setDisplayPhotoControls(props.picture.id)
-          }}  
-          onMouseLeave={() => {
-            props.setDisplayPhotoControls(undefined)
-          }}
-        >
-          {props.url.isLoading ? (
-            <div className="flex items-center justify-center w-[200px] h-[300px] bg-gray-300 rounded sm:w-96">
-              <svg className="w-10 h-10 text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
-                <path d="M18 0H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2Zm-5.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm4.376 10.481A1 1 0 0 1 16 15H4a1 1 0 0 1-.895-1.447l3.5-7A1 1 0 0 1 7.468 6a.965.965 0 0 1 .9.5l2.775 4.757 1.546-1.887a1 1 0 0 1 1.618.1l2.541 4a1 1 0 0 1 .028 1.011Z"/>
-              </svg>
-            </div>
-          ) : (
-            <LazyImage 
-              src={props.url.data?.[1]} 
-              className="object-cover rounded-lg w-[200px] h-[300px] justify-self-center pointer-events-none" 
-              id='image'
-              loading='lazy'
-              draggable={false}
-            />
-          )}
-          <div className={`absolute bottom-0 inset-x-0 pb-1 justify-end flex-row gap-1 me-3 ${props.controlsEnabled(props.picture.id, false)}`}>
-            <button 
-              title={`${props.picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`} 
-              className="" 
-              onClick={() => {
-                if(props.picture.favorite !== undefined && props.picture.favorite !== 'temp'){
-                  unfavorite.mutate({
-                    id: props.picture.favorite,
-                    options: {
-                      logging: true
-                    }
-                  })
-
-                  const temp = props.paths.map((parentPath) => {
-                    if(props.picture.id === parentPath.id) {
-                      return ({
-                        ...parentPath,
-                        favorite: undefined
-                      })
-                    }
-                    return parentPath
-                  })
-                  
-                  const updatedSet: PhotoSet = {
-                    ...props.set,
-                    paths: temp
+      <div
+        data-picture-id={props.picture.id}
+        id='image-container'
+        ref={ref}
+        className={`
+          ${props.pictureStyle(props.picture.id)} ${stateStyles[state.type] ?? ''}
+        `}
+        // onClick={(event) => {
+        //   const temp = [...props.selectedPhotos]
+        //   if((event.target as HTMLElement).id.includes('image')){
+        //     if(props.selectedPhotos.find((parentPath) => props.picture.id === parentPath.id) !== undefined){
+        //       props.setSelectedPhotos(props.selectedPhotos.filter((parentPath) => parentPath.id !== props.picture.id))
+        //     }
+        //     else if(event.shiftKey && temp.length > 0){
+        //       let minIndex = -1
+        //       let maxIndex = props.index
+        //       for(let i = 0; i < props.paths.length; i++){
+        //         if(props.selectedPhotos.find((path) => path.id === props.paths[i].id) !== undefined){
+        //           minIndex = i
+        //           break
+        //         }
+        //       }
+        //       for(let i = props.paths.length - 1; props.index < i; i--){
+        //         if(props.selectedPhotos.find((path) => path.id === props.paths[i].id) !== undefined){
+        //           maxIndex = i
+        //           break
+        //         }
+        //       }
+        //       minIndex = props.index < minIndex ? props.index : minIndex
+        //       if(minIndex > -1){
+        //         props.setSelectedPhotos(props.paths.filter((_, i) => i >= minIndex && i <= maxIndex))
+        //       }
+        //     }
+        //     else{
+        //       temp.push(props.picture)
+        //       props.setSelectedPhotos(temp)
+        //     }
+        //   }
+        // }}
+        onMouseEnter={() => {
+          props.setDisplayPhotoControls(props.picture.id)
+        }}  
+        onMouseLeave={() => {
+          props.setDisplayPhotoControls(undefined)
+        }}
+      >
+        {props.url.isLoading ? (
+          <div className="flex items-center justify-center w-[200px] h-[300px] bg-gray-300 rounded sm:w-96">
+            <svg className="w-10 h-10 text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
+              <path d="M18 0H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2Zm-5.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm4.376 10.481A1 1 0 0 1 16 15H4a1 1 0 0 1-.895-1.447l3.5-7A1 1 0 0 1 7.468 6a.965.965 0 0 1 .9.5l2.775 4.757 1.546-1.887a1 1 0 0 1 1.618.1l2.541 4a1 1 0 0 1 .028 1.011Z"/>
+            </svg>
+          </div>
+        ) : (
+          <LazyImage 
+            src={props.url.data?.[1]} 
+            className="object-cover rounded-lg w-[200px] h-[300px] justify-self-center pointer-events-none" 
+            id='image'
+            loading='lazy'
+            draggable={false}
+          />
+        )}
+        <div className={`absolute bottom-0 inset-x-0 pb-1 justify-end flex-row gap-1 me-3 ${props.controlsEnabled(props.picture.id, false)}`}>
+          <button 
+            title={`${props.picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`} 
+            className="" 
+            onClick={() => {
+              if(props.picture.favorite !== undefined && props.picture.favorite !== 'temp'){
+                unfavorite.mutate({
+                  id: props.picture.favorite,
+                  options: {
+                    logging: true
                   }
+                })
 
-                  const updatedCollection: PhotoCollection = {
-                    ...props.collection,
-                    sets: props.collection.sets.map((set) => {
-                      if(set.id === updatedSet.id) return updatedSet
-                        return set
-                      }
-                    )
-                  }
-
-                  props.parentUpdatePaths(temp)
-                  props.parentUpdateSet(updatedSet)
-                  props.parentUpdateCollection(updatedCollection)
-                  props.parentUpdateCollections((prev) => {
-                    const pTemp = [...prev]
-
-                    return pTemp.map((col) => {
-                    if(col.id === updatedCollection.id) return updatedCollection
-                      return col
+                const temp = props.paths.map((parentPath) => {
+                  if(props.picture.id === parentPath.id) {
+                    return ({
+                      ...parentPath,
+                      favorite: undefined
                     })
-                  })
-                }
-                else if(props.userEmail && props.picture.favorite === undefined){
-                  favorite.mutate({
-                    pathId: props.picture.id,
-                    user: props.userEmail,
-                    options: {
-                      logging: true
-                    }
-                  })
-
-                  const temp = props.paths.map((parentPath) => {
-                    if(props.picture.id === parentPath.id){
-                      return ({
-                        ...parentPath,
-                        favorite: 'temp'
-                      })
-                    }
-                    return parentPath
-                  })
-                  
-                  const updatedSet: PhotoSet = {
-                    ...props.set,
-                    paths: temp
                   }
+                  return parentPath
+                })
+                
+                const updatedSet: PhotoSet = {
+                  ...props.set,
+                  paths: temp
+                }
 
-                  const updatedCollection: PhotoCollection = {
-                    ...props.collection,
-                    sets: props.collection.sets.map((set) => {
-                      if(set.id === updatedSet.id) return updatedSet
+                const updatedCollection: PhotoCollection = {
+                  ...props.collection,
+                  sets: props.collection.sets.map((set) => {
+                    if(set.id === updatedSet.id) return updatedSet
                       return set
-                    })
-                  }
-
-                  props.parentUpdatePaths(temp)
-                  props.parentUpdateSet(updatedSet)
-                  props.parentUpdateCollection(updatedCollection)
-                  props.parentUpdateCollections((prev) => {
-                    const temp = [...prev]
-
-                    return temp.map((col) => {
-                      if(col.id === updatedCollection.id) return updatedCollection
-                      return col
-                    })
-                  })
-                }
-              }}
-            >
-              <HiOutlineHeart size={20} className={`${props.picture.favorite !== undefined ? 'fill-red-400' : ''}`}/>
-            </button>
-            <button 
-              title='Download' 
-              className={`${downloadImage.isPending ? 'cursor-wait' : ''}`} 
-              onClick={() => {
-                if(!downloadImage.isPending){
-                  downloadImage.mutate({
-                    path: props.picture.path
-                  })
-                }
-              }}
-            >
-              <HiOutlineDownload size={20} />
-            </button>
-            <button
-              title='Preview Fullscreen'
-              onClick={() => {
-                navigate({
-                  to: `/photo-fullscreen`,
-                  search: {
-                    set: props.set.id,
-                    path: props.picture.id
-                  }
-                })
-              }}
-            >
-              <CgArrowsExpandRight size={20} />
-            </button>
-            <button 
-              title='Move to Top' 
-              className="" 
-              onClick={() => {
-                const temp = [props.picture, ...props.paths.filter((p) => p.id !== props.picture.id)].map((path, index) => {
-                  return {
-                    ...path,
-                    order: index,
-                  }
-                })
-
-                props.reorderPaths.mutate({
-                  paths: temp,
-                })
-
-                const updatedSet: PhotoSet = {
-                  ...props.set,
-                  paths: temp
-                }
-
-                const updatedCollection: PhotoCollection = {
-                  ...props.collection,
-                  sets: props.collection.sets.map((set) => {
-                    if(set.id === updatedSet.id) return updatedSet
-                    return set
-                  })
-                }
-
-                props.parentUpdatePaths(temp)
-                props.parentUpdateSet(updatedSet)
-                props.parentUpdateCollection(updatedCollection)
-                props.parentUpdateCollections((prev) => {
-                  const temp = [...prev]
-
-                  return temp.map((col) => {
-                    if(col.id === updatedCollection.id) return updatedCollection
-                    return col
-                  })
-                })
-              }}
-            >
-              <HiOutlineBarsArrowUp size={20} />
-            </button>
-            <button 
-              title='Move to Bottom'
-              className="" 
-              onClick={() => {
-                const temp = [...props.paths.filter((p) => p.id !== props.picture.id), props.picture].map((path, index) => {
-                  return {
-                    ...path,
-                    order: index,
-                  }
-                })
-
-                props.reorderPaths.mutate({
-                  paths: temp,
-                })
-
-                const updatedSet: PhotoSet = {
-                  ...props.set,
-                  paths: temp
-                }
-
-                const updatedCollection: PhotoCollection = {
-                  ...props.collection,
-                  sets: props.collection.sets.map((set) => {
-                    if(set.id === updatedSet.id) return updatedSet
-                    return set
-                  })
+                    }
+                  )
                 }
 
                 props.parentUpdatePaths(temp)
@@ -454,32 +294,33 @@ export const Picture: FC<PictureProps> = (props: PictureProps) => {
                   const pTemp = [...prev]
 
                   return pTemp.map((col) => {
-                    if(col.id === updatedCollection.id) return updatedCollection
+                  if(col.id === updatedCollection.id) return updatedCollection
                     return col
                   })
                 })
-              }}
-            >
-              <HiOutlineBarsArrowDown size={20} />
-            </button>
-            <button 
-              title='Delete' 
-              className="" 
-              onClick={() => {
-                deletePath.mutate({
-                  picturePaths: [props.picture],
-                  collection: props.collection,
-                  set: props.set,
+              }
+              else if(props.userEmail && props.picture.favorite === undefined){
+                favorite.mutate({
+                  pathId: props.picture.id,
+                  user: props.userEmail,
                   options: {
                     logging: true
                   }
                 })
 
-                const updatedPaths = props.paths.filter((p) => p.id !== props.picture.id)
-
+                const temp = props.paths.map((parentPath) => {
+                  if(props.picture.id === parentPath.id){
+                    return ({
+                      ...parentPath,
+                      favorite: 'temp'
+                    })
+                  }
+                  return parentPath
+                })
+                
                 const updatedSet: PhotoSet = {
                   ...props.set,
-                  paths: updatedPaths
+                  paths: temp
                 }
 
                 const updatedCollection: PhotoCollection = {
@@ -490,7 +331,7 @@ export const Picture: FC<PictureProps> = (props: PictureProps) => {
                   })
                 }
 
-                props.parentUpdatePaths(updatedPaths)
+                props.parentUpdatePaths(temp)
                 props.parentUpdateSet(updatedSet)
                 props.parentUpdateCollection(updatedCollection)
                 props.parentUpdateCollections((prev) => {
@@ -501,19 +342,175 @@ export const Picture: FC<PictureProps> = (props: PictureProps) => {
                     return col
                   })
                 })
-              }}
-            >
-              <HiOutlineTrash size={20} />
-            </button>
-          </div>
-          <div className={`absolute top-1 inset-x-0 justify-center flex-row ${props.controlsEnabled(props.picture.id, props.displayTitleOverride)}`}>
-            <p id="image-name">{parsePathName(props.picture.path)}</p>
-          </div>
+              }
+            }}
+          >
+            <HiOutlineHeart size={20} className={`${props.picture.favorite !== undefined ? 'fill-red-400' : ''}`}/>
+          </button>
+          <button 
+            title='Download' 
+            className={`${downloadImage.isPending ? 'cursor-wait' : ''}`} 
+            onClick={() => {
+              if(!downloadImage.isPending){
+                downloadImage.mutate({
+                  path: props.picture.path
+                })
+              }
+            }}
+          >
+            <HiOutlineDownload size={20} />
+          </button>
+          <button
+            title='Preview Fullscreen'
+            onClick={() => {
+              navigate({
+                to: `/photo-fullscreen`,
+                search: {
+                  set: props.set.id,
+                  path: props.picture.id
+                }
+              })
+            }}
+          >
+            <CgArrowsExpandRight size={20} />
+          </button>
+          <button 
+            title='Move to Top' 
+            className="" 
+            onClick={() => {
+              const temp = [props.picture, ...props.paths.filter((p) => p.id !== props.picture.id)].map((path, index) => {
+                return {
+                  ...path,
+                  order: index,
+                }
+              })
+
+              props.reorderPaths.mutate({
+                paths: temp,
+              })
+
+              const updatedSet: PhotoSet = {
+                ...props.set,
+                paths: temp
+              }
+
+              const updatedCollection: PhotoCollection = {
+                ...props.collection,
+                sets: props.collection.sets.map((set) => {
+                  if(set.id === updatedSet.id) return updatedSet
+                  return set
+                })
+              }
+
+              props.parentUpdatePaths(temp)
+              props.parentUpdateSet(updatedSet)
+              props.parentUpdateCollection(updatedCollection)
+              props.parentUpdateCollections((prev) => {
+                const temp = [...prev]
+
+                return temp.map((col) => {
+                  if(col.id === updatedCollection.id) return updatedCollection
+                  return col
+                })
+              })
+            }}
+          >
+            <HiOutlineBarsArrowUp size={20} />
+          </button>
+          <button 
+            title='Move to Bottom'
+            className="" 
+            onClick={() => {
+              const temp = [...props.paths.filter((p) => p.id !== props.picture.id), props.picture].map((path, index) => {
+                return {
+                  ...path,
+                  order: index,
+                }
+              })
+
+              props.reorderPaths.mutate({
+                paths: temp,
+              })
+
+              const updatedSet: PhotoSet = {
+                ...props.set,
+                paths: temp
+              }
+
+              const updatedCollection: PhotoCollection = {
+                ...props.collection,
+                sets: props.collection.sets.map((set) => {
+                  if(set.id === updatedSet.id) return updatedSet
+                  return set
+                })
+              }
+
+              props.parentUpdatePaths(temp)
+              props.parentUpdateSet(updatedSet)
+              props.parentUpdateCollection(updatedCollection)
+              props.parentUpdateCollections((prev) => {
+                const pTemp = [...prev]
+
+                return pTemp.map((col) => {
+                  if(col.id === updatedCollection.id) return updatedCollection
+                  return col
+                })
+              })
+            }}
+          >
+            <HiOutlineBarsArrowDown size={20} />
+          </button>
+          <button 
+            title='Delete' 
+            className="" 
+            onClick={() => {
+              deletePath.mutate({
+                picturePaths: [props.picture],
+                collection: props.collection,
+                set: props.set,
+                options: {
+                  logging: true
+                }
+              })
+
+              const updatedPaths = props.paths.filter((p) => p.id !== props.picture.id)
+
+              const updatedSet: PhotoSet = {
+                ...props.set,
+                paths: updatedPaths
+              }
+
+              const updatedCollection: PhotoCollection = {
+                ...props.collection,
+                sets: props.collection.sets.map((set) => {
+                  if(set.id === updatedSet.id) return updatedSet
+                  return set
+                })
+              }
+
+              props.parentUpdatePaths(updatedPaths)
+              props.parentUpdateSet(updatedSet)
+              props.parentUpdateCollection(updatedCollection)
+              props.parentUpdateCollections((prev) => {
+                const temp = [...prev]
+
+                return temp.map((col) => {
+                  if(col.id === updatedCollection.id) return updatedCollection
+                  return col
+                })
+              })
+            }}
+          >
+            <HiOutlineTrash size={20} />
+          </button>
         </div>
-        {state.type === 'is-dragging-over' && state.closestEdge && (
-          <DropIndicator edge={state.closestEdge} gap='8px' />
-        )}
+        <div className={`absolute top-1 inset-x-0 justify-center flex-row ${props.controlsEnabled(props.picture.id, props.displayTitleOverride)}`}>
+          <p id="image-name">{parsePathName(props.picture.path)}</p>
+        </div>
       </div>
+      {state.type === 'is-dragging-over' && state.closestEdge && (
+        <DropIndicator edge={state.closestEdge} gap='8px' />
+      )}
       {state.type === 'preview' && createPortal(<DragPreview item={props.picture} />, state.container)}
     </>
   )

@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { PhotoCollection } from "../../../types"
+import { DownloadData, PhotoCollection } from "../../../types"
 import { getFavoritesFromPhotoCollectionQueryOptions } from "../../../services/photoSetService"
 import Loading from "../../common/Loading"
 import { HiOutlineDownload, HiOutlineEye } from "react-icons/hi"
 import { Tooltip } from "flowbite-react"
-import { DownloadData, DownloadToast } from "../../common/DownloadToast"
+import { DownloadToast } from "../../common/DownloadToast"
 import { useState } from "react"
 import { downloadFavoritesMutation, DownloadFavoritesMutationOptions } from "../../../services/photoPathService"
 import { v4 } from 'uuid'

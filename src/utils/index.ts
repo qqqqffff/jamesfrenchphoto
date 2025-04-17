@@ -1,5 +1,4 @@
 import { CustomFlowbiteTheme } from "flowbite-react"
-import { getColorComponent } from "./getColorComponent"
 
 export function formatTime(time: Date | string | undefined, params?: {timeString: boolean}): string {
     if(!time) return 'N/A'
@@ -243,6 +242,3 @@ export const textInputTheme: CustomFlowbiteTheme['textInput'] = {
         }
     }
 }
-
-
-export const GetColorComponent = getColorComponent

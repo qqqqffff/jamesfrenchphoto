@@ -103,6 +103,14 @@ export type Watermark = {
     path: string,
 }
 
+export interface DownloadData {
+  id: string,
+  state: 'inprogress' | 'done' | 'paused' | 'idle'
+  progress: number,
+  totalItems: number,
+  display: boolean,
+}
+
 export type CoverType = {
     textColor?: string,
     bgColor?: string,

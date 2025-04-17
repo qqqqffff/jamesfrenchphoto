@@ -1,11 +1,10 @@
 import { downloadData } from "aws-amplify/storage"
 import { parsePathName } from "../utils"
-import { Favorite, PicturePath } from "../types"
+import { DownloadData, Favorite, PicturePath } from "../types"
 import { Dispatch, SetStateAction } from "react"
 import JSZip from 'jszip';
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../amplify/data/resource";
-import { DownloadData } from "../components/common/DownloadToast";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
@@ -36,40 +35,82 @@ async function getPathsFromFavoriteIds(client: V6Client<Schema>, ids: string[], 
   return paths
 }
 
+export async function getAllPaths(client: V6Client<Schema>, setId: string): Promise<PicturePath[]> {
+  let response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder({ setId: setId })
+  const data = response.data
+
+  while(response.nextToken) {
+    response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder({ setId: setId }, { nextToken: response.nextToken })
+    data.push(...response.data)
+  }
+
+  const mappedPaths: PicturePath[] = data.map((path) => {
+    const mappedPath: PicturePath = {
+      ...path,
+      url: ''
+    }
+    return mappedPath
+  })
+
+  return mappedPaths
+}
+
 export interface GetInfinitePathsData {
   memo: PicturePath[],
   nextToken?: string,
 }
 interface GetInfinitePathsOptions {
-  maxItems: number,
+  maxItems?: number,
+  unauthenticated?: boolean,
+  user?: string
 }
-async function getInfinitePaths(client: V6Client<Schema>, setId: string, initial: GetInfinitePathsData, options?: GetInfinitePathsOptions): Promise<GetInfinitePathsData> {
-  const response = await client.models.PhotoPaths.listPhotoPathsBySetId(
+async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePathsData, setId?: string, options?: GetInfinitePathsOptions): Promise<GetInfinitePathsData> {
+  if(!setId) return initial;
+
+  console.log(options?.unauthenticated)
+  
+  const response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder(
     { setId: setId }, 
-    { 
-      //TODO: fix me
-      // filter: { 
-      // order: { 
-      //   lt: 8,
-      //   gt: 0
-      // }
-    // }, 
-    limit: 9, nextToken: initial.nextToken }
+    {
+      sortDirection: 'ASC',
+      limit: options?.maxItems ?? 12,
+      nextToken: initial.nextToken,
+      authMode: options?.unauthenticated ? 'identityPool' : 'userPool'
+    }
   )
 
-  const returnData: GetInfinitePathsData = {
-    memo: [...initial.memo, ...response.data.map((path) => {
+  const newPaths: PicturePath[] = []
+
+  if(options?.user) {
+    newPaths.push(...(await Promise.all(response.data.map(async (path) => {
+        let favorite: undefined | string
+        if(options?.user){
+            favorite = (await path.favorites({ 
+              authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
+            })).data.find((favorite) => favorite.userEmail === options.user)?.id
+        }
         const mappedPath: PicturePath = {
-          ...path,
-          url: ''
+            ...path,
+            url: '',
+            favorite: favorite,
         }
         return mappedPath
-      })
-    ],
-    nextToken: response.nextToken ?? undefined
+    }))))
+  }
+  else {
+    newPaths.push(...response.data.map((path) => {
+      const mappedPath: PicturePath = {
+        ...path,
+        url: ''
+      }
+      return mappedPath
+    }))
   }
 
-  // console.log(response, returnData)
+  const returnData: GetInfinitePathsData = {
+    memo: [...initial.memo, ...newPaths],
+    nextToken: response.nextToken ?? undefined
+  }
 
   return returnData
 }
@@ -160,9 +201,9 @@ export const getPathsFromFavoriteIdsQueryOptions = (ids: string[], options?: Get
   queryFn: () => getPathsFromFavoriteIds(client, ids, options)
 })
 
-export const getInfinitePathsQueryOptions = (setId: string, options?: GetInfinitePathsOptions) => infiniteQueryOptions({
+export const getInfinitePathsQueryOptions = (setId?: string, options?: GetInfinitePathsOptions) => infiniteQueryOptions({
   queryKey: ['infinitePhotoPaths', client, setId, options],
-  queryFn: ({ pageParam }) => getInfinitePaths(client, setId, pageParam, options),
+  queryFn: ({ pageParam }) => getInfinitePaths(client, pageParam, setId, options),
   getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
   initialPageParam: ({
     memo: [] as PicturePath[],

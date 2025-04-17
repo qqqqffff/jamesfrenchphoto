@@ -28,7 +28,7 @@ import {
 } from "../../../services/tableService"
 import { EditableTextField } from "../../common/EditableTextField"
 import { ValueCell } from "./ValueCell"
-import { defaultColumnColors, GetColorComponent, getColumnTypeColor } from "../../../utils"
+import { defaultColumnColors, getColumnTypeColor } from "../../../utils"
 import { ConfirmationModal } from "../../modals"
 import { UserCell } from "./UserCell"
 import { DateCell } from "./DateCell"
@@ -37,6 +37,7 @@ import { TagCell } from "./TagCell"
 import { FileCell } from "./FileCell"
 import { invariant } from "@tanstack/react-router"
 import { AggregateCell } from "./AggregateCell"
+import { ColorComponent } from "../../common/ColorComponent"
 
 interface TableComponentProps {
   table: Table,
@@ -599,7 +600,7 @@ export const TableComponent = (props: TableComponentProps) => {
                         <div className="w-max flex flex-col">
                           <span className="whitespace-nowrap px-4 border-b pb-0.5 font-semibold text-base">
                             <span>Type:</span>
-                            <GetColorComponent 
+                            <ColorComponent 
                               customText={' ' + column.type[0].toUpperCase() + column.type.substring(1)} 
                               activeColor={getColumnTypeColor(column.type)}
                             />
