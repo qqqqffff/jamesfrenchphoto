@@ -393,7 +393,7 @@ function RouteComponent() {
                             />
                             <img 
                               src={watermarkPath.data?.[1]}
-                              className="absolute inset-0 max-w-[200px] max-h-[300px] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
+                              className="absolute inset-0 max-w-full h-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
                               alt=""
                             />
                           </>
