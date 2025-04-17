@@ -73,7 +73,7 @@ export type User = {
 
 export type Favorite = {
     id: string,
-    userEmail: string,
+    participantId: string,
     pathId: string,
     createdAt: Date,
     updatedAt: Date,

@@ -59,6 +59,8 @@ function RouteComponent() {
   const tagsPromise = useSuspenseQuery(getAllUserTagsQueryOptions({ siCollections: false }))
   const watermarkQuery = useQuery(getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
   const shareTemplatesQuery = useQuery(getAllShareTemplatesQueryOptions())
+
+  //TODO: convert me to an infinite query and conditional enabling
   const collectionsQuery = useQuery(getAllPhotoCollectionsQueryOptions({ 
     siTags: false,
     siPaths: false,
@@ -67,6 +69,7 @@ function RouteComponent() {
   const collectionQuery = useQuery(getPhotoCollectionByIdQueryOptions(selectedCollectionId, {
       siSets: true,
       siTags: true,
+      participantId: data.auth.user?.profile.activeParticipant?.id
     }
   ))
 

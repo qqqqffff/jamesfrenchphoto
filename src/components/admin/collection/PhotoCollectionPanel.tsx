@@ -45,6 +45,7 @@ import { UsersPanel } from "./UsersPanel"
 import { getAllParticipantsQueryOptions } from "../../../services/userService"
 import { CoverPanel } from "./CoverPanel"
 import { CoverSidePanel } from "./CoverSidePanel"
+import { CollectionSidePanelButton } from "./CollectionSidePanelButton"
 
 interface PhotoCollectionPanelProps {
   watermarkObjects: Watermark[],
@@ -449,72 +450,72 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
             updatePublishStatus={publishCollection}
           />
           <div className="grid grid-cols-3 w-full place-items-center border border-gray-400 rounded-lg py-0.5">
-            <button 
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'sets' ? 'text-black' : 'text-gray-400'}`}
+            <CollectionSidePanelButton
+              console="sets"
+              activeConsole={activeConsole} 
               onClick={() => {
                 if(activeConsole !== 'sets'){
                   setActiveConsole('sets')
                   navigate({ to: '.', search: { collection: collection.id, console: 'sets' }})
                 }
               }}
-            >
-              Photo Sets
-            </button>
-            <button 
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'favorites' ? 'text-black' : 'text-gray-400'}`}
+              title="Photo Sets"
+            />
+            <CollectionSidePanelButton 
+              console="favorites"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'favorites'){
                   navigate({ to: '.', search: { collection: collection.id, console: 'favorites' }})
                   setActiveConsole('favorites')
                 }
               }}
-            >
-              Favorites
-            </button>
-            <button
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'watermarks' ? 'text-black' : 'text-gray-400'}`}
+              title="Favorites"
+            />
+            <CollectionSidePanelButton
+              console="watermarks"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'watermarks') {
                   navigate({ to: '.', search: { collection: collection.id, console: 'watermarks' }})
                   setActiveConsole('watermarks')
                 }
               }}
-            >
-              Watermarks
-            </button>
-            <button
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'share' ? 'text-black' : 'text-gray-400'}`}
+              title="watermarks"
+            />
+            <CollectionSidePanelButton 
+              console="share"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'share') {
                   navigate({ to: '.', search: { collection: collection.id, console: 'share' }})
                   setActiveConsole('share')
                 }
               }}
-            >
-              Share
-            </button>
-            <button
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'users' ? 'text-black' : 'text-gray-400'}`}
+              title="Share"
+            />
+            <CollectionSidePanelButton 
+              console="users"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'users') {
                   navigate({ to: '.', search: { collection: collection.id, console: 'users' }})
                   setActiveConsole('users')
                 }
               }}
-            >
-              Users
-            </button>
-            <button
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'cover' ? 'text-black' : 'text-gray-400'}`}
+              title="Users"
+            />
+            <CollectionSidePanelButton 
+              console="cover"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'cover') {
                   navigate({ to: '.', search: { collection: collection.id, console: 'cover' }})
                   setActiveConsole('cover')
                 }
               }}
-            >
-              Cover
-            </button>
+              title="Cover"
+            />
           </div>
           { activeConsole === 'sets' ? (
             <>

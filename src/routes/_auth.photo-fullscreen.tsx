@@ -28,7 +28,10 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
     ) throw redirect({ to: destination })
 
     const set = await context.queryClient.ensureQueryData(
-      getPhotoSetByIdQueryOptions(context.set, { resolveUrls: false, user: context.auth.user?.profile.email })
+      getPhotoSetByIdQueryOptions(context.set, { 
+        resolveUrls: false, 
+        participantId: context.auth.user?.profile.activeParticipant?.id 
+      })
     )
 
     const path = set?.paths.find((path) => path.id === context.path)
@@ -127,10 +130,11 @@ function RouteComponent() {
                 favorite: undefined
               })
             }
-            else if(current.favorite === undefined && data.auth.user?.profile.email !== undefined){
+            else if(current.favorite === undefined && data.auth.user?.profile.activeParticipant?.id !== undefined){
               favorite.mutate({
                 pathId: current.id,
-                user: data.auth.user.profile.email
+                participantId: data.auth.user.profile.activeParticipant?.id,
+                collectionId: data.collection.id
               })
               setCurrent({
                 ...current,

@@ -12,7 +12,8 @@ import { Participant, UserTag } from '../types'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { TermsAndConditionsModal } from '../components/modals'
 import { textInputTheme } from '../utils'
-import { getTemporaryUserQueryOptions } from '../services/userService'
+import { createParticipantMutation, getTemporaryUserQueryOptions, CreateParticipantParams } from '../services/userService'
+import { useMutation } from '@tanstack/react-query'
 
 interface RegisterParams {
   token: string,
@@ -131,6 +132,10 @@ export function RouteComponent(){
     const navigate = useNavigate()
     const { width } = useWindowDimensions()
 
+    const createParticipant = useMutation({
+        mutationFn: (params: CreateParticipantParams) => createParticipantMutation(params)
+    })
+
     async function handleSubmit(event: FormEvent<SignUpForm>){
         event.preventDefault()
         const form = event.currentTarget;
@@ -189,23 +194,12 @@ export function RouteComponent(){
                 }
                 tempParticipants.push(participant)
             }
-            
-            await Promise.all(tempParticipants.map(async (participant) => {
-                const response = await client.models.Participant.create({
-                    firstName: participant.firstName,
-                    lastName: participant.lastName,
-                    email: participant.email,
-                    preferredName: participant.preferredName,
-                    middleName: participant.middleName,
-                    contact: participant.contact,
-                    userEmail: userEmail,
-                    userTags: participant.userTags.map((tag) => tag.id),
-                }, { authMode: 'iam' })
 
-                if(response.errors && response.errors.length > 0) {
-                    throw new Error(JSON.stringify(response.errors))
-                }
-                return response
+            await Promise.all(tempParticipants.map(async (participant) => {
+                await createParticipant.mutateAsync({
+                    participant: participant,
+                    authMode: 'iam' 
+                })
             }))
 
             const response = await signUp({

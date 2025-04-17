@@ -1,6 +1,8 @@
 import { Dispatch, FC, SetStateAction, useCallback, useEffect, useState } from "react"
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
 import { 
+  HiOutlineArrowDown,
+  HiOutlineArrowUp,
   HiOutlineCog6Tooth,
   HiOutlineExclamationTriangle,
   HiOutlineTrash
@@ -16,6 +18,8 @@ import {
   DeleteImagesMutationParams, 
   deleteSetMutation, 
   DeleteSetMutationParams, 
+  reorderPathsMutation, 
+  ReorderPathsParams, 
   updateSetMutation, 
   UpdateSetParams, 
   uploadImagesMutation, 
@@ -195,6 +199,10 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
     }
   })
 
+  const reorderPaths = useMutation({
+    mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+  })
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const fileMap = new Map<string, File>()
     acceptedFiles.forEach((file) => {
@@ -229,6 +237,26 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
     }
 
     return tempFiles
+  })()
+
+  const determineSortDirection: 'ASC' | 'DSC' | 'none' = (() => {
+    let sortDirection: 'ASC' | 'DSC' | 'none' = 'none'
+    if(picturePaths.length <= 1) return sortDirection
+    const tempPaths = picturePaths.sort((a, b) => parsePathName(a.path).localeCompare(parsePathName(b.path)))
+
+    for(let i = 1; i < tempPaths.length; i++) {
+      if(tempPaths[i].order - 1 === tempPaths[i - 1].order && (sortDirection === 'ASC' || sortDirection === 'none')) {
+        sortDirection = 'ASC'
+      }
+      else if(tempPaths[i].order + 1 === tempPaths[i - 1].order && (sortDirection === 'DSC' || sortDirection === 'none')) {
+        sortDirection = 'DSC'
+      }
+      else {
+        return 'none'
+      }
+    }
+
+    return sortDirection
   })()
 
   return (
@@ -356,7 +384,112 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           value={searchText}
         />
         <div className="flex flex-row items-center gap-3 place-self-end h-full mb-1">
-          <span>Items: {photoSet.items}</span>
+          <Dropdown
+            label={(<span className="hover:underline underline-offset-2">Items: {photoSet.items}</span>)}
+            inline
+            arrowIcon={false}
+            dismissOnClick={false}
+          >
+            <div className="flex flex-col">
+              <div className="flex flex-row items-center justify-center text-xl italic font-light px-4">Sort By</div>
+              <div className="border"/>
+              <Dropdown.Item 
+                disabled={reorderPaths.isPending}
+                className="flex flex-row items-center px-2 justify-between w-full gap-2 disabled:cursor-wait"
+                onClick={() => {
+                  if(determineSortDirection === 'ASC') {
+                    if(pathsQuery.hasNextPage) {
+                      reorderPaths.mutate({
+                        paths: [],
+                        fullRefetch: {
+                          setId: photoSet.id,
+                          order: 'DSC'
+                        },
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+                    else {
+                      reorderPaths.mutate({
+                        paths: [...picturePaths]
+                          .sort((a, b) => parsePathName(b.path).localeCompare(parsePathName(a.path)))
+                          .map((path, index) => ({...path, order: index})),
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+
+                    const updatedPaths: PicturePath[] = [...picturePaths]
+                      .sort((a, b) => parsePathName(b.path).localeCompare(parsePathName(a.path)))
+                      .map((path, index) => ({...path, order: index}))
+                    
+                    const updatedSet: PhotoSet = {
+                      ...photoSet,
+                      paths: updatedPaths
+                    }
+                    const updatedCollection: PhotoCollection = {
+                      ...photoCollection,
+                      sets: photoCollection.sets.map((set) => set.id === updatedSet.id ? updatedSet : set)
+                    }
+                    setPicturePaths(updatedPaths)
+                    parentUpdateSet(updatedSet)
+                    parentUpdateCollection(updatedCollection)
+                    parentUpdateCollections((prev) => prev.map((collection) => collection.id === updatedCollection.id ? updatedCollection : collection))
+                  } else if(determineSortDirection === 'none' || determineSortDirection === 'DSC') {
+                    if(pathsQuery.hasNextPage) {
+                      reorderPaths.mutate({
+                        paths: [],
+                        fullRefetch: {
+                          setId: photoSet.id,
+                          order: 'ASC'
+                        },
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+                    else {
+                      reorderPaths.mutate({
+                        paths: [...picturePaths]
+                          .sort((a, b) => parsePathName(a.path).localeCompare(parsePathName(b.path)))
+                          .map((path, index) => ({...path, order: index})),
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+
+                    const updatedPaths: PicturePath[] = [...picturePaths]
+                      .sort((a, b) => parsePathName(a.path).localeCompare(parsePathName(b.path)))
+                      .map((path, index) => ({...path, order: index}))
+                    
+                    const updatedSet: PhotoSet = {
+                      ...photoSet,
+                      paths: updatedPaths
+                    }
+                    const updatedCollection: PhotoCollection = {
+                      ...photoCollection,
+                      sets: photoCollection.sets.map((set) => set.id === updatedSet.id ? updatedSet : set)
+                    }
+                    setPicturePaths(updatedPaths)
+                    parentUpdateSet(updatedSet)
+                    parentUpdateCollection(updatedCollection)
+                    parentUpdateCollections((prev) => prev.map((collection) => collection.id === updatedCollection.id ? updatedCollection : collection))
+                    // pathsQuery.refetch()
+                  }
+                }}
+              >
+                <span>Name</span>
+                {determineSortDirection === 'ASC' || determineSortDirection === 'none' ? (
+                  <HiOutlineArrowDown />
+                ) : (
+                  <HiOutlineArrowUp />
+                )}
+              </Dropdown.Item>
+            </div>
+          </Dropdown>
           {duplicates.length > 0 && (
             <Tooltip style='light' content={(
               <div className="flex flex-col">
@@ -517,7 +650,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
               }, 5000)
             }}
             setFilesUploading={setFilesUploading}
-            userEmail={auth.user?.profile.email}
+            participantId={auth.user?.profile.activeParticipant?.id}
             pathsQuery={pathsQuery}
           />
         )}

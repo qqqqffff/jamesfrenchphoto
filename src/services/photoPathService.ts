@@ -62,13 +62,11 @@ export interface GetInfinitePathsData {
 interface GetInfinitePathsOptions {
   maxItems?: number,
   unauthenticated?: boolean,
-  user?: string
+  participantId?: string
 }
 async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePathsData, setId?: string, options?: GetInfinitePathsOptions): Promise<GetInfinitePathsData> {
   if(!setId) return initial;
 
-  console.log(options?.unauthenticated)
-  
   const response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder(
     { setId: setId }, 
     {
@@ -81,14 +79,13 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
 
   const newPaths: PicturePath[] = []
 
-  if(options?.user) {
+  if(options?.participantId) {
+    //TODO: improve me
     newPaths.push(...(await Promise.all(response.data.map(async (path) => {
-        let favorite: undefined | string
-        if(options?.user){
-            favorite = (await path.favorites({ 
+        let favorite: undefined | string = (await path.favorites({ 
               authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
-            })).data.find((favorite) => favorite.userEmail === options.user)?.id
-        }
+            })).data.find((favorite) => favorite.participantId === options.participantId)?.id
+        
         const mappedPath: PicturePath = {
             ...path,
             url: '',

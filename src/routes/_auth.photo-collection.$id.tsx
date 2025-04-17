@@ -31,7 +31,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
 
     const collection = await context.queryClient.ensureQueryData(
       getPhotoCollectionByIdQueryOptions(params.id, { 
-        user: context.auth.user?.profile.email, 
+        participantId: context.auth.user?.profile.activeParticipant?.id, 
         siSets: true, 
         siPaths: false,
         unauthenticated: context.temporaryToken !== undefined,
@@ -77,17 +77,18 @@ function RouteComponent() {
     return allItems[allItems.length - allItems.length % columnMultiplier - columnMultiplier]
   }, [])
   
+  //TODO: update me please with participant instead
   const [tempUser, setTempUser] = useState<UserProfile>()
 
+  const [set, setSet] = useState<PhotoSet>(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
+
   const pathsQuery = useInfiniteQuery(
-    getInfinitePathsQueryOptions(data.setId ?? collection.sets[0].id, {
+    getInfinitePathsQueryOptions(set.id ?? data.setId ?? collection.sets[0].id, {
       unauthenticated: data.token !== undefined,
-      user: data.auth.user?.profile.email ?? tempUser?.email,
+      participantId: data.auth.user?.profile.activeParticipant?.id ?? tempUser?.activeParticipant?.id,
       maxItems: Math.round(3 * (columnMultiplier) * 1.5)
     })
   )
-
-  const [set, setSet] = useState<PhotoSet>(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
 
   useEffect(() => {
     setSet(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
@@ -257,6 +258,7 @@ function RouteComponent() {
 
   return (
     <>
+      {/* TODO: update this modal please and thank you */}
       <UnauthorizedEmailModal 
         onClose={() => {
           setEmailInputVisible(false)
@@ -318,6 +320,12 @@ function RouteComponent() {
             <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
               onClick={() => {
                 const nextIndex = currentIndex - 1 < 0 ? collection.sets.length - 1 : currentIndex - 1
+                const set = collection.sets[nextIndex]
+                const refObject = picturesRef.current.get(mappedPaths[0].id)
+                
+                if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
+
                 setSet({...collection.sets[nextIndex]})
               }}
             >
@@ -325,14 +333,27 @@ function RouteComponent() {
             </button>
             <SetCarousel 
               setList={collection.sets}
-              setSelectedSet={setSet}
+              setSelectedSet={(set) => {
+                const refObject = picturesRef.current.get(mappedPaths[0].id)
+                
+                if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
+
+                setSet(set)
+              }}
               selectedSet={set}
               currentIndex={currentIndex}
             />
             <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
               onClick={() => {
                 const nextIndex = currentIndex + 1 >= collection.sets.length ? 0 : currentIndex + 1
-                setSet({...collection.sets[nextIndex]})
+                const set = collection.sets[nextIndex]
+                const refObject = picturesRef.current.get(mappedPaths[0].id)
+                
+                if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
+
+                setSet(set)
               }}
             >
               <HiOutlineArrowRight size={24} />
@@ -384,7 +405,8 @@ function RouteComponent() {
                               if(!picture.favorite && data.auth.user?.profile.email || tempUser?.email){
                                 favorite.mutate({
                                   pathId: picture.id,
-                                  user: data.auth.user?.profile.email ?? tempUser!.email,
+                                  collectionId: collection.id,
+                                  participantId: data.auth.user?.profile.email ?? tempUser!.email,
                                   options: {
                                     logging: true
                                   }

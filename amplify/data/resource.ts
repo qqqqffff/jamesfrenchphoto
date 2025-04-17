@@ -81,17 +81,19 @@ const schema = a.schema({
       index('setId').sortKeys(['order']),
     ])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['read'])]),
-  
   UserFavorites: a
     .model({
       id: a.id().required(),
+      collectionId: a.id().required(),
       pathId: a.id().required(),
       path: a.belongsTo('PhotoPaths', 'pathId'),
-      userEmail: a.string().required(),
-      userProfile: a.belongsTo('UserProfile', 'userEmail'),
+      participantId: a.id().required(),
+      participant: a.belongsTo('Participant', 'participantId'),
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('userEmail').name('listFavoritesByUserEmail')])
+    .secondaryIndexes((index) => [
+      index('participantId').sortKeys(['collectionId']),
+    ])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'delete', 'create', 'list']), allow.guest().to(['get', 'delete', 'create', 'list'])]),
   UserTag: a
     .model({
@@ -101,7 +103,8 @@ const schema = a.schema({
       collectionTags: a.hasMany('CollectionTag', 'tagId'), //TODO: improve authorization
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
       packages: a.hasOne('Package', 'tagId'),
-      notifications: a.hasMany('NotificationUserTags', 'tagId')
+      notifications: a.hasMany('NotificationUserTags', 'tagId'),
+      participants: a.hasMany('ParticipantUserTag', 'tagId')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
@@ -211,7 +214,6 @@ const schema = a.schema({
       participantEmail: a.string(),
       participant: a.hasMany('Participant', 'userEmail'),
       activeParticipant: a.id(),
-      favorites: a.hasMany('UserFavorites', 'userEmail'),
       temporaryCreate: a.hasOne('TemporaryCreateUsersTokens', 'userEmail'),
       firstName: a.string(),
       lastName: a.string(),
@@ -223,7 +225,6 @@ const schema = a.schema({
       id: a.id().required(),
       userEmail: a.string().required(),
       user: a.belongsTo('UserProfile', 'userEmail'),
-      userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read', 'create']), allow.guest().to(['create'])]),
       timeslot: a.hasMany('Timeslot', 'participantId'),
       firstName: a.string().required(),
       lastName: a.string().required(),
@@ -232,11 +233,24 @@ const schema = a.schema({
       contact: a.boolean().default(false),
       email: a.string(),
       collections: a.hasMany('ParticipantCollections', 'participantId'),
-      notifications: a.hasMany('NotificationParticipants', 'participantId')
+      notifications: a.hasMany('NotificationParticipants', 'participantId'),
+      tags: a.hasMany('ParticipantUserTag', 'participantId'),
+      favorites: a.hasMany('UserFavorites', 'participantId')
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('userEmail')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update']), allow.guest().to(['create'])]),
+  ParticipantUserTag: a.
+    model({
+      id: a.id().required(),
+      tagId: a.id().required(),
+      tag: a.belongsTo('UserTag', 'tagId'),
+      participantId: a.id().required(),
+      participant: a.belongsTo('Participant', 'participantId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('tagId'), index('participantId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
   ParticipantCollections: a.
     model({
       id: a.id().required(),

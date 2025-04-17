@@ -1,20 +1,20 @@
 import { generateClient } from 'aws-amplify/api'
 import { v4 } from 'uuid'
 import { Schema } from '../../amplify/data/resource'
-import { Favorite, PhotoCollection, PhotoSet, PicturePath, User } from '../types'
+import { Favorite, Participant, PhotoCollection, PhotoSet, PicturePath } from '../types'
 import { getUrl, remove, uploadData } from 'aws-amplify/storage'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { Dispatch, SetStateAction } from 'react'
 import { UploadData } from '../components/modals/UploadImages/UploadToast'
-import { getAuthUsers, getUserProfileByEmail } from './userService'
-import { getCollectionById } from './collectionService'
+import { getAllPaths } from './photoPathService'
+import { parsePathName } from '../utils'
 
 const client = generateClient<Schema>()
 
 interface GetPhotoSetByIdOptions { 
     resolveUrls?: boolean,
-    user?: string,
+    participantId?: string,
     unauthenticated?: boolean
 }
 async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options?: GetPhotoSetByIdOptions): Promise<PhotoSet | null> {
@@ -35,8 +35,8 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
 
     const mappedPaths: PicturePath[] = (await Promise.all(responseData.map(async (path) => {
         let favorite: undefined | string
-        if(options?.user){
-            favorite = (await path.favorites()).data.find((favorite) => favorite.userEmail === options.user)?.id
+        if(options?.participantId){
+            favorite = (await path.favorites()).data.find((favorite) => favorite.participantId === options.participantId)?.id
         }
         const mappedPath: PicturePath = {
             ...path,
@@ -62,87 +62,146 @@ interface GetFavoritesFromPhotoCollectionOptions {
     logging?: boolean
     metric?: boolean
 }
-async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collectionId: string, options?: GetFavoritesFromPhotoCollectionOptions): Promise<Map<User, Favorite[]>> {
+async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collection: PhotoCollection,  options?: GetFavoritesFromPhotoCollectionOptions): Promise<Map<Participant, Favorite[]>> {
     console.log('api call')
     const start = new Date().getTime()
-    const favoriteMap = new Map<string, Favorite[]>()
 
-    const collection = await getCollectionById(client, collectionId, { siSets: true, siPaths: true, siTags: false })
-    if(!collection) return new Map<User, Favorite[]>()
+    const participantMemo: Participant[] = []
 
-    const response = await Promise.all(collection.sets.map(async (set) => {
-        const pathsResponse = await Promise.all(set.paths.map(async (path) => {
-            const pathResponse = (await client.models.PhotoPaths.get({ id: path.id })).data
-            if(pathResponse !== null){
-                let favoriteResponse = await pathResponse.favorites()
-                let favoriteData = favoriteResponse.data
-
-                while(favoriteResponse.nextToken) {
-                    favoriteResponse = await pathResponse.favorites({ nextToken: favoriteResponse.nextToken })
-                    favoriteData.push(...favoriteResponse.data)
+    await Promise.all((await client.models.ParticipantCollections
+        .listParticipantCollectionsByCollectionId({ collectionId: collection.id }))
+        .data.map(async (colP) => {
+            const participant = (await colP.participant()).data
+            if(participant && !participantMemo.some((pMemo) => participant.id === pMemo.id)) {
+                const mappedParticipant: Participant = {
+                    ...participant,
+                    middleName: participant.middleName ?? undefined,
+                    preferredName: participant.preferredName ?? undefined,
+                    email: participant.email ?? undefined,
+                    contact: participant.contact ?? false,
+                    //not necessary
+                    notifications: [],
+                    timeslot: [], 
+                    userTags: [] 
                 }
-
-                const favorites = await Promise.all(favoriteData.map(async (favorite) => {
-                    const mappedFavorite: Favorite = {
-                        ...favorite,
-                        createdAt: new Date(favorite.createdAt),
-                        updatedAt: new Date(favorite.updatedAt),
-                    }
-                    const collectedFavorites = favoriteMap.get(mappedFavorite.userEmail) ?? []
-                    favoriteMap.set(mappedFavorite.userEmail, [...collectedFavorites, mappedFavorite])
-                    return mappedFavorite
-                }))
-                return favorites
+                participantMemo.push(mappedParticipant)
             }
-            return pathResponse
+        })
+    )
+
+    await Promise.all(collection.tags.map(async (tag) => {
+        let participantTagResponse = await client.models.ParticipantUserTag
+            .listParticipantUserTagByTagId({ tagId: tag.id })
+        const participantTagData = participantTagResponse.data
+
+        while(participantTagResponse.nextToken) {
+            participantTagResponse = await client.models.ParticipantUserTag
+                .listParticipantUserTagByTagId(
+                    { tagId: tag.id }, 
+                    { nextToken: participantTagResponse.nextToken }
+                )
+            participantTagData.push(...participantTagResponse.data)
+        }
+
+        await Promise.all(participantTagData.map(async (pTag) => {
+            const participant = (await pTag.participant()).data
+            if(participant && !participantMemo.some((pMemo) => pMemo.id === participant.id)) {
+                const mappedParticipant: Participant = {
+                    ...participant,
+                    middleName: participant.middleName ?? undefined,
+                    preferredName: participant.preferredName ?? undefined,
+                    email: participant.email ?? undefined,
+                    contact: participant.contact ?? false,
+                    //not necessary
+                    notifications: [],
+                    timeslot: [], 
+                    userTags: [] 
+                }
+                participantMemo.push(mappedParticipant)
+            }
         }))
-        return pathsResponse
     }))
 
-    if(options?.logging) console.log(response)
+    console.log(participantMemo)
     
-    const returnMap = new Map<User, Favorite[]>()
+    const returnMap = new Map<Participant, Favorite[]>()
+    await Promise.all(participantMemo.map(async (participant) => {
+        let favoriteResponse = await client.models.UserFavorites
+            .listUserFavoritesByParticipantIdAndCollectionId({ 
+                participantId: participant.id, 
+                collectionId: {
+                    eq: collection.id
+                }
+            })
+        
+        const favoriteData = favoriteResponse.data
 
-    const authUsers = await getAuthUsers(client)
+        while(favoriteResponse.nextToken) {
+            favoriteResponse = await client.models.UserFavorites
+                .listUserFavoritesByParticipantIdAndCollectionId({ 
+                    participantId: participant.id, 
+                    collectionId: {
+                        eq: collection.id
+                    }
+                }, { nextToken: favoriteResponse.nextToken })
 
-    const profileMapping = await Promise.all(Array.from(favoriteMap.entries()).map(async (entry) => {
-        const foundProfile =  await getUserProfileByEmail(client, entry[0], { 
-            siCollections: false, 
-            siSets: false, 
-            siTags: false, 
-            siTimeslot: false, 
-            siNotifications: false 
+            favoriteData.push(...favoriteResponse.data)
+        }
+
+        const mappedFavorites: Favorite[] = favoriteData.map((favorite) => {
+            const mappedFavorite: Favorite = {
+                ...favorite,
+                createdAt: new Date(favorite.createdAt),
+                updatedAt: new Date(favorite.updatedAt),
+            }
+            return mappedFavorite
         })
 
-        if(!foundProfile){
-            returnMap.set({ 
-                user: {
-                    sittingNumber: -1,
-                    email: entry[0],
-                    userTags: [],
-                    preferredContact: 'EMAIL',
-                    participant: [],
-                },
-                data: authUsers?.find((data) => data.email === entry[0])
-            }, entry[1])
-        } else {
-            returnMap.set({ 
-                user: foundProfile,
-                data: authUsers?.find((data) => data.email === entry[0])
-            }, entry[1])
-        }
-        return foundProfile
+        returnMap.set(participant, mappedFavorites)
     }))
 
-    if(options?.logging) {
-        console.log(returnMap)
-        console.log(profileMapping)
-    }
+    console.log(returnMap)
+
+    // const authUsers = await getAuthUsers(client)
+
+    // const profileMapping = await Promise.all(Array.from(favoriteMap.entries()).map(async (entry) => {
+    //     const foundProfile =  await getUserProfileByEmail(client, entry[0], { 
+    //         siCollections: false, 
+    //         siSets: false, 
+    //         siTags: false, 
+    //         siTimeslot: false, 
+    //         siNotifications: false 
+    //     })
+
+    //     if(!foundProfile){
+    //         returnMap.set({ 
+    //             user: {
+    //                 sittingNumber: -1,
+    //                 email: entry[0],
+    //                 userTags: [],
+    //                 preferredContact: 'EMAIL',
+    //                 participant: [],
+    //             },
+    //             data: authUsers?.find((data) => data.email === entry[0])
+    //         }, entry[1])
+    //     } else {
+    //         returnMap.set({ 
+    //             user: foundProfile,
+    //             data: authUsers?.find((data) => data.email === entry[0])
+    //         }, entry[1])
+    //     }
+    //     return foundProfile
+    // }))
+
+    // if(options?.logging) {
+    //     console.log(returnMap)
+    //     console.log(profileMapping)
+    // }
     
     const end = new Date().getTime()
 
     if(options?.metric) console.log(`GETFAVORITESFROMPHOTOCOLLECTION:${new Date(end - start).getTime()}ms`)
-    if(options?.logging) console.log(response)
+    // if(options?.logging) console.log(response)
 
     return returnMap
 }
@@ -211,12 +270,24 @@ export async function updateSetMutation(params: UpdateSetParams) {
 //TODO: optimize me
 export interface ReorderPathsParams{
     paths: PicturePath[],
+    fullRefetch?: {
+        setId: string,
+        order: 'ASC' | 'DSC'
+    },
     options?: {
         logging: boolean
     }
 }
 export async function reorderPathsMutation(params: ReorderPathsParams) {
-    const updatedPathsResponse = await Promise.all(params.paths
+    let orderedPaths = params.fullRefetch ? (
+        (await getAllPaths(client, params.fullRefetch.setId))
+            .sort((a, b) => params.fullRefetch?.order === 'DSC' ? 
+                parsePathName(b.path).localeCompare(parsePathName(a.path)) : 
+                parsePathName(a.path).localeCompare(parsePathName(b.path))
+            )
+    ) : params.paths
+    
+    const updatedPathsResponse = await Promise.all(orderedPaths
         .map(async (path) => {
             const response = await client.models.PhotoPaths.update({
                 id: path.id,
@@ -491,8 +562,9 @@ export async function deleteSetMutation(params: DeleteSetMutationParams){
 }
 
 export interface FavoriteImageMutationParams {
+    collectionId: string,
     pathId: string,
-    user: string,
+    participantId: string,
     options?: {
         logging?: boolean
     }
@@ -500,7 +572,8 @@ export interface FavoriteImageMutationParams {
 export async function favoriteImageMutation(params: FavoriteImageMutationParams): Promise<[string, string] | undefined> {
     const response = await client.models.UserFavorites.create({
         pathId: params.pathId,
-        userEmail: params.user
+        participantId: params.participantId,
+        collectionId: params.collectionId
     })
     if(params.options?.logging) console.log(response)
     if(!response.data?.id) return undefined
@@ -525,7 +598,7 @@ export const getPhotoSetByIdQueryOptions = (setId?: string, options?: GetPhotoSe
     queryFn: () => getPhotoSetById(client, setId, options),
 })
 
-export const getFavoritesFromPhotoCollectionQueryOptions = (collectionId: string, options?: GetFavoritesFromPhotoCollectionOptions) => queryOptions({
-    queryKey: ['favorites', client, collectionId, options],
-    queryFn: () => getFavoritesFromPhotoCollection(client, collectionId, options)
+export const getFavoritesFromPhotoCollectionQueryOptions = (collection: PhotoCollection, options?: GetFavoritesFromPhotoCollectionOptions) => queryOptions({
+    queryKey: ['favorites', client, collection, options],
+    queryFn: () => getFavoritesFromPhotoCollection(client, collection, options)
 })

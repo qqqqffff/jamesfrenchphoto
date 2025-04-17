@@ -293,9 +293,10 @@ interface GetPhotoCollectionByIdOptions {
   siSets?: boolean,
   siPaths?: boolean,
   resolveUrls?: boolean,
-  user?: string,
+  participantId?: string,
   unauthenticated?: boolean
 }
+//TODO: fix favorite secondary indexing
 export async function getCollectionById(client: V6Client<Schema>, collectionId?: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | null> {
   if(!collectionId) return null
   console.log('api call')
@@ -303,19 +304,22 @@ export async function getCollectionById(client: V6Client<Schema>, collectionId?:
   if(!collection || !collection.data) return null
   const sets: PhotoSet[] = []
   if(!options || options.siSets){
-    sets.push(...await Promise.all((await collection.data.sets()).data.map((async (set) => {
-      let pathsResponse = await set.paths()
-      let paths = pathsResponse.data
-      while(pathsResponse.nextToken) {
-        pathsResponse = await set.paths({ nextToken: pathsResponse.nextToken })
-        paths.push(...pathsResponse.data)
-      }
+    
+    sets.push(...await Promise.all((await collection.data.sets(
+      { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'}
+    )).data.map((async (set) => {
       const mappedPaths: PicturePath[] = []
       if(!options || options?.siPaths) {
+        let pathsResponse = await set.paths()
+        let paths = pathsResponse.data
+        while(pathsResponse.nextToken) {
+          pathsResponse = await set.paths({ nextToken: pathsResponse.nextToken })
+          paths.push(...pathsResponse.data)
+        }
         mappedPaths.push(...await Promise.all(paths.map(async (path) => {
           let favorite: undefined | string
-          if(options?.user){
-            favorite = (await path.favorites()).data.find((favorite) => favorite.userEmail === options.user)?.id
+          if(options?.participantId){
+            favorite = (await path.favorites()).data.find((favorite) => favorite.participantId === options.participantId)?.id
           }
           const mappedPath: PicturePath = {
             ...path,
@@ -337,7 +341,21 @@ export async function getCollectionById(client: V6Client<Schema>, collectionId?:
       }
       return mappedSet
     }))))
+
+
+    //validate set order
+    const orderedSets = [...sets].sort((a, b) => a.order - b.order)
+    for(let i = 0; i < sets.length; i++) {
+      if(orderedSets[i].order !== i) {
+        reorderSetsMutation({
+          collectionId: collectionId,
+          sets: orderedSets.map((set, index) => ({ ...set, order: index }))
+        })
+      }
+    }
   }
+
+  
   const tags: UserTag[] = []
   if(!options || options.siTags){
     tags.push(...(await Promise.all((await collection.data.tags()).data.map(async (colTag) => {
@@ -393,9 +411,8 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
                 const userTags: UserTag[] = []
 
                 if(options?.siTags) {
-                    userTags.push(...(await Promise.all((participant.data.userTags ?? []).map(async (tagId) => {
-                        if(!tagId) return
-                        const tagResponse = await client.models.UserTag.get({ id: tagId })
+                    userTags.push(...(await Promise.all(((await participant.data.tags()).data ?? []).map(async (tag) => {
+                        const tagResponse = await tag.tag()
                         if(tagResponse.data) {
                             const mappedTag: UserTag = {
                                 ...tagResponse.data,

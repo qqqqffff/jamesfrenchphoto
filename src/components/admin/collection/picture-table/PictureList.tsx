@@ -32,7 +32,7 @@ interface PictureListProps extends ComponentProps<'div'> {
   displayTitleOverride: boolean
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
   setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
-  userEmail?: string,
+  participantId?: string,
   pathsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePathsData, unknown>, Error>
 }
 
@@ -207,7 +207,7 @@ export const PictureList = (props: PictureListProps) => {
         ]
       })
     )
-    
+
   return (
     <div className="pt-6 my-0 mx-auto max-h-[90vh] overflow-y-auto px-4">
       <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2">
@@ -237,7 +237,7 @@ export const PictureList = (props: PictureListProps) => {
                 displayTitleOverride={props.displayTitleOverride}
                 notify={props.notify}
                 setFilesUploading={props.setFilesUploading}
-                userEmail={props.userEmail}
+                participantId={props.participantId}
                 reorderPaths={reorderPaths}
               />
             </div>

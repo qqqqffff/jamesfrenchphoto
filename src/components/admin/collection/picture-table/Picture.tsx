@@ -60,7 +60,7 @@ interface PictureProps {
   displayTitleOverride: boolean
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
   setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
-  userEmail?: string,
+  participantId?: string,
   reorderPaths: UseMutationResult<void, Error, ReorderPathsParams, unknown>
 }
 
@@ -299,10 +299,11 @@ export const Picture = (props: PictureProps) => {
                   })
                 })
               }
-              else if(props.userEmail && props.picture.favorite === undefined){
+              else if(props.participantId && props.picture.favorite === undefined){
                 favorite.mutate({
                   pathId: props.picture.id,
-                  user: props.userEmail,
+                  participantId: props.participantId,
+                  collectionId: props.collection.id,
                   options: {
                     logging: true
                   }
