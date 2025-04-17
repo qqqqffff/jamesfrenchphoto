@@ -237,25 +237,30 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
     if(mappedParticipants.length === 0 && 
         profileResponse.data.participantFirstName && 
         profileResponse.data.participantLastName){
-        mappedParticipants.push(await createParticipantMutation({
-            participant: {
-                firstName: profileResponse.data.participantFirstName,
-                lastName: profileResponse.data.participantLastName,
-                middleName: profileResponse.data.participantMiddleName ?? undefined,
-                preferredName: profileResponse.data.participantPreferredName ?? undefined,
-                contact: profileResponse.data.participantContact ?? false,
-                email: profileResponse.data.participantEmail ?? undefined,
-                userTags: (await Promise.all((profileResponse.data.userTags ?? []).map(async (tagString) => {
-                    if(!tagString) return
-                    const mappedTag: UserTag = {
-                        id: tagString,
-                        name: '',
-                    }
-                    return mappedTag
-                }))).filter((tag) => tag !== undefined),
-                userEmail: email,
-            },
-        }))
+        try {
+            mappedParticipants.push(await createParticipantMutation({
+                participant: {
+                    firstName: profileResponse.data.participantFirstName,
+                    lastName: profileResponse.data.participantLastName,
+                    middleName: profileResponse.data.participantMiddleName ?? undefined,
+                    preferredName: profileResponse.data.participantPreferredName ?? undefined,
+                    contact: profileResponse.data.participantContact ?? false,
+                    email: profileResponse.data.participantEmail ?? undefined,
+                    userTags: (await Promise.all((profileResponse.data.userTags ?? []).map(async (tagString) => {
+                        if(!tagString) return
+                        const mappedTag: UserTag = {
+                            id: tagString,
+                            name: '',
+                        }
+                        return mappedTag
+                    }))).filter((tag) => tag !== undefined),
+                    userEmail: email,
+                },
+                authMode: options?.unauthenticated ? 'identityPool' : 'userPool'
+            }))
+        } catch(err) {
+
+        }
     }
 
     //in theory there should be at least one participant upon reaching this point
@@ -487,7 +492,7 @@ export async function createAccessTokenMutation(params: CreateAccessTokenMutatio
 
 export interface CreateParticipantParams {
     participant: Omit<Participant, 'id' | 'notifications'>,
-    authMode?: 'iam',
+    authMode: 'identityPool' | 'userPool',
     options?: {
         logging: boolean
     }

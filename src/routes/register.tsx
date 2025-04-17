@@ -198,7 +198,7 @@ export function RouteComponent(){
             await Promise.all(tempParticipants.map(async (participant) => {
                 await createParticipant.mutateAsync({
                     participant: participant,
-                    authMode: 'iam' 
+                    authMode: 'identityPool'
                 })
             }))
 
