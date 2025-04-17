@@ -15,7 +15,7 @@ interface CreateCollectionProps extends ModalProps {
 
 export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose, onSubmit, availableTags, collection }) => {
     const [name, setName] = useState('')
-    const [downloadable, setDownloadable] = useState(false)
+    const [downloadable, setDownloadable] = useState(collection?.downloadable ?? false)
     const [selectedTags, setSelectedTags] = useState<UserTag[]>([])
 
     const [submitting, setSubmitting] = useState(false)
@@ -25,6 +25,7 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     if(!loaded && collection){
       setName(collection.name)
       setSelectedTags(collection.tags)
+      setDownloadable(collection.downloadable)
       setLoaded(true)
     }
 
@@ -64,7 +65,7 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
       const createCollectionParams: CreateCollectionParams = {
         name,
         tags: selectedTags,
-        downloadable,
+        downloadable: downloadable,
       }
 
       if(collection) {
@@ -72,6 +73,10 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
           ...createCollectionParams,
           collection: collection,
           published: collection.published,
+          downloadable: downloadable,
+          options: {
+            logging: true
+          }
         }
         await updateCollection.mutateAsync(updateCollectionParams)
       }
