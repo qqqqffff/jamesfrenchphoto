@@ -59,7 +59,6 @@ export function AuthProvider({ children } : { children: ReactNode }) {
                 siTimeslot: true,
                 siCollections: true,
                 siNotifications: true,
-                unauthenticated: true
             } : {}
         )
         if(!profile) throw new Error('Failed to query profile')

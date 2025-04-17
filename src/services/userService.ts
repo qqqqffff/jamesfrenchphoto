@@ -256,10 +256,10 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                     }))).filter((tag) => tag !== undefined),
                     userEmail: email,
                 },
-                authMode: options?.unauthenticated ? 'identityPool' : 'userPool'
+                authMode: options?.unauthenticated ? 'identityPool' : 'userPool',
             }))
         } catch(err) {
-
+            
         }
     }
 
@@ -499,11 +499,18 @@ export interface CreateParticipantParams {
 }
 export async function createParticipantMutation(params: CreateParticipantParams): Promise<Participant> {
     const createResponse = await client.models.Participant.create({
-        ...params.participant,
+        firstName: params.participant.firstName,
+        lastName: params.participant.lastName,
+        middleName: params.participant.middleName,
+        preferredName: params.participant.preferredName,
+        contact: params.participant.contact,
+        email: params.participant.email,
+        userEmail: params.participant.userEmail,
     }, { authMode: params.authMode })
 
-    if(!createResponse || !createResponse.data) throw new Error('Failed to create participant')
     if(params.options?.logging) console.log(createResponse)
+    if(!createResponse || !createResponse.data) throw new Error('Failed to create participant')
+    
 
     const taggingResponse = await Promise.all(params.participant.userTags.map((tag) => {
         return client.models.ParticipantUserTag.create({
