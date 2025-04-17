@@ -98,7 +98,7 @@ function RouteComponent() {
       <div className="grid grid-cols-6 mt-8 font-main">
         <div className="flex flex-col items-center justify-center col-start-2 col-span-4 gap-4 border-black border rounded-xl mb-4 overflow-auto">
           <div className="flex flex-col items-center justify-center w-full">
-            {auth.user?.profile.activeParticipant?.notifications
+            {(auth.user?.profile.activeParticipant?.notifications ?? [])
               .filter((notification) => 
                 !notification.expiration || 
                 currentDate.getTime() < new Date(notification.expiration).getTime())
@@ -126,7 +126,7 @@ function RouteComponent() {
           <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections:</span>
           
           {collections.filter((collection) => collection.published).length > 0 ? (
-            <div className={`grid grid-cols-${dimensions.width > 700 ? 2 : 1} gap-10 mb-4`}>
+            <div className={`grid grid-cols-${dimensions.width > 700 && collections.length !== 1 ? '2' : '1'} gap-10 mb-4`}>
               {collections
                 .filter((collection) => collection.published)
                 .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
