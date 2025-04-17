@@ -2,7 +2,6 @@ import { Dispatch, FC, SetStateAction, useEffect, useRef, useState } from "react
 import { UserTag, Watermark, PhotoCollection, PhotoSet, ShareTemplate } from "../../../types"
 import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
-import { getPhotoSetByIdQueryOptions } from "../../../services/photoSetService"
 import { CollectionThumbnail } from "./CollectionThumbnail"
 import { HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineTrash } from "react-icons/hi2"
 import { SetList } from "./SetList"
@@ -24,7 +23,6 @@ import {
   UploadCoverParams
 } from "../../../services/collectionService"
 import Loading from "../../common/Loading"
-import { detectDuplicates } from "./utils"
 import { PublishableItems } from "./PublishableItems"
 import { AuthContext } from "../../../auth"
 import { FavoritePanel } from "./FavoritePanel"
@@ -47,6 +45,7 @@ import { UsersPanel } from "./UsersPanel"
 import { getAllParticipantsQueryOptions } from "../../../services/userService"
 import { CoverPanel } from "./CoverPanel"
 import { CoverSidePanel } from "./CoverSidePanel"
+import { CollectionSidePanelButton } from "./CollectionSidePanelButton"
 
 interface PhotoCollectionPanelProps {
   watermarkObjects: Watermark[],
@@ -97,34 +96,13 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   })
 
   useEffect(() => {
-    const aggregateItems = setList.reduce((prev, cur) => {
-      if(cur.id === selectedSet?.id) {
-        return prev + selectedSet.paths.length
-      }
-      return prev + cur.paths.length
-    }, 0)
-    if(aggregateItems !== collection.items) {
-      updateParentCollection({
-        ...collection,
-        items: aggregateItems,
-      })
-      updateCollection.mutate({
-        collection: collection,
-        published: collection.published,
-        items: aggregateItems
-      })
-    }
-  }, [collection.items])
+    setSetList(collection.sets)
+  }, [collection.sets])
   
   //TODO: parent state management
 
   const deleteCollection = useMutation({
     mutationFn: (params: DeleteCollectionParams) => deleteCollectionMutation(params)
-  })
-
-  const setQuery = useQuery({
-    ...getPhotoSetByIdQueryOptions(selectedSet?.id, { resolveUrls: false, user: auth.user?.profile.email }),
-    enabled: selectedSet !== undefined
   })
 
   const uploadWatermarks = useMutation({
@@ -238,8 +216,8 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
 
     const tempSetList = setList.sort((a, b) => b.order - a.order)
     for(let i = 0; i < tempSetList.length; i++) {
-      publishable = tempSetList[i].paths.length > 0 ? (
-        tempSetList[i].paths.length < 20 ? (
+      publishable = tempSetList[i].items > 0 ? (
+        tempSetList[i].items < 20 ? (
           updatePublishable(publishable, `${tempSetList[i].name} has Few Pictures`)
         ) : (
           publishable
@@ -247,8 +225,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
       ) : (
         updatePublishable(publishable, undefined, `${tempSetList[i].name} has a No Pictures`)
       )
-      const duplicates = detectDuplicates(tempSetList[i].paths)
-      publishable = duplicates.length > 0 ? updatePublishable(publishable, `${tempSetList[i].name} has Duplicates`) : publishable
     }
 
     return publishable
@@ -474,72 +450,72 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
             updatePublishStatus={publishCollection}
           />
           <div className="grid grid-cols-3 w-full place-items-center border border-gray-400 rounded-lg py-0.5">
-            <button 
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'sets' ? 'text-black' : 'text-gray-400'}`}
+            <CollectionSidePanelButton
+              console="sets"
+              activeConsole={activeConsole} 
               onClick={() => {
                 if(activeConsole !== 'sets'){
                   setActiveConsole('sets')
                   navigate({ to: '.', search: { collection: collection.id, console: 'sets' }})
                 }
               }}
-            >
-              Photo Sets
-            </button>
-            <button 
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'favorites' ? 'text-black' : 'text-gray-400'}`}
+              title="Photo Sets"
+            />
+            <CollectionSidePanelButton 
+              console="favorites"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'favorites'){
                   navigate({ to: '.', search: { collection: collection.id, console: 'favorites' }})
                   setActiveConsole('favorites')
                 }
               }}
-            >
-              Favorites
-            </button>
-            <button
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'watermarks' ? 'text-black' : 'text-gray-400'}`}
+              title="Favorites"
+            />
+            <CollectionSidePanelButton
+              console="watermarks"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'watermarks') {
                   navigate({ to: '.', search: { collection: collection.id, console: 'watermarks' }})
                   setActiveConsole('watermarks')
                 }
               }}
-            >
-              Watermarks
-            </button>
-            <button
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'share' ? 'text-black' : 'text-gray-400'}`}
+              title="watermarks"
+            />
+            <CollectionSidePanelButton 
+              console="share"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'share') {
                   navigate({ to: '.', search: { collection: collection.id, console: 'share' }})
                   setActiveConsole('share')
                 }
               }}
-            >
-              Share
-            </button>
-            <button
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'users' ? 'text-black' : 'text-gray-400'}`}
+              title="Share"
+            />
+            <CollectionSidePanelButton 
+              console="users"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'users') {
                   navigate({ to: '.', search: { collection: collection.id, console: 'users' }})
                   setActiveConsole('users')
                 }
               }}
-            >
-              Users
-            </button>
-            <button
-              className={`py-1 px-2 hover:border-gray-300 rounded-lg border border-transparent ${activeConsole === 'cover' ? 'text-black' : 'text-gray-400'}`}
+              title="Users"
+            />
+            <CollectionSidePanelButton 
+              console="cover"
+              activeConsole={activeConsole}
               onClick={() => {
                 if(activeConsole !== 'cover') {
                   navigate({ to: '.', search: { collection: collection.id, console: 'cover' }})
                   setActiveConsole('cover')
                 }
               }}
-            >
-              Cover
-            </button>
+              title="Cover"
+            />
           </div>
           { activeConsole === 'sets' ? (
             <>
@@ -561,10 +537,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                   setList={setList}
                   selectedSet={selectedSet}
                   setSelectedSet={(set: PhotoSet | undefined) => {
-                    if(set) {
-                      setQuery.refetch()
-                    }
-                    
                     navigate({
                       to: '.', search: {
                         collection: collection.id,
@@ -745,33 +717,29 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
         </div>
         { activeConsole === 'sets' ? (
             selectedSet ? (
-              setQuery.isLoading || setQuery.isRefetching ? (
-                <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-                  <div className="flex flex-row items-center justify-center">
-                    <p>Loading</p>
-                    <Loading />
-                  </div>
-                </div>
-              ) : (
-                <PhotoSetPanel 
-                  photoCollection={collection} 
-                  photoSet={setQuery.data ?? selectedSet} 
-                  paths={setQuery.data?.paths ?? []}
-                  deleteParentSet={(setId) => {
-                    const updatedSetList = setList
-                        .filter((set) => set.id !== setId)
-                        .sort((a, b) => a.order - b.order)
-                        .map((set, index) => ({ ...set, order: index}))
-                    
-                    setSetList(updatedSetList)
-                    setSelectedSet(undefined)
-                  }}
-                  parentUpdateSet={setSelectedSet}
-                  parentUpdateCollection={updateParentCollection}
-                  parentUpdateCollections={updateParentCollections}
-                  auth={auth}
-                />
-              )
+                // <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
+                //   <div className="flex flex-row items-center justify-center">
+                //     <p>Loading</p>
+                //     <Loading />
+                //   </div>
+                // </div>
+              <PhotoSetPanel 
+                photoCollection={collection} 
+                photoSet={selectedSet} 
+                deleteParentSet={(setId) => {
+                  const updatedSetList = setList
+                      .filter((set) => set.id !== setId)
+                      .sort((a, b) => a.order - b.order)
+                      .map((set, index) => ({ ...set, order: index}))
+                  
+                  setSetList(updatedSetList)
+                  setSelectedSet(undefined)
+                }}
+                parentUpdateSet={setSelectedSet}
+                parentUpdateCollection={updateParentCollection}
+                parentUpdateCollections={updateParentCollections}
+                auth={auth}
+              />
             ) : (
               <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
                 <div className="flex flex-row items-center justify-center">

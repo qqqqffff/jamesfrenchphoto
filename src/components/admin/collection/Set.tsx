@@ -152,7 +152,7 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSub
     <>
       <div className="relative">
         <div
-          data-task-id={set.id}
+          data-set-id={set.id}
           ref={ref}
           className={`flex text-sm ${selectedSet ? 'bg-gray-200' : 'bg-white'} flex-row items-center border border-gray-300 border-solid rounded p-2 pl-0 ${collection === undefined ? 'hover:bg-gray-100' : ''} ${stateStyles[state.type] ?? ''}`}
           onClick={onClick}
@@ -166,7 +166,7 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSub
           {collection === undefined ? (
             <div className='flex w-full justify-between items-center ms-1'>
               <span className="truncate flex-grow flex-shrink w-full text-start h-full hover:cursor-pointer">{set.name}</span>
-              <span className='opacity-50 me-1 italic text-xs' title='Number of Items'>({set.paths.length})</span>
+              <span className='opacity-50 me-1 italic text-xs' title='Number of Items'>({set.items})</span>
             </div>
           ) : (
             <div className='flex flex-row justify-between w-full'>

@@ -1,9 +1,11 @@
 import { Button, Checkbox, Label, TextInput } from "flowbite-react"
 import { textInputTheme } from "../../utils"
-import { FC, useState } from "react"
+import { FC, useEffect, useState } from "react"
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../amplify/data/resource"
 import { Participant, UserTag } from "../../types"
+import { useMutation, useQueries } from "@tanstack/react-query"
+import { createParticipantMutation, CreateParticipantParams, getUserTagByIdQueryOptions } from "../../services/userService"
 
 const client = generateClient<Schema>()
 
@@ -36,16 +38,27 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
     const [preferredName, setPreferredName] = useState<string | undefined>(prefilledElements?.partialParticipant?.preferredName)
     const [contact, setContact] = useState(prefilledElements?.partialParticipant?.contact ?? false)
 
-    const [tags, setTags] = useState<string[]>(taggingCode?.code ?? prefilledElements?.partialParticipant?.userTags?.map((tag) => tag.id) ?? [])
+    const tagQuery = useQueries({
+        queries: (taggingCode?.code ?? []).map((code) => 
+            getUserTagByIdQueryOptions(code)
+        )
+    })
+    const [tags, setTags] = useState<UserTag[]>(prefilledElements?.partialParticipant?.userTags ?? [])
 
+    useEffect(() => {
+        setTags(tagQuery
+            .map((tagData) => tagData.data)
+            .filter((tag) => tag !== undefined && tag !== null)
+        )
+    }, [tagQuery])
     const [submitting, setSubmitting] = useState(false)
 
-    //TODO: validate me
+    //TODO: update me please
     async function tagValidation(): Promise<UserTag[] | undefined>{
         const userTags: (UserTag | undefined)[] = (await Promise.all(tags
-                .filter((tag) => tag !== '' && tag !== undefined)
+                .filter((tag) => tag !== undefined)
                 .map(async (tag) => {
-                    const tagResponse = await client.models.UserTag.get({ id: tag })
+                    const tagResponse = await client.models.UserTag.get({ id: tag.id })
                     if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
                     const userTag: UserTag = {
                         ...tagResponse.data,
@@ -60,6 +73,10 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
         if(userTags.findIndex((tag) => tag === undefined) !== -1) return
         return userTags.filter((tag) => tag !== undefined)
     }
+
+    const createParticipantMut = useMutation({
+        mutationFn: (params: CreateParticipantParams) => createParticipantMutation(params)
+    })
 
     async function createParticipant(){
         let participant: Participant | undefined
@@ -76,30 +93,19 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                 formErrors.push({type: 'tagcode'})
             }
             if(firstName && lastName && validateTags && userEmail){
-                const response = await client.models.Participant.create({
-                    userEmail: userEmail,
-                    userTags: tags,
-                    email: email,
-                    firstName: firstName,
-                    lastName: lastName,
-                    preferredName: preferredName,
-                    middleName: middleName,
-                    contact: contact
-                })
-                if(response && response.data && response.data.id){
-                    participant = {
-                        ...response.data,
-                        timeslot: [],
-                        userTags: validateTags,
+                const response = await createParticipantMut.mutateAsync({
+                    participant: {
+                        userEmail: userEmail,
+                        userTags: tags,
+                        email: email,
+                        firstName: firstName,
+                        lastName: lastName,
                         preferredName: preferredName,
                         middleName: middleName,
-                        email: email,
                         contact: contact,
-                        notifications: []
                     }
-                } else {
-                    throw new Error('Failed to create participant')
-                }
+                })
+                participant = response
             }
         } catch(err){
             setSubmitting(false)
@@ -148,18 +154,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
     return (
         <>
             <span className="text-xl">Your Participant:</span>
-            {taggingCode && taggingCode.visible ? (
-                <div className="flex flex-col items-start gap-1">
-                    <Label className="ms-4 font-medium text-lg" htmlFor="participantEmail">Tag Code:</Label>
-                    <TextInput theme={textInputTheme} sizing='lg' color={formErrors.find((error) => error.type === 'tagcode') ? 'failure' : undefined} className="mb-4 max-w-[28rem] w-full" placeholder="Tag Code (check your email for this code)" type="text" defaultValue={tags.length > 0 ? tags[0] : undefined} disabled={!taggingCode.editable} 
-                        onChange={(event) => {
-                            setTags([event.target.value])
-                            setFormError(formErrors.filter((error) => error.type !== 'tagcode'))
-                        }}
-                    />
-                </div>
-                ) : (<></>)
-            }
+            {/* TODO: add better tagging */}
             <div className="flex flex-col items-start gap-1">
                 <Label className="ms-4 font-medium text-lg" htmlFor="participantEmail">Email:</Label>
                 <TextInput theme={textInputTheme} sizing='lg' className="mb-4 max-w-[28rem] w-full" placeholder="Participant's Email" type="email" 

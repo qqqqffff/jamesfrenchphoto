@@ -5,7 +5,7 @@ export interface ColorComponentProps {
     customText?: string
 }
 
-export const getColorComponent: FC<ColorComponentProps> = ({ activeColor, customText }) => {
+export const ColorComponent: FC<ColorComponentProps> = ({ activeColor, customText }) => {
     if(!activeColor && !customText){
         return (<span>Black</span>)
     }

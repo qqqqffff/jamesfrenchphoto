@@ -20,17 +20,19 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
   const [showEdit, setShowEdit] = useState(false)
   const [editing, setEditing] = useState(false)
 
+
   useEffect(() => {
     setWidth(contentSpan.current?.clientWidth ?? 0)
     if(props.placeholder && inputRef.current){
       setEditing(true)
       inputRef.current.focus()
     }
-    if(props.text !== content && spanContent !== content){
-      setContent(props.text)
-      setSpanContent(props.text)
-    }
-  }, [spanContent, props.text])
+  }, [spanContent])
+
+  useEffect(() => {
+    setContent(props.text)
+    setSpanContent(props.text)
+  }, [props.text])
 
   function handleSubmit(){
     //case unchanged content

@@ -8,6 +8,7 @@ import { CreatePackageModal as createPackage } from './CreatePackage';
 import { CreateCollectionModal as createCollection } from './CreateCollection';
 import { EditTimeslotModal as editTimeslot } from './EditTimeslotModal';
 import { UnauthorizedEmailModal as unauthorizedEmail } from './UnauthorizedEmail';
+import { LoadingModal as loading } from './Loading';
 
 
 export type ModalProps = {
@@ -25,3 +26,4 @@ export const CreatePackageModal = createPackage
 export const CreateCollectionModal = createCollection
 export const EditTimeslotModal = editTimeslot
 export const UnauthorizedEmailModal = unauthorizedEmail
+export const LoadingModal = loading

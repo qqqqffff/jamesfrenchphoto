@@ -54,7 +54,7 @@ export const UsersPanel = (props: UsersPanelProps) => {
   })
 
   return (
-    <div className="flex flex-col max-h-[90vh] py-2 px-12 w-full">
+    <div className="flex flex-col max-h-[90vh] py-2 px-12 w-full overflow-auto">
       <input 
         placeholder="Search for a participant"
         className="

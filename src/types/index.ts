@@ -73,7 +73,7 @@ export type User = {
 
 export type Favorite = {
     id: string,
-    userEmail: string,
+    participantId: string,
     pathId: string,
     createdAt: Date,
     updatedAt: Date,
@@ -94,12 +94,21 @@ export type PicturePath = {
     path: string;
     order: number;
     favorite?: string;
+    setId: string;
 }
 
 export type Watermark = {
     id: string,
     url: string,
     path: string,
+}
+
+export interface DownloadData {
+  id: string,
+  state: 'inprogress' | 'done' | 'paused' | 'idle'
+  progress: number,
+  totalItems: number,
+  display: boolean,
 }
 
 export type CoverType = {
@@ -133,6 +142,7 @@ export type PhotoSet = {
     paths: PicturePath[],
     order: number,
     collectionId: string;
+    items: number;
 }
 
 export type Timeslot = {

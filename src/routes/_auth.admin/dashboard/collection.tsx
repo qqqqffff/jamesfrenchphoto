@@ -3,13 +3,14 @@ import {
   getAllPhotoCollectionsQueryOptions,
   getAllWatermarkObjectsQueryOptions,
   getPathQueryOptions,
+  getPhotoCollectionByIdQueryOptions,
 } from '../../../services/collectionService'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { PhotoCollectionPanel } from '../../../components/admin/collection/PhotoCollectionPanel'
-import { useQueries } from '@tanstack/react-query'
-import { CreateCollectionModal } from '../../../components/modals'
-import { useEffect, useState } from 'react'
-import { PhotoCollection, PhotoSet, ShareTemplate, Watermark } from '../../../types'
+import { useQueries, useQuery, UseQueryResult, useSuspenseQuery } from '@tanstack/react-query'
+import { CreateCollectionModal, LoadingModal } from '../../../components/modals'
+import { Suspense, useEffect, useState } from 'react'
+import { PhotoCollection, ShareTemplate, Watermark } from '../../../types'
 import { TextInput, Tooltip } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
@@ -21,6 +22,7 @@ interface CollectionSearchParams {
   collection?: string,
   set?: string,
   console?: string,
+  page?: number
 }
 
 export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
@@ -28,82 +30,84 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   validateSearch: (search: Record<string, unknown>): CollectionSearchParams => ({
     collection: (search.collection as string) || undefined,
     set: (search.set as string) || undefined,
-    console: (search.console as string) || 'sets'
+    console: (search.console as string) || undefined,
+    page: (search.page as number) || undefined
   }),
   beforeLoad: ({ search }) => search,
-  loader: async ({ context }) => {
-    const availableTags = await context.queryClient.ensureQueryData(getAllUserTagsQueryOptions({ siCollections: false }))
-    const watermarkObjects = await context.queryClient.ensureQueryData(getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
-    const shareTemplates = await context.queryClient.ensureQueryData(getAllShareTemplatesQueryOptions())
-    let collection: PhotoCollection | undefined
-    let set: PhotoSet | undefined
-    //TODO: convert me to infinite query
-    const collections = await context.queryClient.ensureQueryData(getAllPhotoCollectionsQueryOptions({
-      siTags: true,
-      siSets: true,
-      siPaths: true
-    }))
-
-    if(context.collection){
-      collection = collections.find((col) => col.id === context.collection)
-      if(collection && context.set) {
-        set = collection.sets.find((set) => context.set === set.id)
-      }
-    }
-
+  loader: ({ context }) => {
     return {
-      availableTags,
-      watermarkObjects,
-      collection,
-      set,
+      set: context.set,
+      collection: context.collection,
       auth: context.auth,
       collectionConsole: context.console ?? 'sets',
-      templates: shareTemplates,
-      collections: collections
     }
   },
-  pendingComponent: () => (
-    <div className="flex flex-col w-full items-center justify-center mt-2">
-      <div className="w-[80%] flex flex-col">
-        <div className='border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
-          <div className="self-center grid grid-cols-2 min-w-[200px]">
-            <span className='flex flex-row-reverse'>Loading Collections</span>
-            <Loading className='self-start'/>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 })
 
 function RouteComponent() {
-  const { 
-    availableTags, 
-    watermarkObjects, 
-    collection, 
-    set, 
-    auth, 
-    collectionConsole,
-    templates,
-    collections
-  } = Route.useLoaderData()
+  const data = Route.useLoaderData()
   const navigate = useNavigate()
 
-  const [photoCollections, setPhotoCollections] = useState<PhotoCollection[]>(collections)
-  const [watermarks, setWatermarks] = useState<Watermark[]>(watermarkObjects)
-  const [shareTemplates, setShareTemplates] = useState<ShareTemplate[]>(templates)
+  const [photoCollections, setPhotoCollections] = useState<PhotoCollection[]>([])
+  const [watermarks, setWatermarks] = useState<Watermark[]>([])
+  const [shareTemplates, setShareTemplates] = useState<ShareTemplate[]>([])
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
   const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
-  const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>(collection)
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | undefined>()
+  const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>()
+
+  const tagsPromise = useSuspenseQuery(getAllUserTagsQueryOptions({ siCollections: false }))
+  const watermarkQuery = useQuery(getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
+  const shareTemplatesQuery = useQuery(getAllShareTemplatesQueryOptions())
+
+  //TODO: convert me to an infinite query and conditional enabling
+  const collectionsQuery = useQuery(getAllPhotoCollectionsQueryOptions({ 
+    siTags: false,
+    siPaths: false,
+    siSets: false,
+  }))
+  const collectionQuery = useQuery(getPhotoCollectionByIdQueryOptions(selectedCollectionId, {
+      siSets: true,
+      siTags: true,
+      participantId: data.auth.user?.profile.activeParticipant?.id
+    }
+  ))
 
   useEffect(() => {
-    if(collection !== selectedCollection){
-      setSelectedCollection(collection)
+    if(watermarkQuery.data) {
+      setWatermarks(watermarkQuery.data)
     }
-    if(collections.some((parentCollection) => !photoCollections.some((childCollection) => childCollection.id === parentCollection.id))) {
-      setPhotoCollections(collections)
+  }, [watermarkQuery.data])
+
+  useEffect(() => {
+    if(shareTemplatesQuery.data) {
+      setShareTemplates(shareTemplatesQuery.data)
     }
-  }, [collection, collections])
+  }, [shareTemplatesQuery.data])
+
+  useEffect(() => {
+    if(collectionsQuery.data) {
+      setPhotoCollections(collectionsQuery.data)
+    }
+  }, [collectionsQuery.data])
+
+  useEffect(() => {
+    if(data.collection) {
+      setSelectedCollectionId(data.collection)
+    }
+    else {
+      setSelectedCollectionId(undefined)
+    }
+  }, [data.collection])
+
+  useEffect(() => {
+    if(collectionQuery.data) {
+      setSelectedCollection(collectionQuery.data)
+    }
+    else {
+      setSelectedCollection(undefined)
+    }
+  }, [collectionQuery.data])
 
   function filterItems(term: string): undefined | void {
     if (!term) {
@@ -131,67 +135,146 @@ function RouteComponent() {
     setFilteredItems(data)
   }
 
-  const coverPaths = useQueries({
-    queries: photoCollections
-      .map((collection) => 
-        getPathQueryOptions(collection.coverPath, collection.id)
-      )
-  }).map((query, index) => {
-    return {
-      id: photoCollections[index].id,
-      query: photoCollections[index].coverPath ? query : undefined
-    }
-  })
+  const coverPaths: Record<string, UseQueryResult<[string | undefined, string] | undefined, Error>> = 
+    Object.fromEntries(
+      useQueries({
+        queries: photoCollections
+          .filter((collection) => collection.id !== selectedCollection?.id)
+          .map((collection) => 
+            getPathQueryOptions(collection.coverPath, collection.id)
+          )
+      }).map((query, index) => {
+        return [
+          photoCollections[index].id,
+          query
+        ]
+      })
+    )
+
+  const selectedCoverPath = useQuery(
+    getPathQueryOptions(selectedCollection?.coverPath, selectedCollection?.id)
+  )
 
   return (
     <>
-      <CreateCollectionModal
-        open={createCollectionVisible}
-        onClose={() => setCreateCollectionVisible(false)}
-        onSubmit={async (collection) => {
-          if (collection) {
-            setPhotoCollections([...photoCollections, collection])
-            setSelectedCollection(collection)
-            navigate({ to: '.', search: { collection: collection.id }})
-          }
-          //TODO: error handle
-        }}
-        availableTags={availableTags}
-      />
-      {!selectedCollection ? (
-        <div className="flex flex-col w-full items-center justify-center mt-2">
-          <div className="w-[80%] flex flex-col">
-            <div className='flex flex-row w-full justify-between'>
-              <TextInput
-                className="self-center w-[60%] max-w-[400px] ms-4"
-                theme={textInputTheme}
-                sizing='lg'
-                placeholder="Search"
-                onChange={(event) => filterItems(event.target.value)}
-              />
-              <button
-                className="flex flex-row gap-4 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-2 me-4"
-                onClick={() => {setCreateCollectionVisible(true)}}
-              >
-                <span className="text-xl ms-4">Create New Collection</span>
-                <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2" />
-              </button>
+      <Suspense 
+        fallback={
+          <LoadingModal 
+            open={createCollectionVisible}
+            header={`${selectedCollection ? 'Create' : 'Update'} Collection`}
+            size='2xl'
+            className='font-main'
+            onClose={() => setCreateCollectionVisible(false)}
+          />
+        }
+      >
+        <CreateCollectionModal
+          open={createCollectionVisible}
+          onClose={() => setCreateCollectionVisible(false)}
+          onSubmit={async (collection) => {
+            if (collection) {
+              setPhotoCollections([...photoCollections, collection])
+              setSelectedCollection(collection)
+              navigate({ to: '.', search: { collection: collection.id }})
+            }
+            //TODO: error handle
+          }}
+          availableTags={tagsPromise.data}
+        />
+      </Suspense>
+      {selectedCollectionId ? (
+        collectionQuery.isPending || !selectedCollection ? (
+          <div className="flex flex-col w-full items-center justify-center mt-2">
+            <div className="w-[80%] flex flex-col">
+              <div className='border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
+                <div className="self-center grid grid-cols-2 min-w-[200px]">
+                  <span className='flex flex-row-reverse'>Loading Collection</span>
+                  <Loading className='self-start'/>
+                </div>
+              </div>
             </div>
-            <div className='grid grid-cols-3 border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
-              {photoCollections && photoCollections.length > 0 ? (
+          </div>
+        ) : (
+          <PhotoCollectionPanel 
+            coverPath={selectedCoverPath}
+            collection={selectedCollection}
+            updateParentCollection={setSelectedCollection}
+            updateParentCollections={setPhotoCollections}
+            set={selectedCollection.sets.find((set) => set.id === data.set)}
+            watermarkObjects={watermarks}
+            updateWatermarkObjects={setWatermarks}
+            availableTags={tagsPromise.data}
+            auth={data.auth}
+            parentActiveConsole={
+              data.collectionConsole === 'favorites' ? (
+                'favorites' as 'favorites'
+              ) : (
+              data.collectionConsole === 'watermarks' ? (
+                'watermarks' as 'watermarks'
+              ) : (
+              data.collectionConsole === 'share' ? (
+                'share' as 'share'
+              ) : (
+              data.collectionConsole === 'users' ? (
+                'users' as 'users'
+              ) : (
+              data.collectionConsole === 'cover' ? (
+                'cover' as 'cover'
+              ) : (
+                'sets' as 'sets'
+              )))))
+            }
+            shareTemplates={shareTemplates}
+            updateShareTemplates={setShareTemplates}
+          />
+        )
+      ) : (
+        collectionsQuery.isPending ? (
+          <div className="flex flex-col w-full items-center justify-center mt-2">
+            <div className="w-[80%] flex flex-col">
+              <div className='border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
+                <div className="self-center grid grid-cols-2 min-w-[200px]">
+                  <span className='flex flex-row-reverse'>Loading Collections List</span>
+                  <Loading className='self-start'/>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col w-full items-center justify-center mt-2">
+            <div className="w-[80%] flex flex-col">
+              <div className='flex flex-row w-full justify-between'>
+                <TextInput
+                  className="self-center w-[60%] max-w-[400px] ms-4"
+                  theme={textInputTheme}
+                  sizing='lg'
+                  placeholder="Search"
+                  onChange={(event) => filterItems(event.target.value)}
+                />
+                <button
+                  className="flex flex-row gap-4 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-2 me-4"
+                  onClick={() => {setCreateCollectionVisible(true)}}
+                >
+                  <span className="text-xl ms-4">Create New Collection</span>
+                  <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2" />
+                </button>
+              </div>
+              <div className='grid grid-cols-3 border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
+                {photoCollections && photoCollections.length > 0 ? (
                   filteredItems ? (
                     filteredItems.length > 0 ? (
                       filteredItems
                         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                         .map((collection, index) => {
-                          const path = coverPaths?.find((path) => path.id === collection.id)
+                          const path = coverPaths[collection.id]
                           return (
                             <CollectionThumbnail 
                               collectionId={collection.id}
-                              cover={path?.query}
+                              cover={path}
                               onClick={() => {
                                 navigate({to: '.', search: { collection: collection.id }})
                                 setSelectedCollection(collection)
+                                setSelectedCollectionId(collection.id)
                               }}
                               key={index}
                               contentChildren={(
@@ -217,14 +300,15 @@ function RouteComponent() {
                     photoCollections
                       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                       .map((collection, index) => {
-                        const path = coverPaths?.find((path) => path.id === collection.id)
+                        const path = coverPaths[collection.id]
                         return (
                           <CollectionThumbnail 
                             collectionId={collection.id}
-                            cover={path?.query}
+                            cover={path}
                             onClick={() => {
                               navigate({to: '.', search: { collection: collection.id }})
                               setSelectedCollection(collection)
+                              setSelectedCollectionId(collection.id)
                             }}
                             key={index}
                             contentChildren={(
@@ -246,44 +330,11 @@ function RouteComponent() {
                   <div className="self-center col-start-2 flex flex-row items-center justify-center">
                     <span >No collections yet!</span>
                   </div>
-                )
-              }
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <PhotoCollectionPanel 
-          coverPath={coverPaths?.find((path) => path.id === selectedCollection.id)?.query}
-          collection={selectedCollection}
-          updateParentCollection={setSelectedCollection}
-          updateParentCollections={setPhotoCollections}
-          set={set}
-          watermarkObjects={watermarks}
-          updateWatermarkObjects={setWatermarks}
-          availableTags={availableTags}
-          auth={auth}
-          parentActiveConsole={
-            collectionConsole === 'favorites' ? (
-              'favorites' as 'favorites'
-            ) : (
-            collectionConsole === 'watermarks' ? (
-              'watermarks' as 'watermarks'
-            ) : (
-            collectionConsole === 'share' ? (
-              'share' as 'share'
-            ) : (
-            collectionConsole === 'users' ? (
-              'users' as 'users'
-            ) : (
-            collectionConsole === 'cover' ? (
-              'cover' as 'cover'
-            ) : (
-              'sets' as 'sets'
-            )))))
-          }
-          shareTemplates={shareTemplates}
-          updateShareTemplates={setShareTemplates}
-        />
+        )
       )}
     </>
   )

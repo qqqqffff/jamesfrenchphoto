@@ -5,6 +5,7 @@ import { queryOptions } from '@tanstack/react-query'
 import { generateClient } from "aws-amplify/api";
 import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
+import { getAllPaths } from "./photoPathService";
 
 const client = generateClient<Schema>()
 
@@ -58,7 +59,8 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
             const mappedSet: PhotoSet = {
               ...set,
               watermarkPath: set.watermarkPath ?? undefined,
-              paths: mappedPaths
+              paths: mappedPaths,
+              items: set.items ?? 0
             }
             return mappedSet
           })))
@@ -190,6 +192,7 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
               ...set,
               watermarkPath: set.watermarkPath ?? undefined,
               paths: mappedPaths,
+              items: set.items ?? 0
             }
 
             return mappedSet
@@ -290,28 +293,33 @@ interface GetPhotoCollectionByIdOptions {
   siSets?: boolean,
   siPaths?: boolean,
   resolveUrls?: boolean,
-  user?: string,
+  participantId?: string,
   unauthenticated?: boolean
 }
-async function getCollectionById(client: V6Client<Schema>, collectionId: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | undefined> {
+//TODO: fix favorite secondary indexing
+export async function getCollectionById(client: V6Client<Schema>, collectionId?: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | null> {
+  if(!collectionId) return null
   console.log('api call')
   const collection = await client.models.PhotoCollection.get({ id: collectionId }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
-  if(!collection || !collection.data) return
+  if(!collection || !collection.data) return null
   const sets: PhotoSet[] = []
   if(!options || options.siSets){
-    sets.push(...await Promise.all((await collection.data.sets()).data.map((async (set) => {
-      let pathsResponse = await set.paths()
-      let paths = pathsResponse.data
-      while(pathsResponse.nextToken) {
-        pathsResponse = await set.paths({ nextToken: pathsResponse.nextToken })
-        paths.push(...pathsResponse.data)
-      }
+    
+    sets.push(...await Promise.all((await collection.data.sets(
+      { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'}
+    )).data.map((async (set) => {
       const mappedPaths: PicturePath[] = []
       if(!options || options?.siPaths) {
+        let pathsResponse = await set.paths()
+        let paths = pathsResponse.data
+        while(pathsResponse.nextToken) {
+          pathsResponse = await set.paths({ nextToken: pathsResponse.nextToken })
+          paths.push(...pathsResponse.data)
+        }
         mappedPaths.push(...await Promise.all(paths.map(async (path) => {
           let favorite: undefined | string
-          if(options?.user){
-            favorite = (await path.favorites()).data.find((favorite) => favorite.userEmail === options.user)?.id
+          if(options?.participantId){
+            favorite = (await path.favorites()).data.find((favorite) => favorite.participantId === options.participantId)?.id
           }
           const mappedPath: PicturePath = {
             ...path,
@@ -329,10 +337,25 @@ async function getCollectionById(client: V6Client<Schema>, collectionId: string,
           ...set,
           watermarkPath: set.watermarkPath ?? undefined,
           paths: mappedPaths,
+          items: set.items ?? 0
       }
       return mappedSet
     }))))
+
+
+    //validate set order
+    const orderedSets = [...sets].sort((a, b) => a.order - b.order)
+    for(let i = 0; i < sets.length; i++) {
+      if(orderedSets[i].order !== i) {
+        reorderSetsMutation({
+          collectionId: collectionId,
+          sets: orderedSets.map((set, index) => ({ ...set, order: index }))
+        })
+      }
+    }
   }
+
+  
   const tags: UserTag[] = []
   if(!options || options.siTags){
     tags.push(...(await Promise.all((await collection.data.tags()).data.map(async (colTag) => {
@@ -388,9 +411,8 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
                 const userTags: UserTag[] = []
 
                 if(options?.siTags) {
-                    userTags.push(...(await Promise.all((participant.data.userTags ?? []).map(async (tagId) => {
-                        if(!tagId) return
-                        const tagResponse = await client.models.UserTag.get({ id: tagId })
+                    userTags.push(...(await Promise.all(((await participant.data.tags()).data ?? []).map(async (tag) => {
+                        const tagResponse = await tag.tag()
                         if(tagResponse.data) {
                             const mappedTag: UserTag = {
                                 ...tagResponse.data,
@@ -437,7 +459,7 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
     const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagData.map(async (collectionTag) => {
       const mappedCollection = await getCollectionById(client, collectionTag.collectionId, { ...options })
       return mappedCollection
-    }))).filter((collection) => collection !== undefined)
+    }))).filter((collection) => collection !== null)
 
     return mappedCollections
 }
@@ -445,7 +467,7 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
 export interface CreateCollectionParams {
     name: string,
     tags:  UserTag[],
-    cover: string | null,
+    cover?: string,
     downloadable: boolean,
     options?: {
         logging: boolean
@@ -741,22 +763,22 @@ export async function uploadCoverMutation(params: UploadCoverParams){
 }
 
 export interface ReorderSetsParams {
-    collectionId: string,
-    sets: PhotoSet[],
-    options?: {
-        logging: boolean
-    }
+  collectionId: string,
+  sets: PhotoSet[],
+  options?: {
+    logging: boolean
+  }
 }
 export async function reorderSetsMutation(params: ReorderSetsParams){
-    const response = await Promise.all(params.sets.map(async (set) => {
-        const dynamoResponse = await client.models.PhotoSet.update({
-            id: set.id,
-            order: set.order,
-        })
-        return dynamoResponse
-    }))
+  const response = await Promise.all(params.sets.map(async (set) => {
+    const dynamoResponse = await client.models.PhotoSet.update({
+      id: set.id,
+      order: set.order,
+    })
+    return dynamoResponse
+  }))
 
-    if(params.options?.logging) console.log(response)
+  if(params.options?.logging) console.log(response)
 }
 
 export interface AddCollectionParticipantParams {
@@ -788,6 +810,97 @@ export async function removeCollectionParticipantMutation(params: RemoveCollecti
     }
 }
 
+export interface RepairPathsParams {
+  collectionId: string,
+  setId: string,
+  options?: {
+    logging?: boolean
+  }
+}
+export async function repairPathsMutation(params: RepairPathsParams) {
+  const repairPathsResponse = await client.queries.RepairPaths({
+    collection: params.collectionId,
+    set: params.setId
+  })
+
+  if(params.options?.logging) console.log(repairPathsResponse)
+
+  if(repairPathsResponse.data) {
+    try {
+      const returnResponse = JSON.parse(repairPathsResponse.data) as 
+      {
+        paths: PicturePath[],
+        responses: {
+          set: any,
+          paths: any,
+        }
+      }
+
+      if(params.options?.logging) console.log(returnResponse.responses)
+      return returnResponse.paths
+    } catch(err) {
+      if(params.options?.logging) console.log(err)
+      return undefined
+    }
+  }
+}
+
+export interface RepairItemCountsParams {
+  collection: PhotoCollection,
+  refetchAllSets?: boolean,
+  options?: {
+    logging?: boolean
+  }
+}
+export async function repairItemCountMutation (params: RepairItemCountsParams): Promise<PhotoCollection | undefined> {
+  const collectionResponse = params.refetchAllSets ?
+    await getCollectionById(client, params.collection.id, {
+      siPaths: false,
+      siSets: true,
+      siTags: false,
+    }) : params.collection
+
+  if(collectionResponse) {
+    const updatedSets: { response: any, set: PhotoSet }[] = (await Promise.all(collectionResponse.sets
+      .map(async (set) => {
+        const paths = await getAllPaths(client, set.id)
+
+        const updateSetResponse = await client.models.PhotoSet.update({
+          id: set.id,
+          items: paths.length
+        })
+
+        return ({
+          response: updateSetResponse,
+          set: {
+            ...set,
+            items: paths.length
+          }
+        })
+      })
+    ))
+
+    if(params.options?.logging) console.log(updatedSets.map((set) => set.response))
+
+    const itemCount = updatedSets
+      .map((set) => set.set)
+      .reduce((prev, cur) => prev += cur.items, 0)
+
+    const updateResponse = await client.models.PhotoCollection.update({
+      id: collectionResponse.id,
+      items: itemCount
+    })
+
+    if(params.options?.logging) console.log(updateResponse)
+
+    return {
+      ...params.collection,
+      sets: updatedSets.map((set) => set.set),
+      items: itemCount
+    }
+  }
+}
+
 export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOptions({
     queryKey: ['photoCollection', client, tags],
     queryFn: () => getAllCollectionsFromUserTags(client, tags)
@@ -810,7 +923,7 @@ export const getPathQueryOptions = (path?: string, id?: string) => queryOptions(
     queryFn: () => getPath(path, id)
 })
 
-export const getPhotoCollectionByIdQueryOptions = (collectionId: string, options?: GetPhotoCollectionByIdOptions) => queryOptions({
+export const getPhotoCollectionByIdQueryOptions = (collectionId?: string, options?: GetPhotoCollectionByIdOptions) => queryOptions({
     queryKey: ['photoCollection', client, collectionId, options],
     queryFn: () => getCollectionById(client, collectionId, options)
 })

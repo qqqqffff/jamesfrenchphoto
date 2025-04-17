@@ -1,13 +1,12 @@
 import { downloadData } from "aws-amplify/storage"
 import { parsePathName } from "../utils"
-import { Favorite, PicturePath } from "../types"
+import { DownloadData, Favorite, PicturePath } from "../types"
 import { Dispatch, SetStateAction } from "react"
 import JSZip from 'jszip';
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../amplify/data/resource";
-import { DownloadData } from "../components/common/DownloadToast";
 import { V6Client } from '@aws-amplify/api-graphql'
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 const client = generateClient<Schema>()
 
@@ -34,6 +33,83 @@ async function getPathsFromFavoriteIds(client: V6Client<Schema>, ids: string[], 
   }))).filter((path) => path !== undefined)
 
   return paths
+}
+
+export async function getAllPaths(client: V6Client<Schema>, setId: string): Promise<PicturePath[]> {
+  let response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder({ setId: setId })
+  const data = response.data
+
+  while(response.nextToken) {
+    response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder({ setId: setId }, { nextToken: response.nextToken })
+    data.push(...response.data)
+  }
+
+  const mappedPaths: PicturePath[] = data.map((path) => {
+    const mappedPath: PicturePath = {
+      ...path,
+      url: ''
+    }
+    return mappedPath
+  })
+
+  return mappedPaths
+}
+
+export interface GetInfinitePathsData {
+  memo: PicturePath[],
+  nextToken?: string,
+}
+interface GetInfinitePathsOptions {
+  maxItems?: number,
+  unauthenticated?: boolean,
+  participantId?: string
+}
+async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePathsData, setId?: string, options?: GetInfinitePathsOptions): Promise<GetInfinitePathsData> {
+  if(!setId) return initial;
+
+  const response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder(
+    { setId: setId }, 
+    {
+      sortDirection: 'ASC',
+      limit: options?.maxItems ?? 12,
+      nextToken: initial.nextToken,
+      authMode: options?.unauthenticated ? 'identityPool' : 'userPool'
+    }
+  )
+
+  const newPaths: PicturePath[] = []
+
+  if(options?.participantId) {
+    //TODO: improve me
+    newPaths.push(...(await Promise.all(response.data.map(async (path) => {
+        let favorite: undefined | string = (await path.favorites({ 
+              authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
+            })).data.find((favorite) => favorite.participantId === options.participantId)?.id
+        
+        const mappedPath: PicturePath = {
+            ...path,
+            url: '',
+            favorite: favorite,
+        }
+        return mappedPath
+    }))))
+  }
+  else {
+    newPaths.push(...response.data.map((path) => {
+      const mappedPath: PicturePath = {
+        ...path,
+        url: ''
+      }
+      return mappedPath
+    }))
+  }
+
+  const returnData: GetInfinitePathsData = {
+    memo: [...initial.memo, ...newPaths],
+    nextToken: response.nextToken ?? undefined
+  }
+
+  return returnData
 }
 
 export interface DownloadImageMutationParams {
@@ -120,4 +196,14 @@ export async function downloadFavoritesMutation(params: DownloadFavoritesMutatio
 export const getPathsFromFavoriteIdsQueryOptions = (ids: string[], options?: GetPathsFromFavoriteIdsOptions) => queryOptions({
   queryKey: ['favorites', client, ids, options],
   queryFn: () => getPathsFromFavoriteIds(client, ids, options)
+})
+
+export const getInfinitePathsQueryOptions = (setId?: string, options?: GetInfinitePathsOptions) => infiniteQueryOptions({
+  queryKey: ['infinitePhotoPaths', client, setId, options],
+  queryFn: ({ pageParam }) => getInfinitePaths(client, pageParam, setId, options),
+  getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
+  initialPageParam: ({
+    memo: [] as PicturePath[],
+  } as GetInfinitePathsData),
+  refetchOnWindowFocus: false,
 })

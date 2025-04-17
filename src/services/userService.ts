@@ -14,6 +14,32 @@ import { getAllNotificationsFromUserTag } from "./notificationService";
 
 const client = generateClient<Schema>()
 
+interface GetTagByIdOptions {
+    //TODO: implement the secondary indexes
+    siCollection?: boolean,
+    siTimeslots?: boolean,
+    siNotifications?: boolean,
+}
+async function getTagById(client: V6Client<Schema>, tagId?: string, options?: GetTagByIdOptions): Promise<UserTag | null> {
+    if(!tagId) return null
+    if(options) console.log('options')
+
+    const tagResponse = await client.models.UserTag.get({ id: tagId })
+    if(tagResponse.data) {
+        const mappedTag: UserTag = {
+            ...tagResponse.data,
+            color: tagResponse.data.color ?? undefined,
+            //TODO: implement me later
+            collections: [],
+            timeslots: [],
+            notifications: [],
+            package: undefined
+        }
+        return mappedTag
+    }
+    return null
+}
+
 interface GetAllUserTagsOptions {
     siCollections?: boolean
     siTimeslots?: boolean,
@@ -29,7 +55,6 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
         userTagData.push(...userTagsResponse.data)
     }
 
-    //TODO: implement memoization
     let notificationMemo: Notification[] = []
 
     const mappedTags = await Promise.all(userTagData.map(async (tag) => {
@@ -92,8 +117,8 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
         const timeslots: Timeslot[] = []
         const notifications: Notification[] = []
         if(options === undefined || options.siTags){
-             tags.push(...(await Promise.all((participant.userTags ?? []).filter((tag) => tag !== null).map(async (tag) => {
-                const tagResponse = await client.models.UserTag.get({ id: tag }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+             tags.push(...(await Promise.all(((await participant.tags()).data ?? []).filter((tag) => tag !== null).map(async (tag) => {
+                const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
                 const notifications: Notification[] = []
                 if(!tagResponse || !tagResponse.data) return
                 const mappedCollections: PhotoCollection[] = []
@@ -108,6 +133,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                                     ...set,
                                     watermarkPath: set.watermarkPath ?? undefined,
                                     paths: [],
+                                    items: set.items ?? 0
                                 }
                                 return mappedSet
                             }))
@@ -135,7 +161,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                     }))).filter((item) => item !== undefined))
                 }
                 if(!options?.unauthenticated) {
-                    const notificationResponse = await getAllNotificationsFromUserTag(client, notificationMemo, tag)
+                    const notificationResponse = await getAllNotificationsFromUserTag(client, notificationMemo, tag.tagId)
                     notificationMemo.push(...notificationResponse[1])
                     notifications.push(...notificationResponse[0])
                 }
@@ -228,7 +254,6 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                     return mappedTag
                 }))).filter((tag) => tag !== undefined),
                 userEmail: email,
-                notifications: []
             },
         }))
     }
@@ -394,9 +419,8 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
         const notifications: Notification[] = []
         
         if(options?.siTags) {
-            userTags.push(...(await Promise.all((participant.userTags ?? []).map(async (tagId) => {
-                if(!tagId) return
-                const tagResponse = await client.models.UserTag.get({ id: tagId })
+            userTags.push(...(await Promise.all(((await participant.tags()).data ?? []).map(async (tag) => {
+                const tagResponse = await tag.tag()
                 if(tagResponse.data) {
                     const mappedTag: UserTag = {
                         ...tagResponse.data,
@@ -461,21 +485,29 @@ export async function createAccessTokenMutation(params: CreateAccessTokenMutatio
     return response.data?.id
 }
 
-interface CreateParticipantMutationParams {
-    participant: Omit<Participant, 'id'>,
+export interface CreateParticipantParams {
+    participant: Omit<Participant, 'id' | 'notifications'>,
+    authMode?: 'iam',
     options?: {
         logging: boolean
     }
 }
-export async function createParticipantMutation(params: CreateParticipantMutationParams): Promise<Participant> {
+export async function createParticipantMutation(params: CreateParticipantParams): Promise<Participant> {
     const createResponse = await client.models.Participant.create({
         ...params.participant,
-        userTags: params.participant.userTags.map((tag) => tag.id),
-    })
+    }, { authMode: params.authMode })
 
     if(!createResponse || !createResponse.data) throw new Error('Failed to create participant')
-
     if(params.options?.logging) console.log(createResponse)
+
+    const taggingResponse = await Promise.all(params.participant.userTags.map((tag) => {
+        return client.models.ParticipantUserTag.create({
+            participantId: createResponse.data!.id,
+            tagId: tag.id
+        })
+    }))
+
+    if(params.options?.logging) console.log(taggingResponse)
         
 
     const timeslotsUpdateResponse = await Promise.all((params.participant.timeslot ?? []).map(async (timeslot) => {
@@ -490,7 +522,8 @@ export async function createParticipantMutation(params: CreateParticipantMutatio
 
     return {
         id: createResponse.data.id,
-        ...params.participant
+        ...params.participant,
+        notifications: []
     }
 }
 
@@ -532,7 +565,7 @@ export async function updateUserAttributeMutation(params: UpdateUserAttributesMu
 }
 
 //TODO: improve me
-export interface UpdateParticipantMutationParams{
+export interface UpdateParticipantMutationParams {
     firstName: string,
     lastName: string,
     preferredName?: string,
@@ -541,9 +574,26 @@ export interface UpdateParticipantMutationParams{
     email?: string,
     participant: Participant,
     userTags: UserTag[],
-
 }
 export async function updateParticipantMutation(params: UpdateParticipantMutationParams){
+    const addedTags = params.userTags.filter((tag) => !params.participant.userTags.some((pTag) => pTag.id === tag.id))
+    const removedTags = params.userTags.filter((pTag) => !params.userTags.some((tag) => tag.id === pTag.id))
+
+    await Promise.all((await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: params.participant.id }))
+        .data.map((tag) => {
+            if(removedTags.some((rTag) => rTag.id === tag.tagId)) {
+                return client.models.ParticipantUserTag.delete({ id: tag.id })
+            }
+        })
+    )
+
+    await Promise.all(addedTags.map(async (tag) => {
+        return client.models.ParticipantUserTag.create({
+            tagId: tag.id,
+            participantId: params.participant.id
+        })
+    }))
+
     return client.models.Participant.update({
         id: params.participant.id,
         email: params.email,
@@ -551,8 +601,7 @@ export async function updateParticipantMutation(params: UpdateParticipantMutatio
         lastName: params.lastName,
         preferredName: params.preferredName,
         middleName: params.middleName,
-        contact: params.contact,
-        userTags: params.userTags.map((tag) => tag.id)
+        contact: params.contact
     })
 }
 
@@ -772,6 +821,11 @@ export async function updateTagMutation(params: UpdateTagParams) {
 export const getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({
     queryKey: ['userTags', client, options],
     queryFn: () => getAllUserTags(client, options)
+})
+
+export const getUserTagByIdQueryOptions = (tagId?: string, options?: GetTagByIdOptions) => queryOptions({
+    queryKey: ['userTag', client, options],
+    queryFn: () => getTagById(client, tagId, options)
 })
 
 export const getUserProfileByEmailQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({

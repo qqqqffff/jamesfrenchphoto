@@ -3,18 +3,11 @@ import { HiOutlineDownload } from "react-icons/hi"
 import Loading from "./Loading"
 import { Progress } from "flowbite-react"
 import { HiOutlineXMark } from "react-icons/hi2"
+import { DownloadData } from "../../types"
 
 export interface DownloadToastProps {
   downloads: DownloadData[],
   setDownloads: Dispatch<SetStateAction<DownloadData[]>>
-}
-
-export interface DownloadData {
-  id: string,
-  state: 'inprogress' | 'done' | 'paused' | 'idle'
-  progress: number,
-  totalItems: number,
-  display: boolean,
 }
 
 export const DownloadToast = (props: DownloadToastProps) => {

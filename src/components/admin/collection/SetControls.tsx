@@ -51,6 +51,7 @@ export const SetControls = (props: SetControlsProps) => {
 
             deletePhotos.mutate({
               collection: props.collection,
+              set: props.set,
               picturePaths: props.selectedPhotos,
             })
 

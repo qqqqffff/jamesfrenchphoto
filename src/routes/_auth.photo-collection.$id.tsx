@@ -1,15 +1,15 @@
-import { createFileRoute, invariant, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, invariant, redirect } from '@tanstack/react-router'
 import { getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
-import { favoriteImageMutation, FavoriteImageMutationParams, getAllPicturePathsByPhotoSetQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
+import { favoriteImageMutation, FavoriteImageMutationParams, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
 import { PhotoSet, PicturePath, UserProfile } from '../types'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Button } from 'flowbite-react'
-import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query'
 import { SetCarousel } from '../components/collection/SetCarousel'
 import { CgArrowsExpandRight } from 'react-icons/cg'
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart } from 'react-icons/hi2'
-import { downloadImageMutation, DownloadImageMutationParams } from '../services/photoPathService'
+import { downloadImageMutation, DownloadImageMutationParams, getInfinitePathsQueryOptions } from '../services/photoPathService'
 import { HiOutlineDownload } from 'react-icons/hi'
 import { UnauthorizedEmailModal } from '../components/modals'
 import { Cover } from '../components/collection/Cover'
@@ -18,6 +18,7 @@ interface PhotoCollectionParams {
   set?: string,
 }
 
+//TODO: fix updating set
 export const Route = createFileRoute('/_auth/photo-collection/$id')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): PhotoCollectionParams => ({
@@ -27,11 +28,12 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
   loader: async ({ context, params }) => {
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(!params.id) throw redirect({ to: destination })
+
     const collection = await context.queryClient.ensureQueryData(
       getPhotoCollectionByIdQueryOptions(params.id, { 
-        user: context.auth.user?.profile.email, 
+        participantId: context.auth.user?.profile.activeParticipant?.id, 
         siSets: true, 
-        siPaths: true,
+        siPaths: false,
         unauthenticated: context.temporaryToken !== undefined,
       })
     )
@@ -39,30 +41,19 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     if((!collection || collection.sets.length === 0 || !collection.published) && !context.auth.admin) throw redirect({ to: destination })
     invariant(collection)
 
-    const set = collection.sets.find((set) => set.id === context.set)
     
     const coverUrl = (await context.queryClient.ensureQueryData(
       getPathQueryOptions(collection.coverPath ?? '')
     ))?.[1]
-    const paths = (await context.queryClient.ensureQueryData(
-      getAllPicturePathsByPhotoSetQueryOptions(set?.id ?? collection.sets[0].id, { 
-        user: context.auth.user?.profile.email,
-        unauthenticated: context.temporaryToken !== undefined,
-      })
-    ))
+    
     if(!coverUrl && !context.auth.admin) throw redirect({ to: destination })
-
-    const mappedSet: PhotoSet = {
-      ...(set ?? collection.sets[0]),
-      paths: paths ?? [],
-    }
 
     return {
       collection: collection,
-      set: mappedSet,
       auth: context.auth,
       coverPath: coverUrl,
-      token: context.temporaryToken
+      token: context.temporaryToken,
+      setId: context.set
     }
   },
   wrapInSuspense: true
@@ -71,54 +62,142 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
 function RouteComponent() {
   const data = Route.useLoaderData()
   const collection = data.collection
-  const [set, setSet] = useState(data.set)
-  const [currentControlDisplay, setCurrentControlDisplay] = useState<string>()
+  const dimensions = useWindowDimensions()
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
+
+  
+
+  const columnMultiplier = dimensions.width > 1600 ? 5 : (
+    dimensions.width > 800 ? 
+      3 : 1
+    )
+
+  const getTriggerItems = useCallback((allItems: PicturePath[]): PicturePath => {
+    return allItems[allItems.length - allItems.length % columnMultiplier - columnMultiplier]
+  }, [])
+  
+  //TODO: update me please with participant instead
   const [tempUser, setTempUser] = useState<UserProfile>()
+
+  const [set, setSet] = useState<PhotoSet>(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
+
+  const pathsQuery = useInfiniteQuery(
+    getInfinitePathsQueryOptions(set.id ?? data.setId ?? collection.sets[0].id, {
+      unauthenticated: data.token !== undefined,
+      participantId: data.auth.user?.profile.activeParticipant?.id ?? tempUser?.activeParticipant?.id,
+      maxItems: Math.round(3 * (columnMultiplier) * 1.5)
+    })
+  )
+
+  useEffect(() => {
+    setSet(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
+  }, [data.setId])
+
+  const [currentControlDisplay, setCurrentControlDisplay] = useState<string>()
+  
   const [emailInputVisible, setEmailInputVisible] = useState(data.token !== undefined)
 
-  const navigate = useNavigate()
+  const navigate = Route.useNavigate()
   const coverPhotoRef = useRef<HTMLImageElement | null>(null)
   const collectionRef = useRef<HTMLDivElement | null>(null)
   const navigateControls = data.auth.admin
-  const dimensions = useWindowDimensions()
+  
 
   useEffect(() => {
     if(coverPhotoRef && coverPhotoRef.current) {
       coverPhotoRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
+    
+  }, [coverPhotoRef.current])
+
+  useEffect(() => {
     if(!tempUser && !data.auth.isAuthenticated && !emailInputVisible){
       throw redirect({ to: '/login', search: { unauthorized: true }})
     }
-    if(set.id !== data.set.id) {
-      setSet(data.set)
-    }
-  }, [coverPhotoRef.current, tempUser, data.set])
-
-  const paths = useQueries({
-    queries: set.paths.map((path) => (
-      getPathQueryOptions(path.path, path.id)
-    ))
-  })
+  }, [tempUser])
 
   const watermarkPath = useQuery(
     getPathQueryOptions(set.watermarkPath ?? collection.watermarkPath, collection.id)
   )
 
   const formattedCollection: PicturePath[][] = []
-  let maxIndex = (dimensions.width > 1600 ? 5 : (
-    dimensions.width > 800 ? 
-      3 : 1
-  ))
-  for(let i = 0; i < maxIndex; i++){
+  for(let i = 0; i < columnMultiplier; i++){
     formattedCollection.push([] as PicturePath[])
   }
 
+  const mappedPaths = pathsQuery.data?.pages
+    .flatMap((page) => page.memo)
+    .reduce((prev, cur) => {
+      if(!prev.some((path) => path.id === cur.id)) {
+        prev.push(cur)
+      }
+      return prev
+    }, [] as PicturePath[])
+    .sort((a, b) => a.order - b.order) ?? []
+
+  useEffect(() => {
+    if(mappedPaths.length === 0) return
+
+    if(!observerRef.current) {
+      observerRef.current = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if(entry.isIntersecting && pathsQuery.hasNextPage && !pathsQuery.isFetchingNextPage) {
+            pathsQuery.fetchNextPage()
+          }
+        })
+      }, {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1
+      })
+    }
+
+    const triggerItem = getTriggerItems(mappedPaths)
+
+    observerRef.current.disconnect()
+
+    const el = picturesRef.current.get(triggerItem.id)
+    if(el && observerRef.current) {
+      observerRef.current.observe(el)
+    }
+
+    return () => {
+      if(observerRef.current) {
+        observerRef.current.disconnect()
+      }
+      observerRef.current = null
+    }
+  }, [
+    mappedPaths,
+    pathsQuery.fetchNextPage,
+    pathsQuery.hasNextPage,
+    pathsQuery.isFetchingNextPage,
+    getTriggerItems,
+  ])
+
+  const setItemRef = useCallback((el: HTMLDivElement | null, id: string) => {
+    if(el) {
+      picturesRef.current.set(id, el)
+    }
+  }, [])
+
+  const paths: Record<string, UseQueryResult<[string | undefined, string] | undefined, Error>> = Object.fromEntries(
+    useQueries({
+      queries: mappedPaths.map((path) => (
+        getPathQueryOptions(path.path, path.id)
+      ))
+    })
+    .map((query, index) => {
+      return [mappedPaths[index].id, query]
+    })
+  )
+
   let curIndex = 0
-  set.paths
-    .sort((a, b) => a.order - b.order)
-    .forEach((picture) => {
+  
+  mappedPaths.forEach((picture) => {
       formattedCollection[curIndex].push(picture)
-      if(curIndex + 2 > maxIndex){
+      if(curIndex + 2 > columnMultiplier){
         curIndex = 0
       }
       else{
@@ -126,7 +205,7 @@ function RouteComponent() {
       }
     })
 
-  const gridClass = `grid grid-cols-${String(maxIndex)} gap-4 mx-4 mt-1`
+  const gridClass = `grid grid-cols-${String(columnMultiplier)} gap-4 mx-4 mt-1`
 
   function controlsEnabled(id: string){
     if(id === currentControlDisplay) return 'flex'
@@ -179,6 +258,7 @@ function RouteComponent() {
 
   return (
     <>
+      {/* TODO: update this modal please and thank you */}
       <UnauthorizedEmailModal 
         onClose={() => {
           setEmailInputVisible(false)
@@ -205,10 +285,16 @@ function RouteComponent() {
             <Button 
               className='mt-4' 
               onClick={() => 
-                navigate({ 
-                  to: `/${navigateControls ? 'admin' : 'client'}/dashboard${navigateControls ? '/collection' : ''}`, 
-                  search: { set: navigateControls ? set.id : undefined, collection: navigateControls ? collection.id : undefined } 
-                })
+                navigateControls ? (
+                  navigate({
+                    to: '/admin/dashboard/collection',
+                    search: { set: set.id, collection: collection.id }
+                  })
+                ) : (
+                  navigate({
+                    to: '/client/dashboard'
+                  }) 
+                )
               }
             >
               {navigateControls ? 'Return to Admin Console' : 'Return Home'}
@@ -234,6 +320,12 @@ function RouteComponent() {
             <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
               onClick={() => {
                 const nextIndex = currentIndex - 1 < 0 ? collection.sets.length - 1 : currentIndex - 1
+                const set = collection.sets[nextIndex]
+                const refObject = picturesRef.current.get(mappedPaths[0].id)
+                
+                if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
+
                 setSet({...collection.sets[nextIndex]})
               }}
             >
@@ -241,14 +333,27 @@ function RouteComponent() {
             </button>
             <SetCarousel 
               setList={collection.sets}
-              setSelectedSet={setSet}
+              setSelectedSet={(set) => {
+                const refObject = picturesRef.current.get(mappedPaths[0].id)
+                
+                if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
+
+                setSet(set)
+              }}
               selectedSet={set}
               currentIndex={currentIndex}
             />
             <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
               onClick={() => {
                 const nextIndex = currentIndex + 1 >= collection.sets.length ? 0 : currentIndex + 1
-                setSet({...collection.sets[nextIndex]})
+                const set = collection.sets[nextIndex]
+                const refObject = picturesRef.current.get(mappedPaths[0].id)
+                
+                if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
+
+                setSet(set)
               }}
             >
               <HiOutlineArrowRight size={24} />
@@ -261,11 +366,12 @@ function RouteComponent() {
               return (
                 <div key={index} className="flex flex-col gap-4">
                   {subCollection.map((picture, s_index) => {
-                    const url = paths.find((path) => path.data?.[0] === picture.id)
+                    const url = paths[picture.id]
                     
                     return (
                       <div 
                         key={s_index} 
+                        ref={el => setItemRef(el, picture.id)}
                         className="relative" 
                         onContextMenu={(e) => {
                           if(!collection.downloadable) e.preventDefault()
@@ -299,7 +405,8 @@ function RouteComponent() {
                               if(!picture.favorite && data.auth.user?.profile.email || tempUser?.email){
                                 favorite.mutate({
                                   pathId: picture.id,
-                                  user: data.auth.user?.profile.email ?? tempUser!.email,
+                                  collectionId: collection.id,
+                                  participantId: data.auth.user?.profile.email ?? tempUser!.email,
                                   options: {
                                     logging: true
                                   }

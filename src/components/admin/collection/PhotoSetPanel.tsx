@@ -1,6 +1,8 @@
-import { Dispatch, FC, SetStateAction, useCallback, useState } from "react"
+import { Dispatch, FC, SetStateAction, useCallback, useEffect, useState } from "react"
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
 import { 
+  HiOutlineArrowDown,
+  HiOutlineArrowUp,
   HiOutlineCog6Tooth,
   HiOutlineExclamationTriangle,
   HiOutlineTrash
@@ -9,29 +11,33 @@ import { Alert, Dropdown, FlowbiteColors, TextInput, ToggleSwitch, Tooltip } fro
 import { ConfirmationModal, UploadImagesModal } from "../../modals";
 import { DynamicStringEnumKeysOf, parsePathName, textInputTheme } from "../../../utils";
 import { SetControls } from "./SetControls";
-import { SetPictureTable } from "./SetPictureTable";
 import { EditableTextField } from "../../common/EditableTextField";
-import { useMutation, useQueries } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { 
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
   deleteSetMutation, 
   DeleteSetMutationParams, 
+  reorderPathsMutation, 
+  ReorderPathsParams, 
   updateSetMutation, 
   UpdateSetParams, 
   uploadImagesMutation, 
   UploadImagesMutationParams
 } from "../../../services/photoSetService";
-import { getPathQueryOptions } from "../../../services/collectionService";
 import { detectDuplicates } from "./utils";
 import { useDropzone } from "react-dropzone";
 import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
 import { AuthContext } from "../../../auth";
+import { PictureList } from "./picture-table/PictureList";
+import { getInfinitePathsQueryOptions } from "../../../services/photoPathService";
+import Loading from "../../common/Loading";
+import { repairPathsMutation, RepairPathsParams } from "../../../services/collectionService";
+import { CgSpinner } from "react-icons/cg";
 
 export type PhotoSetPanelProps = {
   photoCollection: PhotoCollection;
   photoSet: PhotoSet;
-  paths: PicturePath[],
   deleteParentSet: (setId: string) => void,
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
@@ -41,10 +47,10 @@ export type PhotoSetPanelProps = {
 
 export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
   photoCollection, photoSet, 
-  paths, deleteParentSet, parentUpdateSet,
+  deleteParentSet, parentUpdateSet,
   parentUpdateCollection, auth, parentUpdateCollections
 }) => {
-  const [picturePaths, setPicturePaths] = useState(paths)
+  const [picturePaths, setPicturePaths] = useState<PicturePath[]>([])
   const [searchText, setSearchText] = useState<string>('')
   const [selectedPhotos, setSelectedPhotos] = useState<PicturePath[]>([])
   const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
@@ -53,6 +59,52 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
   const [uploads, setUploads] = useState<UploadData[]>([])
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
+
+  const pathsQuery = useInfiniteQuery(
+    getInfinitePathsQueryOptions(photoSet.id),
+  )
+
+  useEffect(() => {
+    if(pathsQuery.data) {
+      //does not replace current paths
+      setPicturePaths((parentPrev) => {
+        let temp = [...parentPrev]
+
+        temp.push(...pathsQuery.data.pages
+          .reduce((prev, cur) => {
+            prev.push(...cur.memo)
+            return prev
+          }, [] as PicturePath[])
+          .reduce((prev, cur) => {
+            if(!prev.some((path) => path.id === cur.id)) {
+              prev.push(cur)
+            }
+            return prev
+          }, [] as PicturePath[])
+        )
+
+        return temp.reduce((prev, cur) => {
+          if(!prev.some((path) => path.id === cur.id)) {
+            prev.push(cur)
+          }
+          return prev
+        }, [] as PicturePath[])
+      })
+    }
+  }, [pathsQuery.data])
+
+  useEffect(() => {
+    setPicturePaths((prev) => 
+      prev
+        .filter((path) => path.setId === photoSet.id)
+        .reduce((prev, cur) => {
+          if(!prev.some((path) => path.id === cur.id)) {
+            prev.push(cur)
+          }
+          return prev
+        }, [] as PicturePath[])
+    )
+  }, [photoSet])
 
   const updateSet = useMutation({
     mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
@@ -70,23 +122,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   }
 
   let activeTimeout: NodeJS.Timeout | undefined
-
-  const urls = useQueries({
-    queries: picturePaths
-      .sort((a, b) => a.order - b.order)
-      .map((path) => {
-        return getPathQueryOptions(path.path, path.id)
-      })
-  })
-
-  const pathUrls = picturePaths
-    .sort((a, b) => a.order - b.order)
-    .map((path, index) => {
-      return ({
-        id: path.id,
-        url: urls[index]
-      })
-    })
 
   const duplicates = detectDuplicates(picturePaths)
 
@@ -131,6 +166,43 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
     mutationFn: (params: DeleteSetMutationParams) => deleteSetMutation(params)
   })
 
+  const repairPaths = useMutation({
+    mutationFn: (params: RepairPathsParams) => repairPathsMutation(params),
+    onSuccess: (data) => {
+      if(data) {
+        const temp: PhotoSet = {
+          ...photoSet,
+          paths: data,
+          items: data.length,
+        }
+
+        const tempCollection: PhotoCollection = {
+          ...photoCollection,
+          sets: photoCollection.sets.map((set) => {
+            return set.id === temp.id ? temp : set
+          }),
+          items: photoCollection.items - photoSet.items + temp.items
+        }
+
+        setPicturePaths(data)
+        parentUpdateSet(temp)
+        parentUpdateCollection(tempCollection)
+        parentUpdateCollections((prev) => {
+          const pTemp = [...prev]
+            .map((collection) => {
+              return collection.id === tempCollection.id ? tempCollection : collection
+            })
+
+          return pTemp
+        })
+      }
+    }
+  })
+
+  const reorderPaths = useMutation({
+    mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+  })
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const fileMap = new Map<string, File>()
     acceptedFiles.forEach((file) => {
@@ -164,14 +236,27 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
       })
     }
 
-    tempFiles.push({
-      id: 'upload',
-      path: '1',
-      url: '',
-      order: tempFiles.length,
-    })
-
     return tempFiles
+  })()
+
+  const determineSortDirection: 'ASC' | 'DSC' | 'none' = (() => {
+    let sortDirection: 'ASC' | 'DSC' | 'none' = 'none'
+    if(picturePaths.length <= 1) return sortDirection
+    const tempPaths = picturePaths.sort((a, b) => parsePathName(a.path).localeCompare(parsePathName(b.path)))
+
+    for(let i = 1; i < tempPaths.length; i++) {
+      if(tempPaths[i].order - 1 === tempPaths[i - 1].order && (sortDirection === 'ASC' || sortDirection === 'none')) {
+        sortDirection = 'ASC'
+      }
+      else if(tempPaths[i].order + 1 === tempPaths[i - 1].order && (sortDirection === 'DSC' || sortDirection === 'none')) {
+        sortDirection = 'DSC'
+      }
+      else {
+        return 'none'
+      }
+    }
+
+    return sortDirection
   })()
 
   return (
@@ -299,7 +384,112 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           value={searchText}
         />
         <div className="flex flex-row items-center gap-3 place-self-end h-full mb-1">
-          <span>Items: {picturePaths.length}</span>
+          <Dropdown
+            label={(<span className="hover:underline underline-offset-2">Items: {photoSet.items}</span>)}
+            inline
+            arrowIcon={false}
+            dismissOnClick={false}
+          >
+            <div className="flex flex-col">
+              <div className="flex flex-row items-center justify-center text-xl italic font-light px-4">Sort By</div>
+              <div className="border"/>
+              <Dropdown.Item 
+                disabled={reorderPaths.isPending}
+                className="flex flex-row items-center px-2 justify-between w-full gap-2 disabled:cursor-wait"
+                onClick={() => {
+                  if(determineSortDirection === 'ASC') {
+                    if(pathsQuery.hasNextPage) {
+                      reorderPaths.mutate({
+                        paths: [],
+                        fullRefetch: {
+                          setId: photoSet.id,
+                          order: 'DSC'
+                        },
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+                    else {
+                      reorderPaths.mutate({
+                        paths: [...picturePaths]
+                          .sort((a, b) => parsePathName(b.path).localeCompare(parsePathName(a.path)))
+                          .map((path, index) => ({...path, order: index})),
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+
+                    const updatedPaths: PicturePath[] = [...picturePaths]
+                      .sort((a, b) => parsePathName(b.path).localeCompare(parsePathName(a.path)))
+                      .map((path, index) => ({...path, order: index}))
+                    
+                    const updatedSet: PhotoSet = {
+                      ...photoSet,
+                      paths: updatedPaths
+                    }
+                    const updatedCollection: PhotoCollection = {
+                      ...photoCollection,
+                      sets: photoCollection.sets.map((set) => set.id === updatedSet.id ? updatedSet : set)
+                    }
+                    setPicturePaths(updatedPaths)
+                    parentUpdateSet(updatedSet)
+                    parentUpdateCollection(updatedCollection)
+                    parentUpdateCollections((prev) => prev.map((collection) => collection.id === updatedCollection.id ? updatedCollection : collection))
+                  } else if(determineSortDirection === 'none' || determineSortDirection === 'DSC') {
+                    if(pathsQuery.hasNextPage) {
+                      reorderPaths.mutate({
+                        paths: [],
+                        fullRefetch: {
+                          setId: photoSet.id,
+                          order: 'ASC'
+                        },
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+                    else {
+                      reorderPaths.mutate({
+                        paths: [...picturePaths]
+                          .sort((a, b) => parsePathName(a.path).localeCompare(parsePathName(b.path)))
+                          .map((path, index) => ({...path, order: index})),
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+
+                    const updatedPaths: PicturePath[] = [...picturePaths]
+                      .sort((a, b) => parsePathName(a.path).localeCompare(parsePathName(b.path)))
+                      .map((path, index) => ({...path, order: index}))
+                    
+                    const updatedSet: PhotoSet = {
+                      ...photoSet,
+                      paths: updatedPaths
+                    }
+                    const updatedCollection: PhotoCollection = {
+                      ...photoCollection,
+                      sets: photoCollection.sets.map((set) => set.id === updatedSet.id ? updatedSet : set)
+                    }
+                    setPicturePaths(updatedPaths)
+                    parentUpdateSet(updatedSet)
+                    parentUpdateCollection(updatedCollection)
+                    parentUpdateCollections((prev) => prev.map((collection) => collection.id === updatedCollection.id ? updatedCollection : collection))
+                    // pathsQuery.refetch()
+                  }
+                }}
+              >
+                <span>Name</span>
+                {determineSortDirection === 'ASC' || determineSortDirection === 'none' ? (
+                  <HiOutlineArrowDown />
+                ) : (
+                  <HiOutlineArrowUp />
+                )}
+              </Dropdown.Item>
+            </div>
+          </Dropdown>
           {duplicates.length > 0 && (
             <Tooltip style='light' content={(
               <div className="flex flex-col">
@@ -310,11 +500,43 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
                       onClick={() => {
                         deleteImages.mutate({
                           collection: photoCollection,
-                          picturePaths: duplicates
+                          picturePaths: duplicates,
+                          set: photoSet,
                         })
-                        setPicturePaths(picturePaths.filter((path) => {
-                          return (duplicates.find((dup) => dup.id === path.id) === undefined)
-                        }))
+
+                        const tempSet: PhotoSet = {
+                          ...photoSet,
+                          paths: picturePaths.filter((path) => {
+                            return (duplicates.find((dup) => dup.id === path.id) === undefined)
+                          }),
+                          items: photoSet.items - duplicates.length
+                        }
+
+                        const tempCollection: PhotoCollection = {
+                          ...photoCollection,
+                          sets: photoCollection.sets.map((set) => {
+                            if(set.id === tempSet.id) {
+                              return tempSet
+                            }
+                            return set
+                          })
+                        }
+
+                        //State updating
+                        parentUpdateCollection(tempCollection)
+                        parentUpdateCollections((prev) => {
+                          const temp = [...prev]
+                            .map((col) => {
+                              if(col.id === tempCollection.id) {
+                                return tempCollection
+                              }
+                              return col
+                            })
+
+                          return temp
+                        })
+                        parentUpdateSet(tempSet)
+                        setPicturePaths(tempSet.paths)
                         setSearchText('')
                       }}
                     >
@@ -355,6 +577,23 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
                   }}
                 />Upload Pictures
               </Dropdown.Item>
+              <Dropdown.Item
+                className="disabled:cursor-wait flex flex-row items-center gap-2"
+                disabled={repairPaths.isPending}
+                onClick={() => {
+                  //TODO: display a notification if something happens
+                  repairPaths.mutate({
+                    collectionId: photoCollection.id,
+                    setId: photoSet.id,
+                    options: {
+                      logging: true
+                    }
+                  })
+                }}
+              >
+                {repairPaths.isPending && (<CgSpinner size={24} className="animate-spin text-gray-600"/>)}
+                <span>Repair Photo Paths</span>
+              </Dropdown.Item>
               <Dropdown.Item 
                 onClick={() => setDeleteConfirmation(true)}
                 className="text-red-400"
@@ -372,42 +611,49 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
         )}
       </div>
       <div className="w-full p-1 relative" {...getRootProps()}>
-        { isDragActive && (
+        {isDragActive && (
           <div 
             className="absolute w-full h-full items-center justify-center flex flex-col opacity-50 z-10 bg-gray-200 border-2 border-gray-400 border-dashed rounded-lg"
           >
             <span className="opacity-100 font-semibold text-2xl animate-pulse">Drop files here</span>
           </div>
         )}
-        <SetPictureTable 
-          collection={photoCollection}
-          set={photoSet}
-          paths={filteredPhotos
-            .sort((a, b) => a.order - b.order)
-            .filter((path) => path.path && path.id)
-          }
-          parentUpdatePaths={setPicturePaths}
-          parentUpdateSet={parentUpdateSet}
-          parentUpdateCollection={parentUpdateCollection}
-          parentUpdateCollections={parentUpdateCollections}
-          urls={pathUrls}
-          pictureStyle={pictureStyle}
-          selectedPhotos={selectedPhotos}
-          setSelectedPhotos={setSelectedPhotos}
-          setDisplayPhotoControls={setDisplayPhotoControls}
-          controlsEnabled={controlsEnabled}
-          displayTitleOverride={displayTitleOverride}
-          notify={(text, color) => {
-            setNotification({text, color})
-            clearTimeout(activeTimeout)
-            activeTimeout = setTimeout(() => {
-              setNotification(undefined)
-              activeTimeout = undefined
-            }, 5000)
-          }}
-          setFilesUploading={setFilesUploading}
-          userEmail={auth.user?.profile.email}
-        />
+        {pathsQuery.isPending ? (
+          <div className="w-full flex flex-row justify-center items-center">
+            <span>Loading Pictures</span>
+            <Loading />
+          </div>
+        ) : (
+          <PictureList 
+            collection={photoCollection}
+            set={photoSet}
+            paths={filteredPhotos
+              .sort((a, b) => a.order - b.order)
+              .filter((path) => path.path && path.id)
+            }
+            parentUpdatePaths={setPicturePaths}
+            parentUpdateSet={parentUpdateSet}
+            parentUpdateCollection={parentUpdateCollection}
+            parentUpdateCollections={parentUpdateCollections}
+            pictureStyle={pictureStyle}
+            selectedPhotos={selectedPhotos}
+            setSelectedPhotos={setSelectedPhotos}
+            setDisplayPhotoControls={setDisplayPhotoControls}
+            controlsEnabled={controlsEnabled}
+            displayTitleOverride={displayTitleOverride}
+            notify={(text, color) => {
+              setNotification({text, color})
+              clearTimeout(activeTimeout)
+              activeTimeout = setTimeout(() => {
+                setNotification(undefined)
+                activeTimeout = undefined
+              }, 5000)
+            }}
+            setFilesUploading={setFilesUploading}
+            participantId={auth.user?.profile.activeParticipant?.id}
+            pathsQuery={pathsQuery}
+          />
+        )}
       </div>
     </div>
   </>

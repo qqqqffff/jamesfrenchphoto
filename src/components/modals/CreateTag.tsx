@@ -2,13 +2,14 @@ import { FC, useEffect, useState } from "react";
 import { ModalProps } from ".";
 import { Button, Checkbox, Datepicker, Dropdown, Label, Modal, TextInput } from "flowbite-react";
 import { PhotoCollection, Timeslot, UserTag } from "../../types";
-import { currentDate, DAY_OFFSET, defaultColors, GetColorComponent, textInputTheme } from "../../utils";
+import { currentDate, DAY_OFFSET, defaultColors, textInputTheme } from "../../utils";
 import { BiSolidSquareRounded } from "react-icons/bi";
 import { CompactSlotComponent, SlotComponent } from "../timeslot/Slot";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getAllPhotoCollectionsQueryOptions } from "../../services/collectionService";
 import { getAllTimeslotsByDateQueryOptions } from "../../services/timeslotService";
 import { createTagMutation, CreateTagParams, updateTagMutation, UpdateTagParams } from "../../services/userService";
+import { ColorComponent } from "../common/ColorComponent";
 
 interface CreateTagProps extends ModalProps {
   existingTag?: UserTag
@@ -162,7 +163,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({ open, onClose, existingTag,
               </div>
           </div>
           <div className="flex flex-col items-center justify-center mb-4 mt-2">
-            <Label className="text-lg" htmlFor="name">Color: <GetColorComponent activeColor={activeColor} /></Label>
+            <Label className="text-lg" htmlFor="name">Color: <ColorComponent activeColor={activeColor} /></Label>
             <div className="grid grid-cols-7 gap-2">
               {defaultColors.map((color, index) => {
                 const className = 'fill-' + color + ' cursor-pointer'
