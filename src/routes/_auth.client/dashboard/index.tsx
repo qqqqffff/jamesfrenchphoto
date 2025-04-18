@@ -85,8 +85,6 @@ function RouteComponent() {
     })
   })
 
-  console.log(collections.length)
-
   return (
     <>
       {activePackage && activePackagePDF && (
