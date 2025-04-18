@@ -53,6 +53,7 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         const session = await fetchAuthSession()
         const attributes = await fetchUserAttributes()
         const groups = JSON.stringify(session.tokens?.accessToken.payload['cognito:groups'])
+        //TODO: validate that this is fetching entire profile correctly
         const profile = await getUserProfileByEmail(client, username, 
             groups.includes('ADMINS') || groups.includes('USERS') ? {
                 siTags: true,

@@ -17,6 +17,7 @@ interface UserCellProps extends ComponentProps<'td'> {
   columnId: string,
 }
 
+//TODO: fix users with same email
 export const UserCell = (props: UserCellProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [value, setValue] = useState('')

@@ -17,6 +17,7 @@ interface TagCellProps extends ComponentProps<'td'> {
   rowIndex: number
 }
 
+//TODO: fix tag removal
 export const TagCell = (props: TagCellProps) => {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)

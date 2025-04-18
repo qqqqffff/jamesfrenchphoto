@@ -535,6 +535,7 @@ export async function createParticipantMutation(params: CreateParticipantParams)
     return {
         id: createResponse.data.id,
         ...params.participant,
+        //TODO: create tag mapping response
         notifications: []
     }
 }
