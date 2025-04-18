@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Package, UserTag } from '../../../types'
+import { Package, PhotoCollection, UserTag } from '../../../types'
 import { FC, useState } from 'react'
 import { Alert, Button, Modal } from 'flowbite-react'
 import PDFViewer from '../../../components/common/PDFViewer'
@@ -53,21 +53,25 @@ function RouteComponent() {
   const tags: UserTag[] = auth.user?.profile.activeParticipant?.userTags ?? []
 
   const collections = tags
-    .map((tag) => tag.collections)
+    .flatMap((tag) => tag.collections)
+    .filter((collection) => collection?.published)
     .filter((collection) => collection !== undefined)
-    .map((collection) => {
-      const filteredCollection = collection.filter((collection) => 
-        !participantCollections.data?.some((participantCollection) => participantCollection.id === collection.id))
-
-      return filteredCollection
-    })
     .reduce((prev, cur) => {
-        prev.push(...((cur).filter((collection) => (prev.find((prevColl) => prevColl.id !== collection.id)) === undefined)))
-        return prev
-    }, [])
+      if(!prev.some((collection) => collection.id === cur.id)){
+        prev.push(cur)
+      }
+      return prev
+    }, [] as PhotoCollection[])
 
   if(participantCollections.data) {
-    collections.push(...participantCollections.data)
+    collections.push(...participantCollections.data
+      .reduce((prev, cur) => {
+        if(!prev.some((collection) => collection.id === cur.id)) {
+          prev.push(cur)
+        }
+        return prev
+      }, [] as PhotoCollection[])
+    )
   }
 
   const collectionCovers = useQueries({
@@ -80,6 +84,8 @@ function RouteComponent() {
       query: query
     })
   })
+
+  console.log(collections.length)
 
   return (
     <>
@@ -111,16 +117,6 @@ function RouteComponent() {
               })
             }
             {/* notifications will display here */}
-            {/* {tags.length > 0 &&
-              tags.map((tag, index) => {
-                  if(tag.name === 'LAF Escort 2025'){
-                      return (
-                          <Alert color="gray" key={index}>Headshots will be taken prior to the announcement party on <strong>Thursday, December 19th</strong>. Please see your emailed photography packets for additional information.</Alert>
-                      )
-                  }
-                  return undefined
-              }).filter((element) => element !== undefined)
-            } */}
           </div>
           
           <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections:</span>

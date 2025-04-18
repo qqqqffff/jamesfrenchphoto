@@ -436,7 +436,7 @@ export const TableComponent = (props: TableComponentProps) => {
         open={deleteColumnConfirmation}
       />
       {/* overflow-x-auto overflow-y-auto */}
-      <div className="relative  shadow-md">
+      <div className="relative shadow-md overflow-scroll max-w-[60vw] max-h-[85vh]">
         <table className="w-full text-sm text-left text-gray-600">
           <thead className="text-xs text-gray-700 bg-gray-50 sticky">
             <tr>

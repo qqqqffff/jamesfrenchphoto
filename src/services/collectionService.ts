@@ -459,7 +459,9 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
     const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagData.map(async (collectionTag) => {
       const mappedCollection = await getCollectionById(client, collectionTag.collectionId, { ...options })
       return mappedCollection
-    }))).filter((collection) => collection !== null)
+    })))
+      .filter((collection) => collection?.published)
+      .filter((collection) => collection !== null)
 
     return mappedCollections
 }
