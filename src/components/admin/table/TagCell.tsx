@@ -17,6 +17,7 @@ interface TagCellProps extends ComponentProps<'td'> {
   rowIndex: number
 }
 
+//TODO: fix tag removal
 export const TagCell = (props: TagCellProps) => {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -50,8 +51,8 @@ export const TagCell = (props: TagCellProps) => {
     .find((participant) => {
       if(mode === 'column' && source) {
         const columnSource = props.table.columns.find((column) => column.id === source.id)
-        if(!columnSource || !participant.email) return
-        return participant.email === columnSource.values[props.rowIndex]
+        if(!columnSource || !participant.id) return
+        return participant.id === columnSource.values[props.rowIndex]
       }
       else if(source) {
         return participant.id === source.id
@@ -173,7 +174,6 @@ export const TagCell = (props: TagCellProps) => {
                         disabled={updateParticipant.isPending}
                         className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
                         onClick={() => {
-                          //TODO: connect api
                           if(!foundParticipant.userTags.some((participantTag) => participantTag.id === tag.id)){
                             const tempParticipant: Participant = {
                               ...foundParticipant,
@@ -333,7 +333,7 @@ export const TagCell = (props: TagCellProps) => {
                 </div>
               )}
               {tempSource && mode === 'column' && tempSource.email ? (
-                <span className="italic underline underline-offset-2">{tempSource.email}</span>
+                <span className="italic underline underline-offset-2">{tempSource.firstName}, {tempSource.lastName}</span>
               ) : (
                 !tempSource && source && (
                   <div className="flex flex-row items-center gap-1">

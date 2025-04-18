@@ -17,6 +17,7 @@ interface TablePanelProps {
   parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>>
 }
 
+//TODO: fix row deletion
 export const TablePanel = (props: TablePanelProps) => {
   const [searchText, setSearchText] = useState('')
   const [deletedColumns, setDeletedColumns] = useState<TableColumn[]>([])
