@@ -239,7 +239,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('userEmail')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update']), allow.guest().to(['create'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update', 'list']), allow.guest().to(['create'])]),
   ParticipantUserTag: a.
     model({
       id: a.id().required(),

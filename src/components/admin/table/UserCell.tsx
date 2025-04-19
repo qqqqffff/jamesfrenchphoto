@@ -42,28 +42,25 @@ export const UserCell = (props: UserCellProps) => {
   const users: [string, 'user'][] = (props.userData.data ?? [])
     .map((data) => ([data.email, 'user']))
 
-  const participants = (props.userData.data ?? [])
+  const participants: Record<string, Participant> = Object.fromEntries((props.userData.data ?? [])
     .map((data) => {
       if(!data.profile) return
       if(data.profile.participant && data.profile.participant.length > 0) {
         return data.profile.participant
-          .map((participant) => participant.email)
-          .filter((email) => email !== undefined)
-          .filter((value) => value !== '')
       }
       return
     })
     .filter((data) => data !== undefined)
     .reduce((prev, cur) => {
-      const temp = cur.filter((email) => !prev.some((p) => p === email) && email !== undefined)
+      const temp = cur.filter((part) => !prev.some((p) => p.id === part.id))
       prev.push(...temp)
       return prev
     }, [] )
-    .filter((data) => !users.some((user) => user[0] === data))
-    .map((data) => ([data, 'participant']))
+    .map((data) => ([data.id, data])))
 
-  
-  const mergedResults: Record<string, 'user' | 'participant' | 'tempUser'> = Object.fromEntries([...users, ...participants, ...tempUsers])
+  const participantResults: [string, 'participant'][] = Object.entries(participants).map((participant) => ([participant[0], 'participant']))
+
+  const mergedResults: Record<string, 'user' | 'participant' | 'tempUser'> = Object.fromEntries([...users, ...participantResults, ...tempUsers])
 
   const filteredItems = Object.entries(mergedResults)
     .filter((data) => (
@@ -76,6 +73,16 @@ export const UserCell = (props: UserCellProps) => {
   const displayNoResults = foundUser === undefined && props.value !== value && !validator.isEmail(value) && filteredItems && filteredItems.length === 0 && isFocused
   const displayInvite = foundUser === undefined && props.value === value && isFocused && validator.isEmail(props.value) && isFocused
   const displaySearchResults = isFocused && ((props.value !== value || foundUser === undefined) && !validator.isEmail(value)) && filteredItems && filteredItems.length > 0
+  const duplicateEmails = foundUser !== undefined && foundUser === 'participant' && 
+    !Object.entries(participants)
+      .filter((participant) => participant[0] !== props.value)
+      .reduce((prev, cur) => {
+        if(!prev) return prev
+        if(cur[1].email === participants[props.value].email) {
+          return false
+        }
+        return prev
+      }, true)
 
   function userPanel(type: 'user' | 'participant' | 'tempUser', value: string): JSX.Element | undefined {
     let profile: UserData | undefined
@@ -85,13 +92,7 @@ export const UserCell = (props: UserCellProps) => {
       if(!profile) return
     }
     else if(type === 'participant'){
-      participant = props.userData.data?.map((data) => {
-        const foundParticipant = data.profile?.participant.find((participants) => participants.email === value)
-        return foundParticipant
-      }).reduce((prev, cur) => {
-        if(cur && !prev) return cur
-        return prev
-      })
+      participant = participants[value]
       if(!participant) return
     }
     else if(type === 'tempUser') {
@@ -167,10 +168,14 @@ export const UserCell = (props: UserCellProps) => {
     ) : (
       type === 'participant' && participant ? (
         <div className="flex flex-col text-xs px-2 pb-1">
+          <div className="flex flex-row gap-2 items-center max-w-[200px] overflow-hidden whitespace-nowrap text-ellipsis">
+            <span>First Name:</span>
+            <span className="italic">{participant.id}</span>
+          </div>
           <div className="flex flex-row gap-2 items-center text-nowrap">
-              <span>First Name:</span>
-              <span className="italic">{participant.firstName}</span>
-            </div>
+            <span>First Name:</span>
+            <span className="italic">{participant.firstName}</span>
+          </div>
           {participant.preferredName && (
             <div className="flex flex-row gap-2 items-center text-nowrap">
               <span>Preferred Name:</span>
@@ -211,7 +216,11 @@ export const UserCell = (props: UserCellProps) => {
         onChange={(event) => {
           setValue(event.target.value)
         }}
-        value={value}
+        value={foundUser === 'participant' ? (
+          !participants[value]?.email || duplicateEmails ? (
+            `${participants[value].firstName}, ${participants[value].lastName}`
+          ) : participants[value].email
+        ) : value}
         onKeyDown={async (event) => {
           if(inputRef.current){
             if(event.key === 'Enter'){
@@ -245,6 +254,24 @@ export const UserCell = (props: UserCellProps) => {
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
           <ul className="max-h-60 overflow-y-auto py-1 min-w-max">
             {filteredItems.map((item, index) => {
+              let participant: Participant | undefined
+              let duplicateEmails: boolean = false
+              if(item[1] === 'participant') {
+                participant = participants[item[0]]
+                const email = participant.email
+                duplicateEmails = !Object.entries(participants)
+                  .filter((participant) => participant[0] !== item[0])
+                  .reduce((prev, cur) => {
+                    if(!prev) return prev
+                    if(cur[1].email === email) {
+                      return false
+                    }
+                    return prev
+                  }, true)
+
+                if(!participant) return
+              }
+              
               return (
                 <Tooltip 
                   key={index}
@@ -267,7 +294,11 @@ export const UserCell = (props: UserCellProps) => {
                       setIsFocused(false)
                     }}
                   >
-                    {item[0]}
+                    {item[1] === 'participant' ? (
+                      duplicateEmails || !participant?.email ? `${participants[item[0]].firstName}, ${participants[item[0]].lastName}` : participant.email 
+                    ) : (
+                      item[0]
+                    )}
                   </li>
                 </Tooltip>
               )

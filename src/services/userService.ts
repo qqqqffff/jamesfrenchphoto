@@ -119,9 +119,12 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
         if(options === undefined || options.siTags){
              tags.push(...(await Promise.all(((await participant.tags()).data ?? []).filter((tag) => tag !== null).map(async (tag) => {
                 const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+
                 const notifications: Notification[] = []
-                if(!tagResponse || !tagResponse.data) return
                 const mappedCollections: PhotoCollection[] = []
+
+                if(!tagResponse || !tagResponse.data) return
+                
                 if(!options || options.siCollections){
                     mappedCollections.push(...(await Promise.all((await tagResponse.data.collectionTags()).data.map(async (colTag) => {
                         const collection = await colTag.collection()
@@ -160,7 +163,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                         return mappedCollection
                     }))).filter((item) => item !== undefined))
                 }
-                if(!options?.unauthenticated) {
+                if(!options?.unauthenticated && options?.siNotifications) {
                     const notificationResponse = await getAllNotificationsFromUserTag(client, notificationMemo, tag.tagId)
                     notificationMemo.push(...notificationResponse[1])
                     notifications.push(...notificationResponse[0])
@@ -175,6 +178,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                 return mappedTag
             }))).filter((tag) => tag !== undefined))
         }
+
         if(options === undefined || options.siTimeslot){
             timeslots.push(...(await Promise.all((await participant.timeslot()).data.map(async (timeslot) => {
                 const tag = await timeslot.timeslotTag()
@@ -204,6 +208,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                 return mappedTimeslot
             }))))
         }
+
         if(options === undefined || options.siNotifications) {
             notifications.push(...(await Promise.all((await participant.notifications()).data.map(async (notificationTag) => {
                 const notification = await notificationTag.notification()
