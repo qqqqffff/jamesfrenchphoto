@@ -122,7 +122,7 @@ async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collect
         }))
     }))
 
-    console.log(participantMemo)
+    console.log(await client.models.UserFavorites.list(), participantMemo)
     
     const returnMap = new Map<Participant, Favorite[]>()
     await Promise.all(participantMemo.map(async (participant) => {
@@ -159,49 +159,10 @@ async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collect
 
         returnMap.set(participant, mappedFavorites)
     }))
-
-    console.log(returnMap)
-
-    // const authUsers = await getAuthUsers(client)
-
-    // const profileMapping = await Promise.all(Array.from(favoriteMap.entries()).map(async (entry) => {
-    //     const foundProfile =  await getUserProfileByEmail(client, entry[0], { 
-    //         siCollections: false, 
-    //         siSets: false, 
-    //         siTags: false, 
-    //         siTimeslot: false, 
-    //         siNotifications: false 
-    //     })
-
-    //     if(!foundProfile){
-    //         returnMap.set({ 
-    //             user: {
-    //                 sittingNumber: -1,
-    //                 email: entry[0],
-    //                 userTags: [],
-    //                 preferredContact: 'EMAIL',
-    //                 participant: [],
-    //             },
-    //             data: authUsers?.find((data) => data.email === entry[0])
-    //         }, entry[1])
-    //     } else {
-    //         returnMap.set({ 
-    //             user: foundProfile,
-    //             data: authUsers?.find((data) => data.email === entry[0])
-    //         }, entry[1])
-    //     }
-    //     return foundProfile
-    // }))
-
-    // if(options?.logging) {
-    //     console.log(returnMap)
-    //     console.log(profileMapping)
-    // }
     
     const end = new Date().getTime()
 
     if(options?.metric) console.log(`GETFAVORITESFROMPHOTOCOLLECTION:${new Date(end - start).getTime()}ms`)
-    // if(options?.logging) console.log(response)
 
     return returnMap
 }

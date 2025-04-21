@@ -150,7 +150,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
 
   const participants = useQuery(getAllParticipantsQueryOptions({ siTags: true }))
 
-  const collectionParticipants = useQuery(getAllCollectionParticipantsQueryOptions(collection.id))
+  const collectionParticipants = useQuery(getAllCollectionParticipantsQueryOptions(collection.id, { siTags: true }))
 
   const uploadCover = useMutation({
     mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
@@ -481,7 +481,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                   setActiveConsole('watermarks')
                 }
               }}
-              title="watermarks"
+              title="Watermarks"
             />
             <CollectionSidePanelButton 
               console="share"
@@ -782,8 +782,12 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
               <UsersPanel
                 collection={collection}
+                parentUpdateCollection={updateParentCollection}
+                parentUpdateCollections={updateParentCollections}
                 participants={participants.data ?? []}
-                collectionParticipants={collectionParticipants.data ?? []}
+                collectionParticipants={collectionParticipants}
+                userTags={availableTags}
+                updateCollectionMutation={updateCollection}
               />
             </div>
         ): (

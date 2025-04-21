@@ -61,7 +61,9 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
 
   const pathsQuery = useInfiniteQuery(
-    getInfinitePathsQueryOptions(photoSet.id),
+    getInfinitePathsQueryOptions(photoSet.id, {
+      participantId: auth.user?.profile.activeParticipant?.id
+    }),
   )
 
   useEffect(() => {

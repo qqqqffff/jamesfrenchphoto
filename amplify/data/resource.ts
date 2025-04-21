@@ -32,6 +32,7 @@ const schema = a.schema({
         date: a.string(),
         placement: a.enum(['center', 'left', 'right']),
         textPlacement: a.enum(['center', 'top', 'bottom']),
+        bgOpacity: a.integer()
       }),
       name: a.string().required(),
       tags: a.hasMany('CollectionTag', 'collectionId'),

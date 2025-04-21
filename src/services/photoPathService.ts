@@ -81,7 +81,9 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
 
   if(options?.participantId) {
     //TODO: improve me
-    newPaths.push(...(await Promise.all(response.data.map(async (path) => {
+    newPaths.push(...(await Promise.all(response.data
+      .filter((path) => !initial.memo.some((pPath) => pPath.id === path.id))
+      .map(async (path) => {
         let favorite: undefined | string = (await path.favorites({ 
               authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
             })).data.find((favorite) => favorite.participantId === options.participantId)?.id
@@ -95,13 +97,16 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
     }))))
   }
   else {
-    newPaths.push(...response.data.map((path) => {
-      const mappedPath: PicturePath = {
-        ...path,
-        url: ''
-      }
-      return mappedPath
-    }))
+    newPaths.push(...response.data
+      .filter((path) => !initial.memo.some((pPath) => pPath.id === path.id))
+      .map((path) => {
+        const mappedPath: PicturePath = {
+          ...path,
+          url: ''
+        }
+        return mappedPath
+      })
+    )
   }
 
   const returnData: GetInfinitePathsData = {

@@ -1,7 +1,7 @@
 import { RemovalPolicy } from "aws-cdk-lib";
 import { CachePolicy, Distribution, IDistribution, IOriginAccessIdentity, OriginAccessIdentity, PriceClass, SecurityPolicyProtocol, ViewerProtocolPolicy } from "aws-cdk-lib/aws-cloudfront";
-import { S3BucketOrigin, S3Origin } from "aws-cdk-lib/aws-cloudfront-origins";
-import { AnyPrincipal, Effect, IRole, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { S3BucketOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
+import { AnyPrincipal } from "aws-cdk-lib/aws-iam";
 import { IFunction } from "aws-cdk-lib/aws-lambda";
 import { Bucket, IBucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
