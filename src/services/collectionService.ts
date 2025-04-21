@@ -467,7 +467,7 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
 
 export interface CreateCollectionParams {
     name: string,
-    tags:  UserTag[],
+    tags?:  UserTag[],
     cover?: string,
     downloadable: boolean,
     options?: {
@@ -485,7 +485,7 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
 
     if(!collectionResponse || !collectionResponse.data) return null
 
-    const taggingResponse = await Promise.all(params.tags.map(async (tag) => {
+    const taggingResponse = await Promise.all((params.tags ?? []).map(async (tag) => {
         const taggingResponse = await client.models.CollectionTag.create({
             collectionId: collectionResponse.data!.id,
             tagId: tag.id
@@ -508,7 +508,7 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
         textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
         date: collectionResponse.data.coverType?.date ?? undefined
       },
-      tags: params.tags,
+      tags: params.tags ?? [],
       downloadable: params.downloadable,
       watermarkPath: undefined,
       sets: [],

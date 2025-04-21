@@ -253,7 +253,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
             })
           }
         }} 
-        availableTags={availableTags} 
         open={updateCollectionVisible} 
         onClose={() => setUpdateCollectionVisible(false)}
       />
