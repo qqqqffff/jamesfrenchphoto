@@ -7,12 +7,12 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineTrash
 } from "react-icons/hi2";
-import { Alert, Dropdown, FlowbiteColors, TextInput, ToggleSwitch, Tooltip } from "flowbite-react";
+import { Alert, Button, Dropdown, FlowbiteColors, TextInput, ToggleSwitch, Tooltip } from "flowbite-react";
 import { ConfirmationModal, UploadImagesModal } from "../../modals";
 import { DynamicStringEnumKeysOf, parsePathName, textInputTheme } from "../../../utils";
 import { SetControls } from "./SetControls";
 import { EditableTextField } from "../../common/EditableTextField";
-import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, UseMutationResult } from "@tanstack/react-query";
 import { 
   deleteImagesMutation, 
   DeleteImagesMutationParams, 
@@ -32,8 +32,11 @@ import { AuthContext } from "../../../auth";
 import { PictureList } from "./picture-table/PictureList";
 import { getInfinitePathsQueryOptions } from "../../../services/photoPathService";
 import Loading from "../../common/Loading";
-import { repairPathsMutation, RepairPathsParams } from "../../../services/collectionService";
+import { PublishCollectionParams, repairPathsMutation, RepairPathsParams } from "../../../services/collectionService";
 import { CgSpinner } from "react-icons/cg";
+import { Publishable } from "./PhotoCollectionPanel";
+import { PublishableItems } from "./PublishableItems";
+import { useNavigate } from "@tanstack/react-router";
 
 export type PhotoSetPanelProps = {
   photoCollection: PhotoCollection;
@@ -42,11 +45,13 @@ export type PhotoSetPanelProps = {
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
   parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
-  auth: AuthContext
+  auth: AuthContext,
+  publishable: Publishable
+  publishCollection: UseMutationResult<string | undefined, Error, PublishCollectionParams, unknown>
 }
 
 export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
-  photoCollection, photoSet, 
+  photoCollection, photoSet, publishable, publishCollection,
   deleteParentSet, parentUpdateSet,
   parentUpdateCollection, auth, parentUpdateCollections
 }) => {
@@ -59,6 +64,8 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
   const [uploads, setUploads] = useState<UploadData[]>([])
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
+
+  const navigate = useNavigate()
 
   const pathsQuery = useInfiniteQuery(
     getInfinitePathsQueryOptions(photoSet.id, {
@@ -260,6 +267,37 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
     return sortDirection
   })()
+
+  function wrapPublishable(child: JSX.Element): JSX.Element {
+    if((publishable.reason?.length ?? 0) > 0 || (publishable.warning?.length ?? 0) > 0) {
+      return (
+        <Tooltip
+          style='light'
+          theme={{ target: undefined }}
+          arrow
+          placement="bottom"
+          trigger="hover"
+          content={(
+            <div className="flex flex-col gap-1 whitespace-nowrap overflow-y-scroll max-h-[250px] justify-start">
+              {publishable.reason?.map((reason, index) => {
+                return (
+                  <PublishableItems key={index} item='error' message={reason} />
+                )
+              })}
+              {publishable.warning?.map((warning, index) => {
+                return (
+                  <PublishableItems key={index} item='warning' message={warning} />
+                )
+              })}
+            </div>
+          )}
+        >
+          {child}
+        </Tooltip>
+      )
+    }
+    return child
+  }
 
   return (
   <>
@@ -551,59 +589,113 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
               <HiOutlineExclamationTriangle className='text-yellow-400' size={24}/>
             </Tooltip>
           )}
-          <Tooltip content="Photo Set Settings">
-            <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={24} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
-              <Dropdown.Item 
-                onClick={() => setDisplayTitleOverride(!displayTitleOverride)}
-                as='div'
-              >
-                <ToggleSwitch 
-                  checked={displayTitleOverride} 
-                  onChange={() => setDisplayTitleOverride(!displayTitleOverride)}
-                  label="Display Photo Titles"
-                />
-              </Dropdown.Item>
-              <Dropdown.Item as='label' htmlFor="setting-upload-file" className="">
-                <input 
-                  id='setting-upload-file' 
-                  type="file" 
-                  className="hidden" 
-                  multiple 
-                  accept="image/*"
-                  {...getInputProps()}
-                  onChange={(event) => {
-                    if(event.target.files){
-                      const files = Array.from(event.target.files)
-                      onDrop(files)
-                    }
-                  }}
-                />Upload Pictures
-              </Dropdown.Item>
-              <Dropdown.Item
-                className="disabled:cursor-wait flex flex-row items-center gap-2"
-                disabled={repairPaths.isPending}
-                onClick={() => {
-                  //TODO: display a notification if something happens
-                  repairPaths.mutate({
+          {wrapPublishable(
+            <Button 
+              onClick={() => {
+                if(photoCollection.published){
+                  const tempCollection: PhotoCollection = {
+                    ...photoCollection,
+                    published: false,
+                    publicCoverPath: undefined
+                  }
+                  parentUpdateCollection(tempCollection)
+                  parentUpdateCollections((prev) => {
+                    const temp = [...prev]
+        
+                    return temp.map((col) => {
+                      if(col.id === tempCollection.id) return tempCollection
+                      return col
+                    })
+                  })
+                  publishCollection.mutate({
                     collectionId: photoCollection.id,
-                    setId: photoSet.id,
+                    publishStatus: false,
+                    path: photoCollection.publicCoverPath ?? '',
+                    name: '',
+                    options: {
+                      logging: true,
+                    }
+                  })
+                }
+                else if(!photoCollection.published && photoCollection.coverPath){
+                  publishCollection.mutate({
+                    collectionId: photoCollection.id,
+                    publishStatus: true,
+                    path: photoCollection.coverPath,
+                    name: photoCollection.name,
                     options: {
                       logging: true
                     }
                   })
+                }
+              }}
+              color="light"
+              size="sm"
+              isProcessing={publishCollection.isPending}
+              disabled={(() => {
+                if(publishable.status) return false
+                if(photoCollection.published) return false
+                if(publishCollection.isPending) return true
+                return true
+              })()}
+            >{photoCollection.published ? 'Unpublish' : 'Publish'}</Button>
+          )}
+          <Button 
+            color='light'
+            size="sm"
+            onClick={() => navigate({ to: `/photo-collection/${photoCollection.id}`, search: { set: photoSet.id }})}
+          >Preview</Button>
+          <Dropdown dismissOnClick={false} label={(<HiOutlineCog6Tooth size={28} className="hover:text-gray-600"/>)} inline arrowIcon={false}>
+            <Dropdown.Item 
+              onClick={() => setDisplayTitleOverride(!displayTitleOverride)}
+              as='div'
+            >
+              <ToggleSwitch 
+                checked={displayTitleOverride} 
+                onChange={() => setDisplayTitleOverride(!displayTitleOverride)}
+                label="Display Photo Titles"
+              />
+            </Dropdown.Item>
+            <Dropdown.Item as='label' htmlFor="setting-upload-file" className="">
+              <input 
+                id='setting-upload-file' 
+                type="file" 
+                className="hidden" 
+                multiple 
+                accept="image/*"
+                {...getInputProps()}
+                onChange={(event) => {
+                  if(event.target.files){
+                    const files = Array.from(event.target.files)
+                    onDrop(files)
+                  }
                 }}
-              >
-                {repairPaths.isPending && (<CgSpinner size={24} className="animate-spin text-gray-600"/>)}
-                <span>Repair Photo Paths</span>
-              </Dropdown.Item>
-              <Dropdown.Item 
-                onClick={() => setDeleteConfirmation(true)}
-                className="text-red-400"
-              >
-                Delete Set
-              </Dropdown.Item>
-            </Dropdown>
-          </Tooltip>
+              />Upload Pictures
+            </Dropdown.Item>
+            <Dropdown.Item
+              className="disabled:cursor-wait flex flex-row items-center gap-2"
+              disabled={repairPaths.isPending}
+              onClick={() => {
+                //TODO: display a notification if something happens
+                repairPaths.mutate({
+                  collectionId: photoCollection.id,
+                  setId: photoSet.id,
+                  options: {
+                    logging: true
+                  }
+                })
+              }}
+            >
+              {repairPaths.isPending && (<CgSpinner size={24} className="animate-spin text-gray-600"/>)}
+              <span>Repair Photo Paths</span>
+            </Dropdown.Item>
+            <Dropdown.Item 
+              onClick={() => setDeleteConfirmation(true)}
+              className="text-red-400"
+            >
+              Delete Set
+            </Dropdown.Item>
+          </Dropdown>
         </div>
       </div>
       <div className="w-full border border-gray-200 my-2"></div>

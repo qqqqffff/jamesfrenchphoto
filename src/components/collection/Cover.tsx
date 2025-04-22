@@ -37,7 +37,8 @@ export const Cover = (props: CoverProps) => {
       >
         <div 
           className={`
-            bg-white bg-opacity-30 flex flex-col gap-2 px-10 py-4
+            bg-opacity-30 flex flex-col gap-2 px-10 py-4
+            ${props.collection.coverType?.textColor !== 'white' ? 'bg-white': 'bg-gray-600'} 
             text-${props.collection.coverType?.textColor ?? 'black'}
           `}
         >
@@ -47,7 +48,11 @@ export const Cover = (props: CoverProps) => {
           )}
         </div>
         <button 
-          className='border border-gray-400 rounded-lg py-1.5 px-2 animate-pulse mt-2 w-min whitespace-nowrap self-center hover:border-gray-700 bg-gray-100 bg-opacity-50'
+          className={`
+            border border-gray-400 rounded-lg py-1.5 px-2 animate-pulse mt-2 
+            w-min whitespace-nowrap self-center hover:border-gray-700
+            bg-opacity-50 ${props.collection.coverType?.textColor !== 'white' ? 'text-black bg-gray-100': 'text-white bg-gray-600'}
+          `}
           onClick={() => {
             if(props.collectionRef?.current){
               props.collectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
