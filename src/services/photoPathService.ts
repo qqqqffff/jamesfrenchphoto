@@ -57,12 +57,16 @@ export async function getAllPaths(client: V6Client<Schema>, setId: string): Prom
 
 export interface GetInfinitePathsData {
   memo: PicturePath[],
+  returnSet: PicturePath[],
   nextToken?: string,
+  offset: number,
+  previous: boolean,
 }
 interface GetInfinitePathsOptions {
   maxItems?: number,
   unauthenticated?: boolean,
-  participantId?: string
+  participantId?: string,
+  maxWindow?: number
 }
 async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePathsData, setId?: string, options?: GetInfinitePathsOptions): Promise<GetInfinitePathsData> {
   if(!setId) return initial;
@@ -79,6 +83,7 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
 
   const newPaths: PicturePath[] = []
 
+  //pushing new paths to the memo
   if(options?.participantId) {
     //TODO: improve me
     newPaths.push(...(await Promise.all(response.data
@@ -109,9 +114,31 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
     )
   }
 
+  const newMemo: PicturePath[] = [...initial.memo, ...newPaths]
+  let newReturnSet: PicturePath[] = newMemo
+  let newOffset = initial.offset
+
+  if(initial.previous) {
+    newOffset = newOffset < 0 ? 0 : newOffset
+    newReturnSet = newReturnSet.filter((path) => {
+      return path.order >= newOffset && path.order < newOffset + (options?.maxWindow ?? 60) 
+    })
+    newOffset -= options?.maxItems ?? 12
+  }
+  else {
+    newReturnSet = newReturnSet.filter((path) => {
+      return path.order >= newOffset && path.order < newOffset + (options?.maxWindow ?? 60)
+    })
+    newOffset = newReturnSet.length + (options?.maxItems ?? 12) > (options?.maxWindow ?? 60) ? 
+      newOffset + (options?.maxItems ?? 12) : newOffset
+  }
+
   const returnData: GetInfinitePathsData = {
-    memo: [...initial.memo, ...newPaths],
-    nextToken: response.nextToken ?? undefined
+    memo: newMemo,
+    returnSet: newReturnSet,
+    nextToken: response.nextToken ?? undefined,
+    previous: false,
+    offset: newOffset,
   }
 
   return returnData
@@ -209,6 +236,13 @@ export const getInfinitePathsQueryOptions = (setId?: string, options?: GetInfini
   getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
   initialPageParam: ({
     memo: [] as PicturePath[],
+    returnSet: [] as PicturePath[],
+    offset: 0,
   } as GetInfinitePathsData),
+  //offset is the minimum order - maximumOrder = currentWindow
+  getPreviousPageParam: (page) => 
+    page.returnSet.length > 0 &&
+    page.offset - page.returnSet[page.returnSet.length - 1].order > 0 ? 
+    { ...page, previous: true } : undefined, 
   refetchOnWindowFocus: false,
 })

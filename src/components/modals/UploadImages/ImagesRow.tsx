@@ -23,6 +23,7 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
   const duplicate = data.issues
     .find((issue) => issue.type === 'duplicate')?.id
     .includes(data.data[index].file.name)
+
   return (
     <div key={index} className="flex flex-row items-center justify-between border-b w-full gap-2" style={style}>
       <div className="flex flex-row w-[80%] overflow-hidden mt-1 items-center gap-2">

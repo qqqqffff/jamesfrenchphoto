@@ -32,7 +32,7 @@ import { AuthContext } from "../../../auth";
 import { PictureList } from "./picture-table/PictureList";
 import { getInfinitePathsQueryOptions } from "../../../services/photoPathService";
 import Loading from "../../common/Loading";
-import { PublishCollectionParams, repairPathsMutation, RepairPathsParams } from "../../../services/collectionService";
+import { PublishCollectionParams, repairItemCountMutation, RepairItemCountsParams, repairPathsMutation, RepairPathsParams } from "../../../services/collectionService";
 import { CgSpinner } from "react-icons/cg";
 import { Publishable } from "./PhotoCollectionPanel";
 import { PublishableItems } from "./PublishableItems";
@@ -69,36 +69,40 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
   const pathsQuery = useInfiniteQuery(
     getInfinitePathsQueryOptions(photoSet.id, {
-      participantId: auth.user?.profile.activeParticipant?.id
+      participantId: auth.user?.profile.activeParticipant?.id,
+      maxItems: 16,
+      maxWindow: 64
     }),
   )
 
   useEffect(() => {
     if(pathsQuery.data) {
       //does not replace current paths
-      setPicturePaths((parentPrev) => {
-        let temp = [...parentPrev]
+      console.log(pathsQuery.data.pages)
+      setPicturePaths(pathsQuery.data.pages[pathsQuery.data.pages.length - 1].returnSet)
+      // setPicturePaths((parentPrev) => {
+      //   let temp = [...parentPrev]
 
-        temp.push(...pathsQuery.data.pages
-          .reduce((prev, cur) => {
-            prev.push(...cur.memo)
-            return prev
-          }, [] as PicturePath[])
-          .reduce((prev, cur) => {
-            if(!prev.some((path) => path.id === cur.id)) {
-              prev.push(cur)
-            }
-            return prev
-          }, [] as PicturePath[])
-        )
+      //   temp.push(...pathsQuery.data.pages
+      //     .reduce((prev, cur) => {
+      //       prev.push(...cur.memo)
+      //       return prev
+      //     }, [] as PicturePath[])
+      //     .reduce((prev, cur) => {
+      //       if(!prev.some((path) => path.id === cur.id)) {
+      //         prev.push(cur)
+      //       }
+      //       return prev
+      //     }, [] as PicturePath[])
+      //   )
 
-        return temp.reduce((prev, cur) => {
-          if(!prev.some((path) => path.id === cur.id)) {
-            prev.push(cur)
-          }
-          return prev
-        }, [] as PicturePath[])
-      })
+      //   return temp.reduce((prev, cur) => {
+      //     if(!prev.some((path) => path.id === cur.id)) {
+      //       prev.push(cur)
+      //     }
+      //     return prev
+      //   }, [] as PicturePath[])
+      // })
     }
   }, [pathsQuery.data])
 
@@ -210,6 +214,24 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
   const reorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+  })
+
+  const repairItemCounts = useMutation({
+    mutationFn: (params: RepairItemCountsParams) => repairItemCountMutation(params),
+    onSuccess: (data) => {
+      if(data) {
+        parentUpdateCollection(data)
+        parentUpdateCollections((prev) => {
+          const temp = [...prev]
+            .map((collection) => {
+              return collection.id === data.id ? data : collection
+            })
+
+          return temp
+        })
+        parentUpdateSet(data.sets.find((set) => set.id === photoSet.id))
+      }
+    }
   })
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -689,6 +711,21 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
               {repairPaths.isPending && (<CgSpinner size={24} className="animate-spin text-gray-600"/>)}
               <span>Repair Photo Paths</span>
             </Dropdown.Item>
+            <Dropdown.Item
+              className="disabled:cursor-wait flex flex-row items-center gap-2"
+              disabled={repairItemCounts.isPending}
+              onClick={() => {
+                repairItemCounts.mutate({
+                  collection: photoCollection,
+                  options: {
+                    logging: true
+                  }
+                })
+              }}
+            >
+              {repairItemCounts.isPending && (<CgSpinner size={24} className="animate-spin text-gray-600"/>)}
+              <span>Repair Item Counts</span>
+            </Dropdown.Item>
             <Dropdown.Item 
               onClick={() => setDeleteConfirmation(true)}
               className="text-red-400"
@@ -746,6 +783,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
             setFilesUploading={setFilesUploading}
             participantId={auth.user?.profile.activeParticipant?.id}
             pathsQuery={pathsQuery}
+            repairItemCounts={repairItemCounts}
           />
         )}
       </div>

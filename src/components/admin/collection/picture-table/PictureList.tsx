@@ -9,8 +9,8 @@ import { Picture } from "./Picture";
 import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
 import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
-import { InfiniteData, UseInfiniteQueryResult, useMutation, useQueries, UseQueryResult } from '@tanstack/react-query';
-import { getPathQueryOptions, repairItemCountMutation, RepairItemCountsParams } from '../../../../services/collectionService';
+import { InfiniteData, UseInfiniteQueryResult, useMutation, UseMutationResult, useQueries, UseQueryResult } from '@tanstack/react-query';
+import { getPathQueryOptions, RepairItemCountsParams } from '../../../../services/collectionService';
 import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
 import { GetInfinitePathsData } from '../../../../services/photoPathService';
@@ -34,6 +34,7 @@ interface PictureListProps extends ComponentProps<'div'> {
   setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
   participantId?: string,
   pathsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePathsData, unknown>, Error>
+  repairItemCounts: UseMutationResult<PhotoCollection | undefined, Error, RepairItemCountsParams, unknown>
 }
 
 export const PictureList = (props: PictureListProps) => {
@@ -45,26 +46,14 @@ export const PictureList = (props: PictureListProps) => {
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
   })
 
-  const repairItemCounts = useMutation({
-    mutationFn: (params: RepairItemCountsParams) => repairItemCountMutation(params),
-    onSuccess: (data) => {
-      if(data) {
-        props.parentUpdateCollection(data)
-        props.parentUpdateCollections((prev) => {
-          const temp = [...prev]
-            .map((collection) => {
-              return collection.id === data.id ? data : collection
-            })
-
-          return temp
-        })
-        props.parentUpdateSet(data.sets.find((set) => set.id === props.set.id))
-      }
+  const getTriggerItems = useCallback((allItems: PicturePath[]): {
+    bottom: PicturePath, 
+    top: PicturePath
+  } => {
+    return {
+      bottom: allItems[allItems.length - allItems.length % 4 - 4],
+      top: allItems[4]
     }
-  })
-
-  const getTriggerItems = useCallback((allItems: PicturePath[]): PicturePath => {
-    return allItems[allItems.length - allItems.length % 4 - 4]
   }, [])
 
   useEffect(() => {
@@ -141,14 +130,33 @@ export const PictureList = (props: PictureListProps) => {
   useEffect(() => {
     if(props.paths.length == 0) return
 
+    //TODO: fix me please
     if(!observerRef.current) {
       observerRef.current = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-          if(entry.isIntersecting && props.pathsQuery.hasNextPage && !props.pathsQuery.isFetchingNextPage) {
+          if(entry.isIntersecting && 
+            props.pathsQuery.hasPreviousPage && 
+            !props.pathsQuery.isFetchingPreviousPage &&
+            entry.target.getAttribute('data-top') !== null &&
+            entry.target.getAttribute('data-top') === 'true'
+          ) {
+            entry.target.setAttribute('data-bottom', 'false')
+            console.log('fetching previousPage')
+            props.pathsQuery.fetchPreviousPage()
+          }
+          if(entry.isIntersecting && 
+            props.pathsQuery.hasNextPage && 
+            !props.pathsQuery.isFetchingNextPage &&
+            entry.target.getAttribute('data-bottom') !== null &&
+            entry.target.getAttribute('data-bottom') === 'true'
+          ) {
+            entry.target.setAttribute('data-bottom', 'false')
+            console.log('fetching nextPage')
             props.pathsQuery.fetchNextPage()
           }
+          
           else if(entry.isIntersecting && !props.pathsQuery.hasNextPage && props.paths.length !== props.set.items) {
-            repairItemCounts.mutate({
+            props.repairItemCounts.mutate({
               collection: props.collection,
               options: {
                 logging: true
@@ -163,13 +171,19 @@ export const PictureList = (props: PictureListProps) => {
       })
     }
 
-    const triggerItem = getTriggerItems(props.paths)
+    const { top, bottom } = getTriggerItems(props.paths)
 
     observerRef.current.disconnect();
 
-    const el = picturesRef.current.get(triggerItem.id)
-    if(el && observerRef.current) {
-      observerRef.current.observe(el)
+    const Tel = picturesRef.current.get(top.id)
+    const Bel = picturesRef.current.get(bottom.id)
+    if(Tel && observerRef.current) {
+      Tel.setAttribute('data-top', 'true')
+      observerRef.current.observe(Tel)
+    }
+    if(Bel && observerRef.current) {
+      Bel.setAttribute('data-bottom', 'true')
+      observerRef.current.observe(Bel)
     }
 
     return () => {

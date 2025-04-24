@@ -39,6 +39,7 @@ async function validateFiles(
   logging: boolean,
   filesPreviews?: Map<string, File>,
 ){
+  setLoadingPreviews(true)
   const start = new Date().getTime()
   const issues: UploadIssue[] = [...startIssues]
   const filesArray = files.reduce((prev, cur) => {
@@ -271,8 +272,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
       Array.from(tempPreviews.entries()).forEach((entry) => tempFilter.push({ url: entry[0], file: entry[1] }))
     }
 
-    console.log(tempFilter)
-
     if(sort && sort.order){
       if(sort.type === 'name'){
         tempFilter.sort((a, b) => {
@@ -429,39 +428,42 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
             {filesPreview && filesPreview.size > 0 ? (
               <div className="h-full">
                 <AutoSizer className="min-h-[340px] z-0">
-                {({ height, width }: { height: number; width: number }) => (
-                  <FixedSizeList
-                    height={height}
-                    itemCount={filteredPreviews?.length ?? filesPreview?.size ?? 0}
-                    itemSize={35}
-                    width={width}
-                    itemData={{
-                      data: filteredPreviews ?? [...filesPreview.entries()].map(([url, file]) => ({url: url, file: file})),
-                      onDelete: (key, fileName) => {
-                        const previews = new Map<string, File>([...filesPreview.entries()].filter((entry) => entry[0] !== fileName))
-                        const files = new Map<string, File>([...filesUpload.entries()].filter((entry) => entry[0] !== key))
-                        
-                        previews.delete(key)
-                        files.delete(fileName)
+                  {({ height, width }: { height: number; width: number }) => (
+                    <FixedSizeList
+                      height={height}
+                      itemCount={filteredPreviews?.length ?? filesPreview?.size ?? 0}
+                      itemSize={35}
+                      width={width}
+                      itemData={{
+                        data: filteredPreviews ?? [...filesPreview.entries()].map(([url, file]) => ({url: url, file: file})),
+                        onDelete: (key, fileName) => {
+                          const previews = new Map<string, File>([...filesPreview.entries()].filter((entry) => entry[0] !== fileName))
+                          const files = new Map<string, File>([...filesUpload.entries()].filter((entry) => entry[0] !== key))
+                          
+                          previews.delete(key)
+                          files.delete(fileName)
 
-                        const totalUpload = [...files.values()].reduce((prev, cur) => prev += cur.size, 0)
+                          const totalUpload = [...files.values()].reduce((prev, cur) => prev += cur.size, 0)
 
-                        setFilesUpload(files)
-                        setFilesPreview(previews)
-                        setTotalUpload(totalUpload)
-                      },
-                      issues: uploadIssues,
-                      updateIssues: setUploadIssues,
-                    }}
-                  >
-                    {ImagesRow}
-                  </FixedSizeList>
-                )}
+                          setFilesUpload(files)
+                          setFilesPreview(previews)
+                          setTotalUpload(totalUpload)
+                        },
+                        issues: uploadIssues,
+                        updateIssues: setUploadIssues,
+                      }}
+                    >
+                      {ImagesRow}
+                    </FixedSizeList>
+                  )}
                 </AutoSizer>
               </div>
             ) : (
               loadingPreviews ? (
-                <Loading />
+                <div className="flex flex-row gap-1">
+                  <span className="italic text-sm ms-6">Loading Previews</span>
+                  <Loading />
+                </div>
               ) : (
                 <span className=" italic text-sm ms-6">Uploaded files will preview here!</span>
               )

@@ -312,126 +312,151 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
     }
     
     let currentUpload = 0
-    
-    const response = (await Promise.all(
-        (await Promise.all(
-            [...params.files.values()].map(async (file, index) => {
-                if(params.duplicates[file.name]){
-                    const result = await remove({
-                        path: params.duplicates[file.name].path
-                    })
+    const batchSize = 100
+    const allFiles = [...params.files.values()]
+    const batches = Math.ceil(allFiles.length / batchSize)
+    let successfulItems = 0
 
-                    if(params.options?.logging) console.log(result)
-                }
-                let prevUploadAmount = -1
-                const result = await uploadData({
-                    path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.name}`,
-                    data: file,
-                    options: {
-                        onProgress: (event) => {
-                            currentUpload += event.transferredBytes
-                            if(prevUploadAmount !== -1){
-                                currentUpload -= prevUploadAmount
-                            }
-                            prevUploadAmount = event.transferredBytes
-                            if(params.options?.logging) console.log(currentUpload, prevUploadAmount)
-                            params.updateUpload((prev) => {
-                                const percent = currentUpload / params.totalUpload
-                                const upload = prev.find((upload) => upload.id === params.uploadId)
-                                if(percent !== upload?.progress){
-                                    return prev.map((upload) => {
-                                        if(upload.id === params.uploadId){
-                                            return {
-                                                ...upload,
-                                                progress: percent
-                                            }
-                                        }
-                                        return upload
-                                    })
-                                }
-                                return prev
-                            })
-                        }
-                    }
-                }).result
+    for(let batch = 0; batch < batches; batch++) {
+        const startIndex = batch * batchSize
+        const endIndex = Math.min(startIndex + batchSize, allFiles.length)
+        const filesBatch = allFiles.slice(startIndex, endIndex)
 
-                let mappedPath: PicturePath | undefined
+        const response = (await Promise.all(filesBatch.map(async (file, index) => {
+            if(params.duplicates[file.name]){
+                const result = await remove({
+                    path: params.duplicates[file.name].path
+                })
+
                 if(params.options?.logging) console.log(result)
+            }
+            let prevUploadAmount = -1
 
-                if(params.duplicates[file.name]){
-                    const response = await client.models.PhotoPaths.update({
-                        id: params.duplicates[file.name].id,
-                        path: result.path,
-                    })
-                    if(params.options?.logging) console.log(response)
-                    if(!response || !response.data || response.errors !== undefined) return false
-                    mappedPath = {
-                        ...response.data,
-                        favorite: params.duplicates[file.name].favorite,
-                        url: ''
-                    }
-                } else {
-                    const response = await client.models.PhotoPaths.create({
-                        path: result.path,
-                        order: index + params.set.paths.length,
-                        setId: params.set.id,
-                    })
-                    if(params.options?.logging) console.log(response)
-                    if(!response || !response.data || response.errors !== undefined) return false
-                    mappedPath = {
-                        ...response.data,
-                        url: ''
-                    }
-                }
-                
-                if(!mappedPath) return false
-
-                const tempSet: PhotoSet = {
-                    ...params.set,
-                    paths: [...params.set.paths, mappedPath],
-                    items: params.set.items + 1
-                }
-                const tempCollection: PhotoCollection = { 
-                    ...params.collection,
-                    sets: params.collection.sets.map((set) => {
-                        if(set.id === tempSet.id){
-                            return tempSet
-                        }
-                        return set
-                    })
-                }
-                params.updatePaths((prev) => {
-                    return [...prev, mappedPath]
-                })
-                params.parentUpdateSet(tempSet)
-                params.parentUpdateCollection(tempCollection)
-                params.parentUpdateCollections((prev) => {
-                    const temp = [...prev]
-
-                    return temp.map((col) => {
-                        if(col.id === tempCollection.id) return tempCollection
-                        return col
-                    })
-                })
-                params.updateUpload((prev) => {
-                    return prev.map((upload) => {
-                        if(upload.id === params.uploadId){
-                            return {
-                                ...upload,
-                                currentItems: upload.currentItems + 1
+            let path: string | undefined
+            let attempts = 0
+            while(attempts < 5) {
+                try {
+                    const result = uploadData({
+                        path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.name}`,
+                        data: file,
+                        options: {
+                            onProgress: (event) => {
+                                currentUpload += event.transferredBytes
+                                if(prevUploadAmount !== -1){
+                                    currentUpload -= prevUploadAmount
+                                }
+                                prevUploadAmount = event.transferredBytes
+                                if(params.options?.logging) console.log(currentUpload, prevUploadAmount)
+                                params.updateUpload((prev) => {
+                                    const percent = currentUpload / params.totalUpload
+                                    const upload = prev.find((upload) => upload.id === params.uploadId)
+                                    if(percent !== upload?.progress){
+                                        return prev.map((upload) => {
+                                            if(upload.id === params.uploadId){
+                                                return {
+                                                    ...upload,
+                                                    progress: percent
+                                                }
+                                            }
+                                            return upload
+                                        })
+                                    }
+                                    return prev
+                                })
                             }
                         }
-                        return upload
                     })
+
+                    path = (await result.result).path
+                } catch(err) {
+                    attempts += 1
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempts))
+                }
+            }
+
+            if(!path) return false
+            let mappedPath: PicturePath | undefined
+            if(params.options?.logging) console.log(path)
+
+            if(params.duplicates[file.name]){
+                const response = await client.models.PhotoPaths.update({
+                    id: params.duplicates[file.name].id,
+                    path: path,
                 })
-                return true
+                if(params.options?.logging) console.log(response)
+                if(!response || !response.data || response.errors !== undefined) return false
+                mappedPath = {
+                    ...response.data,
+                    favorite: params.duplicates[file.name].favorite,
+                    url: ''
+                }
+            } else {
+                const response = await client.models.PhotoPaths.create({
+                    path: path,
+                    order: index + params.set.paths.length,
+                    setId: params.set.id,
+                })
+                if(params.options?.logging) console.log(response)
+                if(!response || !response.data || response.errors !== undefined) return false
+                mappedPath = {
+                    ...response.data,
+                    url: ''
+                }
+            }
+            
+            if(!mappedPath) return false
+
+            const tempSet: PhotoSet = {
+                ...params.set,
+                paths: [...params.set.paths, mappedPath],
+                items: params.set.items + 1
+            }
+            const tempCollection: PhotoCollection = { 
+                ...params.collection,
+                sets: params.collection.sets.map((set) => {
+                    if(set.id === tempSet.id){
+                        return tempSet
+                    }
+                    return set
+                })
+            }
+            params.updatePaths((prev) => {
+                return [...prev, mappedPath]
             })
-        ))
-    )).filter((item) => item).length
+            params.parentUpdateSet(tempSet)
+            params.parentUpdateCollection(tempCollection)
+            params.parentUpdateCollections((prev) => {
+                const temp = [...prev]
+
+                return temp.map((col) => {
+                    if(col.id === tempCollection.id) return tempCollection
+                    return col
+                })
+            })
+            params.updateUpload((prev) => {
+                return prev.map((upload) => {
+                    if(upload.id === params.uploadId){
+                        return {
+                            ...upload,
+                            currentItems: upload.currentItems + 1
+                        }
+                    }
+                    return upload
+                })
+            })
+            return true
+        }))).filter((item) => item)
+
+        successfulItems += response.length
+
+        if(batch < batches - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+        }
+    }
 
     const updateCollectionItemsResponse = await client.models.PhotoCollection.update({
         id: params.collection.id,
-        items: response + params.collection.items
+        items: successfulItems + params.collection.items
     })
 
     params.updateUpload((prev) => {
