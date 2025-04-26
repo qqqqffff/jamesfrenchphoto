@@ -77,32 +77,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
   useEffect(() => {
     if(pathsQuery.data) {
-      //does not replace current paths
-      console.log(pathsQuery.data.pages)
-      setPicturePaths(pathsQuery.data.pages[pathsQuery.data.pages.length - 1].returnSet)
-      // setPicturePaths((parentPrev) => {
-      //   let temp = [...parentPrev]
-
-      //   temp.push(...pathsQuery.data.pages
-      //     .reduce((prev, cur) => {
-      //       prev.push(...cur.memo)
-      //       return prev
-      //     }, [] as PicturePath[])
-      //     .reduce((prev, cur) => {
-      //       if(!prev.some((path) => path.id === cur.id)) {
-      //         prev.push(cur)
-      //       }
-      //       return prev
-      //     }, [] as PicturePath[])
-      //   )
-
-      //   return temp.reduce((prev, cur) => {
-      //     if(!prev.some((path) => path.id === cur.id)) {
-      //       prev.push(cur)
-      //     }
-      //     return prev
-      //   }, [] as PicturePath[])
-      // })
+      setPicturePaths(pathsQuery.data.pages[pathsQuery.data.pages.length - 1].memo)
     }
   }, [pathsQuery.data])
 

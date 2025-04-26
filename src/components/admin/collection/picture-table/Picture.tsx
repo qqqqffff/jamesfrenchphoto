@@ -18,6 +18,7 @@ import { HiOutlineDownload, HiOutlineHeart } from 'react-icons/hi'
 import { downloadImageMutation, DownloadImageMutationParams } from "../../../../services/photoPathService";
 import { CgArrowsExpandRight } from "react-icons/cg";
 import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash } from "react-icons/hi2";
+import useWindowDimensions from "../../../../hooks/windowDimensions";
 
 type PictureState = 
   | {
@@ -47,7 +48,7 @@ interface PictureProps {
   set: PhotoSet
   collection: PhotoCollection
   picture: PicturePath
-  url: UseQueryResult<[string | undefined, string], Error>
+  url?: UseQueryResult<[string | undefined, string] | undefined, Error>
   parentUpdatePaths: Dispatch<SetStateAction<PicturePath[]>>
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
@@ -61,13 +62,68 @@ interface PictureProps {
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
   setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
   participantId?: string,
-  reorderPaths: UseMutationResult<void, Error, ReorderPathsParams, unknown>
+  reorderPaths: UseMutationResult<void, Error, ReorderPathsParams, unknown>,
+  watermark?: UseQueryResult<[string | undefined, string] | undefined, Error>
 }
 
 export const Picture = (props: PictureProps) => {
   const ref = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<PictureState>(idle)
   const navigate = useNavigate()
+  const [expanded, setExpanded] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const expandedRef = useRef<HTMLDivElement | null>(null)
+  const [dimensions, setDimensions] = useState({
+    startX: 0,
+    startY: 0,
+    startWidth: 0,
+    startHeight: 0
+  })
+  const windowDimensions = useWindowDimensions()
+
+  const handleExpand = () => {
+    if(ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      setDimensions({
+        startX: rect.left,
+        startY: rect.top,
+        startWidth: rect.width,
+        startHeight: rect.height
+      })
+      setIsAnimating(true)
+      setExpanded(true)
+    }
+  }
+
+  const handleClose = () => {
+    setIsAnimating(true)
+    setTimeout(() => {
+      setExpanded(false)
+      setIsAnimating(false)
+    }, 300)
+  }
+
+  useEffect(() => {
+    if(expanded && expandedRef.current && isAnimating) {
+      expandedRef.current.style.transform = `translate(${dimensions.startX - dimensions.startWidth}px, ${dimensions.startY}px) scale(${dimensions.startWidth / windowDimensions.width})`
+      expandedRef.current.style.opacity = '0.5'
+
+      expandedRef.current.getBoundingClientRect()
+
+      expandedRef.current.style.transform = 'translate(0, 0) scale(1)'
+      expandedRef.current.style.opacity = '1'
+
+      const handleTransitionEnd = () => {
+        setIsAnimating(false)
+        expandedRef.current?.removeEventListener('transitionend', handleTransitionEnd)
+      }
+      expandedRef.current.addEventListener('transitionend', handleTransitionEnd)
+
+      return () => {
+        expandedRef.current?.removeEventListener('transitionend', handleTransitionEnd)
+      }
+    }
+  }, [expanded, dimensions, isAnimating])
 
   useEffect(() => {
     const element = ref.current
@@ -163,8 +219,6 @@ export const Picture = (props: PictureProps) => {
     }
   })
 
-  // console.log(props.picture)
-
   const unfavorite = useMutation({
     mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params)
   })
@@ -196,38 +250,39 @@ export const Picture = (props: PictureProps) => {
         className={`
           ${props.pictureStyle(props.picture.id)} ${stateStyles[state.type] ?? ''}
         `}
-        // onClick={(event) => {
-        //   const temp = [...props.selectedPhotos]
-        //   if((event.target as HTMLElement).id.includes('image')){
-        //     if(props.selectedPhotos.find((parentPath) => props.picture.id === parentPath.id) !== undefined){
-        //       props.setSelectedPhotos(props.selectedPhotos.filter((parentPath) => parentPath.id !== props.picture.id))
-        //     }
-        //     else if(event.shiftKey && temp.length > 0){
-        //       let minIndex = -1
-        //       let maxIndex = props.index
-        //       for(let i = 0; i < props.paths.length; i++){
-        //         if(props.selectedPhotos.find((path) => path.id === props.paths[i].id) !== undefined){
-        //           minIndex = i
-        //           break
-        //         }
-        //       }
-        //       for(let i = props.paths.length - 1; props.index < i; i--){
-        //         if(props.selectedPhotos.find((path) => path.id === props.paths[i].id) !== undefined){
-        //           maxIndex = i
-        //           break
-        //         }
-        //       }
-        //       minIndex = props.index < minIndex ? props.index : minIndex
-        //       if(minIndex > -1){
-        //         props.setSelectedPhotos(props.paths.filter((_, i) => i >= minIndex && i <= maxIndex))
-        //       }
-        //     }
-        //     else{
-        //       temp.push(props.picture)
-        //       props.setSelectedPhotos(temp)
-        //     }
-        //   }
-        // }}
+        //TODO: please reenable me
+        onClick={(event) => {
+          const temp = [...props.selectedPhotos]
+          if((event.target as HTMLElement).id.includes('image')){
+            if(props.selectedPhotos.find((parentPath) => props.picture.id === parentPath.id) !== undefined){
+              props.setSelectedPhotos(props.selectedPhotos.filter((parentPath) => parentPath.id !== props.picture.id))
+            }
+            else if(event.shiftKey && temp.length > 0){
+              let minIndex = -1
+              let maxIndex = props.index
+              for(let i = 0; i < props.paths.length; i++){
+                if(props.selectedPhotos.find((path) => path.id === props.paths[i].id) !== undefined){
+                  minIndex = i
+                  break
+                }
+              }
+              for(let i = props.paths.length - 1; props.index < i; i--){
+                if(props.selectedPhotos.find((path) => path.id === props.paths[i].id) !== undefined){
+                  maxIndex = i
+                  break
+                }
+              }
+              minIndex = props.index < minIndex ? props.index : minIndex
+              if(minIndex > -1){
+                props.setSelectedPhotos(props.paths.filter((_, i) => i >= minIndex && i <= maxIndex))
+              }
+            }
+            else{
+              temp.push(props.picture)
+              props.setSelectedPhotos(temp)
+            }
+          }
+        }}
         onMouseEnter={() => {
           props.setDisplayPhotoControls(props.picture.id)
         }}  
@@ -235,7 +290,7 @@ export const Picture = (props: PictureProps) => {
           props.setDisplayPhotoControls(undefined)
         }}
       >
-        {props.url.isLoading ? (
+        {props.url === undefined || props.url.isLoading ? (
           <div className="flex items-center justify-center w-[200px] h-[300px] bg-gray-300 rounded sm:w-96">
             <svg className="w-10 h-10 text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
               <path d="M18 0H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2Zm-5.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm4.376 10.481A1 1 0 0 1 16 15H4a1 1 0 0 1-.895-1.447l3.5-7A1 1 0 0 1 7.468 6a.965.965 0 0 1 .9.5l2.775 4.757 1.546-1.887a1 1 0 0 1 1.618.1l2.541 4a1 1 0 0 1 .028 1.011Z"/>
@@ -243,12 +298,43 @@ export const Picture = (props: PictureProps) => {
           </div>
         ) : (
           <LazyImage 
-            src={props.url.data?.[1]} 
-            className="object-cover rounded-lg w-[200px] h-[300px] justify-self-center pointer-events-none" 
+            src={props.url} 
+            className="
+              object-cover rounded-lg w-[200px] h-[300px] justify-self-center 
+              pointer-events-none duration-300 transition-transform ease-in-out
+            " 
             id='image'
             loading='lazy'
             draggable={false}
           />
+        )}
+        {expanded && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black transition-all duration-300 ease-in-out"
+            style={{ backgroundColor: isAnimating ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.8)' }}
+            onClick={handleClose}
+          >
+            <div
+              ref={expandedRef}
+              className="relative max-h-screen transition-all duration-300 ease-in-out"
+              style={{
+                transformOrigin: 'top left',
+                willChange: 'transform, opacity'
+              }}
+            >
+              <img 
+                src={props.url?.data?.[1]}
+                className="w-full max-h-screen object-contain rounded shadow-xl"
+              />
+              {props.watermark?.data?.[1] && (
+                <img 
+                  src={props.watermark.data[1]}
+                  className="absolute inset-0 w-full max-h-screen top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
+                />
+              )}
+              {/* TODO: show a utility bar with a navigate to fullscreen carousel */}
+            </div>
+          </div>
         )}
         <div className={`absolute bottom-0 inset-x-0 pb-1 justify-end flex-row gap-1 me-3 ${props.controlsEnabled(props.picture.id, false)}`}>
           <button 
@@ -362,16 +448,16 @@ export const Picture = (props: PictureProps) => {
             <HiOutlineDownload size={20} />
           </button>
           <button
-            title='Preview Fullscreen'
-            onClick={() => {
-              navigate({
-                to: `/photo-fullscreen`,
-                search: {
-                  set: props.set.id,
-                  path: props.picture.id
-                }
-              })
-            }}
+            title='Expand Image'
+            onClick={handleExpand
+              // navigate({
+              //   to: `/photo-fullscreen`,
+              //   search: {
+              //     set: props.set.id,
+              //     path: props.picture.id
+              //   }
+              // })
+            }
           >
             <CgArrowsExpandRight size={20} />
           </button>

@@ -9,7 +9,7 @@ import { Picture } from "./Picture";
 import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
 import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
-import { InfiniteData, UseInfiniteQueryResult, useMutation, UseMutationResult, useQueries, UseQueryResult } from '@tanstack/react-query';
+import { InfiniteData, UseInfiniteQueryResult, useMutation, UseMutationResult, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
 import { getPathQueryOptions, RepairItemCountsParams } from '../../../../services/collectionService';
 import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
@@ -39,20 +39,34 @@ interface PictureListProps extends ComponentProps<'div'> {
 
 export const PictureList = (props: PictureListProps) => {
   const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
-  const observerRef = useRef<IntersectionObserver | null>(null)
+  const bottomObserverRef = useRef<IntersectionObserver | null>(null)
+  const topObserverRef = useRef<IntersectionObserver | null>(null)
+  const currentOffsetIndex = useRef<number | undefined>()
+  const topIndex = useRef<number>(0)
+  const bottomIndex = useRef<number>(props.paths.length - 1)
   const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
 
   const reorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
   })
 
-  const getTriggerItems = useCallback((allItems: PicturePath[]): {
+  const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): {
     bottom: PicturePath, 
-    top: PicturePath
+    top?: PicturePath,
   } => {
+    if(offset) {
+      bottomIndex.current = (offset) + ((offset + 38) >= allItems.length ? allItems.length - offset - 1 : 38)
+      topIndex.current = (offset) - ((offset - 38) > 0 ? 38 : offset)
+      return {
+        bottom: allItems[(offset) + ((offset + 32) >= allItems.length ? allItems.length - offset - 1 : 32)],
+        top: allItems[(offset) - ((offset - 32) > 0 ? 32 : offset)]
+      }
+    }
+    bottomIndex.current = allItems.length - 1
+    topIndex.current = allItems.length - 65
     return {
       bottom: allItems[allItems.length - allItems.length % 4 - 4],
-      top: allItems[4]
+      top: allItems?.[allItems.length - allItems.length % 4 - 61],
     }
   }, [])
 
@@ -130,28 +144,26 @@ export const PictureList = (props: PictureListProps) => {
   useEffect(() => {
     if(props.paths.length == 0) return
 
-    //TODO: fix me please
-    if(!observerRef.current) {
-      observerRef.current = new IntersectionObserver((entries) => {
+    if(!bottomObserverRef.current) {
+      bottomObserverRef.current = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           if(entry.isIntersecting && 
-            props.pathsQuery.hasPreviousPage && 
-            !props.pathsQuery.isFetchingPreviousPage &&
-            entry.target.getAttribute('data-top') !== null &&
-            entry.target.getAttribute('data-top') === 'true'
+            currentOffsetIndex.current &&
+            currentOffsetIndex.current + 32 > pictures.length
           ) {
-            entry.target.setAttribute('data-bottom', 'false')
-            console.log('fetching previousPage')
-            props.pathsQuery.fetchPreviousPage()
+            currentOffsetIndex.current = undefined
+          }
+          else if(entry.isIntersecting &&
+            currentOffsetIndex.current &&
+            currentOffsetIndex.current + 32 < pictures.length
+          ) {
+            currentOffsetIndex.current = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
           }
           if(entry.isIntersecting && 
             props.pathsQuery.hasNextPage && 
             !props.pathsQuery.isFetchingNextPage &&
-            entry.target.getAttribute('data-bottom') !== null &&
-            entry.target.getAttribute('data-bottom') === 'true'
+            !currentOffsetIndex.current
           ) {
-            entry.target.setAttribute('data-bottom', 'false')
-            console.log('fetching nextPage')
             props.pathsQuery.fetchNextPage()
           }
           
@@ -170,30 +182,48 @@ export const PictureList = (props: PictureListProps) => {
         threshold: 0.1
       })
     }
-
-    const { top, bottom } = getTriggerItems(props.paths)
-
-    observerRef.current.disconnect();
-
-    const Tel = picturesRef.current.get(top.id)
-    const Bel = picturesRef.current.get(bottom.id)
-    if(Tel && observerRef.current) {
-      Tel.setAttribute('data-top', 'true')
-      observerRef.current.observe(Tel)
+    if(!topObserverRef.current) {
+      topObserverRef.current = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+          if(entry.isIntersecting && foundIndex !== 0) {
+            currentOffsetIndex.current = foundIndex
+          }
+        })
+      }, {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1
+      })
     }
-    if(Bel && observerRef.current) {
-      Bel.setAttribute('data-bottom', 'true')
-      observerRef.current.observe(Bel)
+
+    const triggerReturn = getTriggerItems(props.paths, currentOffsetIndex.current)
+    // console.log(triggerReturn, bottomIndex.current, topIndex.current, props.paths.length)
+
+    const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
+    const Bel = picturesRef.current.get(triggerReturn.bottom.id)
+    if(Tel && topObserverRef.current && triggerReturn.top?.id) {
+      Tel.setAttribute('data-id', triggerReturn.top.id)
+      topObserverRef.current.observe(Tel)
+    }
+    if(Bel && bottomObserverRef.current) {
+      Bel.setAttribute('data-id', triggerReturn.bottom.id)
+      bottomObserverRef.current.observe(Bel)
     }
 
     return () => {
-      if(observerRef.current){
-        observerRef.current.disconnect()
+      if(bottomObserverRef.current){
+        bottomObserverRef.current.disconnect()
       }
-      observerRef.current = null
+      if(topObserverRef.current) {
+        topObserverRef.current.disconnect()
+      }
+      topObserverRef.current = null
+      bottomObserverRef.current = null
     }
   }, [
     props.paths,
+    currentOffsetIndex,
     props.pathsQuery.fetchNextPage, 
     props.pathsQuery.hasNextPage, 
     props.pathsQuery.isFetchingNextPage,
@@ -210,17 +240,23 @@ export const PictureList = (props: PictureListProps) => {
     Object.fromEntries(
       useQueries({
         queries: pictures
+          .slice(topIndex.current > 0 ? topIndex.current : 0, bottomIndex.current + 1)
           .map((path) => {
             return getPathQueryOptions(path.path, path.id)
           })
       })
       .map((query, index) => {
         return [
-          pictures[index].id,
+          pictures[index + (topIndex.current > 0 ? topIndex.current : 0)].id,
           query
         ]
       })
     )
+
+  const watermarkQuery = useQuery(
+    getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
+  )
+
 
   return (
     <div className="pt-6 my-0 mx-auto max-h-[90vh] overflow-y-auto px-4">
@@ -253,6 +289,7 @@ export const PictureList = (props: PictureListProps) => {
                 setFilesUploading={props.setFilesUploading}
                 participantId={props.participantId}
                 reorderPaths={reorderPaths}
+                watermark={watermarkQuery}
               />
             </div>
           )

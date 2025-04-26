@@ -14,6 +14,7 @@ interface PhotoFullScreenParams {
   path: string,
 }
 
+//TODO: revamp me with infinite query
 export const Route = createFileRoute('/_auth/photo-fullscreen')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): PhotoFullScreenParams => ({
