@@ -368,6 +368,7 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
                     })
 
                     path = (await result.result).path
+                    break;
                 } catch(err) {
                     attempts += 1
                     await new Promise(resolve => setTimeout(resolve, 1000 * attempts))
@@ -393,7 +394,7 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
             } else {
                 const response = await client.models.PhotoPaths.create({
                     path: path,
-                    order: index + params.set.paths.length,
+                    order: index + params.set.paths.length + (batch * batchSize),
                     setId: params.set.id,
                 })
                 if(params.options?.logging) console.log(response)
@@ -438,7 +439,8 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
                     if(upload.id === params.uploadId){
                         return {
                             ...upload,
-                            currentItems: upload.currentItems + 1
+                            currentItems: upload.currentItems + 1,
+                            state: 'inprogress'
                         }
                     }
                     return upload
@@ -486,12 +488,29 @@ export interface DeleteImagesMutationParams {
 export async function deleteImagesMutation(params: DeleteImagesMutationParams){
     const temp = [...params.picturePaths]
     const response = await Promise.all(params.picturePaths.map(async (path) => {
+        //removing path from s3
         const s3response = await remove({
             path: path.path
         })
+        //deleting from dynamo
         const pathsresponse = await client.models.PhotoPaths.delete({
             id: path.id,
         })
+        //removing favorites
+        if(pathsresponse.data) {
+            let favoritesResponse = await pathsresponse.data.favorites()
+            const favoritesData = favoritesResponse.data
+
+            while(favoritesResponse.nextToken) {
+                favoritesResponse = await pathsresponse.data.favorites({ nextToken: favoritesResponse.nextToken })
+                favoritesData.push(...favoritesResponse.data)
+
+                await Promise.all(favoritesData.map((favorite) => {
+                    return client.models.UserFavorites.delete({ id: favorite.id })
+                }))
+            }
+        }
+
         temp.shift()
         if(params.progress) params.progress(temp)
         return [s3response, pathsresponse]
@@ -521,17 +540,22 @@ export interface DeleteSetMutationParams {
     }
 }
 export async function deleteSetMutation(params: DeleteSetMutationParams){
+    //need to get all paths first
+    const paths = await getAllPaths(client, params.set.id)
+    //delete all of the images in the set
     await deleteImagesMutation({
         collection: params.collection,
         set: params.set,
-        picturePaths: params.set.paths,
+        picturePaths: paths,
         options: params.options,
     })
 
+    //delete set
     const deleteSetResponse = await client.models.PhotoSet.delete({ id: params.set.id })
 
     if(params.options?.logging) console.log(deleteSetResponse)
 
+    //reorder set
     const setUpdatesResponses = await Promise.all(params.collection.sets
         .filter((set) => set.id !== params.set.id)
         .sort((a, b) => a.order - b.order)

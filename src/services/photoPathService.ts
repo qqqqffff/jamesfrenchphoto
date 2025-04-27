@@ -84,6 +84,7 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
 
   //pushing new paths to the memo
   if(options?.participantId) {
+    //adding favorites
     //TODO: replace with si by participant id and colleciton id
     newPaths.push(...(await Promise.all(response.data
       .filter((path) => !initial.memo.some((pPath) => pPath.id === path.id))
@@ -114,30 +115,6 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
   }
 
   const newMemo: PicturePath[] = [...initial.memo, ...newPaths]
-
-
-  if(initial.previous) {
-    // newOffset -= options?.maxItems ?? 12
-    // newOffset = newOffset < 0 ? 0 : newOffset
-  }
-  else {
-    // newReturnSet = newReturnSet.filter((path) => {
-    //   return path.order >= newOffset && path.order < newOffset + (options?.maxWindow ?? 60)
-    // })
-    // while(newReturnSet.length + newPaths.length > (options?.maxWindow ?? 60)) {
-    //   newReturnSet.shift()
-    // }
-    // const memoIndex = newMemo.findIndex((path) => path.order === newReturnSet[newReturnSet.length - 1]?.order) + 1
-    // console.log(newReturnSet)
-    // console.log(memoIndex)
-    // let pushedPaths = 0
-    // for(let i = memoIndex; i < newMemo.length && pushedPaths <= (options?.maxItems ?? 12); i++) {
-    //   newReturnSet.push(newMemo[i])
-    //   pushedPaths++
-    // }
-    // // newOffset = newReturnSet.length + (options?.maxItems ?? 12) > (options?.maxWindow ?? 60) ? 
-    //   newOffset + (options?.maxItems ?? 12) : newOffset
-  }
 
   const returnData: GetInfinitePathsData = {
     memo: newMemo,

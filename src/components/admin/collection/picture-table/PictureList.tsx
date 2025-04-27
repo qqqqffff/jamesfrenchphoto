@@ -167,7 +167,12 @@ export const PictureList = (props: PictureListProps) => {
             props.pathsQuery.fetchNextPage()
           }
           
-          else if(entry.isIntersecting && !props.pathsQuery.hasNextPage && props.paths.length !== props.set.items) {
+          else if(
+            entry.isIntersecting && 
+            !props.pathsQuery.hasNextPage && 
+            props.paths.length !== props.set.items &&
+            !props.repairItemCounts.isPending
+          ) {
             props.repairItemCounts.mutate({
               collection: props.collection,
               options: {
@@ -201,7 +206,7 @@ export const PictureList = (props: PictureListProps) => {
     // console.log(triggerReturn, bottomIndex.current, topIndex.current, props.paths.length)
 
     const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
-    const Bel = picturesRef.current.get(triggerReturn.bottom.id)
+    const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
     if(Tel && topObserverRef.current && triggerReturn.top?.id) {
       Tel.setAttribute('data-id', triggerReturn.top.id)
       topObserverRef.current.observe(Tel)
@@ -228,6 +233,7 @@ export const PictureList = (props: PictureListProps) => {
     props.pathsQuery.hasNextPage, 
     props.pathsQuery.isFetchingNextPage,
     getTriggerItems,
+    props.repairItemCounts.isPending,
   ])
 
   const setItemRef = useCallback((el: HTMLDivElement | null, id: string) => {

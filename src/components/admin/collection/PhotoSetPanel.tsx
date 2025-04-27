@@ -334,16 +334,16 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
       body='This action will <b>DELETE</b> this set <b>AND</b> any associated pictures. This action cannot be undone!'
       denyText="Cancel"
       confirmText="Delete"
-      confirmAction={() => {
-        deleteParentSet(photoSet.id)
-        setDeleteConfirmation(false)
-        deleteSet.mutate({
+      confirmAction={async () => {
+        await deleteSet.mutateAsync({
           collection: photoCollection,
           set: photoSet,
           options: {
             logging: true
           }
         })
+        deleteParentSet(photoSet.id)
+        setDeleteConfirmation(false)
       }}
       onClose={() => setDeleteConfirmation(false)}
       open={deleteConfirmation}
