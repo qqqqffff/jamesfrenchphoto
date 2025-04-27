@@ -25,6 +25,7 @@ interface FavoritesFullScreenParams {
   path?: string
 }
 
+//TODO: revamp me with infinite query
 export const Route = createFileRoute('/_auth/favorites-fullscreen')({
   component: RouteComponent,
   validateSearch: (

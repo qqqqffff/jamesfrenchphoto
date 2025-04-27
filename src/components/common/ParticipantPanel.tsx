@@ -33,9 +33,9 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
           <span>Tags:</span>
           <span className="italic flex flex-row gap-1">
             {props.participant.userTags.length > 0 ? (
-              props.participant.userTags.map((tag) => {
+              props.participant.userTags.map((tag, index) => {
                 return (
-                  <span className={`text-${tag.color ?? 'black'}`}>{tag.name}</span>
+                  <span className={`text-${tag.color ?? 'black'}`} key={index}>{tag.name}</span>
                 )
               })
             ) : 'No Tags'}

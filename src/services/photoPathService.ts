@@ -58,15 +58,18 @@ export async function getAllPaths(client: V6Client<Schema>, setId: string): Prom
 export interface GetInfinitePathsData {
   memo: PicturePath[],
   nextToken?: string,
+  previous: boolean,
 }
 interface GetInfinitePathsOptions {
   maxItems?: number,
   unauthenticated?: boolean,
-  participantId?: string
+  participantId?: string,
+  maxWindow?: number
 }
 async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePathsData, setId?: string, options?: GetInfinitePathsOptions): Promise<GetInfinitePathsData> {
   if(!setId) return initial;
 
+  //TODO: conditional checking if the previous exists in the memo and fetch only if it doesnt
   const response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder(
     { setId: setId }, 
     {
@@ -79,9 +82,13 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
 
   const newPaths: PicturePath[] = []
 
+  //pushing new paths to the memo
   if(options?.participantId) {
-    //TODO: improve me
-    newPaths.push(...(await Promise.all(response.data.map(async (path) => {
+    //adding favorites
+    //TODO: replace with si by participant id and colleciton id
+    newPaths.push(...(await Promise.all(response.data
+      .filter((path) => !initial.memo.some((pPath) => pPath.id === path.id))
+      .map(async (path) => {
         let favorite: undefined | string = (await path.favorites({ 
               authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
             })).data.find((favorite) => favorite.participantId === options.participantId)?.id
@@ -95,18 +102,24 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
     }))))
   }
   else {
-    newPaths.push(...response.data.map((path) => {
-      const mappedPath: PicturePath = {
-        ...path,
-        url: ''
-      }
-      return mappedPath
-    }))
+    newPaths.push(...response.data
+      .filter((path) => !initial.memo.some((pPath) => pPath.id === path.id))
+      .map((path) => {
+        const mappedPath: PicturePath = {
+          ...path,
+          url: ''
+        }
+        return mappedPath
+      })
+    )
   }
 
+  const newMemo: PicturePath[] = [...initial.memo, ...newPaths]
+
   const returnData: GetInfinitePathsData = {
-    memo: [...initial.memo, ...newPaths],
-    nextToken: response.nextToken ?? undefined
+    memo: newMemo,
+    nextToken: response.nextToken ?? undefined,
+    previous: false,
   }
 
   return returnData

@@ -62,7 +62,7 @@ interface PhotoCollectionPanelProps {
   coverPath?: UseQueryResult<[string | undefined, string] | undefined, Error>
 }
 
-interface Publishable {
+export interface Publishable {
   status: boolean, 
   reason?: string[], 
   warning?: string[]
@@ -150,7 +150,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
 
   const participants = useQuery(getAllParticipantsQueryOptions({ siTags: true }))
 
-  const collectionParticipants = useQuery(getAllCollectionParticipantsQueryOptions(collection.id))
+  const collectionParticipants = useQuery(getAllCollectionParticipantsQueryOptions(collection.id, { siTags: true }))
 
   const uploadCover = useMutation({
     mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
@@ -253,7 +253,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
             })
           }
         }} 
-        availableTags={availableTags} 
         open={updateCollectionVisible} 
         onClose={() => setUpdateCollectionVisible(false)}
       />
@@ -481,7 +480,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                   setActiveConsole('watermarks')
                 }
               }}
-              title="watermarks"
+              title="Watermarks"
             />
             <CollectionSidePanelButton 
               console="share"
@@ -717,12 +716,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
         </div>
         { activeConsole === 'sets' ? (
             selectedSet ? (
-                // <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
-                //   <div className="flex flex-row items-center justify-center">
-                //     <p>Loading</p>
-                //     <Loading />
-                //   </div>
-                // </div>
               <PhotoSetPanel 
                 photoCollection={collection} 
                 photoSet={selectedSet} 
@@ -739,6 +732,8 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                 parentUpdateCollection={updateParentCollection}
                 parentUpdateCollections={updateParentCollections}
                 auth={auth}
+                publishable={publishable}
+                publishCollection={publishCollection}
               />
             ) : (
               <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
@@ -782,8 +777,12 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
               <UsersPanel
                 collection={collection}
+                parentUpdateCollection={updateParentCollection}
+                parentUpdateCollections={updateParentCollections}
                 participants={participants.data ?? []}
-                collectionParticipants={collectionParticipants.data ?? []}
+                collectionParticipants={collectionParticipants}
+                userTags={availableTags}
+                updateCollectionMutation={updateCollection}
               />
             </div>
         ): (

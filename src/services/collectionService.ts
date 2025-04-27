@@ -304,7 +304,6 @@ export async function getCollectionById(client: V6Client<Schema>, collectionId?:
   if(!collection || !collection.data) return null
   const sets: PhotoSet[] = []
   if(!options || options.siSets){
-    
     sets.push(...await Promise.all((await collection.data.sets(
       { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'}
     )).data.map((async (set) => {
@@ -468,7 +467,7 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
 
 export interface CreateCollectionParams {
     name: string,
-    tags:  UserTag[],
+    tags?:  UserTag[],
     cover?: string,
     downloadable: boolean,
     options?: {
@@ -486,7 +485,7 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
 
     if(!collectionResponse || !collectionResponse.data) return null
 
-    const taggingResponse = await Promise.all(params.tags.map(async (tag) => {
+    const taggingResponse = await Promise.all((params.tags ?? []).map(async (tag) => {
         const taggingResponse = await client.models.CollectionTag.create({
             collectionId: collectionResponse.data!.id,
             tagId: tag.id
@@ -509,7 +508,7 @@ export async function createCollectionMutation(params: CreateCollectionParams) {
         textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
         date: collectionResponse.data.coverType?.date ?? undefined
       },
-      tags: params.tags,
+      tags: params.tags ?? [],
       downloadable: params.downloadable,
       watermarkPath: undefined,
       sets: [],
@@ -528,93 +527,94 @@ export interface UpdateCollectionParams extends Partial<CreateCollectionParams> 
     coverType?: CoverType
 }
 export async function updateCollectionMutation(params: UpdateCollectionParams): Promise<PhotoCollection> {
-    let updatedCollection = {
-        ...params.collection
-    }
+  let updatedCollection = {
+    ...params.collection
+  }
 
-    const newTags = (params.tags ?? []).filter((tag) => 
-        (params.collection.tags.find((colTag) => colTag.id === tag.id)) === undefined)
+  const newTags = (params.tags ?? []).filter((tag) => 
+    !params.collection.tags.some((colTag) => colTag.id === tag.id))
 
-    const removedTags = params.collection.tags.filter((colTag) => 
-        ((params.tags ?? []).find((tag) => tag.id === colTag.id) === undefined))
+  const removedTags = params.collection.tags.filter((colTag) => 
+    !(params.tags ?? []).some((tag) => tag.id === colTag.id))
 
-    if(params.options?.logging) console.log(newTags, removedTags)
+  if(params.options?.logging) console.log(newTags, removedTags)
 
-    updatedCollection.tags.push(...newTags)
-    updatedCollection.tags = updatedCollection.tags
-        .filter((tag) => removedTags.find((removedTag) => removedTag.id === tag.id) === undefined)
+  updatedCollection.tags.push(...newTags)
+  updatedCollection.tags = updatedCollection.tags
+    .filter((tag) => removedTags.find((removedTag) => removedTag.id === tag.id) === undefined)
 
-    const createTagResponse = await Promise.all(newTags.map(async (tag) => {
-        const response = await client.models.CollectionTag.create({
-            collectionId: params.collection.id,
-            tagId: tag.id
+  const createTagResponse = await Promise.all(newTags.map(async (tag) => {
+    const response = await client.models.CollectionTag.create({
+      collectionId: params.collection.id,
+      tagId: tag.id
+    })
+    return response
+  }))
+  if(params.options?.logging) console.log(createTagResponse)
+
+  let collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByCollectionId({ collectionId: params.collection.id })
+  let collectionTagsData = collectionTagsResponse.data
+
+  while(collectionTagsResponse.nextToken) {
+    collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByCollectionId({ collectionId: params.collection.id }, { nextToken: collectionTagsResponse.nextToken })
+    collectionTagsData.push(...collectionTagsResponse.data)
+  }
+
+  const removeTagsResponse = await Promise.all(
+    collectionTagsData
+    .map(async (colTag) => {
+      if(removedTags.some((tag) => tag.id === colTag.tagId)) {
+        const response = await client.models.CollectionTag.delete({
+          id: colTag.id
         })
         return response
-    }))
-    if(params.options?.logging) console.log(createTagResponse)
+      }
+    })
+  )
+  if(params.options?.logging) console.log(removeTagsResponse)
+  
+  if(params.name !== params.collection.name || 
+    params.downloadable !== params.collection.downloadable ||
+    (params.cover && parsePathName(params.cover) !== parsePathName(params.collection.coverPath ?? '')) ||
+    params.published !== params.collection.published ||
+    (params.watermark && parsePathName(params.watermark.path) !== parsePathName(params.collection.watermarkPath ?? '')) ||
+    ( 
+      params.coverType?.bgColor !== params.collection.coverType?.bgColor ||
+      params.coverType?.textColor !== params.collection.coverType?.textColor ||
+      params.coverType?.placement !== params.collection.coverType?.placement ||
+      params.coverType?.textPlacement !== params.collection.coverType?.textPlacement ||
+      params.coverType?.date !== params.collection.coverType?.date
+    )
+  ) {
+    const response = await client.models.PhotoCollection.update({
+      id: params.collection.id,
+      downloadable: params.downloadable,
+      name: params.name,
+      coverPath: params.cover === undefined ? undefined : 
+          params.cover !== null ? parsePathName(params.cover) : null,
+      published: params.published,
+      watermarkPath: params.watermark?.path ? parsePathName(params.watermark.path) : null,
+      items: params.items ? params.items : params.collection.items,
+      coverType: {
+      textColor: params.coverType ? params.coverType.textColor ?? null : params.collection.coverType?.textColor,
+      bgColor: params.coverType ? params.coverType.bgColor ?? null : params.collection.coverType?.bgColor,
+      placement: params.coverType ? params.coverType.placement ?? null : params.collection.coverType?.placement,
+      textPlacement: params.coverType ? params.coverType.textPlacement ?? null : params.collection.coverType?.textPlacement,
+      date: params.coverType ? params.coverType.date ?? null : params.collection.coverType?.date,
+      }
+    })
+    if(params.options?.logging) console.log(response)
 
-    let collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByCollectionId({ collectionId: params.collection.id })
-    let collectionTagsData = collectionTagsResponse.data
+    updatedCollection.name = params.name ?? params.collection.name
+    updatedCollection.downloadable = params.downloadable ?? params.collection.downloadable
+    updatedCollection.coverPath = params.cover ? parsePathName(params.cover) : params.collection.coverPath
+    updatedCollection.published = params.published ?? params.collection.published
+    updatedCollection.watermarkPath = params.watermark?.path ?? params.collection.watermarkPath
+  }
 
-    while(collectionTagsResponse.nextToken) {
-        collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByCollectionId({ collectionId: params.collection.id }, { nextToken: collectionTagsResponse.nextToken })
-        collectionTagsData.push(...collectionTagsResponse.data)
-    }
+  if(params.options?.logging) console.log(updatedCollection)
 
-    const removeTagsResponse = await Promise.all(
-        collectionTagsData
-        .map(async (colTag) => {
-            if(removedTags.some((tag) => tag.id === colTag.tagId)) {
-                const response = await client.models.CollectionTag.delete({
-                    id: colTag.id
-                })
-                return response
-            }
-        }))
-    if(params.options?.logging) console.log(removeTagsResponse)
-    
-    if(params.name !== params.collection.name || 
-      params.downloadable !== params.collection.downloadable ||
-      (params.cover && parsePathName(params.cover) !== parsePathName(params.collection.coverPath ?? '')) ||
-      params.published !== params.collection.published ||
-      (params.watermark && parsePathName(params.watermark.path) !== parsePathName(params.collection.watermarkPath ?? '')) ||
-      ( 
-        params.coverType?.bgColor !== params.collection.coverType?.bgColor ||
-        params.coverType?.textColor !== params.collection.coverType?.textColor ||
-        params.coverType?.placement !== params.collection.coverType?.placement ||
-        params.coverType?.textPlacement !== params.collection.coverType?.textPlacement ||
-        params.coverType?.date !== params.collection.coverType?.date
-      )
-    ) {
-        const response = await client.models.PhotoCollection.update({
-            id: params.collection.id,
-            downloadable: params.downloadable,
-            name: params.name,
-            coverPath: params.cover === undefined ? undefined : 
-                params.cover !== null ? parsePathName(params.cover) : null,
-            published: params.published,
-            watermarkPath: params.watermark?.path ? parsePathName(params.watermark.path) : null,
-            items: params.items ? params.items : params.collection.items,
-            coverType: {
-              textColor: params.coverType ? params.coverType.textColor ?? null : params.collection.coverType?.textColor,
-              bgColor: params.coverType ? params.coverType.bgColor ?? null : params.collection.coverType?.bgColor,
-              placement: params.coverType ? params.coverType.placement ?? null : params.collection.coverType?.placement,
-              textPlacement: params.coverType ? params.coverType.textPlacement ?? null : params.collection.coverType?.textPlacement,
-              date: params.coverType ? params.coverType.date ?? null : params.collection.coverType?.date,
-            }
-        })
-        if(params.options?.logging) console.log(response)
-
-        updatedCollection.name = params.name ?? params.collection.name
-        updatedCollection.downloadable = params.downloadable ?? params.collection.downloadable
-        updatedCollection.coverPath = params.cover ? parsePathName(params.cover) : params.collection.coverPath
-        updatedCollection.published = params.published ?? params.collection.published
-        updatedCollection.watermarkPath = params.watermark?.path ?? params.collection.watermarkPath
-    }
-
-    if(params.options?.logging) console.log(updatedCollection)
-
-    return updatedCollection
+  return updatedCollection
 }
 
 export interface PublishCollectionParams {
@@ -784,32 +784,47 @@ export async function reorderSetsMutation(params: ReorderSetsParams){
 }
 
 export interface AddCollectionParticipantParams {
-    participantId: string,
+    participantIds: string[],
     collectionId: string,
     options?: {
         logging?: boolean
     }
 }
 export async function addCollectionParticipantMutation(params: AddCollectionParticipantParams) {
-    const response = await client.models.ParticipantCollections.create({
-        participantId: params.participantId,
-        collectionId: params.collectionId,
+  const responses = await Promise.all(params.participantIds.map((id) => {
+    return client.models.ParticipantCollections.create({
+      participantId: id,
+      collectionId: params.collectionId,
     })
-    if(params.options?.logging) console.log(response)
+  }))
+
+  if(params.options?.logging) console.log(responses)
 }
 
 export interface RemoveCollectionParticipantParams extends AddCollectionParticipantParams {}
 export async function removeCollectionParticipantMutation(params: RemoveCollectionParticipantParams) {
-    const findTagResponse = await client.models.ParticipantCollections.listParticipantCollectionsByParticipantId({ participantId: params.participantId })
+  let findTagsResponse = await client.models.ParticipantCollections
+      .listParticipantCollectionsByCollectionId({ collectionId: params.collectionId })
+  const findTagsData = findTagsResponse.data
 
-    if(params.options?.logging) console.log(findTagResponse)
+  while(findTagsResponse.nextToken) {
+    findTagsResponse = await client.models.ParticipantCollections
+      .listParticipantCollectionsByCollectionId({ collectionId: params.collectionId }, { nextToken: findTagsResponse.nextToken })
+    
+      findTagsData.push(...findTagsResponse.data)
+  }
 
-    const foundTag = findTagResponse.data.find((response) => response.collectionId === params.collectionId);
-    if(foundTag) {
-        const response = await client.models.ParticipantCollections.delete({ id: foundTag.id })
+  const responses = await Promise.all(params.participantIds.map((id) => {
+    const response = findTagsData.find((tag) => tag.participantId === id)
 
-        if(params.options?.logging) console.log(response)
+    if(params.options?.logging) console.log(response)
+
+    if(response) {
+      return client.models.ParticipantCollections.delete({ id: response.id })
     }
+  }))
+
+  if(params.options?.logging) console.log(responses)
 }
 
 export interface RepairPathsParams {

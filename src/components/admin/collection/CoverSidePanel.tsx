@@ -307,6 +307,57 @@ export const CoverSidePanel = (props: CoverSidePanel) => {
                 />
               )
             })}
+            <BiSolidSquareRounded 
+              size={24}
+              className="fill-gray-400 cursor-pointer"
+              onClick={() => {
+                if('black' !== props.collection.coverType?.bgColor) {
+                  let temp: PhotoCollection | undefined
+                  props.updateParentCollection((prev) => {
+                    if(prev) {
+                      temp = {
+                        ...prev,
+                        coverType: {
+                          ...prev.coverType,
+                          bgColor: 'black'
+                        }
+                      }
+                      return temp
+                    }
+                  })
+                  props.updateParentCollections((prev) => {
+                    const pTemp = [...prev]
+        
+                    return pTemp.map((col) => {
+                      if(col.id === temp?.id) return temp
+                      return col
+                    })
+                  })
+                } else {
+                  let temp: PhotoCollection | undefined
+                  props.updateParentCollection((prev) => {
+                    if(prev) {
+                      temp = {
+                        ...prev,
+                        coverType: {
+                          ...prev.coverType,
+                          bgColor: undefined
+                        }
+                      }
+                      return temp
+                    }
+                  })
+                  props.updateParentCollections((prev) => {
+                    const pTemp = [...prev]
+        
+                    return pTemp.map((col) => {
+                      if(col.id === temp?.id) return temp
+                      return col
+                    })
+                  })
+                }
+              }}
+            />
           </div>
         </div>
         <div className="flex flex-col border border-gray-300 items-center rounded-lg pt-1 pb-4 px-2 w-full gap-2">
@@ -369,6 +420,108 @@ export const CoverSidePanel = (props: CoverSidePanel) => {
                 />
               )
             })}
+            <BiSolidSquareRounded 
+              size={24}
+              className="fill-black cursor-pointer"
+              onClick={() => {
+                if('black' !== props.collection.coverType?.textColor) {
+                  let temp: PhotoCollection | undefined
+                  props.updateParentCollection((prev) => {
+                    if(prev) {
+                      temp = {
+                        ...prev,
+                        coverType: {
+                          ...prev.coverType,
+                          textColor: 'black'
+                        }
+                      }
+                      return temp
+                    }
+                  })
+                  props.updateParentCollections((prev) => {
+                    const pTemp = [...prev]
+        
+                    return pTemp.map((col) => {
+                      if(col.id === temp?.id) return temp
+                      return col
+                    })
+                  })
+                } else {
+                  let temp: PhotoCollection | undefined
+                  props.updateParentCollection((prev) => {
+                    if(prev) {
+                      temp = {
+                        ...prev,
+                        coverType: {
+                          ...prev.coverType,
+                          textColor: undefined
+                        }
+                      }
+                      return temp
+                    }
+                  })
+                  props.updateParentCollections((prev) => {
+                    const pTemp = [...prev]
+        
+                    return pTemp.map((col) => {
+                      if(col.id === temp?.id) return temp
+                      return col
+                    })
+                  })
+                }
+              }}
+            />
+            <BiSolidSquareRounded 
+              size={24}
+              className="fill-slate-200 cursor-pointer"
+              onClick={() => {
+                if('white' !== props.collection.coverType?.textColor) {
+                  let temp: PhotoCollection | undefined
+                  props.updateParentCollection((prev) => {
+                    if(prev) {
+                      temp = {
+                        ...prev,
+                        coverType: {
+                          ...prev.coverType,
+                          textColor: 'white'
+                        }
+                      }
+                      return temp
+                    }
+                  })
+                  props.updateParentCollections((prev) => {
+                    const pTemp = [...prev]
+        
+                    return pTemp.map((col) => {
+                      if(col.id === temp?.id) return temp
+                      return col
+                    })
+                  })
+                } else {
+                  let temp: PhotoCollection | undefined
+                  props.updateParentCollection((prev) => {
+                    if(prev) {
+                      temp = {
+                        ...prev,
+                        coverType: {
+                          ...prev.coverType,
+                          textColor: undefined
+                        }
+                      }
+                      return temp
+                    }
+                  })
+                  props.updateParentCollections((prev) => {
+                    const pTemp = [...prev]
+        
+                    return pTemp.map((col) => {
+                      if(col.id === temp?.id) return temp
+                      return col
+                    })
+                  })
+                }
+              }}
+            />
           </div>
         </div>
       </div>

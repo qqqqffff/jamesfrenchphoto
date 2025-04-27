@@ -13,6 +13,7 @@ import { downloadImageMutation, DownloadImageMutationParams, getInfinitePathsQue
 import { HiOutlineDownload } from 'react-icons/hi'
 import { UnauthorizedEmailModal } from '../components/modals'
 import { Cover } from '../components/collection/Cover'
+import { LazyImage } from '../components/common/LazyImage'
 
 interface PhotoCollectionParams {
   set?: string,
@@ -41,7 +42,6 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     if((!collection || collection.sets.length === 0 || !collection.published) && !context.auth.admin) throw redirect({ to: destination })
     invariant(collection)
 
-    
     const coverUrl = (await context.queryClient.ensureQueryData(
       getPathQueryOptions(collection.coverPath ?? '')
     ))?.[1]
@@ -63,32 +63,57 @@ function RouteComponent() {
   const data = Route.useLoaderData()
   const collection = data.collection
   const dimensions = useWindowDimensions()
-  const observerRef = useRef<IntersectionObserver | null>(null)
-  const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
-
-  
-
+  const [tempUser, setTempUser] = useState<UserProfile>()
+  const bottomObserverRef = useRef<IntersectionObserver | null>(null)
+  const topObserverRef = useRef<IntersectionObserver | null>(null)
+  const currentOffsetIndex = useRef<number | undefined>()
   const columnMultiplier = dimensions.width > 1600 ? 5 : (
     dimensions.width > 800 ? 
       3 : 1
     )
-
-  const getTriggerItems = useCallback((allItems: PicturePath[]): PicturePath => {
-    return allItems[allItems.length - allItems.length % columnMultiplier - columnMultiplier]
-  }, [])
-  
-  //TODO: update me please with participant instead
-  const [tempUser, setTempUser] = useState<UserProfile>()
-
   const [set, setSet] = useState<PhotoSet>(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
 
   const pathsQuery = useInfiniteQuery(
     getInfinitePathsQueryOptions(set.id ?? data.setId ?? collection.sets[0].id, {
       unauthenticated: data.token !== undefined,
       participantId: data.auth.user?.profile.activeParticipant?.id ?? tempUser?.activeParticipant?.id,
-      maxItems: Math.round(3 * (columnMultiplier) * 1.5)
+      maxItems: Math.ceil(3 * (columnMultiplier) * 1.5)
     })
   )
+  const [pictures, setPictures] = useState<PicturePath[]>(pathsQuery.data ? pathsQuery.data.pages[pathsQuery.data.pages.length - 1].memo : [])
+  const topIndex = useRef<number>(0)
+  const bottomIndex = useRef<number>(pictures.length - 1)
+  const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
+
+  useEffect(() => {
+    if(pathsQuery.data) {
+      setPictures(pathsQuery.data.pages[pathsQuery.data.pages.length - 1].memo)
+    }
+  }, [pathsQuery.data])
+  
+
+  const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): { 
+    bottom: PicturePath, 
+    top?: PicturePath
+  } => {
+    if(offset) {
+      const pageMultiplier = Math.ceil(4 * 3 * columnMultiplier * 1.5)
+      bottomIndex.current = offset + ((offset + pageMultiplier) >= allItems.length ? allItems.length - offset - 1 : pageMultiplier)
+      topIndex.current = offset - ((offset - pageMultiplier) > 0 ? pageMultiplier : offset)
+      return {
+        bottom: allItems[offset + ((offset + pageMultiplier - (columnMultiplier * 2)) >= allItems.length ? 
+          allItems.length - offset - 1 : (pageMultiplier - (columnMultiplier * 2)))],
+        top: allItems[offset - ((offset - (pageMultiplier - (columnMultiplier * 2))) > 0 ? 
+          (pageMultiplier - (columnMultiplier * 2)) : offset)]
+      }
+    }
+    bottomIndex.current = allItems.length - 1
+    topIndex.current = allItems.length - Math.ceil(4 * 6 * columnMultiplier * 1.5)
+    return {
+      bottom: allItems[allItems.length - allItems.length % columnMultiplier - (columnMultiplier * 2)],
+      top: allItems?.[allItems.length - allItems.length % 4 - Math.ceil(4 * 6 * columnMultiplier * 1.5)]
+    }
+  }, [])
 
   useEffect(() => {
     setSet(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
@@ -126,23 +151,30 @@ function RouteComponent() {
     formattedCollection.push([] as PicturePath[])
   }
 
-  const mappedPaths = pathsQuery.data?.pages
-    .flatMap((page) => page.memo)
-    .reduce((prev, cur) => {
-      if(!prev.some((path) => path.id === cur.id)) {
-        prev.push(cur)
-      }
-      return prev
-    }, [] as PicturePath[])
-    .sort((a, b) => a.order - b.order) ?? []
-
   useEffect(() => {
-    if(mappedPaths.length === 0) return
+    if(pictures.length === 0) return
 
-    if(!observerRef.current) {
-      observerRef.current = new IntersectionObserver((entries) => {
+    if(!bottomObserverRef.current) {
+      bottomObserverRef.current = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-          if(entry.isIntersecting && pathsQuery.hasNextPage && !pathsQuery.isFetchingNextPage) {
+          if(entry.isIntersecting &&
+            currentOffsetIndex.current &&
+            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) > pictures.length
+          ) {
+            currentOffsetIndex.current = undefined
+          }
+          else if(entry.isIntersecting &&
+            currentOffsetIndex.current &&
+            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) < pictures.length
+          ) {
+            const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+            currentOffsetIndex.current = foundIndex
+          }
+          if(entry.isIntersecting && 
+            pathsQuery.hasNextPage && 
+            !pathsQuery.isFetchingNextPage &&
+            !currentOffsetIndex.current
+          ) {
             pathsQuery.fetchNextPage()
           }
         })
@@ -152,24 +184,46 @@ function RouteComponent() {
         threshold: 0.1
       })
     }
+    if(!topObserverRef.current) {
+      topObserverRef.current = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+          if(entry.isIntersecting && foundIndex !== 0) {
+            currentOffsetIndex.current = foundIndex
+          }
+        })
+      }, {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1
+      })
+    }
+    const triggerReturn = getTriggerItems(pictures, currentOffsetIndex.current)
 
-    const triggerItem = getTriggerItems(mappedPaths)
-
-    observerRef.current.disconnect()
-
-    const el = picturesRef.current.get(triggerItem.id)
-    if(el && observerRef.current) {
-      observerRef.current.observe(el)
+    const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
+    const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
+    if(Tel && topObserverRef.current && triggerReturn.top?.id) {
+      Tel.setAttribute('data-id', triggerReturn.top.id)
+      topObserverRef.current.observe(Tel)
+    }
+    if(Bel && bottomObserverRef.current) {
+      Bel.setAttribute('data-id', triggerReturn.bottom.id)
+      bottomObserverRef.current.observe(Bel)
     }
 
     return () => {
-      if(observerRef.current) {
-        observerRef.current.disconnect()
+      if(bottomObserverRef.current) {
+        bottomObserverRef.current.disconnect()
       }
-      observerRef.current = null
+      if(topObserverRef.current) {
+        topObserverRef.current.disconnect()
+      }
+      topObserverRef.current = null
+      bottomObserverRef.current = null
     }
   }, [
-    mappedPaths,
+    pictures,
+    currentOffsetIndex.current,
     pathsQuery.fetchNextPage,
     pathsQuery.hasNextPage,
     pathsQuery.isFetchingNextPage,
@@ -184,18 +238,25 @@ function RouteComponent() {
 
   const paths: Record<string, UseQueryResult<[string | undefined, string] | undefined, Error>> = Object.fromEntries(
     useQueries({
-      queries: mappedPaths.map((path) => (
+      queries: pictures
+      .slice(
+        topIndex.current > 0 ? topIndex.current : 0, 
+        (bottomIndex.current + 1) > pictures.length ? undefined : bottomIndex.current + 1)
+      .map((path) => (
         getPathQueryOptions(path.path, path.id)
       ))
     })
     .map((query, index) => {
-      return [mappedPaths[index].id, query]
+      return [
+        pictures[index + (topIndex.current > 0 ? topIndex.current : 0)].id, 
+        query
+      ]
     })
   )
 
   let curIndex = 0
   
-  mappedPaths.forEach((picture) => {
+  pictures.forEach((picture) => {
       formattedCollection[curIndex].push(picture)
       if(curIndex + 2 > columnMultiplier){
         curIndex = 0
@@ -321,7 +382,7 @@ function RouteComponent() {
               onClick={() => {
                 const nextIndex = currentIndex - 1 < 0 ? collection.sets.length - 1 : currentIndex - 1
                 const set = collection.sets[nextIndex]
-                const refObject = picturesRef.current.get(mappedPaths[0].id)
+                const refObject = picturesRef.current.get(pictures[0].id)
                 
                 if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
                 navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
@@ -334,7 +395,7 @@ function RouteComponent() {
             <SetCarousel 
               setList={collection.sets}
               setSelectedSet={(set) => {
-                const refObject = picturesRef.current.get(mappedPaths[0].id)
+                const refObject = picturesRef.current.get(pictures[0].id)
                 
                 if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
                 navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
@@ -348,7 +409,7 @@ function RouteComponent() {
               onClick={() => {
                 const nextIndex = currentIndex + 1 >= collection.sets.length ? 0 : currentIndex + 1
                 const set = collection.sets[nextIndex]
-                const refObject = picturesRef.current.get(mappedPaths[0].id)
+                const refObject = picturesRef.current.get(pictures[0].id)
                 
                 if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
                 navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
@@ -380,7 +441,12 @@ function RouteComponent() {
                         onMouseLeave={() => setCurrentControlDisplay(undefined)}
                         onClick={() => setCurrentControlDisplay(picture.id)}
                       >
-                        { url?.isLoading ? (
+                        <LazyImage 
+                          className={`h-auto max-w-full rounded-lg border-2 ${currentControlDisplay === picture.id ? 'border-gray-300' : 'border-transparent'}`}
+                          src={url}
+                          watermarkPath={watermarkPath}
+                        />
+                        {/* { url?.isLoading ? (
                           <div className="flex items-center justify-center h-[100px] bg-gray-300 rounded-lg">
                             <svg className="w-10 h-10 text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
                               <path d="M18 0H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2Zm-5.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm4.376 10.481A1 1 0 0 1 16 15H4a1 1 0 0 1-.895-1.447l3.5-7A1 1 0 0 1 7.468 6a.965.965 0 0 1 .9.5l2.775 4.757 1.546-1.887a1 1 0 0 1 1.618.1l2.541 4a1 1 0 0 1 .028 1.011Z"/>
@@ -394,10 +460,10 @@ function RouteComponent() {
                             <img 
                               src={watermarkPath.data?.[1]}
                               className="absolute inset-0 max-w-full h-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
-                              alt=""
+                              alt="James French Photography Watermark"
                             />
                           </>
-                        )}
+                        )} */}
                         <div className={`absolute bottom-2 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
                           <button
                             title={`${picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`}

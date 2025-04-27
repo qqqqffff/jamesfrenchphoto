@@ -179,7 +179,6 @@ function RouteComponent() {
             }
             //TODO: error handle
           }}
-          availableTags={tagsPromise.data}
         />
       </Suspense>
       {selectedCollectionId ? (
