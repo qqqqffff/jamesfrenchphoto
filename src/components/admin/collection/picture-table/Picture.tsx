@@ -1,7 +1,10 @@
 import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react";
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../../types";
 import { attachClosestEdge, extractClosestEdge, type Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
-import { invariant, useNavigate } from "@tanstack/react-router";
+import { 
+  invariant, 
+  // useNavigate 
+} from "@tanstack/react-router";
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { getPictureData, isPictureData } from "./PictureData";
@@ -69,7 +72,7 @@ interface PictureProps {
 export const Picture = (props: PictureProps) => {
   const ref = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<PictureState>(idle)
-  const navigate = useNavigate()
+  // const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const expandedRef = useRef<HTMLDivElement | null>(null)
