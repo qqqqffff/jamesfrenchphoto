@@ -9,7 +9,7 @@ import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { getPictureData, getPictureDropTargetData, isDraggingAPicture, isPictureData } from "./PictureData";
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
-import { preserveOffsetOnSource } from '@atlaskit/pragmatic-drag-and-drop/element/preserve-offset-on-source';
+import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview';
 import { DropIndicator } from "../../../common/DropIndicator";
 import { createPortal } from "react-dom";
 import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query";
@@ -160,6 +160,8 @@ export const Picture = (props: PictureProps) => {
   useEffect(() => {
     const outer = outerRef.current
     invariant(outer)
+    const isSelected = props.selectedPhotos.some((picture) => picture.id === props.picture.id)
+    const isDraggingSelected = props.selectedPhotos.some((picture) => picture.id === props.parentIsDragging?.id)
 
     return combine(
       draggable({
@@ -167,13 +169,16 @@ export const Picture = (props: PictureProps) => {
         getInitialData: ({ element })  => {
           return getPictureData({ picture: props.picture, rect: element.getBoundingClientRect() })
         },
-        onGenerateDragPreview({ source, location, nativeSetDragImage }) {
+        onGenerateDragPreview({ source, nativeSetDragImage }) {
           const data = source.data
           invariant(isPictureData(data))
 
           setCustomNativeDragPreview({
             nativeSetDragImage,
-            getOffset: preserveOffsetOnSource({ element: outer, input: location.current.input }),
+            getOffset: pointerOutsideOfPreview({
+              x: '16px',
+              y: '8px'
+            }),
             render({ container }) {
               setState({ 
                 type: 'preview', 
@@ -211,16 +216,9 @@ export const Picture = (props: PictureProps) => {
           const closestEdge = extractClosestEdge(self.data)
           if(!closestEdge) return
 
-          setState({ type: 'is-over', dragging: source.data.rect, closestEdge })
-          // if(!props.selectedPhotos.some((picture) => props.picture.id === picture.id)
-          //  !props.selectedPhotos.some((picture) => picture.id === props.parentIsDragging?.id)
-          // ) {
-          //   const closestEdge = extractClosestEdge(self.data)
-          //   setState({ 
-          //     type: 'is-dragging-over', 
-          //     closestEdge, 
-          //   })
-          // }
+          if((isDraggingSelected && !isSelected) || !isDraggingSelected) {
+            setState({ type: 'is-over', dragging: source.data.rect, closestEdge })
+          }
         },
         onDrag({ source, self }) {
           if(!isPictureData(source.data)) return
@@ -234,19 +232,13 @@ export const Picture = (props: PictureProps) => {
             closestEdge,
           }
           setState((current) => {
-            if(current.type === 'is-over' && current.closestEdge === closestEdge) {
-              return current
+            if((isDraggingSelected && !isSelected) || !isDraggingSelected) {
+              if(current.type === 'is-over' && current.closestEdge === closestEdge) {
+                return current
+              }
+              return proposed
             }
-            return proposed
-            // if(!props.selectedPhotos.some((picture) => props.picture.id === picture.id) 
-            //  !props.selectedPhotos.some((picture) => picture.id === props.parentIsDragging?.id)
-            // ) {
-            //   if(current.type === 'is-dragging-over' && current.closestEdge === closestEdge) {
-            //     return current
-            //   }
-            //   return { type: 'is-dragging-over', closestEdge }
-            // }
-            // return current
+            return current
           })
         },
         onDragLeave({ source }) {
@@ -259,7 +251,7 @@ export const Picture = (props: PictureProps) => {
         }
       })
     )
-  }, [props.picture, props.selectedPhotos])
+  }, [props.picture, props.selectedPhotos, props.parentIsDragging])
 
   const deletePath = useMutation({
     mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)

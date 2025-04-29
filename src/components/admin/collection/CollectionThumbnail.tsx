@@ -143,7 +143,7 @@ export const CollectionThumbnail= ({
               onMouseEnter={() => setHovering(true)}
               onMouseLeave={() => setHovering(false)}
             >
-              {(cover && cover.data) ? (
+              {(cover && cover.data && cover.data[1] !== '') ? (
                 <img src={cover.data[1]} className="h-[238px] max-w-[358px] rounded-lg"/>
               ) : (
                 <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
