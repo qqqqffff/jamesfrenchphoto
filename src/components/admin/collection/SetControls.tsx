@@ -31,7 +31,7 @@ export const SetControls = (props: SetControlsProps) => {
 
   return (
     <div 
-      className="fixed py-1.5 px-4 rounded-lg shadow inset-x-0 bottom-0 ml-2 mb-2 border place-self-center z-50 bg-white flex flex-row gap-1"
+      className="fixed py-1.5 px-4 rounded-lg shadow inset-x-0 bottom-0 ml-2 mb-2 border place-self-center z-50 bg-white flex flex-row gap-1 left-[380px]"
     >
       <Tooltip content={'Unselect All'}>
         <button 

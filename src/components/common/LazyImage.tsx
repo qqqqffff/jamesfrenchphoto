@@ -2,7 +2,7 @@ import { UseQueryResult } from "@tanstack/react-query"
 import { 
   ComponentProps, 
   useEffect, 
-  useRef,
+  useRef, 
   useState, 
 } from "react"
 
@@ -49,7 +49,7 @@ export const LazyImage = (props: LazyImageProps) => {
 
   return (
     <div
-      ref={imgRef}
+      ref={props.ref}
       id='lazy-image-container'
       className="relative"
       style={{
@@ -59,6 +59,7 @@ export const LazyImage = (props: LazyImageProps) => {
     >
         <img 
           {...imageProps}
+          ref={undefined}
           src={props.src.data[1]}
         />
         {props.watermarkPath?.data?.[1] && (

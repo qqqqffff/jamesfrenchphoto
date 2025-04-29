@@ -1,6 +1,6 @@
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { ComponentProps, Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
-import { isPictureData } from "./PictureData";
+import { isDraggingAPicture, isPictureData } from "./PictureData";
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { flushSync } from "react-dom";
 import { reorderWithEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge';
@@ -15,6 +15,9 @@ import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/p
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
 import { GetInfinitePathsData } from '../../../../services/photoPathService';
 import Loading from '../../../common/Loading';
+import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
+import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
+import { invariant } from '@tanstack/react-router';
 
 interface PictureListProps extends ComponentProps<'div'> {
   set: PhotoSet,
@@ -45,6 +48,8 @@ export const PictureList = (props: PictureListProps) => {
   const topIndex = useRef<number>(0)
   const bottomIndex = useRef<number>(props.paths.length - 1)
   const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
+  const [isDragging, setIsDragging] = useState<PicturePath>()
+  const listRef = useRef<HTMLDivElement | null>(null)
 
   const reorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
@@ -72,74 +77,89 @@ export const PictureList = (props: PictureListProps) => {
 
   useEffect(() => {
     setPictures(props.paths)
+    const element = listRef.current
+    invariant(element)
 
-    return monitorForElements({
-      canMonitor({ source }) {
-        return isPictureData(source.data)
-      },
-      onDrop({ location, source }) {
-        const target = location.current.dropTargets[0]
-        if(!target) {
-          return
-        }
+    return combine(
+      monitorForElements({
+        canMonitor: isDraggingAPicture,
+        onDrop({ location, source }) {
+          const target = location.current.dropTargets[0]
+          if(!target) {
+            return
+          }
+          const sourceData = source.data
+          const targetData = target.data
+          //TODO: implement reorder for list of selected items
 
-        const sourceData = source.data
-        const targetData = target.data
+          if(!isPictureData(sourceData) || !isPictureData(targetData)) {
+            return
+          }
 
-        if(!isPictureData(sourceData) || !isPictureData(targetData)) {
-          return
-        }
-
-        const indexOfSource = pictures.findIndex((picture) => picture.id === sourceData.pictureId)
-        const indexOfTarget = pictures.findIndex((picture) => picture.id === targetData.pictureId)
-
-        if(indexOfTarget < 0 || indexOfTarget < 0) {
-          return
-        }
-
-        const updatedPaths = pictures.map((path) => {
-          if(path.id === sourceData.pictureId) {
-            return {
-              ...path,
-              order: indexOfTarget
+          //if the dnd-ed object is the single selected photo or if it is not a selected photo
+          if(props.selectedPhotos.length <= 1 || !props.selectedPhotos.some((picture) => picture.id === sourceData.picture.id)) {
+            const indexOfSource = pictures.findIndex((picture) => picture.id === sourceData.picture.id)
+            const indexOfTarget = pictures.findIndex((picture) => picture.id === targetData.picture.id)
+  
+            if(indexOfTarget < 0 || indexOfTarget < 0) {
+              return
+            }
+  
+            const updatedPaths = pictures.map((path) => {
+              if(path.id === sourceData.picture.id) {
+                return {
+                  ...path,
+                  order: indexOfTarget
+                }
+              }
+              else if(path.id === targetData.picture.id) {
+                return {
+                  ...path,
+                  order: indexOfSource
+                }
+              }
+              return path
+            })
+  
+            // reorderPaths.mutate({
+            //   paths: updatedPaths,
+            //   options: {
+            //     logging: true
+            //   }
+            // })
+  
+            const closestEdgeOfTarget = extractClosestEdge(targetData)
+  
+            flushSync(() => {
+              const newPictures = reorderWithEdge({
+                list: updatedPaths,
+                startIndex: indexOfSource,
+                indexOfTarget,
+                closestEdgeOfTarget,
+                axis: 'horizontal'
+              })
+              setPictures(newPictures)
+            })
+  
+            const element = document.querySelector(`[data-picture-id="${sourceData.picture.id}"]`)
+            if(element instanceof HTMLElement) {
+              triggerPostMoveFlash(element)
             }
           }
-          else if(path.id === targetData.pictureId) {
-            return {
-              ...path,
-              order: indexOfSource
-            }
-          }
-          return path
-        })
-
-        reorderPaths.mutate({
-          paths: updatedPaths,
-          options: {
-            logging: true
-          }
-        })
-
-        const closestEdgeOfTarget = extractClosestEdge(targetData)
-
-        flushSync(() => {
-          const newPictures = reorderWithEdge({
-            list: updatedPaths,
-            startIndex: indexOfSource,
-            indexOfTarget,
-            closestEdgeOfTarget,
-            axis: 'horizontal'
-          })
-          setPictures(newPictures)
-        })
-
-        const element = document.querySelector(`[data-picture-id="${sourceData.pictureId}"]`)
-        if(element instanceof HTMLElement) {
-          triggerPostMoveFlash(element)
+          //if the dnd-ed object is in the set of selected photos
         }
-      }
-    })
-  }, [props.paths])
+      }),
+      autoScrollForElements({
+        canScroll({ source }) {
+          return isDraggingAPicture({ source })
+        },
+        element
+      })
+    )
+  }, [
+    props.paths, 
+    props.selectedPhotos
+  ])
 
   useEffect(() => {
     if(props.paths.length == 0) return
@@ -266,7 +286,7 @@ export const PictureList = (props: PictureListProps) => {
 
   return (
     <div className="pt-6 my-0 mx-auto max-h-[90vh] overflow-y-auto px-4">
-      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2">
+      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2 overflow-y-scroll px-2" ref={listRef}>
         {pictures.map((item, index) => {
           return (
             <div 
@@ -296,6 +316,8 @@ export const PictureList = (props: PictureListProps) => {
                 participantId={props.participantId}
                 reorderPaths={reorderPaths}
                 watermark={watermarkQuery}
+                parentIsDragging={isDragging}
+                parentUpdateIsDragging={setIsDragging}
               />
             </div>
           )
