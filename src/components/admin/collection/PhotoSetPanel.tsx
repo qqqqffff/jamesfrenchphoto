@@ -234,12 +234,15 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
       const trimmedText = searchText.trim().toLocaleLowerCase()
 
       tempFiles = tempFiles.filter((path) => {
-        console.log(parsePathName(path.path), trimmedText)
         return parsePathName(path.path)
           .trim()
           .toLocaleLowerCase()
           .includes(trimmedText)
       })
+
+      if(tempFiles.length === 0 && pathsQuery.hasNextPage) {
+        pathsQuery.fetchNextPage()
+      }
     }
 
     return tempFiles

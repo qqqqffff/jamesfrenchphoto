@@ -1,6 +1,6 @@
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { ComponentProps, Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
-import { isDraggingAPicture, isPictureData } from "./PictureData";
+import { isDraggingAPicture, isPictureData, isPictureDropTargetData } from "./PictureData";
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { flushSync } from "react-dom";
 import { reorderWithEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge';
@@ -59,6 +59,8 @@ export const PictureList = (props: PictureListProps) => {
     bottom: PicturePath, 
     top?: PicturePath,
   } => {
+    //38 = 2.5 pages for indexes
+    //32 = 2 pages for trigger
     if(offset) {
       bottomIndex.current = (offset) + ((offset + 38) >= allItems.length ? allItems.length - offset - 1 : 38)
       topIndex.current = (offset) - ((offset - 38) > 0 ? 38 : offset)
@@ -67,6 +69,8 @@ export const PictureList = (props: PictureListProps) => {
         top: allItems[(offset) - ((offset - 32) > 0 ? 32 : offset)]
       }
     }
+    //when downward scrolling 4 pages up will remain rendered (64 pictures )
+    //first row of bottom page will trigger
     bottomIndex.current = allItems.length - 1
     topIndex.current = allItems.length - 65
     return {
@@ -92,12 +96,13 @@ export const PictureList = (props: PictureListProps) => {
           const targetData = target.data
           //TODO: implement reorder for list of selected items
 
-          if(!isPictureData(sourceData) || !isPictureData(targetData)) {
+          if(!isPictureData(sourceData) || !isPictureDropTargetData(targetData)) {
             return
           }
 
           //if the dnd-ed object is the single selected photo or if it is not a selected photo
-          if(props.selectedPhotos.length <= 1 || !props.selectedPhotos.some((picture) => picture.id === sourceData.picture.id)) {
+          const draggingSelected = props.selectedPhotos.some((picture) => picture.id === sourceData.picture.id)
+          if(props.selectedPhotos.length == 1 && !draggingSelected) {
             const indexOfSource = pictures.findIndex((picture) => picture.id === sourceData.picture.id)
             const indexOfTarget = pictures.findIndex((picture) => picture.id === targetData.picture.id)
   
@@ -121,12 +126,12 @@ export const PictureList = (props: PictureListProps) => {
               return path
             })
   
-            // reorderPaths.mutate({
-            //   paths: updatedPaths,
-            //   options: {
-            //     logging: true
-            //   }
-            // })
+            reorderPaths.mutate({
+              paths: updatedPaths,
+              options: {
+                logging: true
+              }
+            })
   
             const closestEdgeOfTarget = extractClosestEdge(targetData)
   
@@ -139,6 +144,15 @@ export const PictureList = (props: PictureListProps) => {
                 axis: 'horizontal'
               })
               setPictures(newPictures)
+              props.parentUpdatePaths(newPictures)
+              props.parentUpdateSet({
+                ...props.set,
+                paths: newPictures
+              })
+              props.parentUpdateCollection({
+                ...props.collection,
+                sets: props.collection.sets.map((set) => set.id === props.set.id ? ({...props.set, paths: newPictures}) : set)
+              })
             })
   
             const element = document.querySelector(`[data-picture-id="${sourceData.picture.id}"]`)
@@ -147,6 +161,56 @@ export const PictureList = (props: PictureListProps) => {
             }
           }
           //if the dnd-ed object is in the set of selected photos
+          else {
+            const targetIndex = pictures.findIndex((picture) => picture.id == targetData.picture.id)
+            if(targetIndex < 0) return;
+
+            const filteredFirstSlice: PicturePath[] = pictures
+              .slice(0, targetIndex)
+              .filter((picture) => !props.selectedPhotos.some((sPicture) => sPicture.id === picture.id))
+
+            const filteredSecondSlice: PicturePath[] = pictures
+              .slice(targetIndex)
+              .filter((picture) => !props.selectedPhotos.some((sPicture) => sPicture.id === picture.id))
+
+            const mergedArray: PicturePath[] = [
+              ...filteredFirstSlice,
+              ...props.selectedPhotos.sort((a, b) => a.order - b.order),
+              ...filteredSecondSlice
+            ].map((picture, index) => ({...picture, order: index}))
+
+            reorderPaths.mutate({
+              paths: mergedArray,
+              options: {
+                logging: true
+              }
+            })
+  
+            setPictures(mergedArray)
+            props.setSelectedPhotos([...props.selectedPhotos].map((picture) => {
+              return {
+                ...picture,
+                order: mergedArray.findIndex((pPicture) => pPicture.id === picture.id)
+              }
+            }))
+            props.parentUpdatePaths(mergedArray)
+            props.parentUpdateSet({
+              ...props.set,
+              paths: mergedArray
+            })
+            props.parentUpdateCollection({
+              ...props.collection,
+              sets: props.collection.sets.map((set) => set.id === props.set.id ? ({...props.set, paths: mergedArray}) : set)
+            })
+
+            props.selectedPhotos
+              .map((picture) => document.querySelector(`[data-picture-id="${picture.id}"]`))
+              .forEach((element) => {
+                if(element instanceof HTMLElement) {
+                  triggerPostMoveFlash(element)
+                }
+              })
+          }
         }
       }),
       autoScrollForElements({

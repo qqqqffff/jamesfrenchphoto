@@ -233,7 +233,7 @@ export interface ReorderPathsParams{
     paths: PicturePath[],
     fullRefetch?: {
         setId: string,
-        order: 'ASC' | 'DSC'
+        order?: 'ASC' | 'DSC'
     },
     options?: {
         logging: boolean

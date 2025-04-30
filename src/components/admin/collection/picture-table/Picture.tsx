@@ -251,7 +251,7 @@ export const Picture = (props: PictureProps) => {
         }
       })
     )
-  }, [props.picture, props.selectedPhotos, props.parentIsDragging])
+  }, [props.picture, props.selectedPhotos, props.parentIsDragging ])
 
   const deletePath = useMutation({
     mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
