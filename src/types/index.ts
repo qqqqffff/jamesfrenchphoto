@@ -167,8 +167,29 @@ export type UserTag = {
 export type Package = {
     id: string,
     name: string,
-    tag: UserTag,
-    pdfPath: string,
+    description?: string,
+    items: PackageItem[]
+    tagId: string,
+    pdfPath?: string,
+    createdAt: string,
+}
+
+export type PackageItem = {
+    id: string
+    name: string
+    description?: string
+    quantities?: number
+    max?: number
+    packageId: string,
+    price?: number,
+    discountId?: string,
+}
+
+export type PackageDiscount = {
+    id: string,
+    packageId: string,
+    itemId: string,
+    discount: number,
 }
 
 export interface TableGroup {

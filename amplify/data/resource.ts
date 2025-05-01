@@ -135,12 +135,40 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       name: a.string().required(),
+      description: a.string(),
+      items: a.hasMany('PackageItem', 'packageId'),
       tagId: a.id().required(),
       tag: a.belongsTo('UserTag', 'tagId'),
       pdfPath: a.string().required()
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  PackageItem: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      description: a.string(),
+      quantity: a.integer(),
+      max: a.integer(),
+      packageId: a.id().required(),
+      package: a.belongsTo('Package', 'packageId'),
+      price: a.float(),
+      discountId: a.hasOne('PackageItemDiscount', 'packageItemId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('packageId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  PackageItemDiscount: a
+    .model({
+      id: a.id().required(),
+      packageItemId: a.id().required(),
+      item: a.belongsTo('PackageItem', 'packageItemId'),
+      packageId: a.id().required(),
+      discount: a.float().required()
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('packageId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   TableGroup: a
     .model({

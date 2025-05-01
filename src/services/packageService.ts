@@ -7,22 +7,14 @@ import { queryOptions } from "@tanstack/react-query";
 
 const client = generateClient<Schema>()
 
+//TODO: fix me please
 async function getPackagesByUserTags(client: V6Client<Schema>, tags: UserTag[]): Promise<Package[]> {
     console.log('api call')
     const packages: Package[] = (await Promise.all(tags.map(async (tag) => {
         const packagesResponse = await client.models.Package.listPackageByTagId({
             tagId: tag.id,
         })
-        const mappedPackages: Package[] = await Promise.all(packagesResponse.data.map(async (pack) => {
-            const mappedPackage: Package = {
-                ...pack,
-                tag: tag,
-                pdfPath: (await getUrl({
-                    path: pack.pdfPath
-                })).url.toString()
-            }
-            return mappedPackage
-        }))
+        const mappedPackages: Package[] = []
         return mappedPackages
     }))).reduce((prev, cur) => {
         cur.forEach((pack) => {
@@ -37,23 +29,7 @@ async function getPackagesByUserTags(client: V6Client<Schema>, tags: UserTag[]):
 
 async function getAllPackages(client: V6Client<Schema>){
     console.log('api call')
-    const packageResponse = await client.models.Package.list()
-    const mappedPackages: Package[] = (await Promise.all(packageResponse.data.map(async (pack) => {
-        const tagResponse = await pack.tag()
-        if(!tagResponse || !tagResponse.data) return
-        const mappedPackage: Package = {
-            ...pack,
-            tag: {
-                ...tagResponse.data,
-                color: tagResponse.data.color ?? undefined,
-                notifications: undefined
-            },
-            pdfPath: (await getUrl({
-                path: pack.pdfPath
-            })).url.toString(),
-        }
-        return mappedPackage
-    }))).filter((tag) => tag !== undefined)
+    const mappedPackages: Package[] = []
     return mappedPackages
 }
 
