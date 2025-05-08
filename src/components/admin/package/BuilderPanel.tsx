@@ -1,5 +1,5 @@
 import { HiOutlinePlusCircle } from "react-icons/hi2"
-import { Package } from "../../../types"
+import { Package, UserTag } from "../../../types"
 import { Dispatch, SetStateAction, useState } from "react"
 import { v4 } from 'uuid'
 import { BuilderForm } from "./BuilderForm"
@@ -7,6 +7,8 @@ import { BuilderForm } from "./BuilderForm"
 interface BuilderPanelProps {
   packages: Package[]
   parentUpdatePackages: Dispatch<SetStateAction<Package[]>>
+  tags: UserTag[],
+  parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
 }
 
 export const BuilderPanel = (props: BuilderPanelProps) => {
@@ -51,7 +53,7 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
                   <span className="text-2xl">&bull;</span>
                   <button
                     className={`
-                      flex flex-row gap-2 items-center w-full mx-1 px-1 justify-between 
+                      flex flex-row gap-2 items-center w-full mx-1 ps-2 pe-1 justify-between 
                       border border-transparent rounded-lg hover:text-gray-500 hover:bg-gray-100
                       ${!selected ? 'hover:border-gray-200' : 'bg-gray-200 border-gray-500 hover:border-gray-900'}
                     `}
@@ -62,7 +64,7 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
                       })
                     }}
                   >
-                    {pack.name}
+                    <span className="w-full truncate text-left">{pack.name}</span>
                   </button>
                 </div>
               </div>
@@ -74,9 +76,13 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
         {selectedPackage ? (
           <BuilderForm 
             selectedPackage={selectedPackage}
+            parentUpdateSelectedPackage={setSelectedPackage}
+            tags={props.tags}
+            parentUpdateTags={props.parentUpdateTags}
+            parentUpdatePackageList={props.parentUpdatePackages}
           />
         ) : (
-          <span className="text-2xl text-gray-500 italic font-light">Create or Select a Package to get Started</span>
+          <span className="text-2xl text-gray-500 italic font-light self-center mt-4">Create or Select a Package to get Started</span>
         )}
       </div>
     </div>

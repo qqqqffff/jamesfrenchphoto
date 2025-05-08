@@ -181,7 +181,7 @@ export type PackageItem = {
     quantities?: number
     max?: number
     packageId: string,
-    price?: number,
+    price?: string,
     discountId?: string,
 }
 

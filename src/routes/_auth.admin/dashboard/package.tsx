@@ -3,7 +3,10 @@ import { useEffect, useState } from 'react'
 import { LuBadgeDollarSign, LuHammer } from 'react-icons/lu'
 import { PricelistPanel } from '../../../components/admin/package/PricelistPanel'
 import { BuilderPanel } from '../../../components/admin/package/BuilderPanel'
-import { Package } from '../../../types'
+import { Package, UserTag } from '../../../types'
+import { getAllUserTagsQueryOptions } from '../../../services/userService'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { useQuery } from '@tanstack/react-query'
 
 interface PackageSearchParams {
   console?: string
@@ -17,7 +20,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/package')({
   beforeLoad: ({ search }) => search,
   loader: async ({ context }) => {
     return {
-      console: context.console
+      console: context.console,
     }
   },
 })
@@ -26,13 +29,22 @@ function RouteComponent() {
   const data = Route.useLoaderData()
   const navigate = useNavigate()
   const [activeConsole, setActiveConsole] = useState<'builder' | 'pricelist' | undefined>(
-  data.console === 'builder' ? (
-    'builder' as 'builder'
-  ) : (
-  data.console === 'pricelist' ? (
-    'pricelist' as 'pricelist'
-  ) : undefined))
+    data.console === 'builder' ? (
+      'builder' as 'builder'
+    ) : (
+    data.console === 'pricelist' ? (
+      'pricelist' as 'pricelist'
+    ) : undefined)
+  )
+  //TODO: api call
   const [packages, setPackages] = useState<Package[]>([])
+  const [tags, setTags] = useState<UserTag[]>([])
+
+  const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
+    siCollections: true, 
+    siNotifications: false, 
+    siTimeslots: true 
+  }))
 
   useEffect(() => {
     setActiveConsole(
@@ -44,13 +56,26 @@ function RouteComponent() {
       ) : undefined)
     )
   }, [data.console])
+
+  useEffect(() => {
+    if(tagsQuery.data) {
+      if(!tags.some((tag) => tagsQuery.data.some((pTag) => pTag.id === tag.id)) ||
+        !tagsQuery.data.some((pTag) => tags.some((tag) => tag.id === pTag.id))
+      ) {
+        setTags(tagsQuery.data)
+      }
+    }
+  }, [tagsQuery.data])
   
   return (
     <>
+      {/* <ReactQueryDevtools initialIsOpen /> */}
       {activeConsole === 'builder' ? (
         <BuilderPanel 
           packages={packages}
           parentUpdatePackages={setPackages}
+          tags={tags}
+          parentUpdateTags={setTags}
         />
       ) : (
       activeConsole === 'pricelist' ? (

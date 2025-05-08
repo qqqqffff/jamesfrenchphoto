@@ -163,7 +163,7 @@ export const getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({
 })
 
 export const getAllTimeslotsByUserTagQueryOptions = (userTag: UserTag) => queryOptions({
-    queryKey: ['timeslot', client, userTag],
+    queryKey: ['tag-timeslot', client, userTag],
     queryFn: () => getAllTimeslotsByUserTag(client, userTag)
 })
 

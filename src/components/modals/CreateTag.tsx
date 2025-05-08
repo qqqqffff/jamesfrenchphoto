@@ -1,30 +1,35 @@
-import { FC, useEffect, useState } from "react";
+import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
 import { ModalProps } from ".";
 import { Button, Checkbox, Datepicker, Dropdown, Label, Modal, TextInput } from "flowbite-react";
 import { PhotoCollection, Timeslot, UserTag } from "../../types";
 import { currentDate, DAY_OFFSET, defaultColors, textInputTheme } from "../../utils";
 import { BiSolidSquareRounded } from "react-icons/bi";
 import { CompactSlotComponent, SlotComponent } from "../timeslot/Slot";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { getAllPhotoCollectionsQueryOptions } from "../../services/collectionService";
-import { getAllTimeslotsByDateQueryOptions } from "../../services/timeslotService";
+import { useMutation } from "@tanstack/react-query";
 import { createTagMutation, CreateTagParams, updateTagMutation, UpdateTagParams } from "../../services/userService";
 import { ColorComponent } from "../common/ColorComponent";
 
 interface CreateTagProps extends ModalProps {
-  existingTag?: UserTag
+  existingTag?: UserTag,
+  timeslots: Timeslot[],
+  collections: PhotoCollection[],
+  parentUpdateActiveDate: Dispatch<SetStateAction<Date>>
   onSubmit: (tag: UserTag) => void
 }
 
-export const CreateTagModal: FC<CreateTagProps> = ({ open, onClose, existingTag, onSubmit }) => {
+export const CreateTagModal: FC<CreateTagProps> = ({ 
+  open, onClose, existingTag, 
+  onSubmit, timeslots, collections, 
+  parentUpdateActiveDate 
+}) => {
   const [activeCollections, setActiveCollections] = useState<PhotoCollection[]>(existingTag?.collections ?? [])
   const [activeTimeslots, setActiveTimeslots] = useState<Timeslot[]>(existingTag?.timeslots ?? [])
   const [activeColor, setActiveColor] = useState<string | undefined>(existingTag?.color)
-  const [activeDate, setActiveDate] = useState<Date>(currentDate)
   const [tagName, setTagName] = useState<string>(existingTag?.name ?? '')
 
-  const collections = useQuery(getAllPhotoCollectionsQueryOptions({ siPaths: false, siSets: false, siTags: false }))
-  const timeslots = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
+  //TODO: move me please
+  // const collections = useQuery(getAllPhotoCollectionsQueryOptions({ siPaths: false, siSets: false, siTags: false }))
+  // const timeslots = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
 
   useEffect(() => {
     if(existingTag) {
@@ -53,7 +58,6 @@ export const CreateTagModal: FC<CreateTagProps> = ({ open, onClose, existingTag,
     setActiveCollections([])
     setActiveTimeslots([])
     setActiveColor(undefined)
-    setActiveDate(currentDate)
   }
 
   return (
@@ -90,7 +94,7 @@ export const CreateTagModal: FC<CreateTagProps> = ({ open, onClose, existingTag,
                 className=""
                 dismissOnClick={false}
               >
-                {collections.data?.map((collection, index) => {
+                {collections.map((collection, index) => {
                   const tempMap = activeCollections.map((collection) => collection.id)
                   return (
                     <Dropdown.Item 
@@ -122,11 +126,11 @@ export const CreateTagModal: FC<CreateTagProps> = ({ open, onClose, existingTag,
               <div className="flex flex-row items-center justify-center gap-4">
                   <Label className="ms-2 font-medium text-lg" htmlFor="name">Timeslots for:</Label>
                   <Datepicker minDate={currentDate} defaultValue={new Date(currentDate.getTime() + DAY_OFFSET)} onChange={(date) => {
-                      if(date) setActiveDate(date)
+                      if(date) parentUpdateActiveDate(date)
                   }}/>
               </div>
               <div className="grid grid-cols-2 gap-2 w-full border-gray-500 border rounded-lg px-2 py-4 max-h-[250px] overflow-auto">
-                  {(timeslots.data ?? []).length > 0 ? timeslots.data?.map((timeslot, index) => {
+                  {timeslots.length > 0 ? timeslots.map((timeslot, index) => {
                     const selected = activeTimeslots.filter((ts) => ts.id === timeslot.id).length > 0
                     const selectedBg = selected ? 'bg-gray-200' : ''
                     return (

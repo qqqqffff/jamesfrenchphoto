@@ -62,6 +62,7 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
         const timeslots: Timeslot[] = []
         const notifications: Notification[] = []
         if(!options || options.siCollections) {
+            //TODO: implement memoization
             collections.push(...(await getAllCollectionsFromUserTags(client, [{
                     ...tag,
                     collections: [],
