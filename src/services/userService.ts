@@ -33,7 +33,9 @@ async function getTagById(client: V6Client<Schema>, tagId?: string, options?: Ge
             collections: [],
             timeslots: [],
             notifications: [],
-            package: undefined
+            package: undefined,
+            //TODO: implement children
+            children: []
         }
         return mappedTag
     }
@@ -68,6 +70,8 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
                     collections: [],
                     notifications: [],
                     color: undefined,
+                    //TODO: implement children
+                    children: []
                 }], {
                     siTags: false
                 })
@@ -78,7 +82,9 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
                 ...tag, 
                 collections: [],
                 notifications: [],
-                color: undefined
+                color: undefined,
+                //TODO: implement children
+                children: []
             })))
         }
         if(options?.siNotifications) {
@@ -90,7 +96,9 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
             ...tag,
             collections: collections,
             color: tag.color ?? undefined,
-            notifications: notifications
+            notifications: notifications,
+            //TODO: implement children
+            children: []
 
         }
         return mappedTag
@@ -174,7 +182,9 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                     ...tagResponse.data,
                     color: tagResponse.data.color ?? undefined,
                     collections: mappedCollections,
-                    notifications: notifications
+                    notifications: notifications,
+                    //TODO: implement children
+                    children: []
                 }
                 return mappedTag
             }))).filter((tag) => tag !== undefined))
@@ -193,7 +203,9 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                         mappedTag = {
                             ...tagResponse.data,
                             color: tagResponse.data.color ?? undefined,
-                            notifications: undefined
+                            notifications: undefined,
+                            //TODO: implement children
+                            children: []
                         }
                     }
                 }
@@ -257,6 +269,8 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                         const mappedTag: UserTag = {
                             id: tagString,
                             name: '',
+                            //TODO: implement children
+                            children: []
                         }
                         return mappedTag
                     }))).filter((tag) => tag !== undefined),
@@ -436,7 +450,9 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
                     const mappedTag: UserTag = {
                         ...tagResponse.data,
                         color: tagResponse.data.color ?? undefined,
-                        notifications: undefined
+                        notifications: undefined,
+                        //TODO: implement children
+                        children: []
                     }
                     return mappedTag
                 }
@@ -748,7 +764,9 @@ export async function createTagMutation(params: CreateTagParams) {
             name: params.name,
             color: params.color,
             collections: params.collections,
-            timeslots: params.timeslots
+            timeslots: params.timeslots,
+            //TODO: implement children
+            children: []
         }
 
         return mappedTag
@@ -833,6 +851,8 @@ export async function updateTagMutation(params: UpdateTagParams) {
         color: params.color ?? params.tag.color,
         collections: params.collections ?? params.tag.collections,
         timeslots: params.timeslots ?? params.tag.timeslots,
+        //TODO: implement children
+        children: []
     }
     return updatedTag
 }

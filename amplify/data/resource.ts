@@ -39,6 +39,7 @@ const schema = a.schema({
       sets: a.hasMany('PhotoSet', 'collectionId'),
       tokens: a.hasMany('TemporaryAccessToken', 'collectionId'),
       participants: a.hasMany('ParticipantCollections', 'collectionId'),
+      packageItem: a.hasOne('PackageItemCollection', 'collectionId'),
       watermarkPath: a.string(),
       downloadable: a.boolean().default(false),
       items: a.integer().default(0),
@@ -105,7 +106,8 @@ const schema = a.schema({
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
       packages: a.hasOne('Package', 'tagId'),
       notifications: a.hasMany('NotificationUserTags', 'tagId'),
-      participants: a.hasMany('ParticipantUserTag', 'tagId')
+      participants: a.hasMany('ParticipantUserTag', 'tagId'),
+      childTags: a.string().array()
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
@@ -139,36 +141,42 @@ const schema = a.schema({
       items: a.hasMany('PackageItem', 'packageId'),
       tagId: a.id().required(),
       tag: a.belongsTo('UserTag', 'tagId'),
-      pdfPath: a.string().required()
+      pdfPath: a.string(),
+      createdAt: a.datetime().required(),
+      flag: a.string().default('true')
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('tagId')])
+    .secondaryIndexes((index) => [index('tagId'), index('flag').sortKeys(['createdAt'])])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   PackageItem: a
     .model({
       id: a.id().required(),
       name: a.string().required(),
       description: a.string(),
+      //grouped for default
       quantity: a.integer(),
-      max: a.integer(),
       packageId: a.id().required(),
       package: a.belongsTo('Package', 'packageId'),
-      price: a.float(),
-      discountId: a.hasOne('PackageItemDiscount', 'packageItemId')
+      itemCollections: a.hasMany('PackageItemCollection', 'packageItemId'),
+      //grouped for selectable
+      max: a.integer(),
+      price: a.string(),
+      discount: a.string(),
+      order: a.integer().required()
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('packageId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
-  PackageItemDiscount: a
+  PackageItemCollection: a
     .model({
       id: a.id().required(),
+      collectionId: a.id().required(),
+      collection: a.belongsTo('PhotoCollection', 'collectionId'),
       packageItemId: a.id().required(),
-      item: a.belongsTo('PackageItem', 'packageItemId'),
-      packageId: a.id().required(),
-      discount: a.float().required()
+      packageItem: a.belongsTo('PackageItem', 'packageItemId'),
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('packageId')])
+    .secondaryIndexes((index) => [index('collectionId'), index('packageItemId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   TableGroup: a
     .model({

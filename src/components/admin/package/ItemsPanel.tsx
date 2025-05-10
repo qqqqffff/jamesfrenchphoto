@@ -1,32 +1,57 @@
 import { Button, Dropdown, Radio, TextInput } from "flowbite-react"
 import { HiBars3, HiOutlineMinus, HiOutlinePlus, HiOutlinePlusCircle, HiOutlineXMark } from 'react-icons/hi2'
-import { Package } from "../../../types"
-import { Dispatch, SetStateAction } from "react"
+import { Package, UserTag } from "../../../types"
+import { Dispatch, SetStateAction, useCallback, useEffect, useRef } from "react"
 import { v4 } from 'uuid'
 import { textInputTheme } from "../../../utils"
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea"
 import { PriceInput } from "../../common/PriceInput"
+import { CollectionPicker } from "./CollectionPicker"
+import { PercentInput } from "../../common/PercentInput"
 
 interface ItemsPanelProps {
-  selectedPackage: Package
+  selectedPackage: Package,
+  selectedTag: UserTag,
   parentUpdatePackage: Dispatch<SetStateAction<Package | undefined>>
   parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>
 }
 
 export const ItemsPanel = (props: ItemsPanelProps) => {
+  const itemRefs = useRef<Map<string, HTMLDivElement | null>>(new Map())
+  const addedItemFlag = useRef<string | null>(null)
+
+  const setItemRef = useCallback((el: HTMLDivElement | null, id: string) => {
+    if(el) {
+      itemRefs.current.set(id, el)
+    }
+  }, [])
+
+  useEffect(() => {
+    if(addedItemFlag.current) {
+      itemRefs.current.get(addedItemFlag.current)
+        ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+
+      addedItemFlag.current = null
+    }
+  }, [addedItemFlag.current])
+
   return (
-    <div className="flex flex-col gap-2 w-full px-10">
+    <div className="flex flex-col gap-2 w-full px-10 max-h-min">
       <div className="flex flex-row w-full justify-end mb-2">
         <Button color="gray" onClick={() => {
+          const itemId = v4();
           const tempPackage: Package = {
             ...props.selectedPackage,
             items: [...props.selectedPackage.items, {
-              id: v4(),
+              id: itemId,
               name: '',
               packageId: props.selectedPackage.id,
+              order: props.selectedPackage.items.length,
+              collectionIds: []
             }]
           }
 
+          addedItemFlag.current = itemId
           props.parentUpdatePackage(tempPackage)
           props.parentUpdatePackageList((prev) => prev.map((pack) => (
             pack.id === tempPackage.id ? tempPackage : pack
@@ -36,12 +61,17 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
           <span>Create Item</span>
         </Button>
       </div>
+      <div className="border rounded-lg flex flex-col w-full py-2 px-4 overflow-y-auto max-h-[650px]">
       {props.selectedPackage.items.length > 0 ? (
-        <div className="grid grid-cols-2 place-items-center gap-x-10 gap-y-4">
+        <div className="grid grid-cols-2 place-items-center gap-x-8 gap-y-4 w-full">
           {props.selectedPackage.items.map((item, index) => {
             return (
-              <div className="flex flex-col rounded-lg border px-4 py-4 w-full gap-2" key={index}>
-                <div className="w-full flex flex-row items-center justify-between" key={index}>
+              <div 
+                className="flex flex-col rounded-lg border px-4 py-4 w-full gap-2" 
+                key={index}
+                ref={el => setItemRef(el, item.id)}
+              >
+                <div className="w-full flex flex-row items-center justify-between">
                   <div className="flex flex-row items-center gap-4">
                     <HiBars3 size={24}/>
                     <TextInput 
@@ -66,6 +96,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                     />
                   </div>
                   <div className="flex flex-row gap-4">
+                  {/* TODO: destroy states when switching item type */}
                     <Dropdown
                       color="gray"
                       label={item.max === undefined && item.quantities === undefined ? (
@@ -145,7 +176,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                 </div>
                 <div className="border"/>
                 <div className="flex flex-row gap-4">
-                  <div className="w-[52%]">
+                  <div className="w-[45%]">
                     <AutoExpandTextarea 
                       stateUpdate={(value) => {
                         const tempPackage: Package = {
@@ -165,88 +196,138 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                     />
                   </div>
                   {item.max && (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-row items-center gap-2">
-                        <span className="text-lg font-light italic">Items:</span>
+                    <div className="flex flex-row items-start gap-4">
+                      <div className="flex flex-col gap-2">
                         <div className="flex flex-row items-center gap-2">
-                          <button
-                            className="p-1 border rounded-lg aspect-square flex justify-center items-center disabled:opacity-60 enabled:hover:bg-gray-100"
-                            disabled={item.max === 1}
-                            onClick={() => {
-                              const tempPackage: Package = {
-                                ...props.selectedPackage,
-                                items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
-                                  ...item,
-                                  max: (item.max ?? 1) - 1
-                                }) : pItem))
-                              }
-                    
-                              props.parentUpdatePackage(tempPackage)
-                              props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                                pack.id === tempPackage.id ? tempPackage : pack
-                              )))
-                            }}
-                          >
-                            <HiOutlineMinus size={20} />
-                          </button>
-                          <TextInput 
-                            className="min-w-[100px] max-w-[100px]" 
-                            value={item.max}
-                            onChange={(event) => {
-                              const input = event.target.value
+                          <span className="text-lg font-light italic">Items:</span>
+                          <div className="flex flex-row items-center gap-2">
+                            <button
+                              className="p-1 border rounded-lg aspect-square flex justify-center items-center disabled:opacity-60 enabled:hover:bg-gray-100"
+                              disabled={item.max === 1}
+                              onClick={() => {
+                                const tempPackage: Package = {
+                                  ...props.selectedPackage,
+                                  items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
+                                    ...item,
+                                    max: (item.max ?? 1) - 1
+                                  }) : pItem))
+                                }
+                      
+                                props.parentUpdatePackage(tempPackage)
+                                props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                                  pack.id === tempPackage.id ? tempPackage : pack
+                                )))
+                              }}
+                            >
+                              <HiOutlineMinus size={20} />
+                            </button>
+                            <TextInput 
+                              theme={textInputTheme}
+                              sizing="sm"
+                              className="min-w-[42px] max-w-[42px]" 
+                              value={item.max}
+                              onChange={(event) => {
+                                const input = event.target.value
 
-                              if(input === '') return
+                                if(input === '') return
 
-                              if(!/^\d+$/.test(input)) {
-                                return
-                              }
+                                if(!/^\d+$/.test(input)) {
+                                  return
+                                }
 
-                              const numValue = parseInt(input)
+                                const numValue = parseInt(input)
 
-                              if(numValue === 0) {
-                                return
-                              }
+                                if(numValue === 0) {
+                                  return
+                                }
 
-                              const tempPackage: Package = {
-                                ...props.selectedPackage,
-                                items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
-                                  ...item,
-                                  max: numValue
-                                }) : pItem))
-                              }
-                    
-                              props.parentUpdatePackage(tempPackage)
-                              props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                                pack.id === tempPackage.id ? tempPackage : pack
-                              )))
-                            }}
+                                const tempPackage: Package = {
+                                  ...props.selectedPackage,
+                                  items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
+                                    ...item,
+                                    max: numValue
+                                  }) : pItem))
+                                }
+                      
+                                props.parentUpdatePackage(tempPackage)
+                                props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                                  pack.id === tempPackage.id ? tempPackage : pack
+                                )))
+                              }}
+                            />
+                            <button
+                              className="p-1 border rounded-lg aspect-square flex justify-center items-center hover:bg-gray-100"
+                              onClick={() => {
+                                const tempPackage: Package = {
+                                  ...props.selectedPackage,
+                                  items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
+                                    ...item,
+                                    max: (item.max ?? 1) + 1
+                                  }) : pItem))
+                                }
+                      
+                                props.parentUpdatePackage(tempPackage)
+                                props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                                  pack.id === tempPackage.id ? tempPackage : pack
+                                )))
+                              }}
+                            >
+                              <HiOutlinePlus size={20} />
+                            </button>
+                          </div>
+                        </div>
+                        <PriceInput 
+                          item={item}
+                          selectedPackage={props.selectedPackage}
+                          parentUpdatePackage={props.parentUpdatePackage}
+                          parentUpdatePackageList={props.parentUpdatePackageList}
+                        />
+                        <div className="flex flex-row gap-2">
+                          <PercentInput 
+                            item={item}
+                            selectedPackage={props.selectedPackage}
+                            parentUpdatePackage={props.parentUpdatePackage}
+                            parentUpdatePackageList={props.parentUpdatePackageList}
                           />
-                          <button
-                            className="p-1 border rounded-lg aspect-square flex justify-center items-center hover:bg-gray-100"
-                            onClick={() => {
-                              const tempPackage: Package = {
-                                ...props.selectedPackage,
-                                items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
-                                  ...item,
-                                  max: (item.max ?? 1) + 1
-                                }) : pItem))
-                              }
-                    
-                              props.parentUpdatePackage(tempPackage)
-                              props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                                pack.id === tempPackage.id ? tempPackage : pack
-                              )))
-                            }}
-                          >
-                            <HiOutlinePlus size={20} />
-                          </button>
                         </div>
                       </div>
-                      <PriceInput 
-                        item={item}
-                        selectedPackage={props.selectedPackage}
-                        parentUpdatePackage={props.parentUpdatePackage}
-                        parentUpdatePackageList={props.parentUpdatePackageList}
+                      <CollectionPicker 
+                        collectionList={props.selectedTag.collections ?? []}
+                        parentSelectCollection={(collectionId, selected) => {
+                          const tempPackage: Package = {
+                            ...props.selectedPackage,
+                            items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
+                              ...item,
+                              collectionIds: selected ? (
+                                [...item.collectionIds, collectionId] 
+                              ) : ( 
+                                item.collectionIds.filter((id) => id !== collectionId)
+                              )
+                            }) : pItem))
+                          }
+                
+                          props.parentUpdatePackage(tempPackage)
+                          props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                            pack.id === tempPackage.id ? tempPackage : pack
+                          )))
+                        }}
+                        parentUnselectAllCollections={() => {
+                          const tempPackage: Package = {
+                            ...props.selectedPackage,
+                            items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
+                              ...item,
+                              collectionIds: []
+                            }) : pItem))
+                          }
+
+                          props.parentUpdatePackage(tempPackage)
+                          props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                            pack.id === tempPackage.id ? tempPackage : pack
+                          )))
+                        }}
+                        selectedCollections={(props.selectedTag.collections ?? [])
+                          .filter((collection) => item.collectionIds.some((id) => collection.id === id))
+                        }
                       />
                     </div>
                   )}
@@ -259,10 +340,9 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
           })}
         </div>
       ) : (
-        <div className="border rounded-lg py-4 flex items-center justify-center">
-          <span className="text-xl italic font-light">Add an item to the package to continue</span>
-        </div>
+        <span className="text-xl italic font-light">Add an item to the package to continue</span>
       )}
+      </div>
     </div>
     
   )

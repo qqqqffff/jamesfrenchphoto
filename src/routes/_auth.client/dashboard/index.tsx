@@ -1,8 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Package, PhotoCollection, UserTag } from '../../../types'
-import { FC, useState } from 'react'
-import { Alert, Button, Modal } from 'flowbite-react'
-import PDFViewer from '../../../components/common/PDFViewer'
+import { PhotoCollection, UserTag } from '../../../types'
+import { Alert } from 'flowbite-react'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
@@ -10,36 +8,12 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { getParticipantCollectionsQueryOptions, getPathQueryOptions } from '../../../services/collectionService'
 import { currentDate } from '../../../utils'
 
-interface PackagePDFModalProps {
-    pdf: File,
-    pack: Package,
-    show: boolean,
-    onClose: () => void
-}
-
-const PackagePDFModal: FC<PackagePDFModalProps> = ({ pdf, pack, show, onClose }) => {
-    return (
-      <Modal show={show} onClose={onClose} className="w-full" size="4xl">
-        <Modal.Header className={`text-${pack.tag.color ?? 'black'}`}>{pack.name}</Modal.Header>
-        <Modal.Body>
-          <PDFViewer fileUrl={pdf} />
-        </Modal.Body>
-        <Modal.Footer>
-          <Button onClick={onClose}>Close</Button>
-        </Modal.Footer>
-      </Modal>
-    )
-}
-
 export const Route = createFileRoute('/_auth/client/dashboard/')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
   const auth = useAuth()
-  const [activePackagePDF, setActivePackagePDF] = useState<File>()
-  const [activePackage, setActivePackage] = useState<Package>()
-  const [packagePDFModalVisible, setPackagePDFModalVisible] = useState(false)
   const dimensions = useWindowDimensions()
   const navigate = useNavigate()
 
@@ -87,18 +61,6 @@ function RouteComponent() {
 
   return (
     <>
-      {activePackage && activePackagePDF && (
-        <PackagePDFModal 
-          show={packagePDFModalVisible} 
-          pack={activePackage} 
-          pdf={activePackagePDF}
-          onClose={() => {
-            setActivePackage(undefined)
-            setActivePackagePDF(undefined)
-            setPackagePDFModalVisible(false)
-          }} 
-        />       
-      )}
       <div className="grid grid-cols-6 mt-8 font-main">
         <div className="flex flex-col items-center justify-center col-start-2 col-span-4 gap-4 border-black border rounded-xl mb-4 overflow-auto">
           <div className="flex flex-col items-center justify-center w-full">

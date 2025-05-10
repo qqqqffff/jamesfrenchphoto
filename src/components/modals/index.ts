@@ -4,7 +4,6 @@ import { ConfirmationModal as confirmation } from './Confirmation'
 import { CreateTagModal as createTag } from './CreateTag'
 import { CreateTimeslotModal as createTimeslot } from './CreateTimeslot';
 import { TermsAndConditionsModal as termsAndConditions } from './TermsAndConditions';
-import { CreatePackageModal as createPackage } from './CreatePackage';
 import { CreateCollectionModal as createCollection } from './CreateCollection';
 import { EditTimeslotModal as editTimeslot } from './EditTimeslotModal';
 import { UnauthorizedEmailModal as unauthorizedEmail } from './UnauthorizedEmail';
@@ -22,7 +21,6 @@ export const ConfirmationModal = confirmation
 export const CreateTagModal = createTag
 export const CreateTimeslotModal = createTimeslot
 export const TermsAndConditionsModal = termsAndConditions
-export const CreatePackageModal = createPackage
 export const CreateCollectionModal = createCollection
 export const EditTimeslotModal = editTimeslot
 export const UnauthorizedEmailModal = unauthorizedEmail

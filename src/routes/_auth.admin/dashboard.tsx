@@ -64,14 +64,14 @@ function RouteComponent() {
             }}
             className={activeConsoleClassName('collection')}
           >
-            <HiOutlineClipboardList className="mt-1 me-1" /> Collection Manager
+            <HiOutlineClipboardList className="mt-1 me-1" /> Collections
           </Button>
           <Button 
             color='gray' 
             onClick={() => navigate({ to: '/admin/dashboard/notification' })} 
             className={activeConsoleClassName('notification')}
           >
-            <HiOutlineChat className="mt-1 me-1"/> Notification Center
+            <HiOutlineChat className="mt-1 me-1"/> Notifications
           </Button>
           <Button
             color="gray"
@@ -80,7 +80,7 @@ function RouteComponent() {
             }}
             className={activeConsoleClassName('package')}
           >
-            <HiOutlineDocumentText className="mt-1 me-1" /> Package
+            <HiOutlineDocumentText className="mt-1 me-1" /> Packages
           </Button>
           <Button
             color="gray"
@@ -89,7 +89,7 @@ function RouteComponent() {
             }}
             className={activeConsoleClassName('table')}
           >
-            <HiOutlineUserCircle className="mt-1 me-1" /> Management Tables
+            <HiOutlineUserCircle className="mt-1 me-1" /> Tables
           </Button>
           <Button
             color="gray"

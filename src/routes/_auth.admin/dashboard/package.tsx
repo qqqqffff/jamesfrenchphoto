@@ -5,7 +5,6 @@ import { PricelistPanel } from '../../../components/admin/package/PricelistPanel
 import { BuilderPanel } from '../../../components/admin/package/BuilderPanel'
 import { Package, UserTag } from '../../../types'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useQuery } from '@tanstack/react-query'
 
 interface PackageSearchParams {

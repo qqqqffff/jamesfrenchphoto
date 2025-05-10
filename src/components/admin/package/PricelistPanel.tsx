@@ -3,9 +3,10 @@ interface PricelistPanelProps {
 }
 
 export const PricelistPanel = (props: PricelistPanelProps) => {
+  console.log(props)
   return (
     <div>
-      pricer 123
+      helloo world
     </div>
   )
 }

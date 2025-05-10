@@ -214,6 +214,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
         formStep === FormStep.Items ? (
           <ItemsPanel 
             selectedPackage={props.selectedPackage}
+            selectedTag={props.tags.find((tag) => props.selectedPackage.tagId === tag.id)!}
             parentUpdatePackage={props.parentUpdateSelectedPackage}
             parentUpdatePackageList={props.parentUpdatePackageList}
           />

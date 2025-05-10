@@ -161,7 +161,8 @@ export type UserTag = {
     collections?: PhotoCollection[],
     timeslots?: Timeslot[]
     package?: Package,
-    notifications?: Notification[]
+    notifications?: Notification[],
+    children: UserTag[],
 }
 
 export type Package = {
@@ -172,6 +173,7 @@ export type Package = {
     tagId: string,
     pdfPath?: string,
     createdAt: string,
+    temporary?: boolean
 }
 
 export type PackageItem = {
@@ -182,7 +184,9 @@ export type PackageItem = {
     max?: number
     packageId: string,
     price?: string,
-    discountId?: string,
+    discount?: string,
+    collectionIds: string[],
+    order: number,
 }
 
 export type PackageDiscount = {

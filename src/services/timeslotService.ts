@@ -25,7 +25,9 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
                 tag = {
                     ...tagResponse.data,
                     color: tagResponse.data.color ?? undefined,
-                    notifications: undefined
+                    notifications: undefined,
+                    //TODO: implement children
+                    children: []
                 }
             }
         }
