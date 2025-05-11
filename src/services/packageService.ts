@@ -182,7 +182,6 @@ interface GetInfinitePackageItemsOptions {
     siCollectionItems?: boolean,
     maxItems?: number
 }
-//TODO: implement me please
 async function getInfinitePackageItems(client: V6Client<Schema>, initial: GetInfinitePackageItemsData, options?: GetInfinitePackageItemsOptions): Promise<GetInfinitePackageItemsData> {
     const response = await client.models.PackageItem.listPackageItemByFlagAndCreatedAt(
         {
