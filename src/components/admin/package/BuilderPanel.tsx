@@ -1,14 +1,18 @@
 import { HiOutlinePlusCircle } from "react-icons/hi2"
-import { Package, UserTag } from "../../../types"
+import { Package, PackageItem, UserTag } from "../../../types"
 import { Dispatch, SetStateAction, useState } from "react"
 import { v4 } from 'uuid'
 import { BuilderForm } from "./BuilderForm"
+import { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query"
+import { GetInfinitePackageItemsData } from "../../../services/packageService"
 
 interface BuilderPanelProps {
   packages: Package[]
   parentUpdatePackages: Dispatch<SetStateAction<Package[]>>
   tags: UserTag[],
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
+  allPackageItems: PackageItem[],
+    allPackageItemsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePackageItemsData, unknown>, Error>
 }
 
 export const BuilderPanel = (props: BuilderPanelProps) => {
@@ -81,6 +85,8 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
             tags={props.tags}
             parentUpdateTags={props.parentUpdateTags}
             parentUpdatePackageList={props.parentUpdatePackages}
+            allPackageItems={props.allPackageItems}
+            allPackageItemsQuery={props.allPackageItemsQuery}
           />
         ) : (
           <span className="text-2xl text-gray-500 italic font-light self-center mt-4">Create or Select a Package to get Started</span>

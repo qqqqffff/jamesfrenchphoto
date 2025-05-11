@@ -180,13 +180,61 @@ export interface GetInfinitePackageItemsData {
 }
 interface GetInfinitePackageItemsOptions {
     siCollectionItems?: boolean,
+    maxItems?: number
 }
 //TODO: implement me please
 async function getInfinitePackageItems(client: V6Client<Schema>, initial: GetInfinitePackageItemsData, options?: GetInfinitePackageItemsOptions): Promise<GetInfinitePackageItemsData> {
-    return {
-        memo: [],
+    const response = await client.models.PackageItem.listPackageItemByFlagAndCreatedAt(
+        {
+            flag: 'true'
+        },
+        {
+            sortDirection: 'DESC',
+            limit: options?.maxItems ?? 32,
+            nextToken: initial.nextToken,
+        }
+    )
+
+    const newPackageItems = (await Promise.all(response.data.map(async (item) => {
+        const collectionIds: string[] = []
+
+        if(options?.siCollectionItems) {
+            let collectionResponse = await item.itemCollections()
+            const collectionData = collectionResponse.data
+
+            while(collectionResponse.nextToken) {
+                collectionResponse = await item.itemCollections({ nextToken: collectionResponse.nextToken })
+                collectionData.push(...collectionResponse.data)
+            }
+
+            collectionIds.push(...collectionData.map((data) => {
+                return data.collectionId
+            }))
+        }
+
+        const mappedItem: PackageItem = {
+            ...item,
+            description: item.description ?? undefined,
+            max: item.max ?? undefined,
+            price: item.price ?? undefined,
+            discount: item.discount ?? undefined,
+            quantities: item.quantity ?? undefined,
+            hardCap: item.hardCap ?? undefined,
+            collectionIds: collectionIds,
+        }
+
+        return mappedItem
+    })))
+
+    const newMemo: PackageItem[] = [...initial.memo, ...newPackageItems]
+
+    const returnData: GetInfinitePackageItemsData = {
+        memo: newMemo,
+        nextToken: response.nextToken ?? undefined,
         previous: false
     }
+    
+    return returnData
 }
 
 async function getPackageDataFromPath(path: string){
@@ -242,6 +290,7 @@ export async function createPackageMutation(params: CreatePackageParams) {
                 max: item.max,
                 price: item.price,
                 discount: item.discount,
+                createdAt: new Date().toISOString()
             })
         ]
     }))
@@ -321,6 +370,7 @@ export async function updatePackageMutation(params: UpdatePackageParams) {
                     max: item.max,
                     price: item.price,
                     discount: item.discount,
+                    createdAt: new Date().toISOString()
                 })
             ]
         }
@@ -447,6 +497,16 @@ export const getAllPackagesQueryOptions = (options?: GetInfinitePackagesOptions)
     initialPageParam: ({
         memo: [] as Package[]
     } as GetInfinitePackagesData),
+    refetchOnWindowFocus: false,
+})
+
+export const getAllPackageItemsQueryOptions = (options?: GetInfinitePackageItemsOptions) => infiniteQueryOptions({
+    queryKey: ['packageItems', client, options],
+    queryFn: ({ pageParam }) => getInfinitePackageItems(client, pageParam, options),
+    getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
+    initialPageParam: ({
+        memo: [] as PackageItem[]
+    } as GetInfinitePackageItemsData),
     refetchOnWindowFocus: false,
 })
 

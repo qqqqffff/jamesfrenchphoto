@@ -240,7 +240,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           .includes(trimmedText)
       })
 
-      if(tempFiles.length === 0 && pathsQuery.hasNextPage) {
+      if(tempFiles.length === 0 && pathsQuery.hasNextPage && !pathsQuery.isFetchingNextPage) {
         pathsQuery.fetchNextPage()
       }
     }

@@ -175,10 +175,12 @@ const schema = a.schema({
       hardCap: a.integer(),
       price: a.string(),
       discount: a.string(),
-      order: a.integer().required()
+      order: a.integer().required(),
+      flag: a.string().default('true'),
+      createdAt: a.datetime().required(),
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('packageId')])
+    .secondaryIndexes((index) => [index('packageId'), index('flag').sortKeys(['createdAt'])])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   PackageItemCollection: a
     .model({

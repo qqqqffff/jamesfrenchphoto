@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react'
 import { LuBadgeDollarSign, LuHammer } from 'react-icons/lu'
 import { PricelistPanel } from '../../../components/admin/package/PricelistPanel'
 import { BuilderPanel } from '../../../components/admin/package/BuilderPanel'
-import { Package, UserTag } from '../../../types'
+import { Package, PackageItem, UserTag } from '../../../types'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { getAllPackageItemsQueryOptions } from '../../../services/packageService'
 
 interface PackageSearchParams {
   console?: string
@@ -38,12 +39,17 @@ function RouteComponent() {
   //TODO: api call
   const [packages, setPackages] = useState<Package[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
+  const [allPackageItems, setAllPackageItems] = useState<PackageItem[]>([])
 
   const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
     siCollections: true, 
     siNotifications: false, 
     siTimeslots: true,
     siPackages: true
+  }))
+
+  const packageItemsInfiniteQuery = useInfiniteQuery(getAllPackageItemsQueryOptions({
+    siCollectionItems: false
   }))
 
   useEffect(() => {
@@ -56,6 +62,14 @@ function RouteComponent() {
       ) : undefined)
     )
   }, [data.console])
+
+  useEffect(() => {
+    if(packageItemsInfiniteQuery.data && (packageItemsInfiniteQuery.data.pages.length ?? 0) > 0) {
+      setAllPackageItems(packageItemsInfiniteQuery.data.pages[
+        packageItemsInfiniteQuery.data.pages.length - 1
+      ].memo)
+    }
+  }, [packageItemsInfiniteQuery.data])
 
   useEffect(() => {
     if(tagsQuery.data) {
@@ -76,6 +90,8 @@ function RouteComponent() {
           parentUpdatePackages={setPackages}
           tags={tags}
           parentUpdateTags={setTags}
+          allPackageItems={allPackageItems}
+          allPackageItemsQuery={packageItemsInfiniteQuery}
         />
       ) : (
       activeConsole === 'pricelist' ? (

@@ -1,8 +1,10 @@
 import { Dispatch, SetStateAction, useState } from "react";
-import { Package, UserTag } from "../../../types";
+import { Package, PackageItem, UserTag } from "../../../types";
 import { Button } from "flowbite-react";
 import { ItemsPanel } from "./ItemsPanel";
 import { DetailsPanel } from "./DetailsPanel";
+import { GetInfinitePackageItemsData } from "../../../services/packageService";
+import { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query";
 
 interface BuilderFormProps {
   selectedPackage: Package
@@ -10,6 +12,8 @@ interface BuilderFormProps {
   parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>
   tags: UserTag[],
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
+  allPackageItems: PackageItem[],
+  allPackageItemsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePackageItemsData, unknown>, Error>
 }
 enum FormStep {
   'Details' = 'Details',
@@ -146,6 +150,8 @@ export const BuilderForm = (props: BuilderFormProps) => {
             selectedTag={props.tags.find((tag) => props.selectedPackage.tagId === tag.id)!}
             parentUpdatePackage={props.parentUpdateSelectedPackage}
             parentUpdatePackageList={props.parentUpdatePackageList}
+            allPackageItems={props.allPackageItems}
+            allPackageItemsQuery={props.allPackageItemsQuery}
           />
         ) : (
           <></>

@@ -1,6 +1,6 @@
 import { Button, Dropdown, Radio, TextInput } from "flowbite-react"
 import { HiBars3, HiOutlineMinus, HiOutlinePlus, HiOutlinePlusCircle, HiOutlineXMark } from 'react-icons/hi2'
-import { Package, UserTag } from "../../../types"
+import { Package, PackageItem, UserTag } from "../../../types"
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react"
 import { v4 } from 'uuid'
 import { textInputTheme } from "../../../utils"
@@ -9,12 +9,17 @@ import { PriceInput } from "../../common/PriceInput"
 import { CollectionPicker } from "./CollectionPicker"
 import { PercentInput } from "../../common/PercentInput"
 import { HiOutlineDownload } from "react-icons/hi"
+import { PackageItemLoader } from "../../modals/PackageItemLoader"
+import { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query"
+import { GetInfinitePackageItemsData } from "../../../services/packageService"
 
 interface ItemsPanelProps {
   selectedPackage: Package,
   selectedTag: UserTag,
   parentUpdatePackage: Dispatch<SetStateAction<Package | undefined>>
-  parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>
+  parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>,
+  allPackageItems: PackageItem[],
+  allPackageItemsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePackageItemsData, unknown>, Error>
 }
 
 export const ItemsPanel = (props: ItemsPanelProps) => {
@@ -39,7 +44,12 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
 
   return (
     <>
-
+      <PackageItemLoader 
+        allPackageItems={props.allPackageItems}
+        allPackageItemsQuery={props.allPackageItemsQuery}
+        open={packageItemLoaderVisible}
+        onClose={() => setPackageItemLoaderVisible(false)}
+      />
       <div className="flex flex-col gap-2 w-full px-10 max-h-min">
         <div className="flex flex-row w-full justify-end gap-4 mb-2">
         <Button color="gray" onClick={() => {
