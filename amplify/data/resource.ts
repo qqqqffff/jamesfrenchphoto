@@ -107,7 +107,7 @@ const schema = a.schema({
       packages: a.hasOne('Package', 'tagId'),
       notifications: a.hasMany('NotificationUserTags', 'tagId'),
       participants: a.hasMany('ParticipantUserTag', 'tagId'),
-      childTags: a.string().array()
+      childTags: a.hasMany('PackageParentTag', 'tagId')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
@@ -141,12 +141,24 @@ const schema = a.schema({
       items: a.hasMany('PackageItem', 'packageId'),
       tagId: a.id().required(),
       tag: a.belongsTo('UserTag', 'tagId'),
+      packageParentTag: a.hasOne('PackageParentTag', 'packageId'),
       pdfPath: a.string(),
       createdAt: a.datetime().required(),
       flag: a.string().default('true')
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId'), index('flag').sortKeys(['createdAt'])])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  PackageParentTag: a
+    .model({
+      id: a.id().required(),
+      packageId: a.id().required(),
+      package: a.belongsTo('Package', 'packageId'),
+      tagId: a.id().required(),
+      tag: a.belongsTo('UserTag', 'tagId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('packageId'), index('tagId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   PackageItem: a
     .model({
@@ -160,6 +172,7 @@ const schema = a.schema({
       itemCollections: a.hasMany('PackageItemCollection', 'packageItemId'),
       //grouped for selectable
       max: a.integer(),
+      hardCap: a.integer(),
       price: a.string(),
       discount: a.string(),
       order: a.integer().required()

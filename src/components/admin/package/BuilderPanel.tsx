@@ -31,6 +31,7 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
                 name: 'Unnamed Package',
                 items: [],
                 tagId: '',
+                parentTagId: '',
                 createdAt: new Date().toISOString()
               }
               temp.push(tempPackage)

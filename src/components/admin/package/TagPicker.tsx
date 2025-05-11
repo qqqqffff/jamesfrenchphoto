@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
+import { Dispatch, SetStateAction, useRef, useState } from "react"
 import { UserTag } from "../../../types"
 import { TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
@@ -9,34 +9,23 @@ interface TagPickerProps {
   tags: UserTag[],
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
   parentPickTag: (tag: UserTag) => void
-  pickedTag?: UserTag
+  pickedTag?: UserTag,
+  placeholder?: string
 }
 
 export const TagPicker = (props: TagPickerProps) => {
   const [search, setSearch] = useState<string>('')
-  const [tags, setTags] = useState<UserTag[]>(props.tags)
   const [focused, setFocused] = useState<boolean>(false)
   const [createTagVisible, setCreateTagVisible] = useState(false)
   const edittingTagRef = useRef<UserTag | null>(null)
-
-  useEffect(() => {
-    if(!props.tags.some((pTag) => tags.some((tag) => pTag.id === tag.id))
-     || !tags.some((tag) => props.tags.some((pTag) => pTag.id === tag.id))
-    ) {
-      setTags(props.tags)
-    }
-  }, [props.tags])
-
-  
 
   return (
     <>
       <CreateTagModal
         onSubmit={(tag) => {
-          const newTags = [...tags].map((pTag) => (pTag.id === tag.id ? tag : pTag))
+          const newTags = [...props.tags].map((pTag) => (pTag.id === tag.id ? tag : pTag))
 
           props.parentUpdateTags(newTags)
-          setTags(newTags)
         }}
         existingTag={edittingTagRef.current ?? undefined}
         open={createTagVisible}
@@ -52,7 +41,7 @@ export const TagPicker = (props: TagPickerProps) => {
       <div className="relative">
         <TextInput
           theme={textInputTheme}
-          placeholder={'Pick User Tag...'}
+          placeholder={props.placeholder ?? 'Pick User Tag...'}
           color={props.pickedTag?.color ?? 'gray'}
           className={`
             max-w-[400px] min-w-[400px] placeholder:italic 
@@ -88,34 +77,40 @@ export const TagPicker = (props: TagPickerProps) => {
               </button>
             </div>
             <div className="max-h-60 overflow-y-auto py-1 min-w-max">
-              {tags
-                .filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase()))
-                .map((tag, index) => {
-                  return (
-                    <div 
-                      className="flex flex-row justify-between items-center pe-2" 
-                      key={index}
-                    >
-                      <button 
-                        className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
-                        onClick={() => {
-                          setFocused(false)
-                          props.parentPickTag(tag)
-                        }}
+              {props.tags.filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase())).length > 0 ? (
+                props.tags
+                  .filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase()))
+                  .map((tag, index) => {
+                    return (
+                      <div 
+                        className="flex flex-row justify-between items-center pe-2" 
+                        key={index}
                       >
-                        <span className={`text-${tag.color ?? 'black'} text-ellipsis`}>{tag.name}</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          edittingTagRef.current = tag
-                          setCreateTagVisible(true)
-                        }}
-                      >
-                        <HiOutlinePencil size={16} className="text-gray-400 hover:text-gray-800"/>
-                      </button>
-                    </div>
-                  )
-                })}
+                        <button 
+                          className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
+                          onClick={() => {
+                            setFocused(false)
+                            props.parentPickTag(tag)
+                          }}
+                        >
+                          <span className={`text-${tag.color ?? 'black'} truncate max-w-[500px]`}>{tag.name}</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            edittingTagRef.current = tag
+                            setCreateTagVisible(true)
+                          }}
+                        >
+                          <HiOutlinePencil size={16} className="text-gray-400 hover:text-gray-800"/>
+                        </button>
+                      </div>
+                    )
+                  })
+              ) : (
+                <div className="flex flex-row justify-between items-center pe-2">
+                  <span className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 font-light italic">No Available Tags</span>
+                </div>
+              )}
             </div>
           </div>
         )}

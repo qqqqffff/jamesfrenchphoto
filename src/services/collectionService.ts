@@ -121,6 +121,7 @@ interface GetAllCollectionsFromUserTagsOptions {
     siTags?: boolean
     siSets?: boolean
     siPaths?: boolean
+    collectionsMemo?: PhotoCollection[]
 }
 export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, tags: UserTag[], options?: GetAllCollectionsFromUserTagsOptions): Promise<PhotoCollection[]> {
     console.log('api call')
@@ -135,7 +136,11 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
 
       const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagsData.map(async (collectionTag) => {
         const collectionResponse = await collectionTag.collection()
-        if(!collectionResponse.data || !collectionResponse.data) return
+        if (
+          !collectionResponse.data || 
+          !collectionResponse.data || 
+          options?.collectionsMemo?.some((collection) => collection.id === collectionResponse.data?.id)
+        ) return
         const tags: UserTag[] = []
         
         if(!options || options.siTags){

@@ -14,43 +14,100 @@ import { getAllNotificationsFromUserTag } from "./notificationService";
 
 const client = generateClient<Schema>()
 
-interface GetTagByIdOptions {
-    //TODO: implement the secondary indexes
-    siCollection?: boolean,
+//TODO: implement unauthenticated
+interface MapUserTagOptions {
+    siCollections?: boolean,
     siTimeslots?: boolean,
     siNotifications?: boolean,
+    siPackages?: boolean,
+    memos?: {
+        notificationsMemo?: Notification[]
+        collectionsMemo?: PhotoCollection[]
+        tagsMemo?: Schema['UserTag']['type'][]
+    }
 }
+async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapUserTagOptions): Promise<UserTag> {
+    let collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
+    let notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
+
+    const collections: PhotoCollection[] = []
+    const timeslots: Timeslot[] = []
+    const notifications: Notification[] = []
+    if(!options || options.siCollections) {
+        const foundCollections = await getAllCollectionsFromUserTags(
+            client, [{
+                ...tagResponse,
+                //unnecessary
+                collections: [],
+                notifications: [],
+                color: undefined,
+                children: []
+            }], {
+                siTags: false,
+                collectionsMemo: options?.memos?.collectionsMemo
+            }
+        )
+        collections.push(...foundCollections)
+        collectionsMemo.push(...foundCollections)
+    }
+    if(options?.siTimeslots) {
+        timeslots.push(...(await getAllTimeslotsByUserTag(client, {
+            ...tagResponse, 
+            //unnecessary
+            notifications: [],
+            color: undefined,
+            children: []
+        })))
+    }
+    if(options?.siNotifications) {
+        const response = await getAllNotificationsFromUserTag(client, notificationMemo, tagResponse.id)
+        notifications.push(...response[0])
+        notificationMemo = response[1]
+    }
+
+    const children = (await Promise.all((await tagResponse.childTags()).data.map((tag) => {
+        const foundTag = options?.memos?.tagsMemo?.find((pTag) => tag.id === pTag.id)
+        if(foundTag){
+            const mappedTag: UserTag = {
+                ...foundTag,
+                color: foundTag.color ?? undefined,
+                //unnecessary
+                notifications: [],
+                children: []
+            }
+            return mappedTag
+        }
+    }))).filter((tag) => tag !== undefined)
+
+    const mappedTag: UserTag = {
+        ...tagResponse,
+        collections: collections,
+        color: tagResponse.color ?? undefined,
+        notifications: notifications,
+        children: children
+
+    }
+    return mappedTag
+}
+
+
+interface GetTagByIdOptions extends MapUserTagOptions { }
 async function getTagById(client: V6Client<Schema>, tagId?: string, options?: GetTagByIdOptions): Promise<UserTag | null> {
     if(!tagId) return null
     if(options) console.log('options')
 
     const tagResponse = await client.models.UserTag.get({ id: tagId })
     if(tagResponse.data) {
-        const mappedTag: UserTag = {
-            ...tagResponse.data,
-            color: tagResponse.data.color ?? undefined,
-            //TODO: implement me later
-            collections: [],
-            timeslots: [],
-            notifications: [],
-            package: undefined,
-            //TODO: implement children
-            children: []
-        }
-        return mappedTag
+        return mapUserTag(tagResponse.data, options)
     }
     return null
 }
 
-interface GetAllUserTagsOptions {
-    siCollections?: boolean
-    siTimeslots?: boolean,
-    siNotifications?: boolean
-}
+interface GetAllUserTagsOptions extends GetTagByIdOptions { }
 async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
     console.log('api call')
     let userTagsResponse = await client.models.UserTag.list()
-    let userTagData = userTagsResponse.data
+    let userTagData: Schema['UserTag']['type'][] = userTagsResponse.data
 
     while(userTagsResponse.nextToken) {
         userTagsResponse = await client.models.UserTag.list({ nextToken: userTagsResponse.nextToken })
@@ -58,50 +115,17 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
     }
 
     let notificationMemo: Notification[] = []
+    let collectionsMemo: PhotoCollection[] = []
 
     const mappedTags = await Promise.all(userTagData.map(async (tag) => {
-        const collections: PhotoCollection[] = []
-        const timeslots: Timeslot[] = []
-        const notifications: Notification[] = []
-        if(!options || options.siCollections) {
-            //TODO: implement memoization
-            collections.push(...(await getAllCollectionsFromUserTags(client, [{
-                    ...tag,
-                    collections: [],
-                    notifications: [],
-                    color: undefined,
-                    //TODO: implement children
-                    children: []
-                }], {
-                    siTags: false
-                })
-            ))
-        }
-        if(options?.siTimeslots) {
-            timeslots.push(...(await getAllTimeslotsByUserTag(client, {
-                ...tag, 
-                collections: [],
-                notifications: [],
-                color: undefined,
-                //TODO: implement children
-                children: []
-            })))
-        }
-        if(options?.siNotifications) {
-            const response = await getAllNotificationsFromUserTag(client, notificationMemo, tag.id)
-            notifications.push(...response[0])
-            notificationMemo = response[1]
-        }
-        const mappedTag: UserTag = {
-            ...tag,
-            collections: collections,
-            color: tag.color ?? undefined,
-            notifications: notifications,
-            //TODO: implement children
-            children: []
-
-        }
-        return mappedTag
+        return mapUserTag(tag, {
+            ...options,
+            memos: {
+                notificationsMemo: notificationMemo,
+                collectionsMemo: collectionsMemo,
+                tagsMemo: userTagData
+            }
+        })
     }))
     return mappedTags
 }

@@ -42,7 +42,8 @@ function RouteComponent() {
   const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
     siCollections: true, 
     siNotifications: false, 
-    siTimeslots: true 
+    siTimeslots: true,
+    siPackages: true
   }))
 
   useEffect(() => {

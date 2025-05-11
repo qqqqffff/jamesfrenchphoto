@@ -56,6 +56,7 @@ async function getPackagesByUserTags(client: V6Client<Schema>, tags: UserTag[], 
                         price: item.price ?? undefined,
                         discount: item.discount ?? undefined,
                         quantities: item.quantity ?? undefined,
+                        hardCap: item.hardCap ?? undefined,
                         collectionIds: collectionIds,
                     }
                     return mappedItem
@@ -65,6 +66,7 @@ async function getPackagesByUserTags(client: V6Client<Schema>, tags: UserTag[], 
             const mappedPackage: Package = {
                 ...pack,
                 items: items,
+                parentTagId: (await pack.packageParentTag()).data?.tagId ?? '',
                 pdfPath: pack.pdfPath ?? undefined,
                 description: pack.description ?? undefined,
             }
@@ -141,6 +143,7 @@ async function getInfinitePackages(client: V6Client<Schema>, initial: GetInfinit
                         price: item.price ?? undefined,
                         discount: item.discount ?? undefined,
                         quantities: item.quantity ?? undefined,
+                        hardCap: item.hardCap ?? undefined,
                         collectionIds: collectionIds,
                     }
                     return mappedItem
@@ -150,6 +153,7 @@ async function getInfinitePackages(client: V6Client<Schema>, initial: GetInfinit
             const mappedPackage: Package = {
                 ...pack,
                 items: items,
+                parentTagId: (await pack.packageParentTag()).data?.tagId ?? '',
                 pdfPath: pack.pdfPath ?? undefined,
                 description: pack.description ?? undefined,
             }
@@ -167,6 +171,22 @@ async function getInfinitePackages(client: V6Client<Schema>, initial: GetInfinit
     }
 
     return returnData
+}
+
+export interface GetInfinitePackageItemsData {
+    memo: PackageItem[],
+    nextToken?: string,
+    previous: boolean,
+}
+interface GetInfinitePackageItemsOptions {
+    siCollectionItems?: boolean,
+}
+//TODO: implement me please
+async function getInfinitePackageItems(client: V6Client<Schema>, initial: GetInfinitePackageItemsData, options?: GetInfinitePackageItemsOptions): Promise<GetInfinitePackageItemsData> {
+    return {
+        memo: [],
+        previous: false
+    }
 }
 
 async function getPackageDataFromPath(path: string){

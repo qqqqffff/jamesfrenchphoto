@@ -39,12 +39,13 @@ export const CollectionPicker = (props: CollectionPickerProps) => {
       </div>
       {props.collectionList
         .filter((collection) => collection.name.toLowerCase().trim().includes((search ?? '').toLowerCase()))
-        .map((collection) => {
+        .map((collection, index) => {
           const selected = props.selectedCollections.some((pCol) => collection.id === pCol.id)
           return (
             <Dropdown.Item 
               onClick={() => props.parentSelectCollection(collection.id, !selected)}
               className="flex flex-row gap-2 w-full items-center justify-start" 
+              key={index}
             >
               <Checkbox checked={selected} readOnly/>
               <span>{collection.name}</span>

@@ -171,6 +171,7 @@ export type Package = {
     description?: string,
     items: PackageItem[]
     tagId: string,
+    parentTagId: string,
     pdfPath?: string,
     createdAt: string,
     temporary?: boolean
@@ -182,6 +183,7 @@ export type PackageItem = {
     description?: string
     quantities?: number
     max?: number
+    hardCap?: number
     packageId: string,
     price?: string,
     discount?: string,
