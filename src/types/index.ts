@@ -189,6 +189,7 @@ export type PackageItem = {
     discount?: string,
     collectionIds: string[],
     order: number,
+    statements?: string[]
 }
 
 export type PackageDiscount = {

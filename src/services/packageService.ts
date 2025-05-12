@@ -58,6 +58,7 @@ async function getPackagesByUserTags(client: V6Client<Schema>, tags: UserTag[], 
                         quantities: item.quantity ?? undefined,
                         hardCap: item.hardCap ?? undefined,
                         collectionIds: collectionIds,
+                        statements: item.statements?.filter((item) => item !== null)
                     }
                     return mappedItem
                 })))
@@ -145,6 +146,7 @@ async function getInfinitePackages(client: V6Client<Schema>, initial: GetInfinit
                         quantities: item.quantity ?? undefined,
                         hardCap: item.hardCap ?? undefined,
                         collectionIds: collectionIds,
+                        statements: item.statements?.filter((item) => item !== null)
                     }
                     return mappedItem
                 })))
@@ -220,6 +222,7 @@ async function getInfinitePackageItems(client: V6Client<Schema>, initial: GetInf
             quantities: item.quantity ?? undefined,
             hardCap: item.hardCap ?? undefined,
             collectionIds: collectionIds,
+            statements: item.statements?.filter((item) => item !== null)
         }
 
         return mappedItem

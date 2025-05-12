@@ -176,6 +176,8 @@ const schema = a.schema({
       price: a.string(),
       discount: a.string(),
       order: a.integer().required(),
+      //grouped for boolean
+      statements: a.string().array(), //each line is of the format items (max) > | < | == quantity = pricing
       flag: a.string().default('true'),
       createdAt: a.datetime().required(),
     })

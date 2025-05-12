@@ -87,7 +87,7 @@ export const PriceInput = (props: PriceInputProps) => {
     if(!isFocused) {
       setFormattedValue(formatPrice(props.item.price ?? ''))
     }
-  }, [props.item.price, isFocused])
+  }, [props.item.price, isFocused, props.item.discount])
 
   return (
     <div className="flex flex-row items-center gap-2">
