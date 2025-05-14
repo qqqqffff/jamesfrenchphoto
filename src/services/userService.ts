@@ -1,7 +1,7 @@
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from "../../amplify/data/resource";
-import { Notification, Participant, PhotoCollection, PhotoSet, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { Notification, Package, PackageItem, Participant, PhotoCollection, PhotoSet, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
 import { getAllCollectionsFromUserTags } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
@@ -19,7 +19,10 @@ interface MapUserTagOptions {
     siCollections?: boolean,
     siTimeslots?: boolean,
     siNotifications?: boolean,
-    siPackages?: boolean,
+    siPackages?: {
+        siItems?: boolean,
+        siCollections?: boolean
+    },
     memos?: {
         notificationsMemo?: Notification[]
         collectionsMemo?: PhotoCollection[]
@@ -33,6 +36,7 @@ async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapU
     const collections: PhotoCollection[] = []
     const timeslots: Timeslot[] = []
     const notifications: Notification[] = []
+    let pack: Package | undefined
     if(!options || options.siCollections) {
         const foundCollections = await getAllCollectionsFromUserTags(
             client, [{
@@ -65,6 +69,43 @@ async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapU
         notificationMemo = response[1]
     }
 
+    if(options?.siPackages) {
+        const packageResponse = await tagResponse.packages()
+        if(packageResponse.data) {
+            pack = {
+                ...packageResponse.data,
+                parentTagId: (await packageResponse.data.packageParentTag()).data?.tagId ?? '',
+                pdfPath: packageResponse.data.pdfPath ?? undefined,
+                description: packageResponse.data.description ?? undefined,
+                items: options.siPackages.siItems ? (
+                    await Promise.all((await packageResponse.data.items()).data.map(async (itemResponse) => {
+                        const collections: string[] = []
+                        if(options.siPackages?.siCollections) {
+                            collections.push(
+                                ...await Promise.all(
+                                    (await itemResponse.itemCollections()).data
+                                    .map((connection) => connection.collectionId)
+                                )
+                            )
+                        }
+                        const mappedItem: PackageItem = {
+                            ...itemResponse,
+                            description: itemResponse.description ?? undefined,
+                            max: itemResponse.max ?? undefined,
+                            price: itemResponse.price ?? undefined,
+                            discount: itemResponse.discount ?? undefined,
+                            quantities: itemResponse.quantity ?? undefined,
+                            hardCap: itemResponse.hardCap ?? undefined,
+                            statements: itemResponse.statements?.filter((item) => item !== null),
+                            collectionIds: collections
+                        }
+                        return mappedItem
+                    }))
+                ) : []
+            }
+        }
+    }
+
     const children = (await Promise.all((await tagResponse.childTags()).data.map((tag) => {
         const foundTag = options?.memos?.tagsMemo?.find((pTag) => tag.id === pTag.id)
         if(foundTag){
@@ -84,7 +125,8 @@ async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapU
         collections: collections,
         color: tagResponse.color ?? undefined,
         notifications: notifications,
-        children: children
+        children: children,
+        package: pack
 
     }
     return mappedTag

@@ -1,9 +1,9 @@
 import { HiOutlinePlusCircle } from "react-icons/hi2"
-import { Package, PackageItem, UserTag } from "../../../types"
+import { Package, PackageItem, PhotoCollection, UserTag } from "../../../types"
 import { Dispatch, SetStateAction, useState } from "react"
 import { v4 } from 'uuid'
 import { BuilderForm } from "./BuilderForm"
-import { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query"
+import { UseInfiniteQueryResult, InfiniteData, UseQueryResult } from "@tanstack/react-query"
 import { GetInfinitePackageItemsData } from "../../../services/packageService"
 
 interface BuilderPanelProps {
@@ -12,7 +12,8 @@ interface BuilderPanelProps {
   tags: UserTag[],
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
   allPackageItems: PackageItem[],
-    allPackageItemsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePackageItemsData, unknown>, Error>
+  allPackageItemsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePackageItemsData, unknown>, Error>
+  collectionListQuery: UseQueryResult<PhotoCollection[] | undefined, Error>
 }
 
 export const BuilderPanel = (props: BuilderPanelProps) => {
@@ -87,6 +88,7 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
             parentUpdatePackageList={props.parentUpdatePackages}
             allPackageItems={props.allPackageItems}
             allPackageItemsQuery={props.allPackageItemsQuery}
+            collectionListQuery={props.collectionListQuery}
           />
         ) : (
           <span className="text-2xl text-gray-500 italic font-light self-center mt-4">Create or Select a Package to get Started</span>

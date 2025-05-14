@@ -1,15 +1,17 @@
 import { Dispatch, SetStateAction } from "react"
-import { Package, PackageItem, UserTag } from "../../../types"
+import { Package, PackageItem, PhotoCollection, UserTag } from "../../../types"
 import { HiOutlineMinus, HiOutlinePlus } from 'react-icons/hi'
 import { TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
 import { PercentInput } from "../../common/PercentInput"
 import { PriceInput } from "../../common/PriceInput"
 import { CollectionPicker } from "./CollectionPicker"
+import { UseQueryResult } from "@tanstack/react-query"
 
 interface SelectableItemProps {
   item: PackageItem
   selectedPackage: Package
+  collectionListQuery: UseQueryResult<PhotoCollection[] | undefined, Error>
   parentUpdatePackage: Dispatch<SetStateAction<Package | undefined>>
   parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>
   selectedTag: UserTag
@@ -150,13 +152,13 @@ export const SelectableItem = (props: SelectableItemProps) => {
               onChange={(event) => {
                 const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
 
-                if(!/^[\d-]*$/g.test(input)) {
+                if(!/^\d*$/g.test(input)) {
                   return
                 }
 
                 const numValue = parseInt(input)
                 
-                if(numValue <= -2) {
+                if(numValue < 0) {
                   return
                 }
 
@@ -196,10 +198,21 @@ export const SelectableItem = (props: SelectableItemProps) => {
           </div>
         </div>
         <PriceInput 
-          item={props.item}
-          selectedPackage={props.selectedPackage}
-          parentUpdatePackage={props.parentUpdatePackage}
-          parentUpdatePackageList={props.parentUpdatePackageList}
+          value={props.item.price ?? ''}
+          discount={props.item.discount}
+          displayDiscount={true}
+          updateState={(value) => {
+            const tempPackage: Package = {
+              ...props.selectedPackage,
+              items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                ...props.item,
+                price: value
+              }) : item))
+            }
+      
+            props.parentUpdatePackage(tempPackage)
+            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+          }}
         />
         <div className="flex flex-row gap-2">
           <PercentInput 
@@ -212,7 +225,7 @@ export const SelectableItem = (props: SelectableItemProps) => {
       </div>
       <div className="flex flex-col gap-2">
         <CollectionPicker 
-          collectionList={props.selectedTag.collections ?? []}
+          collectionList={props.collectionListQuery.data ?? []}
           parentSelectCollection={(collectionId, selected) => {
             const tempPackage: Package = {
               ...props.selectedPackage,
@@ -245,8 +258,8 @@ export const SelectableItem = (props: SelectableItemProps) => {
               pack.id === tempPackage.id ? tempPackage : pack
             )))
           }}
-          selectedCollections={(props.selectedTag.collections ?? [])
-            .filter((collection) => props.item.collectionIds.some((id) => collection.id === id))
+          selectedCollections={props.collectionListQuery.data
+            ?.filter((collection) => props.item.collectionIds.some((id) => id === collection.id)) ?? []
           }
         />
       </div>

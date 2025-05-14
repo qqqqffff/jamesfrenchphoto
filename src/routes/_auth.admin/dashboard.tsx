@@ -12,6 +12,7 @@ import {
 } from 'react-icons/hi'
 import { Outlet, useNavigate } from '@tanstack/react-router'
 import { useAuth } from '../../auth'
+import { HiOutlineTag } from 'react-icons/hi2'
 
 
 export const Route = createFileRoute('/_auth/admin/dashboard')({
@@ -90,6 +91,15 @@ function RouteComponent() {
             className={activeConsoleClassName('table')}
           >
             <HiOutlineUserCircle className="mt-1 me-1" /> Tables
+          </Button>
+          <Button
+            color="gray"
+            onClick={() => {
+                navigate({ to: '/admin/dashboard/tagging' })
+            }}
+            className={activeConsoleClassName('tagging')}
+          >
+            <HiOutlineTag className="mt-1 me-1" /> Tagging
           </Button>
           <Button
             color="gray"

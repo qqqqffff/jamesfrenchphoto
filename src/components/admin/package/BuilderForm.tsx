@@ -1,10 +1,10 @@
 import { Dispatch, SetStateAction, useState } from "react";
-import { Package, PackageItem, UserTag } from "../../../types";
+import { Package, PackageItem, PhotoCollection, UserTag } from "../../../types";
 import { Button } from "flowbite-react";
 import { ItemsPanel } from "./ItemsPanel";
 import { DetailsPanel } from "./DetailsPanel";
 import { GetInfinitePackageItemsData } from "../../../services/packageService";
-import { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query";
+import { UseInfiniteQueryResult, InfiniteData, UseQueryResult } from "@tanstack/react-query";
 
 interface BuilderFormProps {
   selectedPackage: Package
@@ -14,6 +14,7 @@ interface BuilderFormProps {
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
   allPackageItems: PackageItem[],
   allPackageItemsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePackageItemsData, unknown>, Error>
+  collectionListQuery: UseQueryResult<PhotoCollection[] | undefined, Error>
 }
 enum FormStep {
   'Details' = 'Details',
@@ -82,7 +83,10 @@ export const BuilderForm = (props: BuilderFormProps) => {
           props.selectedPackage.parentTagId === ''
         )
       case FormStep.Items:
-        return true
+        return (
+          validatePackageItems() ||
+          props.selectedPackage.items.length == 0
+        )
       case FormStep.Users:
         return true
       case FormStep.Review:
@@ -91,6 +95,36 @@ export const BuilderForm = (props: BuilderFormProps) => {
         return true
     }
   })()
+
+  function validatePackageItems() {
+    const items = props.selectedPackage.items
+    for(let i = 0; i < items.length; i++) {
+      const item = items[i]
+      //invalid priced item
+      if(item.max !== undefined && item.hardCap !== undefined) {
+        if(item.max > item.hardCap || item.max < 0) {
+          return true
+        }
+      }
+      //invalid quantity
+      if(item.quantities !== undefined && item.quantities < 1) {
+        return true
+      }
+      if(item.statements !== undefined && item.statements.length < 2) {
+        //assume that boolean statements will be valid, need at least 2 statements to cover all possible cases
+        return true
+      }
+      //no name
+      if(item.name === '') {
+        return true
+      }
+      //type not selected
+      if(item.quantities === undefined && item.statements === undefined && item.max === undefined) {
+        return true
+      }
+    }
+    return false
+  }
 
   return (
     <div className="flex flex-col h-full border">
@@ -152,6 +186,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
             parentUpdatePackageList={props.parentUpdatePackageList}
             allPackageItems={props.allPackageItems}
             allPackageItemsQuery={props.allPackageItemsQuery}
+            collectionListQuery={props.collectionListQuery}
           />
         ) : (
           <></>

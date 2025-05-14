@@ -1,14 +1,14 @@
 import { TextInput } from "flowbite-react"
 import { textInputTheme } from "../../utils"
-import { Package, PackageItem } from "../../types"
-import { ChangeEvent, Dispatch, SetStateAction, useEffect, useState } from "react"
+import { ChangeEvent, useEffect, useState } from "react"
 
-//TODO: make me more generic
 interface PriceInputProps {
-  item: PackageItem
-  selectedPackage: Package,
-  parentUpdatePackage: Dispatch<SetStateAction<Package | undefined>>
-  parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>
+  value: string,
+  discount?: string,
+  updateState: (value: string) => void,
+  className?: string
+  displayDiscount?: boolean
+  label?: JSX.Element
 }
 
 const priceFormatter = new Intl.NumberFormat('en-US', {
@@ -30,8 +30,7 @@ export const PriceInput = (props: PriceInputProps) => {
 
     if(isNaN(numericValue)) return ''
 
-    
-    return `${priceFormatter.format(numericValue)} (${calculateDiscountedPrice(numericValue, props.item.discount ?? '')})`
+    return `${priceFormatter.format(numericValue)}${props.displayDiscount ? ` (${calculateDiscountedPrice(numericValue, props.discount ?? '')}` : ''}`
   }
 
   const calculateDiscountedPrice = (price: number, discount: string): string => {
@@ -44,60 +43,42 @@ export const PriceInput = (props: PriceInputProps) => {
   }
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value.replace(/[^\d.]/g, '')
+    const inputValue = e.target.value.charAt(0) === '0' ? e.target.value.slice(1) : e.target.value
 
     const parts = inputValue.split('.')
     const sanitized = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '')
     
     const numericValue = parseFloat(sanitized)
     if(!isNaN(numericValue)) {
-      const tempPackage: Package = {
-        ...props.selectedPackage,
-        items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
-          ...props.item,
-          price: sanitized
-        }) : item))
-      }
-
-      props.parentUpdatePackage(tempPackage)
-      props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+      props.updateState(sanitized)
     }
 
     if(inputValue === '') {
-      const tempPackage: Package = {
-        ...props.selectedPackage,
-        items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
-          ...props.item,
-          price: ''
-        }) : item))
-      }
-
-      props.parentUpdatePackage(tempPackage)
-      props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+      props.updateState('0')
     }
   }
 
   const handleFocus = () => setIsFocused(true)
   const handleBlur = () => {
     setIsFocused(false)
-    setFormattedValue(formatPrice(props.item.price ?? ''))
+    setFormattedValue(formatPrice(props.value ?? ''))
   }
 
   useEffect(() => {
     if(!isFocused) {
-      setFormattedValue(formatPrice(props.item.price ?? ''))
+      setFormattedValue(formatPrice(props.value ?? ''))
     }
-  }, [props.item.price, isFocused, props.item.discount])
+  }, [props.value, isFocused, props.discount])
 
   return (
     <div className="flex flex-row items-center gap-2">
-      <span className="text-lg font-light italic">Price:</span>
+      {/* <span className="text-lg font-light italic">Price:</span> */}
       <TextInput 
         theme={textInputTheme}
         sizing="sm"
         placeholder="$0.00"
-        className="min-w-[123px] max-w-[123px]"
-        value={isFocused ? props.item.price : formattedValue}
+        className={props.className ?? "min-w-[123px] max-w-[123px]"}
+        value={isFocused ? props.value : formattedValue}
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}

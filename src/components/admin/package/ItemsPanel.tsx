@@ -1,13 +1,13 @@
-import { Button, Dropdown, Radio, TextInput } from "flowbite-react"
-import { HiBars3, HiOutlineMinus, HiOutlinePlus, HiOutlinePlusCircle, HiOutlineXMark } from 'react-icons/hi2'
-import { Package, PackageItem, UserTag } from "../../../types"
+import { Button, Dropdown, Radio, TextInput, Tooltip } from "flowbite-react"
+import { HiBars3, HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineMinus, HiOutlinePlus, HiOutlinePlusCircle, HiOutlineXMark } from 'react-icons/hi2'
+import { Package, PackageItem, PhotoCollection, UserTag } from "../../../types"
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react"
 import { v4 } from 'uuid'
 import { textInputTheme } from "../../../utils"
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea"
 import { HiOutlineDownload } from "react-icons/hi"
 import { PackageItemLoader } from "../../modals/PackageItemLoader"
-import { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query"
+import { InfiniteData, UseInfiniteQueryResult, UseQueryResult } from "@tanstack/react-query"
 import { GetInfinitePackageItemsData } from "../../../services/packageService"
 import { SelectableItem } from "./SelectableItem"
 import { BooleanItem } from "./BooleanItem"
@@ -19,6 +19,7 @@ interface ItemsPanelProps {
   parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>,
   allPackageItems: PackageItem[],
   allPackageItemsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePackageItemsData, unknown>, Error>
+  collectionListQuery: UseQueryResult<PhotoCollection[] | undefined, Error>
 }
 
 export const ItemsPanel = (props: ItemsPanelProps) => {
@@ -112,15 +113,62 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                         }}
                       />
                     </div>
-                    <div className="flex flex-row gap-4">
+                    <div className="flex flex-row gap-4 items-center">
                     {/* TODO: destroy states when switching item type */}
+                      {(item.max !== undefined || item.quantities !== undefined || item.statements !== undefined) ? (
+                        <Tooltip
+                          style="light"
+                          placement="bottom"
+                          content={(
+                            item.max !== undefined ? (
+                              <div>
+                                <span className="font-semibold ms-1">Priced Items:</span>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-normal">Price applies to items over the item count. Max can be infinite,</span>
+                                  <span className="text-sm font-normal">set to 0 and then press minus button, or press delete twice with 0 max.</span>
+                                  <span className="text-sm font-normal">Selected collections allow the user to pick pictures from those collection.</span>
+                                  <span className="text-sm font-normal">Item count MUST be greater than or equal to 0, max MUST be greater than</span>
+                                  <span className="text-sm font-normal">or equal to item count. Price, discount and collections are optional.</span>
+                                </div>
+                              </div>
+                            ) : (
+                            item.quantities !== undefined ? (
+                              <div>
+                                <span className="font-semibold ms-1">Default Items:</span>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-normal">Simple item with a quantity, must be greater than 1</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <span className="font-semibold ms-1">Boolean Items:</span>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-normal">Item that has teired pricing. Lower bound must be greater than 1.</span>
+                                  <span className="text-sm font-normal">Upper bound item quantity must be equal to the quantity before it.</span>
+                                  <span className="text-sm font-normal">Can insert items above or below individual items, must be</span>
+                                  <span className="text-sm font-normal">at least 2 items of space to insert. Minimum of two statements.</span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        >
+                          <HiOutlineInformationCircle className="text-gray-400" size={24} />
+                        </Tooltip>
+                      ) : (
+                        <Tooltip
+                          style="light"
+                          content={(<span>Select an item type</span>)}
+                        >
+                          <HiOutlineExclamationCircle className="text-red-500" size={24} />
+                        </Tooltip>
+                      )}
                       <Dropdown
                         color="gray"
                         label={item.max === undefined && item.quantities === undefined && item.statements === undefined ? (
                           'Select Type'
                         ) : (
                           item.max !== undefined ? (
-                            'Selectable'
+                            'Priced'
                           ) : (
                           item.quantities !== undefined ? (
                             'Default'
@@ -185,7 +233,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                           }}
                         >
                           <Radio readOnly checked={item.max !== undefined}/>
-                          <span>Selectable</span>
+                          <span>Priced</span>
                         </Dropdown.Item>
                         <Dropdown.Item 
                           className="flex flex-row gap-2"
@@ -202,7 +250,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                                   max: undefined,
                                   hardCap: undefined,
                                   quantities: undefined,
-                                  statements: []
+                                  statements: ['x <= 5 = 10', 'x > 5 = 5']
                                 }) : pItem)
                               }
                     
@@ -266,6 +314,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                         selectedTag={props.selectedTag}
                         parentUpdatePackage={props.parentUpdatePackage}
                         parentUpdatePackageList={props.parentUpdatePackageList}
+                        collectionListQuery={props.collectionListQuery}
                       />
                     )}
                     {item.quantities !== undefined && (
@@ -300,15 +349,15 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                                 className="min-w-[42px] max-w-[42px]" 
                                 value={item.quantities}
                                 onChange={(event) => {
-                                  const input = event.target.value
+                                  const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
 
-                                  if(!/^\d*$/.test(input)) {
+                                  if(!/^\d*$/g.test(input)) {
                                     return
                                   }
 
                                   const numValue = parseInt(input)
 
-                                  if(numValue <= -1) {
+                                  if(numValue < 0) {
                                     return
                                   }
 
@@ -316,7 +365,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                                     ...props.selectedPackage,
                                     items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
                                       ...item,
-                                      quantities: isNaN(numValue) ? 0 : numValue
+                                      quantities: isNaN(numValue) ? item.quantities === 0 ? Infinity : 0 : numValue
                                     }) : pItem))
                                   }
                         

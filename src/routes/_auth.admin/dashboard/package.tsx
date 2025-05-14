@@ -7,6 +7,7 @@ import { Package, PackageItem, UserTag } from '../../../types'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { getAllPackageItemsQueryOptions } from '../../../services/packageService'
+import { getAllPhotoCollectionsQueryOptions } from '../../../services/collectionService'
 
 interface PackageSearchParams {
   console?: string
@@ -45,11 +46,17 @@ function RouteComponent() {
     siCollections: true, 
     siNotifications: false, 
     siTimeslots: true,
-    siPackages: true
+    siPackages: { }
   }))
 
   const packageItemsInfiniteQuery = useInfiniteQuery(getAllPackageItemsQueryOptions({
     siCollectionItems: false
+  }))
+
+  const collectionQuery = useQuery(getAllPhotoCollectionsQueryOptions({
+    siPaths: false,
+    siSets: false,
+    siTags: false
   }))
 
   useEffect(() => {
@@ -83,7 +90,6 @@ function RouteComponent() {
   
   return (
     <>
-      {/* <ReactQueryDevtools initialIsOpen /> */}
       {activeConsole === 'builder' ? (
         <BuilderPanel 
           packages={packages}
@@ -92,6 +98,7 @@ function RouteComponent() {
           parentUpdateTags={setTags}
           allPackageItems={allPackageItems}
           allPackageItemsQuery={packageItemsInfiniteQuery}
+          collectionListQuery={collectionQuery}
         />
       ) : (
       activeConsole === 'pricelist' ? (
