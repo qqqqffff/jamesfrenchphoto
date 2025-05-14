@@ -65,7 +65,8 @@ function RouteComponent() {
                     onClick={() => {
                         setEditTimeslotVisible(timeslot)
                     }}>
-                    <SlotComponent className="hover:bg-gray-200" timeslot={timeslot} participant={timeslot.participant ?? null} tag={timeslot.tag} key={index} />
+                      {/* TODO: resolve participants for timeslots */}
+                    <SlotComponent className="hover:bg-gray-200" timeslot={timeslot} participant={null} tag={timeslot.tag} key={index} />
                   </button>
                 )
               })

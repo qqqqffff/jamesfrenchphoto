@@ -17,6 +17,7 @@ interface CreateTagProps extends ModalProps {
   onSubmit: (tag: UserTag) => void
 }
 
+//TODO: overhaul me by removing the timeslot selection and collection selection and move to a wizarding component
 export const CreateTagModal: FC<CreateTagProps> = ({ 
   open, onClose, existingTag, 
   onSubmit, timeslots, collections, 
@@ -143,7 +144,8 @@ export const CreateTagModal: FC<CreateTagProps> = ({
                           setActiveTimeslots(timeslots)
                         }
                       }}>
-                        <SlotComponent timeslot={timeslot} participant={timeslot.participant} tag={timeslot.tag} />
+                        {/* TODO: resolve me from a list a list of participants */}
+                        <SlotComponent timeslot={timeslot} participant={undefined} tag={timeslot.tag} />
                       </button>
                     )
                   }
@@ -158,7 +160,8 @@ export const CreateTagModal: FC<CreateTagProps> = ({
                         const timeslots = activeTimeslots.filter((ts) => ts.id !== timeslot.id)
                         setActiveTimeslots(timeslots)
                       }}>
-                        <CompactSlotComponent timeslot={timeslot} participant={timeslot.participant} tag={timeslot.tag} />
+                        {/* TODO: resolve me from a list of participants */}
+                        <CompactSlotComponent timeslot={timeslot} participant={undefined} tag={timeslot.tag} />
                       </button>
                     )
                   }) : (

@@ -4,7 +4,9 @@ import { Button } from "flowbite-react";
 import { ItemsPanel } from "./ItemsPanel";
 import { DetailsPanel } from "./DetailsPanel";
 import { GetInfinitePackageItemsData } from "../../../services/packageService";
-import { UseInfiniteQueryResult, InfiniteData, UseQueryResult } from "@tanstack/react-query";
+import { UseInfiniteQueryResult, InfiniteData, UseQueryResult, useQuery } from "@tanstack/react-query";
+import { getAllParticipantsByUserTagQueryOptions } from "../../../services/userService";
+import { UsersPanel } from "./UsersPanel";
 
 interface BuilderFormProps {
   selectedPackage: Package
@@ -25,6 +27,23 @@ enum FormStep {
 //TODO: add search params state initialization
 export const BuilderForm = (props: BuilderFormProps) => {
   const [formStep, setFormStep] = useState<FormStep>(FormStep.Details)
+
+  const participantsQuery = useQuery(getAllParticipantsByUserTagQueryOptions(
+    props.selectedPackage.tagId, {
+      siCollections: false,
+      siNotifications: false,
+      siTags: undefined,
+      siTimeslot: false,
+    }
+  ))
+  const parentParticipantQuery = useQuery(getAllParticipantsByUserTagQueryOptions(
+    props.selectedPackage.tagId, {
+      siCollections: false,
+      siNotifications: false,
+      siTags: undefined,
+      siTimeslot: false,
+    }
+  ))
 
   const handleNext = () => {
     switch(formStep) {
@@ -189,8 +208,14 @@ export const BuilderForm = (props: BuilderFormProps) => {
             collectionListQuery={props.collectionListQuery}
           />
         ) : (
+        formStep === FormStep.Users ? (
+          <UsersPanel 
+            parentParticipantQuery={parentParticipantQuery}
+            participantQuery={participantsQuery}
+          />
+        ) : (
           <></>
-        ))}
+        )))}
         <div className="w-full flex flex-row items-center justify-end gap-2 col-start-2 mt-4 pe-10">
           {formStep !== FormStep.Details && (
             <Button color='gray' onClick={handlePrevious}>Previous</Button>

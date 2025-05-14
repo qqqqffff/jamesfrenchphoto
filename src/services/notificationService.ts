@@ -57,7 +57,8 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
             //unnecessary
             timeslot: [],
             userTags: [],
-            notifications: []
+            notifications: [],
+            collections: []
           }
           participantMemo.set(mappedParticipant.id, mappedParticipant)
 

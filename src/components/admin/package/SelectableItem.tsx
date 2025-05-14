@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction } from "react"
-import { Package, PackageItem, PhotoCollection, UserTag } from "../../../types"
+import { Package, PackageItem, PhotoCollection } from "../../../types"
 import { HiOutlineMinus, HiOutlinePlus } from 'react-icons/hi'
 import { TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
@@ -14,7 +14,6 @@ interface SelectableItemProps {
   collectionListQuery: UseQueryResult<PhotoCollection[] | undefined, Error>
   parentUpdatePackage: Dispatch<SetStateAction<Package | undefined>>
   parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>
-  selectedTag: UserTag
 }
 
 export const SelectableItem = (props: SelectableItemProps) => {

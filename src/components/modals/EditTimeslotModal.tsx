@@ -52,7 +52,7 @@ const EditTimeslotModalComponent: FC<EditTimeslotModalProps> = ({open, onClose, 
                     (timeslot.start.getTime() > startTime.getTime() && timeslot.end.getTime() < endTime.getTime())
         })
         if(found.length == 0) return undefined
-        if(found.find((timeslot) => timeslot.participant !== undefined || timeslot.register !== undefined) !== undefined) return 'emergency'
+        if(found.find((timeslot) => timeslot.participantId !== undefined || timeslot.register !== undefined) !== undefined) return 'emergency'
         return 'warning'
     })()
     
@@ -133,9 +133,10 @@ const EditTimeslotModalComponent: FC<EditTimeslotModalProps> = ({open, onClose, 
                             Participant:
                         </Label>
                         <Label className="text-xl">
-                        {timeslot!.participant ? (
+                            {/* TODO: resolve participants from a queried list */}
+                        {/* {timeslot!.participant ? (
                                 <span>{timeslot!.participant.preferredName ?? timeslot!.participant.firstName}{' '}{timeslot!.participant.lastName}</span>
-                            ) : 'None'}
+                            ) : 'None'} */}
                         </Label>
                     </div>
                     <div className="flex flex-col gap-2 mb-4 self-center items-center justify-center">

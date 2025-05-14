@@ -52,7 +52,8 @@ export interface Participant {
     contact: boolean,
     timeslot?: Timeslot[],
     userEmail: string,
-    notifications: Notification[]
+    notifications: Notification[],
+    collections: PhotoCollection[]
 }
 
 export type Notification = {
@@ -151,7 +152,7 @@ export type Timeslot = {
     register?: string,
     start: Date;
     end: Date;
-    participant?: Participant,
+    participantId?: string,
 }
 
 export type UserTag = {

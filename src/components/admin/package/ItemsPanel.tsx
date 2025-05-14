@@ -111,6 +111,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                             pack.id === tempPackage.id ? tempPackage : pack
                           )))
                         }}
+                        value={item.name}
                       />
                     </div>
                     <div className="flex flex-row gap-4 items-center">
@@ -305,13 +306,13 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                           )))
                         }} 
                         placeholder={"Enter Item Description"}
+                        parentValue={item.description}
                       />
                     </div>
                     {item.max !== undefined && item.hardCap !== undefined && (
                       <SelectableItem 
                         item={item}
                         selectedPackage={props.selectedPackage}
-                        selectedTag={props.selectedTag}
                         parentUpdatePackage={props.parentUpdatePackage}
                         parentUpdatePackageList={props.parentUpdatePackageList}
                         collectionListQuery={props.collectionListQuery}

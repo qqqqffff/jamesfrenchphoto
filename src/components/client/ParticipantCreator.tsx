@@ -105,6 +105,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                         preferredName: preferredName,
                         middleName: middleName,
                         contact: contact,
+                        collections: []
                     },
                     authMode: 'userPool'
                 })

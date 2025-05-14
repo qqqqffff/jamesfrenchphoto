@@ -241,6 +241,7 @@ const schema = a.schema({
     })
     .secondaryIndexes((index) => [index('columnId')])
     .authorization((allow) => [allow.group('ADMINS')]),
+  //TODO: create a lambda function for timeslot registration to further restrict timeslots
   Timeslot: a
     .model({
       id: a.id().required(),
@@ -250,7 +251,7 @@ const schema = a.schema({
       end: a.datetime().required(),
       timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),
       participant: a.belongsTo('Participant', 'participantId'),
-      participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]),
+      participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]), 
     })
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a

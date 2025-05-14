@@ -57,7 +57,7 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
 }
 
 
-//TODO: make more effecient with memoization
+//TODO: use the user service for participant mapping
 interface GetFavoritesFromPhotoCollectionOptions {
     logging?: boolean
     metric?: boolean
@@ -82,7 +82,8 @@ async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collect
                     //not necessary
                     notifications: [],
                     timeslot: [], 
-                    userTags: [] 
+                    userTags: [],
+                    collections: []
                 }
                 participantMemo.push(mappedParticipant)
             }
@@ -115,7 +116,8 @@ async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collect
                     //not necessary
                     notifications: [],
                     timeslot: [], 
-                    userTags: [] 
+                    userTags: [],
+                    collections: []
                 }
                 participantMemo.push(mappedParticipant)
             }

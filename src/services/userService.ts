@@ -1,7 +1,7 @@
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from "../../amplify/data/resource";
-import { Notification, Package, PackageItem, Participant, PhotoCollection, PhotoSet, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { Notification, Package, PackageItem, Participant, PhotoCollection, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
 import { getAllCollectionsFromUserTags } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
@@ -179,6 +179,7 @@ interface GetUserProfileByEmailOptions {
     siSets?: boolean,
     siNotifications?: boolean
     unauthenticated?: boolean
+    //TODO: add si for chilrden and for packages -> need to determine usage
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     console.log('api call')
@@ -187,135 +188,64 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
     const participantResponse = await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
 
     const notificationMemo: Notification[] = []
+    const collectionsMemo: PhotoCollection[] = []
+    const tagsMemo: UserTag[] = []
+
     const mappedParticipants: Participant[] = await Promise.all(participantResponse.data.map(async (participant) => {
-        const tags: UserTag[] = []
-        const timeslots: Timeslot[] = []
-        const notifications: Notification[] = []
-        if(options === undefined || options.siTags){
-             tags.push(...(await Promise.all(((await participant.tags()).data ?? []).filter((tag) => tag !== null).map(async (tag) => {
-                const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+        const newParticipant = await mapParticipant(participant, {
+            siCollections: options?.siCollections,
+            siNotifications: options?.siNotifications,
+            siTags: options?.siTags ? {
+                siChildren: true, //TODO: remove the hard coding
+                siCollections: options.siCollections,
+                siPackages: true,
+                siTimeslots: options.siTimeslot
+            } : undefined,
+            siTimeslot: options?.siTimeslot,
+            memos: {
+                notificationsMemo: notificationMemo,
+                tagsMemo: tagsMemo,
+                collectionsMemo: collectionsMemo,
+            }
+        })
 
-                const notifications: Notification[] = []
-                const mappedCollections: PhotoCollection[] = []
+        //pushing to the memo, combining the items from the user tag with the participant specific items and deudplication
+        notificationMemo.push(...[
+            ...(newParticipant.userTags
+                .flatMap((tag) => tag.notifications ?? [])
+                .filter((notification) => (
+                    !notificationMemo.some((noti) => noti.id === notification?.id)
+                ))
+            ),
+            ...newParticipant.notifications
+                .filter((notification) => !notificationMemo.some((noti) => noti.id === notification.id))
+        ].reduce((prev, cur) => {
+            if(!prev.some((notification) => notification.id === cur.id)) {
+                prev.push(cur)
+            }
+            return prev
+        }, [] as Notification[]))
 
-                if(!tagResponse || !tagResponse.data) return
-                
-                if(!options || options.siCollections){
-                    mappedCollections.push(...(await Promise.all((await tagResponse.data.collectionTags()).data.map(async (colTag) => {
-                        const collection = await colTag.collection()
-                        if(!collection || !collection.data) return
-                        const sets: PhotoSet[] = []
-                        if(!options || options.siSets){
-                            sets.push(...(await collection.data.sets()).data.map((set) => {
-                                const mappedSet: PhotoSet = {
-                                    ...set,
-                                    watermarkPath: set.watermarkPath ?? undefined,
-                                    paths: [],
-                                    items: set.items ?? 0
-                                }
-                                return mappedSet
-                            }))
-                        }
-                        const mappedCollection: PhotoCollection = {
-                            ...collection.data,
-                            coverPath: collection.data.coverPath ?? undefined,
-                            publicCoverPath: collection.data.publicCoverPath ?? undefined,
-                            watermarkPath: collection.data.watermarkPath ?? undefined,
-                            downloadable: collection.data.downloadable ?? false,
-                            items: collection.data.items ?? 0,
-                            published: collection.data.published ?? false,
-                            coverType: {
-                                textColor: collection.data.coverType?.textColor ?? undefined,
-                                bgColor: collection.data.coverType?.bgColor ?? undefined,
-                                placement: collection.data.coverType?.placement ?? undefined,
-                                textPlacement: collection.data.coverType?.textPlacement ?? undefined,
-                                date: collection.data.coverType?.date ?? undefined
-                            },
-                            sets: sets,
-                            //unnecessary
-                            tags: [],
-                        }
-                        return mappedCollection
-                    }))).filter((item) => item !== undefined))
-                }
-                if(!options?.unauthenticated && options?.siNotifications) {
-                    const notificationResponse = await getAllNotificationsFromUserTag(client, notificationMemo, tag.tagId)
-                    notificationMemo.push(...notificationResponse[1])
-                    notifications.push(...notificationResponse[0])
-                }
-                
-                const mappedTag: UserTag = {
-                    ...tagResponse.data,
-                    color: tagResponse.data.color ?? undefined,
-                    collections: mappedCollections,
-                    notifications: notifications,
-                    //TODO: implement children
-                    children: []
-                }
-                return mappedTag
-            }))).filter((tag) => tag !== undefined))
-        }
 
-        if(options === undefined || options.siTimeslot){
-            timeslots.push(...(await Promise.all((await participant.timeslot()).data.map(async (timeslot) => {
-                const tag = await timeslot.timeslotTag()
-                let mappedTag: UserTag | undefined
-                if(options?.siTags){
-                    mappedTag = tags.find((userTag) => userTag.id === tag.data?.tagId)
-                }
-                else {
-                    const tagResponse = await tag.data?.tag()
-                    if(tagResponse && tagResponse.data){
-                        mappedTag = {
-                            ...tagResponse.data,
-                            color: tagResponse.data.color ?? undefined,
-                            notifications: undefined,
-                            //TODO: implement children
-                            children: []
-                        }
-                    }
-                }
-                const mappedTimeslot: Timeslot = {
-                    ...timeslot,
-                    start: new Date(timeslot.start),
-                    end: new Date(timeslot.end),
-                    tag: mappedTag,
-                    //unneccessary
-                    register: undefined,
-                    participant: undefined,
-                }
-                return mappedTimeslot
-            }))))
-        }
+        collectionsMemo.push(...[
+            ...(newParticipant.userTags
+                .flatMap((tag) => tag.collections ?? [])
+                .filter((collection) => (
+                    !collectionsMemo.some((col) => col.id !== collection.id)
+                ))
+            ),
+            ...newParticipant.collections
+                .filter((collection) => !collectionsMemo.some((col) => col.id !== collection.id))
+        ].reduce((prev, cur) => {
+            if(!prev.some((collection) => collection.id === cur.id)) {
+                prev.push(cur)
+            }
+            return prev
+        }, [] as PhotoCollection[]))
 
-        if(options === undefined || options.siNotifications) {
-            notifications.push(...(await Promise.all((await participant.notifications()).data.map(async (notificationTag) => {
-                const notification = await notificationTag.notification()
-                if(notification.data){
-                    const mappedNotification: Notification = {
-                        ...notification.data,
-                        location: notification.data.location ?? 'dashboard',
-                        expiration: notification.data.expiration ?? undefined,
-                        //unnecesary
-                        participants: [],
-                        tags: []
-                    }
-                    return mappedNotification
-                }
-            }))).filter((notification) => notification !== undefined))
-        }
-
-        const mappedParticipant: Participant = {
-            ...participant,
-            userTags: tags,
-            middleName: participant.middleName ?? undefined,
-            preferredName: participant.preferredName ?? undefined,
-            email: participant.email ?? undefined,
-            contact: participant.contact ?? false,
-            timeslot: timeslots,
-            notifications: notifications
-        }
-        return mappedParticipant
+        //pushing to the memo with deduplication
+        tagsMemo.push(...newParticipant.userTags.filter((tag) => !tagsMemo.some((mTag) => mTag.id !== tag.id)))
+        return newParticipant
     }))
 
     if(mappedParticipants.length === 0 && 
@@ -341,6 +271,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                         return mappedTag
                     }))).filter((tag) => tag !== undefined),
                     userEmail: email,
+                    collections: []
                 },
                 authMode: options?.unauthenticated ? 'identityPool' : 'userPool',
             }))
@@ -491,11 +422,272 @@ async function getTemporaryAccessToken(client: V6Client<Schema>, id: string): Pr
     }
 }
 
-interface GetAllParticipantsOptions {
-    siTags?: boolean,
-    siTimeslot?: boolean, //TODO: implement me
-    siNotifications?: boolean
+interface MapParticipantOptions {
+    siCollections?: boolean
+    siTags?: {
+        siChildren?: boolean
+        siPackages?: boolean
+        siCollections?: boolean
+        siTimeslots?: boolean
+    },
+    siTimeslot?: boolean,
+    siNotifications?: boolean,
+    memos?: {
+        notificationsMemo?: Notification[]
+        tagsMemo?: UserTag[]
+        collectionsMemo?: PhotoCollection[]
+    }
 }
+//TODO: add pagination where necessary (timeslots and collections)
+export async function mapParticipant(participantResponse: Schema['Participant']['type'], options?: MapParticipantOptions): Promise<Participant> {
+    const userTags: UserTag[] = []
+    const notifications: Notification[] = []
+    const timeslots: Timeslot[] = []
+    const collections: PhotoCollection[] = []
+
+    const notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
+    const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
+    //no need to create a tags memo since the memo does not change
+
+    if(options?.siTags) {
+        userTags.push(...(
+            (await Promise.all(
+                ((await participantResponse.tags()).data ?? []).map(async (tag) => {
+                    let mappedTag: UserTag | undefined = options.memos?.tagsMemo?.find((mTag) => tag.tagId === mTag.id)
+                    if(mappedTag) {
+                        return mappedTag
+                    }
+                    const tagResponse = await tag.tag()
+                    if(tagResponse.data) {
+                        const children: UserTag[] = []
+                        const notifications: Notification[] = []
+                        const collections: PhotoCollection[] = []
+                        const timeslots: Timeslot[] = []
+                        let pack: Package | undefined
+
+                        if(options.siTags?.siChildren) {
+                            //assume that a parent's children are unique and will not show up in a different tag therefore memoization will make no difference
+                            children.push(...(
+                                await Promise.all((await tagResponse.data.childTags()).data.map(async (child) => {
+                                    const foundTag = options.memos?.tagsMemo?.find((tag) => tag.id === child.tagId)
+                                    if(foundTag) {
+                                        return foundTag
+                                    }
+                                    const tagResponse = await child.tag()
+                                    if(tagResponse.data) {
+                                        //only shallow depth required for children since they will not be included in the tag memo
+                                        const mappedTag: UserTag = {
+                                            ...tagResponse.data,
+                                            color: tagResponse.data.color ?? undefined,
+                                            notifications: [],
+                                            children: [],
+                                        }
+                                        return mappedTag
+                                    }
+                                }))
+                            ).filter((tag) => tag !== undefined))
+                        }
+
+                        if(options?.siNotifications) {
+                            notifications.push(...(
+                                await Promise.all((await tagResponse.data.notifications()).data.map(async (notification) => {
+                                    const foundNotification = options.memos?.notificationsMemo?.find((noti) => noti.id === notification.id)
+                                    if(foundNotification) return foundNotification
+                                    const notificationResponse = await notification.notification()
+                                    if(notificationResponse.data) {
+                                        const mappedNotification: Notification = {
+                                            ...notificationResponse.data,
+                                            location: notificationResponse.data.location ?? 'dashboard',
+                                            expiration: notificationResponse.data.expiration ?? undefined,
+                                            //unecessary
+                                            participants: [],
+                                            tags: []
+                                        }
+                                        return mappedNotification
+                                    }
+                                }))
+                            ).filter((notification) => notification !== undefined))
+                        }
+
+                        if(options?.siTags?.siCollections) {
+                            collections.push(...(
+                                await Promise.all((await tagResponse.data.collectionTags()).data.map(async (collection) => {
+                                    const foundCollection = collectionsMemo.find((col) => col.id === collection.collectionId)
+                                    if(foundCollection) return foundCollection
+                                    const collectionResponse = await collection.collection()
+
+                                    if(collectionResponse.data) {
+                                        const mappedCollection: PhotoCollection = {
+                                            ...collectionResponse.data,
+                                            coverPath: collectionResponse.data.coverPath ?? undefined,
+                                            coverType: {
+                                                textColor: collectionResponse.data.coverType?.textColor ?? undefined,
+                                                bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
+                                                placement: collectionResponse.data.coverType?.placement ?? undefined,
+                                                textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
+                                                date: collectionResponse.data.coverType?.date ?? undefined,
+                                            },
+                                            publicCoverPath: collectionResponse.data.publicCoverPath ?? undefined,
+                                            watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
+                                            downloadable: collectionResponse.data.downloadable ?? false,
+                                            items: collectionResponse.data.items ?? 0,
+                                            published: collectionResponse.data.published ?? false,
+                                            //unnecessary or shallow depth only
+                                            tags: [],
+                                            sets: []
+                                        }
+
+                                        return mappedCollection
+                                    }
+                                }))
+                            ).filter((collection) => collection !== undefined))
+                        }
+
+                        if(options?.siTags?.siTimeslots) {
+                            //timeslots are not memoized since they are unique for user tags
+                            timeslots.push(...(
+                                await Promise.all((await tagResponse.data.timeslotTags()).data.map(async (timeslot) => {
+                                    const timeslotResponse = await timeslot.timeslot()
+                                    if(timeslotResponse.data) {
+                                        const mappedTimeslot: Timeslot = {
+                                            ...timeslotResponse.data,
+                                            register: timeslotResponse.data.register ?? undefined,
+                                            start: new Date(timeslotResponse.data.start),
+                                            end: new Date(timeslotResponse.data.end),
+                                            participantId: timeslotResponse.data.participantId ?? undefined
+                                        }
+                                        return mappedTimeslot
+                                    }
+                                }))
+                            ).filter((timeslot) => timeslot !== undefined))
+                        }
+
+                        if(options?.siTags?.siPackages) {
+                            //packages are tag unique, memo not required
+                            const packageResponse = await tagResponse.data.packages()
+                            if(packageResponse.data) {
+                                pack = {
+                                    ...packageResponse.data,
+                                    parentTagId: (await packageResponse.data.packageParentTag()).data?.tagId ?? '',
+                                    description: packageResponse.data.description ?? undefined,
+                                    pdfPath: packageResponse.data.pdfPath ?? undefined,
+                                    //shallow depth
+                                    items: []
+                                }
+                            }
+                        }
+
+                        mappedTag = {
+                            ...tagResponse.data,
+                            color: tagResponse.data.color ?? undefined,
+                            children: children,
+                            notifications: notifications,
+                            collections: collections,
+                            timeslots: timeslots,
+                            package: pack
+                        }
+
+                        //push to the memo for those that don't exist into the memo
+                        notificationMemo.push(...notifications
+                            .filter((noti) => !notificationMemo.some((notification) => notification.id === noti.id))
+                        )
+                        collectionsMemo.push(...collections
+                            .filter((col) => !collectionsMemo.some((collection) => collection.id === col.id))
+                        )
+                    }
+                    return mappedTag
+                })
+            ))).filter((tag) => tag !== undefined)
+        )
+    }
+
+    if(options?.siNotifications) {
+        notifications.push(...(
+            await Promise.all((await participantResponse.notifications()).data.map(async (notification) => {
+                const foundNotification = notificationMemo.find((noti) => noti.id === notification.notificationId)
+                if(foundNotification) return foundNotification
+                const notificationResponse = await notification.notification()
+                if(notificationResponse.data) {
+                    const mappedNotification: Notification = {
+                        ...notificationResponse.data,
+                        location: notificationResponse.data.location ?? 'dashboard',
+                        expiration: notificationResponse.data.expiration ?? undefined,
+                        //unnecessary
+                        participants: [],
+                        tags: []
+                    }
+                    return mappedNotification
+                }
+            }))
+        ).filter((notification) => notification !== undefined))
+    }
+
+    if(options?.siCollections) {
+        collections.push(...(
+            await Promise.all((await participantResponse.collections()).data.map(async (collection) => {
+                const foundCollection = collectionsMemo.find((col) => col.id === collection.collectionId)
+                if(foundCollection) {
+                    return foundCollection
+                }
+                const collectionResponse = await collection.collection()
+                if(collectionResponse.data) {
+                    const mappedCollection: PhotoCollection = {
+                        ...collectionResponse.data,
+                        coverPath: collectionResponse.data.coverPath ?? undefined,
+                        coverType: {
+                            textColor: collectionResponse.data.coverType?.textColor ?? undefined,
+                            bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
+                            placement: collectionResponse.data.coverType?.placement ?? undefined,
+                            textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
+                            date: collectionResponse.data.coverType?.date ?? undefined,
+                        },
+                        publicCoverPath: collectionResponse.data.publicCoverPath ?? undefined,
+                        watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
+                        downloadable: collectionResponse.data.downloadable ?? false,
+                        items: collectionResponse.data.items ?? 0,
+                        published: collectionResponse.data.published ?? false,
+                        //unnecessary or shallow depth only
+                        tags: [],
+                        sets: []
+                    }
+                    return mappedCollection
+                }
+            }))
+        ).filter((collection) => collection !== undefined))
+    }
+
+    if(options?.siTimeslot) {
+        timeslots.push(...(
+            await Promise.all((await participantResponse.timeslot()).data.map(async (timeslot) => {
+                const mappedTimeslot: Timeslot = {
+                    ...timeslot,
+                    register: timeslot.register ?? undefined,
+                    start: new Date(timeslot.start),
+                    end: new Date(timeslot.end),
+                    participantId: timeslot.participantId ?? undefined
+                }
+                return mappedTimeslot
+            }))
+        ).filter((timeslot) => timeslot !== undefined))
+    }
+
+    const mappedParticipant: Participant = {
+        ...participantResponse,
+        userTags: userTags,
+        middleName: participantResponse.middleName ?? undefined,
+        preferredName: participantResponse.preferredName ?? undefined,
+        email: participantResponse.email ?? undefined,
+        contact: participantResponse.contact ?? false,
+        timeslot: timeslots,
+        notifications: notifications,
+        collections: collections
+    }
+    
+    return mappedParticipant
+}
+
+//TODO: convert me to infinite query
+interface GetAllParticipantsOptions extends MapParticipantOptions { }
 async function getAllParticipants(client: V6Client<Schema>, options?: GetAllParticipantsOptions): Promise<Participant[]> {
     let participantResponse = await client.models.Participant.list()
     const participantData = participantResponse.data
@@ -505,57 +697,129 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
         participantData.push(...participantResponse.data)
     }
 
+    const notificationMemo: Notification[] = []
+    const collectionsMemo: PhotoCollection[] = []
+    const tagsMemo: UserTag[] = []
+
     const mappedParticipants: Participant[] = await Promise.all(participantData.map(async (participant) => {
-        const userTags: UserTag[] = []
-        const notifications: Notification[] = []
-        
-        if(options?.siTags) {
-            userTags.push(...(await Promise.all(((await participant.tags()).data ?? []).map(async (tag) => {
-                const tagResponse = await tag.tag()
-                if(tagResponse.data) {
-                    const mappedTag: UserTag = {
-                        ...tagResponse.data,
-                        color: tagResponse.data.color ?? undefined,
-                        notifications: undefined,
-                        //TODO: implement children
-                        children: []
-                    }
-                    return mappedTag
-                }
-            }))).filter((tag) => tag !== undefined))
-        }
+        const newParticipant = await mapParticipant(participant, {
+            siCollections: options?.siCollections,
+            siNotifications: options?.siNotifications,
+            siTags: options?.siTags ? {
+                siChildren: true, //TODO: remove the hard coding
+                siCollections: options.siCollections,
+                siPackages: true,
+                siTimeslots: options.siTimeslot
+            } : undefined,
+            siTimeslot: options?.siTimeslot,
+            memos: {
+                notificationsMemo: notificationMemo,
+                tagsMemo: tagsMemo,
+                collectionsMemo: collectionsMemo,
+            }
+        })
 
-        if(options?.siNotifications) {
-            notifications.push(...(await Promise.all((await participant.notifications()).data.map(async (notificationTag) => {
-                const notification = await notificationTag.notification()
-                if(notification.data){
-                    const mappedNotification: Notification = {
-                        ...notification.data,
-                        location: notification.data.location ?? 'dashboard',
-                        expiration: notification.data.expiration ?? undefined,
-                        //unnecesary
-                        participants: [],
-                        tags: []
-                    }
-                    return mappedNotification
-                }
-            }))).filter((notification) => notification !== undefined))
-        }
+        //pushing to the memo, combining the items from the user tag with the participant specific items and deudplication
+        notificationMemo.push(...[
+            ...(newParticipant.userTags
+                .flatMap((tag) => tag.notifications ?? [])
+                .filter((notification) => (
+                    !notificationMemo.some((noti) => noti.id === notification?.id)
+                ))
+            ),
+            ...newParticipant.notifications
+                .filter((notification) => !notificationMemo.some((noti) => noti.id === notification.id))
+        ].reduce((prev, cur) => {
+            if(!prev.some((notification) => notification.id === cur.id)) {
+                prev.push(cur)
+            }
+            return prev
+        }, [] as Notification[]))
 
-        const mappedParticipant: Participant = {
-            ...participant,
-            middleName: participant.middleName ?? undefined,
-            preferredName: participant.preferredName ?? undefined,
-            contact: participant.contact ?? false,
-            email: participant.email ?? undefined,
-            timeslot: [],
-            userTags: userTags,
-            notifications: notifications
-        }
-        return mappedParticipant
+
+        collectionsMemo.push(...[
+            ...(newParticipant.userTags
+                .flatMap((tag) => tag.collections ?? [])
+                .filter((collection) => (
+                    !collectionsMemo.some((col) => col.id !== collection.id)
+                ))
+            ),
+            ...newParticipant.collections
+                .filter((collection) => !collectionsMemo.some((col) => col.id !== collection.id))
+        ].reduce((prev, cur) => {
+            if(!prev.some((collection) => collection.id === cur.id)) {
+                prev.push(cur)
+            }
+            return prev
+        }, [] as PhotoCollection[]))
+
+        //pushing to the memo with deduplication
+        tagsMemo.push(...newParticipant.userTags.filter((tag) => !tagsMemo.some((mTag) => mTag.id !== tag.id)))
+        return newParticipant
     }))
 
     return mappedParticipants
+}
+
+interface GetAllParticipantsByUserTagOptions extends MapParticipantOptions { }
+async function getAllParticipantsByUserTag(client: V6Client<Schema>, tagId?: string, options?: GetAllParticipantsByUserTagOptions): Promise<Participant[]> {
+    const participants: Participant[] = []
+    if(!tagId) return participants
+    const tagResponse = await client.models.UserTag.get({ id: tagId })
+    if(tagResponse.data) {
+        const notificationMemo: Notification[] = []
+        const collectionsMemo: PhotoCollection[] = []
+        const tagsMemo: UserTag[] = []
+
+        participants.push(...(
+            await Promise.all((await tagResponse.data.participants()).data.map(async (participant) => {
+                const participantResponse = (await participant.participant()).data
+                if(participantResponse) {
+                    const newParticipant = await mapParticipant(participantResponse, options)
+                    //pushing to the memo, combining the items from the user tag with the participant specific items and deudplication
+                    notificationMemo.push(...[
+                        ...(newParticipant.userTags
+                            .flatMap((tag) => tag.notifications ?? [])
+                            .filter((notification) => (
+                                !notificationMemo.some((noti) => noti.id === notification?.id)
+                            ))
+                        ),
+                        ...newParticipant.notifications
+                            .filter((notification) => !notificationMemo.some((noti) => noti.id === notification.id))
+                    ].reduce((prev, cur) => {
+                        if(!prev.some((notification) => notification.id === cur.id)) {
+                            prev.push(cur)
+                        }
+                        return prev
+                    }, [] as Notification[]))
+
+
+                    collectionsMemo.push(...[
+                        ...(newParticipant.userTags
+                            .flatMap((tag) => tag.collections ?? [])
+                            .filter((collection) => (
+                                !collectionsMemo.some((col) => col.id !== collection.id)
+                            ))
+                        ),
+                        ...newParticipant.collections
+                            .filter((collection) => !collectionsMemo.some((col) => col.id !== collection.id))
+                    ].reduce((prev, cur) => {
+                        if(!prev.some((collection) => collection.id === cur.id)) {
+                            prev.push(cur)
+                        }
+                        return prev
+                    }, [] as PhotoCollection[]))
+
+                    //pushing to the memo with deduplication
+                    tagsMemo.push(...newParticipant.userTags.filter((tag) => !tagsMemo.some((mTag) => mTag.id !== tag.id)))
+
+                    return newParticipant
+                }
+            }))
+        ).filter((participant) => participant !== undefined))
+    }
+    
+    return participants
 }
 
 export interface CreateAccessTokenMutationParams {
@@ -961,4 +1225,9 @@ export const getTemporaryUserQueryOptions = (id?: string, options?: GetTemporary
 export const getAllParticipantsQueryOptions = (options?: GetAllParticipantsOptions) => queryOptions({
     queryKey: ['participants', client, options],
     queryFn: () => getAllParticipants(client, options)
+})
+
+export const getAllParticipantsByUserTagQueryOptions = (tagId?: string, options?: GetAllParticipantsByUserTagOptions) => queryOptions({
+    queryKey: ['userTagParticipants', client, tagId, options],
+    queryFn: () => getAllParticipantsByUserTag(client, tagId, options)
 })
