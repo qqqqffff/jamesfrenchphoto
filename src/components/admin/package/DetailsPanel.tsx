@@ -1,4 +1,4 @@
-import { TextInput, Tooltip } from "flowbite-react"
+import { Checkbox, TextInput, Tooltip } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
 import { Package, UserTag } from "../../../types"
 import { Dispatch, SetStateAction } from "react"
@@ -121,6 +121,25 @@ export const DetailsPanel = (props: DetailsPanelProps) => {
           pickedTag={props.tags.find((tag) => tag.id === props.selectedPackage.parentTagId)}
           parentUpdateTags={props.parentUpdateTags}      
         />
+        <button 
+          className="self-start flex flex-row items-center gap-2 mt-2"
+          onClick={() => {
+              const tempPackage: Package = {
+                ...props.selectedPackage,
+                advertise: !props.selectedPackage.advertise
+              }
+              props.parentUpdatePackage(tempPackage)
+              props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                pack.id === tempPackage.id ? tempPackage : pack
+              )))
+            }}
+        >
+          <Checkbox 
+            checked={props.selectedPackage.advertise} 
+            readOnly
+          />
+          <span>Advertise</span>
+        </button>
       </div>
     </div>
   )

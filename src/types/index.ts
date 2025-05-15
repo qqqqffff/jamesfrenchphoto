@@ -175,7 +175,8 @@ export type Package = {
     parentTagId: string,
     pdfPath?: string,
     createdAt: string,
-    temporary?: boolean
+    temporary?: boolean,
+    advertise: boolean
 }
 
 export type PackageItem = {

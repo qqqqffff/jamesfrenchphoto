@@ -32,15 +32,15 @@ export const BuilderForm = (props: BuilderFormProps) => {
     props.selectedPackage.tagId, {
       siCollections: false,
       siNotifications: false,
-      siTags: undefined,
+      siTags: { },
       siTimeslot: false,
     }
   ))
   const parentParticipantQuery = useQuery(getAllParticipantsByUserTagQueryOptions(
-    props.selectedPackage.tagId, {
+    props.selectedPackage.parentTagId, {
       siCollections: false,
       siNotifications: false,
-      siTags: undefined,
+      siTags: { },
       siTimeslot: false,
     }
   ))

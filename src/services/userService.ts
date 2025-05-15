@@ -763,6 +763,7 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
 
 interface GetAllParticipantsByUserTagOptions extends MapParticipantOptions { }
 async function getAllParticipantsByUserTag(client: V6Client<Schema>, tagId?: string, options?: GetAllParticipantsByUserTagOptions): Promise<Participant[]> {
+    console.log('api call')
     const participants: Participant[] = []
     if(!tagId) return participants
     const tagResponse = await client.models.UserTag.get({ id: tagId })

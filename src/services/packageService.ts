@@ -264,12 +264,19 @@ export async function createPackageMutation(params: CreatePackageParams) {
         id: params.pack.id,
         name: params.pack.name,
         tagId: params.pack.tagId,
+        advertise: params.pack.advertise,
         createdAt: new Date().toISOString(),
         //optionals
         description: params.pack.description,
-        pdfPath: params.pack.pdfPath
+        pdfPath: params.pack.pdfPath,
     })
     if(params.options?.logging) console.log(createPackageResponse)
+
+    const createParentTagging = await client.models.PackageParentTag.create({
+        packageId: params.pack.id,
+        tagId: params.pack.parentTagId,
+    })
+    if(params.options?.logging) console.log(createParentTagging)
 
     const createPackageItemsResponses = await Promise.all(params.pack.items.map(async (item) => {
         const collectionItemsResponses = await Promise.all(item.collectionIds.map((id) => {

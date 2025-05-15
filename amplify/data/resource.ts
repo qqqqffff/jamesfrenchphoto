@@ -144,7 +144,8 @@ const schema = a.schema({
       packageParentTag: a.hasOne('PackageParentTag', 'packageId'),
       pdfPath: a.string(),
       createdAt: a.datetime().required(),
-      flag: a.string().default('true')
+      flag: a.string().default('true'),
+      advertise: a.boolean().default(true).required()
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId'), index('flag').sortKeys(['createdAt'])])

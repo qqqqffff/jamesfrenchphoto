@@ -37,7 +37,8 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
                 items: [],
                 tagId: '',
                 parentTagId: '',
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                advertise: true
               }
               temp.push(tempPackage)
 
