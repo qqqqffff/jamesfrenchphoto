@@ -14,7 +14,6 @@ import { getAllNotificationsFromUserTag } from "./notificationService";
 
 const client = generateClient<Schema>()
 
-//TODO: implement unauthenticated
 interface MapUserTagOptions {
     siCollections?: boolean,
     siTimeslots?: boolean,
@@ -172,6 +171,13 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
     return mappedTags
 }
 
+interface GetAllUserTagsInfiniteData {
+}
+interface GetAllUserTagsInfiniteOptions { 
+}
+async function getAllUserTagsInfinite(client: V6Client<Schema>, initial: GetAllUserTagsInfiniteData, options?: GetAllUserTagsInfiniteOptions) {
+}
+
 interface GetUserProfileByEmailOptions {
     siTags?: boolean,
     siTimeslot?: boolean,
@@ -179,7 +185,6 @@ interface GetUserProfileByEmailOptions {
     siSets?: boolean,
     siNotifications?: boolean
     unauthenticated?: boolean
-    //TODO: add si for chilrden and for packages -> need to determine usage
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     console.log('api call')
