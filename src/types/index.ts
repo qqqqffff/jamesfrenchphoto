@@ -188,9 +188,10 @@ export type PackageItem = {
     hardCap?: number
     packageId: string,
     price?: string,
-    discount?: string,
+    discount?: string, //TODO: remove me please
     collectionIds: string[],
     order: number,
+    dependent?: string,
     statements?: string[]
 }
 

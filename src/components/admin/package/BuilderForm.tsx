@@ -137,8 +137,24 @@ export const BuilderForm = (props: BuilderFormProps) => {
       if(item.name === '') {
         return true
       }
+      if(item.dependent !== undefined && (
+        item.price === undefined || 
+        isNaN(parseFloat(item.price)) ||
+        parseFloat(item.price) <= 0 ||
+        !items.some((i) => (
+          i.id === item.dependent && 
+          i.max !== undefined && 
+          i.hardCap !== undefined && 
+          i.max < i.hardCap &&
+          i.max >= 0
+        )) ||
+        item.quantities === undefined ||
+        item.quantities < 0
+      )) {
+        return true
+      }
       //type not selected
-      if(item.quantities === undefined && item.statements === undefined && item.max === undefined) {
+      if(item.quantities === undefined && item.statements === undefined && item.max === undefined && item.dependent === undefined) {
         return true
       }
     }

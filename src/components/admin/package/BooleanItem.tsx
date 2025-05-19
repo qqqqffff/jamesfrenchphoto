@@ -1,48 +1,23 @@
 import { Dispatch, SetStateAction } from "react"
-import { Package, PackageItem, UserTag } from "../../../types"
+import { Package, PackageItem } from "../../../types"
 import { PriceInput } from "../../common/PriceInput"
 import { TextInput, Tooltip } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
 import { HiOutlineArrowUp, HiOutlineArrowDown, HiOutlineX } from 'react-icons/hi'
+import { evaluateBooleanOperator, splitStatement } from "../../../functions/packageFunctions"
 
 interface BooleanItemProps { 
   item: PackageItem,
   selectedPackage: Package
   parentUpdatePackage: Dispatch<SetStateAction<Package | undefined>>
   parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>
-  selectedTag: UserTag
 }
 
 export const BooleanItem = (props: BooleanItemProps) => {
   if(props.item.statements === undefined) return (<></>)
 
-  const splitStatement = (statement: string): {
-    parts: string[],
-    variable?: string,
-    operator?: string,
-    quantity?: string,
-    equal?: string,
-    final?: string,
-  } => {
-    const parts = statement.split(' ')
-    const variable: string  | undefined = parts?.[0]
-    const operator: string  | undefined = parts?.[1]
-    const quantity: string  | undefined = parts?.[2]
-    const equal: string  | undefined = parts?.[3]
-    const final: string  | undefined = parts?.[4]
-
-    return {
-      parts,
-      variable,
-      operator,
-      quantity,
-      equal,
-      final,
-    }
-  }
-
   return (
-    <div className="flex flex-col items-start gap-2 w-full">
+    <div className="flex flex-col items-start gap-2 overflow-x-auto max-w-[60%]">
       {props.item.statements.map((statement, index, array) => {
         const { 
           parts,
@@ -59,10 +34,10 @@ export const BooleanItem = (props: BooleanItemProps) => {
         if(!variable || !operator || !quantity || !equal || !final) return (<></>)
 
         return (
-          <div className="border rounded-lg flex flex-row w-full justify-between px-4 py-1 items-center" key={index}>
+          <div className="border rounded-lg flex flex-row min-w-max justify-between px-4 py-1 items-center whitespace-nowrap" key={index}>
             <div className="flex flex-row gap-2 items-center">
-              <span className="font-semibold">Items</span>
-              <span className="font-extrabold">{operator}</span>
+              <span className="font-semibold"># Items</span>
+              <span className="font-extrabold">{evaluateBooleanOperator(operator)}</span>
               <TextInput 
                 theme={textInputTheme}
                 sizing="sm"
@@ -223,9 +198,9 @@ export const BooleanItem = (props: BooleanItemProps) => {
                   }
                 }}
               />
-              <span className="font-extrabold">{equal}</span>
+              <span className="font-extrabold">{evaluateBooleanOperator(equal)}</span>
               <PriceInput 
-                className='max-w-[100px]'
+                className='max-w-[100px] min-w-[100px]'
                 value={final}
                 updateState={(value) => {
                   const temp = parts
@@ -247,7 +222,7 @@ export const BooleanItem = (props: BooleanItemProps) => {
                 }}
               />
             </div>
-            <div className="flex flex-row gap-2">
+            <div className="flex flex-row gap-2 ms-2">
               <Tooltip 
                 style="light"
                 placement="bottom"

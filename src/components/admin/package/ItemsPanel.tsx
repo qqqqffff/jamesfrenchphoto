@@ -89,13 +89,14 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                   key={index}
                   ref={el => setItemRef(el, item.id)}
                 >
-                  <div className="w-full flex flex-row items-center justify-between">
+                  <div className="max-w-min flex flex-row items-center justify-between gap-4">
                     <div className="flex flex-row items-center gap-4">
                       <HiBars3 size={24}/>
+                      <div className="min-w-[170px]">
                       <TextInput 
                         theme={textInputTheme}
                         placeholder="Enter Item Name"
-                        className="max-w-[300px] min-w-[300px]"
+                        className="w-auto"
                         sizing='md'
                         onChange={(event) => {
                           const tempPackage: Package = {
@@ -113,8 +114,9 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                         }}
                         value={item.name}
                       />
+                      </div>
                     </div>
-                    <div className="flex flex-row gap-4 items-center">
+                    <div className="flex flex-row items-center gap-4">
                     {/* TODO: destroy states when switching item type */}
                       {(item.max !== undefined || item.quantities !== undefined || item.statements !== undefined) ? (
                         <Tooltip
@@ -133,16 +135,26 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                                 </div>
                               </div>
                             ) : (
-                            item.quantities !== undefined ? (
+                            item.quantities !== undefined && item.dependent === undefined? (
                               <div>
                                 <span className="font-semibold ms-1">Default Items:</span>
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-normal">Simple item with a quantity, must be greater than 1</span>
+                                  <span className="text-sm font-normal">Simple item with a quantity, must be greater than 1.</span>
+                                </div>
+                              </div>
+                            ) : (
+                            item.dependent !== undefined && item.quantities !== undefined? (
+                              <div>
+                                <span className="font-semibold ms-1">Dependent Items:</span>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-normal">Item must be tied to a priced item. Price applies</span>
+                                  <span className="text-sm font-normal">per quantity of the priced item. Baseline is equal</span>
+                                  <span className="text-sm font-normal">to the number of items for the priced item.</span>
                                 </div>
                               </div>
                             ) : (
                               <div>
-                                <span className="font-semibold ms-1">Boolean Items:</span>
+                                <span className="font-semibold ms-1">Teired Items:</span>
                                 <div className="flex flex-col">
                                   <span className="text-sm font-normal">Item that has teired pricing. Lower bound must be greater than 1.</span>
                                   <span className="text-sm font-normal">Upper bound item quantity must be equal to the quantity before it.</span>
@@ -150,7 +162,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                                   <span className="text-sm font-normal">at least 2 items of space to insert. Minimum of two statements.</span>
                                 </div>
                               </div>
-                            ))
+                            )))
                           )}
                         >
                           <HiOutlineInformationCircle className="text-gray-400" size={24} />
@@ -165,17 +177,20 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                       )}
                       <Dropdown
                         color="gray"
-                        label={item.max === undefined && item.quantities === undefined && item.statements === undefined ? (
+                        label={item.max === undefined && item.quantities === undefined && item.statements === undefined && item.dependent === undefined ? (
                           'Select Type'
                         ) : (
                           item.max !== undefined ? (
                             'Priced'
                           ) : (
-                          item.quantities !== undefined ? (
+                          item.quantities !== undefined && item.dependent === undefined ? (
                             'Default'
                           ) : (
-                            'Boolean'
-                          ))
+                          item.dependent !== undefined ? (
+                            'Dependent'
+                          ) : (
+                            'Teired'
+                          )))
                         )}
                       >
                         <Dropdown.Item 
@@ -184,7 +199,8 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                             if(
                               item.max !== undefined || 
                               item.statements !== undefined || 
-                              (item.max === undefined && item.quantities === undefined && item.statements === undefined)
+                              item.dependent !== undefined ||
+                              (item.max === undefined && item.quantities === undefined && item.statements === undefined && item.dependent === undefined)
                             ) {
                               const tempPackage: Package = {
                                 ...props.selectedPackage,
@@ -193,6 +209,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                                   max: undefined,
                                   hardCap: undefined,
                                   statements: undefined,
+                                  dependent: undefined,
                                   quantities: 1
                                 }) : pItem)
                               }
@@ -204,16 +221,17 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                             }
                           }}
                         >
-                          <Radio readOnly checked={item.quantities !== undefined}/>
+                          <Radio readOnly checked={item.quantities !== undefined && item.dependent === undefined}/>
                           <span>Default</span>
                         </Dropdown.Item>
                         <Dropdown.Item 
                           className="flex flex-row gap-2"
                           onClick={() => {
                             if(
-                              item.quantities !== undefined || 
+                              (item.quantities !== undefined && item.dependent === undefined) || 
                               item.statements !== undefined || 
-                              (item.max === undefined && item.quantities === undefined && item.statements === undefined)
+                              item.dependent !== undefined ||
+                              (item.max === undefined && item.quantities === undefined && item.statements === undefined && item.dependent === undefined)
                             ) {
                               const tempPackage: Package = {
                                 ...props.selectedPackage,
@@ -222,7 +240,8 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                                   max: 1,
                                   hardCap: 1,
                                   quantities: undefined,
-                                  statements: undefined
+                                  statements: undefined,
+                                  dependent: undefined
                                 }) : pItem)
                               }
                     
@@ -240,9 +259,10 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                           className="flex flex-row gap-2"
                           onClick={() => {
                             if(
-                              item.quantities !== undefined || 
+                              (item.quantities !== undefined && item.dependent === undefined) || 
                               item.max !== undefined || 
-                              (item.max === undefined && item.quantities === undefined && item.statements === undefined)
+                              item.dependent !== undefined || 
+                              (item.max === undefined && item.quantities === undefined && item.statements === undefined && item.dependent === undefined)
                             ) {
                               const tempPackage: Package = {
                                 ...props.selectedPackage,
@@ -251,7 +271,8 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                                   max: undefined,
                                   hardCap: undefined,
                                   quantities: undefined,
-                                  statements: ['x <= 5 = 10', 'x > 5 = 5']
+                                  statements: ['x <= 5 = 10', 'x > 5 = 5'],
+                                  dependent: undefined
                                 }) : pItem)
                               }
                     
@@ -263,7 +284,39 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                           }}
                         >
                           <Radio readOnly checked={item.statements !== undefined}/>
-                          <span>Boolean</span>
+                          <span>Teired</span>
+                        </Dropdown.Item>
+                        <Dropdown.Item 
+                          className="flex flex-row gap-2"
+                          onClick={() => {
+                            if(
+                              (item.quantities !== undefined && item.dependent === undefined) || 
+                              item.max !== undefined || 
+                              item.statements !== undefined || 
+                              (item.max === undefined && item.quantities === undefined && item.statements === undefined && item.dependent === undefined)
+                            ) {
+                              const tempPackage: Package = {
+                                ...props.selectedPackage,
+                                items: props.selectedPackage.items.map((pItem) => pItem.id === item.id ? ({
+                                  ...item,
+                                  max: undefined,
+                                  hardCap: undefined,
+                                  quantities: 1,
+                                  statements: undefined,
+                                  dependent: '',
+                                  price: '5.00'
+                                }) : pItem)
+                              }
+                    
+                              props.parentUpdatePackage(tempPackage)
+                              props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                                pack.id === tempPackage.id ? tempPackage : pack
+                              )))
+                            }
+                          }}
+                        >
+                          <Radio readOnly checked={item.dependent !== undefined}/>
+                          <span>Dependent</span>
                         </Dropdown.Item>
                       </Dropdown>
                       <button 
@@ -318,7 +371,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                         collectionListQuery={props.collectionListQuery}
                       />
                     )}
-                    {item.quantities !== undefined && (
+                    {item.quantities !== undefined && item.dependent === undefined && (
                       <div className="flex flex-row items-start gap-4">
                         <div className="flex flex-col gap-2">
                           <div className="flex flex-row items-center gap-2">
@@ -404,7 +457,6 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                       <BooleanItem 
                         item={item}
                         selectedPackage={props.selectedPackage}
-                        selectedTag={props.selectedTag}
                         parentUpdatePackage={props.parentUpdatePackage}
                         parentUpdatePackageList={props.parentUpdatePackageList}
                       />
