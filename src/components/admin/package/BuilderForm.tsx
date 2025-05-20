@@ -7,6 +7,7 @@ import { GetInfinitePackageItemsData } from "../../../services/packageService";
 import { UseInfiniteQueryResult, InfiniteData, UseQueryResult, useQuery } from "@tanstack/react-query";
 import { getAllParticipantsByUserTagQueryOptions } from "../../../services/userService";
 import { UsersPanel } from "./UsersPanel";
+import { PackageCard } from "../../common/package/PackageCard";
 
 interface BuilderFormProps {
   selectedPackage: Package
@@ -107,9 +108,9 @@ export const BuilderForm = (props: BuilderFormProps) => {
           props.selectedPackage.items.length == 0
         )
       case FormStep.Users:
-        return true
+        return false
       case FormStep.Review:
-        return true
+        return false
       default: 
         return true
     }
@@ -141,15 +142,9 @@ export const BuilderForm = (props: BuilderFormProps) => {
         item.price === undefined || 
         isNaN(parseFloat(item.price)) ||
         parseFloat(item.price) <= 0 ||
-        !items.some((i) => (
-          i.id === item.dependent && 
-          i.max !== undefined && 
-          i.hardCap !== undefined && 
-          i.max < i.hardCap &&
-          i.max >= 0
-        )) ||
+        !items.some((i) => i.id === item.dependent) ||
         item.quantities === undefined ||
-        item.quantities < 0
+        item.quantities <= 0
       )) {
         return true
       }
@@ -230,8 +225,16 @@ export const BuilderForm = (props: BuilderFormProps) => {
             participantQuery={participantsQuery}
           />
         ) : (
+        formStep === FormStep.Review ? (
+          <div className="flex flex-row px-10">
+            <PackageCard 
+              package={props.selectedPackage}
+              collectionList={props.collectionListQuery.data ?? []}
+            />
+          </div>
+        ) : (
           <></>
-        )))}
+        ))))}
         <div className="w-full flex flex-row items-center justify-end gap-2 col-start-2 mt-4 pe-10">
           {formStep !== FormStep.Details && (
             <Button color='gray' onClick={handlePrevious}>Previous</Button>
@@ -241,6 +244,13 @@ export const BuilderForm = (props: BuilderFormProps) => {
               onClick={handleNext} 
               disabled={evaluateAllowedNext}
             >Next</Button>
+          )}
+          {formStep === FormStep.Review && (
+            <Button
+              onClick={() => {
+                //TODO: create package api
+              }}
+            >Create</Button>
           )}
         </div>
       </div>

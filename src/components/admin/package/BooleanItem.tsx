@@ -198,7 +198,7 @@ export const BooleanItem = (props: BooleanItemProps) => {
                   }
                 }}
               />
-              <span className="font-extrabold">{evaluateBooleanOperator(equal)}</span>
+              <span className="font-extrabold">Price is</span>
               <PriceInput 
                 className='max-w-[100px] min-w-[100px]'
                 value={final}

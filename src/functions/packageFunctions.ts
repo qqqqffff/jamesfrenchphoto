@@ -2,15 +2,15 @@ export function evaluateBooleanOperator(operator?: string): string {
   if(!operator) return ''
   switch(operator) {
     case '>':
-      return 'Greater Than'
+      return 'or More'
     case '>=':
-      return 'Greater Than or Equal to'
+      return 'or More'
     case '=':
       return 'Equal to'
     case '<':
-      return 'Less Than'
+      return 'or Less'
     case '<=':
-      return 'Less Than or Equal to'
+      return 'or Less'
   }
 
   return ''
@@ -40,3 +40,9 @@ export const splitStatement = (statement: string): {
       final,
     }
   }
+
+export const decryptBooleanStatement = (statement: string): string => {
+  const split = splitStatement(statement)
+
+  return `${split.quantity} items ${evaluateBooleanOperator(split.operator).toLowerCase()} is $${split.final}`
+}

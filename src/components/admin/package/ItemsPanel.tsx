@@ -11,6 +11,7 @@ import { InfiniteData, UseInfiniteQueryResult, UseQueryResult } from "@tanstack/
 import { GetInfinitePackageItemsData } from "../../../services/packageService"
 import { SelectableItem } from "./SelectableItem"
 import { BooleanItem } from "./BooleanItem"
+import { DependentItem } from "./DependentItem"
 
 interface ItemsPanelProps {
   selectedPackage: Package,
@@ -89,7 +90,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                   key={index}
                   ref={el => setItemRef(el, item.id)}
                 >
-                  <div className="max-w-min flex flex-row items-center justify-between gap-4">
+                  <div className="flex flex-row items-center justify-between gap-4">
                     <div className="flex flex-row items-center gap-4">
                       <HiBars3 size={24}/>
                       <div className="min-w-[170px]">
@@ -154,9 +155,9 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                               </div>
                             ) : (
                               <div>
-                                <span className="font-semibold ms-1">Teired Items:</span>
+                                <span className="font-semibold ms-1">Tiered Items:</span>
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-normal">Item that has teired pricing. Lower bound must be greater than 1.</span>
+                                  <span className="text-sm font-normal">Item that has tiered pricing. Lower bound must be greater than 1.</span>
                                   <span className="text-sm font-normal">Upper bound item quantity must be equal to the quantity before it.</span>
                                   <span className="text-sm font-normal">Can insert items above or below individual items, must be</span>
                                   <span className="text-sm font-normal">at least 2 items of space to insert. Minimum of two statements.</span>
@@ -189,7 +190,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                           item.dependent !== undefined ? (
                             'Dependent'
                           ) : (
-                            'Teired'
+                            'Tiered'
                           )))
                         )}
                       >
@@ -284,7 +285,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                           }}
                         >
                           <Radio readOnly checked={item.statements !== undefined}/>
-                          <span>Teired</span>
+                          <span>Tiered</span>
                         </Dropdown.Item>
                         <Dropdown.Item 
                           className="flex flex-row gap-2"
@@ -455,6 +456,14 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                     )}
                     {item.statements !== undefined && (
                       <BooleanItem 
+                        item={item}
+                        selectedPackage={props.selectedPackage}
+                        parentUpdatePackage={props.parentUpdatePackage}
+                        parentUpdatePackageList={props.parentUpdatePackageList}
+                      />
+                    )}
+                    {item.dependent !== undefined && (
+                      <DependentItem 
                         item={item}
                         selectedPackage={props.selectedPackage}
                         parentUpdatePackage={props.parentUpdatePackage}

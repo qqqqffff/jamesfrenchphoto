@@ -26,9 +26,9 @@ export const UsersPanel = (props: UserPanelProps) => {
                 <span>No available participants.</span>
               </div>
             ) : (
-              props.parentParticipantQuery.data?.map((participant) => {
+              props.parentParticipantQuery.data?.map((participant, index) => {
                 return (
-                  <div className="w-full border rounded-lg px-4 py-1">
+                  <div className="w-full border rounded-lg px-4 py-1" key={index}>
                     <Tooltip
                       style="light"
                       theme={{ target: undefined }}
@@ -61,9 +61,9 @@ export const UsersPanel = (props: UserPanelProps) => {
                 <span>No Participants with package.</span>
               </div>
             ) : (
-              props.participantQuery.data?.map((participant) => {
+              props.participantQuery.data?.map((participant, index) => {
                 return (
-                  <div className="w-full border rounded-lg px-4 py-1">
+                  <div className="w-full border rounded-lg px-4 py-1" key={index}>
                     <Tooltip
                       style="light"
                       theme={{ target: undefined }}

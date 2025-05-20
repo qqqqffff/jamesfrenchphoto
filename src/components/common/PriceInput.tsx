@@ -72,7 +72,7 @@ export const PriceInput = (props: PriceInputProps) => {
 
   return (
     <div className="flex flex-row items-center gap-2">
-      {/* <span className="text-lg font-light italic">Price:</span> */}
+      {props.label}
       <TextInput 
         theme={textInputTheme}
         sizing="sm"

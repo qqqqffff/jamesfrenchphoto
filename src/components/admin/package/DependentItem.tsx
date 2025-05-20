@@ -15,6 +15,17 @@ export const DependentItem = (props: DependentItemProps) => {
   const [search, setSearch] = useState<string>('')
   const [focused, setFocused] = useState(false)
 
+  const filteredItems = props.selectedPackage.items
+    .filter((item) => (
+      item.name.toLowerCase().includes(search.toLowerCase()) && 
+      item.id !== props.item.dependent &&
+      !props.selectedPackage.items.some((a) => item.id === a.dependent) &&
+      item.max !== undefined && 
+      item.hardCap !== undefined
+    ))
+
+  const dependentItem = props.selectedPackage.items.find((item) => item.id === props.item.dependent)
+  
   return (
     <div className="flex flex-row items-start gap-4">
       <div className="flex flex-col gap-2">
@@ -22,9 +33,9 @@ export const DependentItem = (props: DependentItemProps) => {
           <TextInput 
             theme={textInputTheme}
             sizing="sm"
-            placeholder="Select Dependent Item"
+            placeholder={focused ? dependentItem?.name : "Select Dependent Item"}
             className={`max-w-[400px] min-w-[250px] placeholder:italic`}
-            value={props.item.dependent === '' ? search : props.item.dependent}
+            value={dependentItem === undefined || focused ? search : dependentItem?.name}
             onFocus={() => setFocused(true)}
             onBlur={() => setTimeout(() => {
               setSearch('')
@@ -48,235 +59,153 @@ export const DependentItem = (props: DependentItemProps) => {
                 </button>
               </div>
               <div className="max-h-60 overflow-y-auto py-1 min-w-max">
-                {props.selectedPackage.items.map((item) => {
-                  if(item.max === undefined || item.hardCap === undefined) {
-                    return (<></>)
-                  }
-                  return (
-                    <div className="flex flex-row justify-between items-center pe-2">
-                      <button
-                        className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
-                        onClick={() => {
-                          const tempPackage: Package = {
-                            ...props.selectedPackage,
-                            items: props.selectedPackage.items.map((item) => (item.id === props.item.id) ? ({
-                              ...props.item,
-                              dependent: item.id
-                            }) : item)
-                          }
+                {filteredItems.length > 0 ? (
+                  filteredItems.map((item) => {
+                    return (
+                      <div className="flex flex-row justify-between items-center pe-2">
+                        <button
+                          className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
+                          onClick={() => {
+                            const tempPackage: Package = {
+                              ...props.selectedPackage,
+                              items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id) ? ({
+                                ...pItem,
+                                dependent: item.id
+                              }) : pItem)
+                            }
 
-                          props.parentUpdatePackage(tempPackage)
-                          props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
-                        }}
-                      >
-                        <span>{item.name}</span>
-                      </button>
-                    </div>
-                  )
-                })}
+                            props.parentUpdatePackage(tempPackage)
+                            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+                          }}
+                        >
+                          <span className="text-sm font-light italic px-2">{item.name}</span>
+                        </button>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <span className="text-sm font-light italic px-2">No available items</span>
+                )}
               </div>
             </div>
           )}
         </div>
-        <div className="flex flex-row items-center gap-2">
-          <span className="text-lg font-light italic">Quantity:</span>
-          <div className="flex flex-row items-center gap-2">
-            <button
-              className="p-1 border rounded-lg aspect-square flex justify-center items-center disabled:opacity-60 enabled:hover:bg-gray-100"
-              disabled={props.item.quantities === 1}
-              onClick={() => {
+        {dependentItem && (
+          <>
+            <div className="flex flex-row items-center gap-2">
+              <span className="text-lg font-light italic">Baseline:</span>
+              <span className="text-lg font-semibold">{dependentItem.max}</span>
+            </div>
+            <div className="flex flex-row items-center gap-2">
+              <span className="text-lg font-light italic">Quantity:</span>
+              <div className="flex flex-row items-center gap-2">
+                <button
+                  className="p-1 border rounded-lg aspect-square flex justify-center items-center disabled:opacity-60 enabled:hover:bg-gray-100"
+                  disabled={props.item.quantities === 1}
+                  onClick={() => {
+                    const tempPackage: Package = {
+                      ...props.selectedPackage,
+                      items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
+                        ...props.item,
+                        quantities: (props.item.quantities ?? 1) - 1
+                      }) : pItem))
+                    }
+          
+                    props.parentUpdatePackage(tempPackage)
+                    props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                      pack.id === tempPackage.id ? tempPackage : pack
+                    )))
+                  }}
+                >
+                  <HiOutlineMinus size={20} />
+                </button>
+                <TextInput 
+                  theme={textInputTheme}
+                  sizing="sm"
+                  className="min-w-[42px] max-w-[42px]" 
+                  value={props.item.quantities}
+                  onBlur={() => {
+                    if(!props.item.quantities || props.item.quantities <= 0) {
+                      const tempPackage: Package = {
+                      ...props.selectedPackage,
+                      items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
+                        ...props.item,
+                        quantities: 1
+                      }) : pItem))
+                    }
+          
+                    props.parentUpdatePackage(tempPackage)
+                    props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                      pack.id === tempPackage.id ? tempPackage : pack
+                    )))
+                    }
+                  }}
+                  onChange={(event) => {
+                    const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
+
+                    if(!/^\d*$/g.test(input)) {
+                      return
+                    }
+
+                    const numValue = parseInt(input)
+
+                    if(numValue < 0) {
+                      return
+                    }
+
+                    const tempPackage: Package = {
+                      ...props.selectedPackage,
+                      items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
+                        ...props.item,
+                        quantities: isNaN(numValue) ? 0 : numValue
+                      }) : pItem))
+                    }
+          
+                    props.parentUpdatePackage(tempPackage)
+                    props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                      pack.id === tempPackage.id ? tempPackage : pack
+                    )))
+                  }}
+                />
+                <button
+                  className="p-1 border rounded-lg aspect-square flex justify-center items-center hover:bg-gray-100"
+                  onClick={() => {
+                    const tempPackage: Package = {
+                      ...props.selectedPackage,
+                      items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
+                        ...props.item,
+                        quantities: (props.item.quantities ?? 1) + 1
+                      }) : pItem))
+                    }
+          
+                    props.parentUpdatePackage(tempPackage)
+                    props.parentUpdatePackageList((prev) => prev.map((pack) => (
+                      pack.id === tempPackage.id ? tempPackage : pack
+                    )))
+                  }}
+                >
+                  <HiOutlinePlus size={20} />
+                </button>
+              </div>
+            </div>
+            <PriceInput 
+              label={(<span className="text-lg font-light italic">Price per Quantity</span>)}
+              value={props.item.price ?? ''}
+              updateState={(value) => {
                 const tempPackage: Package = {
                   ...props.selectedPackage,
-                  items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
+                  items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
                     ...props.item,
-                    quantities: (props.item.quantities ?? 1) - 1
-                  }) : pItem))
+                    price: value,
+                  }) : item))
                 }
-      
+
                 props.parentUpdatePackage(tempPackage)
-                props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                  pack.id === tempPackage.id ? tempPackage : pack
-                )))
-              }}
-            >
-              <HiOutlineMinus size={20} />
-            </button>
-            <TextInput 
-              theme={textInputTheme}
-              sizing="sm"
-              className="min-w-[42px] max-w-[42px]" 
-              value={props.item.quantities}
-              onBlur={() => {
-                if(props.item.quantities && props.item.quantities <= 0) {
-                  const tempPackage: Package = {
-                  ...props.selectedPackage,
-                  items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
-                    ...props.item,
-                    quantities: 1
-                  }) : pItem))
-                }
-      
-                props.parentUpdatePackage(tempPackage)
-                props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                  pack.id === tempPackage.id ? tempPackage : pack
-                )))
-                }
-              }}
-              onChange={(event) => {
-                const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
-
-                if(!/^\d*$/g.test(input)) {
-                  return
-                }
-
-                const numValue = parseInt(input)
-
-                if(numValue < 0) {
-                  return
-                }
-
-                const tempPackage: Package = {
-                  ...props.selectedPackage,
-                  items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
-                    ...props.item,
-                    quantities: isNaN(numValue) ? 0 : numValue
-                  }) : pItem))
-                }
-      
-                props.parentUpdatePackage(tempPackage)
-                props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                  pack.id === tempPackage.id ? tempPackage : pack
-                )))
+                props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
               }}
             />
-            <button
-              className="p-1 border rounded-lg aspect-square flex justify-center items-center hover:bg-gray-100"
-              onClick={() => {
-                const tempPackage: Package = {
-                  ...props.selectedPackage,
-                  items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
-                    ...props.item,
-                    quantities: (props.item.quantities ?? 1) + 1
-                  }) : pItem))
-                }
-      
-                props.parentUpdatePackage(tempPackage)
-                props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                  pack.id === tempPackage.id ? tempPackage : pack
-                )))
-              }}
-            >
-              <HiOutlinePlus size={20} />
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-row items-center gap-2">
-          <span className="text-lg font-light italic">Quantity:</span>
-          <div className="flex flex-row items-center gap-2">
-            <button
-              className="p-1 border rounded-lg aspect-square flex justify-center items-center disabled:opacity-60 enabled:hover:bg-gray-100"
-              disabled={props.item.quantities === 1}
-              onClick={() => {
-                const tempPackage: Package = {
-                  ...props.selectedPackage,
-                  items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
-                    ...props.item,
-                    quantities: (props.item.quantities ?? 1) - 1
-                  }) : pItem))
-                }
-      
-                props.parentUpdatePackage(tempPackage)
-                props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                  pack.id === tempPackage.id ? tempPackage : pack
-                )))
-              }}
-            >
-              <HiOutlineMinus size={20} />
-            </button>
-            <TextInput 
-              theme={textInputTheme}
-              sizing="sm"
-              className="min-w-[42px] max-w-[42px]" 
-              value={props.item.quantities}
-              onBlur={() => {
-                if(props.item.quantities && props.item.quantities <= 0) {
-                  const tempPackage: Package = {
-                  ...props.selectedPackage,
-                  items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
-                    ...props.item,
-                    quantities: 1
-                  }) : pItem))
-                }
-      
-                props.parentUpdatePackage(tempPackage)
-                props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                  pack.id === tempPackage.id ? tempPackage : pack
-                )))
-                }
-              }}
-              onChange={(event) => {
-                const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
-
-                if(!/^\d*$/g.test(input)) {
-                  return
-                }
-
-                const numValue = parseInt(input)
-
-                if(numValue < 0) {
-                  return
-                }
-
-                const tempPackage: Package = {
-                  ...props.selectedPackage,
-                  items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
-                    ...props.item,
-                    quantities: isNaN(numValue) ? 0 : numValue
-                  }) : pItem))
-                }
-      
-                props.parentUpdatePackage(tempPackage)
-                props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                  pack.id === tempPackage.id ? tempPackage : pack
-                )))
-              }}
-            />
-            <button
-              className="p-1 border rounded-lg aspect-square flex justify-center items-center hover:bg-gray-100"
-              onClick={() => {
-                const tempPackage: Package = {
-                  ...props.selectedPackage,
-                  items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
-                    ...props.item,
-                    quantities: (props.item.quantities ?? 1) + 1
-                  }) : pItem))
-                }
-      
-                props.parentUpdatePackage(tempPackage)
-                props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                  pack.id === tempPackage.id ? tempPackage : pack
-                )))
-              }}
-            >
-              <HiOutlinePlus size={20} />
-            </button>
-          </div>
-        </div>
-        <PriceInput 
-          value={props.item.price ?? ''}
-          updateState={(value) => {
-            const tempPackage: Package = {
-              ...props.selectedPackage,
-              items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
-                ...props.item,
-                price: value,
-              }) : item))
-            }
-
-            props.parentUpdatePackage(tempPackage)
-            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
-          }}
-        />
+          </>
+        )}
       </div>
     </div>
   )
