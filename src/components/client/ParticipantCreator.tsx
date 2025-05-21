@@ -63,7 +63,9 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                     const userTag: UserTag = {
                         ...tagResponse.data,
                         color: tagResponse.data.color ?? undefined,
-                        notifications: undefined
+                        notifications: undefined,
+                        //TODO: implement children
+                        children: []
                     }
                     return userTag
                 }
@@ -103,6 +105,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                         preferredName: preferredName,
                         middleName: middleName,
                         contact: contact,
+                        collections: []
                     },
                     authMode: 'userPool'
                 })

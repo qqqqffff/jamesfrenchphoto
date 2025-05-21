@@ -92,7 +92,12 @@ export const TagCell = (props: TagCellProps) => {
         )}
         existingTag={selectedTag}
         open={createTagVisible} 
-        onClose={() => setCreateTagVisible(false)}      
+        onClose={() => setCreateTagVisible(false)}
+        //TODO: fix me please
+        timeslots={[]}
+        collections={[]}
+        parentUpdateActiveDate={() => {}}
+
       />
       <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
         <input

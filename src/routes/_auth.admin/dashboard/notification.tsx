@@ -10,7 +10,10 @@ export const Route = createFileRoute('/_auth/admin/dashboard/notification')({
   component: RouteComponent,
   loader: async ({ context }) => {
     const notifications = context.queryClient.ensureQueryData(getAllNotificationsQueryOptions({ siParticipants: true, siTags: true }))
-    const participants = context.queryClient.ensureQueryData(getAllParticipantsQueryOptions({ siNotifications: true, siTags: true }))
+    const participants = context.queryClient.ensureQueryData(getAllParticipantsQueryOptions({ 
+      siNotifications: true, 
+      siTags: { } 
+    }))
     const userTags = context.queryClient.ensureQueryData(getAllUserTagsQueryOptions({ siCollections: false, siTimeslots: false, siNotifications: true }))
   
     return {

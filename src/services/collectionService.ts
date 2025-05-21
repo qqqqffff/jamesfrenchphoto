@@ -6,6 +6,7 @@ import { generateClient } from "aws-amplify/api";
 import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
 import { getAllPaths } from "./photoPathService";
+import { mapParticipant } from "./userService";
 
 const client = generateClient<Schema>()
 
@@ -81,7 +82,9 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
             const mappedTag: UserTag = {
               ...tag.data,
               color: tag.data.color ?? undefined,
-              notifications: undefined
+              notifications: undefined,
+              //TODO: implement children
+              children: []
             }
             return mappedTag
           }))).filter((tag) => tag !== undefined))
@@ -119,6 +122,7 @@ interface GetAllCollectionsFromUserTagsOptions {
     siTags?: boolean
     siSets?: boolean
     siPaths?: boolean
+    collectionsMemo?: PhotoCollection[]
 }
 export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, tags: UserTag[], options?: GetAllCollectionsFromUserTagsOptions): Promise<PhotoCollection[]> {
     console.log('api call')
@@ -133,7 +137,11 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
 
       const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagsData.map(async (collectionTag) => {
         const collectionResponse = await collectionTag.collection()
-        if(!collectionResponse.data || !collectionResponse.data) return
+        if (
+          !collectionResponse.data || 
+          !collectionResponse.data || 
+          options?.collectionsMemo?.some((collection) => collection.id === collectionResponse.data?.id)
+        ) return
         const tags: UserTag[] = []
         
         if(!options || options.siTags){
@@ -151,7 +159,9 @@ export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, ta
             const mappedTag: UserTag = {
                 ...tag.data,
                 color: tag.data.color ?? undefined,
-                notifications: undefined
+                notifications: undefined,
+                //TODO: implement children
+                children: []
             }
             return mappedTag
           }))).filter((tag) => tag !== undefined))
@@ -363,7 +373,9 @@ export async function getCollectionById(client: V6Client<Schema>, collectionId?:
       const mappedTag: UserTag = {
         ...tag,
         color: tag.color ?? undefined,
-        notifications: undefined
+        notifications: undefined,
+        //TODO: implement children
+        children: []
       }
       return mappedTag
     }))).filter((tag) => tag !== undefined))
@@ -404,36 +416,22 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
             participantTagData.push(...participantTagResponse.data)
         }
 
+
         participants.push(...(await Promise.all(participantTagData.map(async (tagResponse) => {
             const participant = await tagResponse.participant()
             if(participant.data) {
-                const userTags: UserTag[] = []
-
-                if(options?.siTags) {
-                    userTags.push(...(await Promise.all(((await participant.data.tags()).data ?? []).map(async (tag) => {
-                        const tagResponse = await tag.tag()
-                        if(tagResponse.data) {
-                            const mappedTag: UserTag = {
-                                ...tagResponse.data,
-                                color: tagResponse.data.color ?? undefined,
-                                notifications: undefined
-                            }
-                            return mappedTag
-                        }
-                    }))).filter((tag) => tag !== undefined))
-                }
-
-                const mappedParticipant: Participant = {
-                    ...participant.data,
-                    middleName: participant.data.middleName ?? undefined,
-                    preferredName: participant.data.preferredName ?? undefined,
-                    contact: participant.data.contact ?? false,
-                    email: participant.data.email ?? undefined,
-                    timeslot: [],
-                    notifications: [],
-                    userTags: userTags,
-                }
-                return mappedParticipant
+              const newParticipant = await mapParticipant(participant.data, {
+                  siCollections: false,
+                  siNotifications: false,
+                  siTags: options?.siTags ? {
+                      siChildren: false, 
+                      siCollections: false,
+                      siPackages: false,
+                      siTimeslots: false
+                  } : undefined,
+                  siTimeslot: false,
+              })
+              return newParticipant
             }
         }))).filter((participant) => participant !== undefined))
     }
@@ -445,6 +443,7 @@ interface GetParticipantCollectionsOptions {
     siSets?: boolean
     siPaths?: boolean
 }
+//TODO: improve with memoization
 async function getParticipantCollections(client: V6Client<Schema>, participantId?: string, options?: GetParticipantCollectionsOptions): Promise<PhotoCollection[]> {
     if(!participantId) return []
     let collectionTagResponse = await client.models.ParticipantCollections.listParticipantCollectionsByParticipantId({ participantId: participantId })

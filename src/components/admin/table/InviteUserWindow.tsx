@@ -165,6 +165,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
               notifications: [],
               contact: false,
               userEmail: props.email,
+              collections: []
             }
             setParticipants([...participants, temp])
           }}

@@ -2,8 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { Schema } from "../../amplify/data/resource";
 import { generateClient } from "aws-amplify/api";
 import { V6Client } from '@aws-amplify/api-graphql'
-import { Participant, Timeslot, UserTag } from "../types";
-import { getUserProfileByEmail } from "./userService";
+import { Timeslot, UserTag } from "../types";
 
 const client = generateClient<Schema>()
 
@@ -25,49 +24,17 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
                 tag = {
                     ...tagResponse.data,
                     color: tagResponse.data.color ?? undefined,
-                    notifications: undefined
+                    notifications: undefined,
+                    //TODO: implement children
+                    children: []
                 }
             }
         }
-        const participantResponse = await timeslot.participant()
-        let participant: Participant | undefined
-        if(participantResponse && participantResponse.data){
-            participant = {
-                ...participantResponse.data,
-                preferredName: participantResponse.data.preferredName ?? undefined,
-                //unnecessary
-                userTags: [],
-                notifications: [],
-                email: undefined,
-                contact: false,
-                timeslot: undefined,
-                middleName: undefined,
-            }
-        }
-        //deprecation compatability
-        else if(timeslot.register !== null){
-            const userProfile = await getUserProfileByEmail(client, timeslot.register, { siTags: false, siTimeslot: false })
-            if(userProfile && userProfile.participantFirstName && userProfile.participantLastName){
-                participant = {
-                    id: '',
-                    firstName: userProfile.participantFirstName,
-                    lastName: userProfile.participantLastName,
-                    preferredName: userProfile?.participantPreferredName,
-                    //unnecessary
-                    userTags: [],
-                    email: undefined,
-                    contact: false,
-                    timeslot: undefined,
-                    middleName: undefined,
-                    notifications: [],
-                    userEmail: userProfile.email
-                }
-            }
-        }
+
         const mappedTimeslot: Timeslot = {
             id: timeslot.id as string,
             register: timeslot.register ?? undefined,
-            participant: participant,
+            participantId: timeslot.participantId ?? undefined,
             start: new Date(timeslot.start),
             end: new Date(timeslot.end),
             tag: tag,
@@ -93,23 +60,12 @@ export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag
         .map(async (timeslotTag) => {
             const timeslot = await timeslotTag.timeslot()
             if(!timeslot || !timeslot.data) return
-            const participant = await timeslot.data.participant()
             const mappedTimeslot: Timeslot = {
                 ...timeslot.data,
                 start: new Date(timeslot.data.start),
                 end: new Date(timeslot.data.end),
                 register: timeslot.data.register ?? undefined,
-                participant: participant && participant.data ? ({
-                    ...participant.data,
-                    middleName: participant.data.middleName ?? undefined,
-                    preferredName: participant.data.preferredName ?? undefined,
-                    email: participant.data.email ?? undefined,
-                    contact: participant.data.contact ?? false,
-                    //unnecessary
-                    userTags: [],
-                    notifications: [],
-                    timeslot: undefined,
-                }) : undefined,
+                participantId: timeslot.data.participantId ?? undefined,
                 tag: userTag
             }
             return mappedTimeslot
@@ -142,7 +98,7 @@ export async function registerTimeslotMutation(timeslot: Timeslot, notify: boole
     const response = await client.models.Timeslot.update({
         id: timeslot.id,
         register: timeslot.register ?? null,
-        participantId: timeslot.participant?.id ?? null
+        participantId: timeslot.participantId ?? null
     }, { authMode: 'userPool' })
     if(!response.data) return false
     if(notify && timeslot.register){
@@ -163,7 +119,7 @@ export const getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({
 })
 
 export const getAllTimeslotsByUserTagQueryOptions = (userTag: UserTag) => queryOptions({
-    queryKey: ['timeslot', client, userTag],
+    queryKey: ['tag-timeslot', client, userTag],
     queryFn: () => getAllTimeslotsByUserTag(client, userTag)
 })
 

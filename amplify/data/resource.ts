@@ -39,6 +39,7 @@ const schema = a.schema({
       sets: a.hasMany('PhotoSet', 'collectionId'),
       tokens: a.hasMany('TemporaryAccessToken', 'collectionId'),
       participants: a.hasMany('ParticipantCollections', 'collectionId'),
+      packageItem: a.hasOne('PackageItemCollection', 'collectionId'),
       watermarkPath: a.string(),
       downloadable: a.boolean().default(false),
       items: a.integer().default(0),
@@ -105,7 +106,8 @@ const schema = a.schema({
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
       packages: a.hasOne('Package', 'tagId'),
       notifications: a.hasMany('NotificationUserTags', 'tagId'),
-      participants: a.hasMany('ParticipantUserTag', 'tagId')
+      participants: a.hasMany('ParticipantUserTag', 'tagId'),
+      childTags: a.hasMany('PackageParentTag', 'tagId')
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
@@ -135,12 +137,67 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       name: a.string().required(),
+      description: a.string(),
+      items: a.hasMany('PackageItem', 'packageId'),
       tagId: a.id().required(),
       tag: a.belongsTo('UserTag', 'tagId'),
-      pdfPath: a.string().required()
+      packageParentTag: a.hasOne('PackageParentTag', 'packageId'),
+      pdfPath: a.string(),
+      createdAt: a.datetime().required(),
+      flag: a.string().default('true'),
+      advertise: a.boolean().default(true).required(),
+      price: a.string(),
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('tagId')])
+    .secondaryIndexes((index) => [index('tagId'), index('flag').sortKeys(['createdAt'])])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  PackageParentTag: a
+    .model({
+      id: a.id().required(),
+      packageId: a.id().required(),
+      package: a.belongsTo('Package', 'packageId'),
+      tagId: a.id().required(),
+      tag: a.belongsTo('UserTag', 'tagId')
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('packageId'), index('tagId')])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  PackageItem: a
+    .model({
+      id: a.id().required(),
+      name: a.string().required(),
+      description: a.string(),
+      //grouped for default
+      quantity: a.integer(),
+      packageId: a.id().required(),
+      package: a.belongsTo('Package', 'packageId'),
+      //grouped for selectable
+      max: a.integer(),
+      hardCap: a.integer(),
+      price: a.string(),
+      order: a.integer().required(),
+      unique: a.boolean(),
+      itemCollections: a.hasMany('PackageItemCollection', 'packageItemId'),
+      //grouped for tiered
+      statements: a.string().array(),
+      //grouped for dependent
+      dependent: a.string(),
+      flag: a.string().default('true'),
+      createdAt: a.datetime().required(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('packageId'), index('flag').sortKeys(['createdAt'])])
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
+  PackageItemCollection: a
+    .model({
+      id: a.id().required(),
+      collectionId: a.id().required(),
+      collection: a.belongsTo('PhotoCollection', 'collectionId'),
+      packageItemId: a.id().required(),
+      packageItem: a.belongsTo('PackageItem', 'packageItemId'),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('collectionId'), index('packageItemId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   TableGroup: a
     .model({
@@ -188,6 +245,7 @@ const schema = a.schema({
     })
     .secondaryIndexes((index) => [index('columnId')])
     .authorization((allow) => [allow.group('ADMINS')]),
+  //TODO: create a lambda function for timeslot registration to further restrict timeslots
   Timeslot: a
     .model({
       id: a.id().required(),
@@ -197,7 +255,7 @@ const schema = a.schema({
       end: a.datetime().required(),
       timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),
       participant: a.belongsTo('Participant', 'participantId'),
-      participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]),
+      participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]), 
     })
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a

@@ -76,6 +76,16 @@ export function AuthProvider({ children } : { children: ReactNode }) {
     }
 
     const login = useCallback(async (username: string, password: string) => {
+        try {
+            const alreadyLoggedIn = await getCurrentUser()
+            if(alreadyLoggedIn.signInDetails?.loginId !== undefined) {
+                const response = await signinFlow(username)
+                return response
+            }
+        }catch(err) {
+            console.error(err)
+        }
+        
         try{
             const response = await signIn({
                 username: username,

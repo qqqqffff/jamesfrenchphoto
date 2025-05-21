@@ -183,6 +183,12 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
           return pTemp
         })
+
+        setNotification({ text: 'Repaired Collection\'s Paths', color: 'green' })
+        activeTimeout = setTimeout(() => {
+          setNotification(undefined)
+          activeTimeout = undefined
+        }, 5000)
       }
     }
   })
@@ -234,12 +240,15 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
       const trimmedText = searchText.trim().toLocaleLowerCase()
 
       tempFiles = tempFiles.filter((path) => {
-        console.log(parsePathName(path.path), trimmedText)
         return parsePathName(path.path)
           .trim()
           .toLocaleLowerCase()
           .includes(trimmedText)
       })
+
+      if(tempFiles.length === 0 && pathsQuery.hasNextPage && !pathsQuery.isFetchingNextPage) {
+        pathsQuery.fetchNextPage()
+      }
     }
 
     return tempFiles
@@ -673,7 +682,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
               className="disabled:cursor-wait flex flex-row items-center gap-2"
               disabled={repairPaths.isPending}
               onClick={() => {
-                //TODO: display a notification if something happens
                 repairPaths.mutate({
                   collectionId: photoCollection.id,
                   setId: photoSet.id,

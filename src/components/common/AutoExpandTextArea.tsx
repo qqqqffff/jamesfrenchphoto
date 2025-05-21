@@ -14,7 +14,7 @@ export const AutoExpandTextarea = (props: { stateUpdate: (value: string) => void
   }, [props.parentValue])
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full">
       <textarea
         ref={textareaRef}
         value={text}
@@ -30,7 +30,7 @@ export const AutoExpandTextarea = (props: { stateUpdate: (value: string) => void
           props.stateUpdate(textarea.value)
         }}
         placeholder={props.placeholder}
-        className="w-full border-1 bg-gray-50 border-gray-300 rounded-lg p-2 resize-none overflow-hidden text-sm min-h-[100px]"
+        className="w-full h-full border-1 bg-gray-50 border-gray-300 rounded-lg p-2 resize-none overflow-hidden text-sm min-h-[100px]"
         rows={1}
       />
     </div>

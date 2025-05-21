@@ -23,7 +23,8 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE }}
           role-session-name: Github_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
-      - name: Validate Sandbox
+          # TODO: figure out how to import amplify app id
+      - name: Generate Outputs
         run: |
           npx ampx sandbox --identifier apollo --once
       - name: Run Build

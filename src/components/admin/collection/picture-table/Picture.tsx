@@ -1,13 +1,13 @@
-import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react";
+import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState, KeyboardEvent } from "react";
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../../types";
 import { attachClosestEdge, extractClosestEdge, type Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { 
   invariant, 
-  // useNavigate 
+  useNavigate 
 } from "@tanstack/react-router";
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { getPictureData, isPictureData } from "./PictureData";
+import { getPictureData, getPictureDropTargetData, isDraggingAPicture, isPictureData } from "./PictureData";
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
 import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview';
 import { DropIndicator } from "../../../common/DropIndicator";
@@ -20,8 +20,7 @@ import { deleteImagesMutation, DeleteImagesMutationParams, favoriteImageMutation
 import { HiOutlineDownload, HiOutlineHeart } from 'react-icons/hi'
 import { downloadImageMutation, DownloadImageMutationParams } from "../../../../services/photoPathService";
 import { CgArrowsExpandRight } from "react-icons/cg";
-import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash } from "react-icons/hi2";
-import useWindowDimensions from "../../../../hooks/windowDimensions";
+import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash, HiOutlineXCircle } from "react-icons/hi2";
 
 type PictureState = 
   | {
@@ -30,16 +29,18 @@ type PictureState =
   | {
     type: 'preview';
     container: HTMLElement
+    dragging: DOMRect
     }
   | {
     type: 'is-dragging';
     }
   | {
-    type: 'is-dragging-over';
+    type: 'is-over';
     closestEdge: Edge | null
+    dragging: DOMRect
   }
 
-const stateStyles: { [Key in PictureState['type']]?: HTMLAttributes<HTMLDivElement>['className'] } = {
+const outerStyles: { [Key in PictureState['type']]?: HTMLAttributes<HTMLDivElement>['className'] } = {
   'is-dragging': 'opacity-40',
 }
 
@@ -66,79 +67,112 @@ interface PictureProps {
   setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
   participantId?: string,
   reorderPaths: UseMutationResult<void, Error, ReorderPathsParams, unknown>,
-  watermark?: UseQueryResult<[string | undefined, string] | undefined, Error>
+  watermark?: UseQueryResult<[string | undefined, string] | undefined, Error>,
+  parentIsDragging?: PicturePath,
+  parentUpdateIsDragging: Dispatch<SetStateAction<PicturePath | undefined>>
 }
 
 export const Picture = (props: PictureProps) => {
-  const ref = useRef<HTMLDivElement | null>(null)
+  const outerRef = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<PictureState>(idle)
-  // const navigate = useNavigate()
+  const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
-  const [isAnimating, setIsAnimating] = useState(false)
+  const [closing, setClosing] = useState(false)
   const expandedRef = useRef<HTMLDivElement | null>(null)
+  const expandedImageRef = useRef<HTMLImageElement | null>(null)
   const [dimensions, setDimensions] = useState({
     startX: 0,
     startY: 0,
     startWidth: 0,
     startHeight: 0
   })
-  const windowDimensions = useWindowDimensions()
 
   const handleExpand = () => {
-    if(ref.current) {
-      const rect = ref.current.getBoundingClientRect()
+    if (outerRef.current) {
+      const thumbRect = outerRef.current.getBoundingClientRect();
+      
       setDimensions({
-        startX: rect.left,
-        startY: rect.top,
-        startWidth: rect.width,
-        startHeight: rect.height
-      })
-      setIsAnimating(true)
-      setExpanded(true)
+        startX: thumbRect.left,
+        startY: thumbRect.top,
+        startWidth: thumbRect.width,
+        startHeight: thumbRect.height
+      });
+      
+      setExpanded(true);
+      setClosing(false);
     }
-  }
+  };
 
+  // Handle closing animation
   const handleClose = () => {
-    setIsAnimating(true)
+    setClosing(true);
+    
+    // Wait for the animation to complete before removing from DOM
     setTimeout(() => {
-      setExpanded(false)
-      setIsAnimating(false)
-    }, 300)
+      setExpanded(false);
+      setClosing(false);
+      outerRef.current?.focus()
+    }, 300);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>, selectedPhotos: PicturePath[]) => {
+    if(selectedPhotos[selectedPhotos.length - 1].id === props.picture.id &&
+      event.key === ' '
+    ) {
+      handleExpand()
+    }
   }
 
   useEffect(() => {
-    if(expanded && expandedRef.current && isAnimating) {
-      expandedRef.current.style.transform = `translate(${dimensions.startX - dimensions.startWidth}px, ${dimensions.startY}px) scale(${dimensions.startWidth / windowDimensions.width})`
-      expandedRef.current.style.opacity = '0.5'
-
-      expandedRef.current.getBoundingClientRect()
-
-      expandedRef.current.style.transform = 'translate(0, 0) scale(1)'
-      expandedRef.current.style.opacity = '1'
-
-      const handleTransitionEnd = () => {
-        setIsAnimating(false)
-        expandedRef.current?.removeEventListener('transitionend', handleTransitionEnd)
-      }
-      expandedRef.current.addEventListener('transitionend', handleTransitionEnd)
-
-      return () => {
-        expandedRef.current?.removeEventListener('transitionend', handleTransitionEnd)
+    if (expanded && expandedImageRef.current && expandedRef.current) {
+      const expandedRect = expandedImageRef.current.getBoundingClientRect();
+      const containerRect = expandedRef.current.getBoundingClientRect();
+      
+      const thumbnailCenterX = dimensions.startX + dimensions.startWidth / 2;
+      const thumbnailCenterY = dimensions.startY + dimensions.startHeight / 2;
+      const expandedCenterX = containerRect.left + containerRect.width / 2;
+      const expandedCenterY = containerRect.top + containerRect.height / 2;
+      
+      const translateX = thumbnailCenterX - expandedCenterX;
+      const translateY = thumbnailCenterY - expandedCenterY;
+      
+      const scaleX = dimensions.startWidth / expandedRect.width;
+      const scaleY = dimensions.startHeight / expandedRect.height;
+      const scale = Math.min(scaleX, scaleY);
+      
+      if (!closing) {
+        expandedRef.current.style.transition = 'none'
+        expandedRef.current.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        expandedRef.current.style.opacity = "0.7";
+        
+        expandedRef.current.offsetWidth
+        
+        expandedRef.current.style.transition = 'transform 300ms ease-out, opacity 300ms ease-out'
+        expandedRef.current.style.transform = "translate(0, 0) scale(1)";
+        expandedRef.current.style.opacity = "1";
+      } else {
+        expandedRef.current.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        expandedRef.current.style.opacity = "0.7";
       }
     }
-  }, [expanded, dimensions, isAnimating])
+  }, [expanded, closing, dimensions]);
 
   useEffect(() => {
-    const element = ref.current
-    invariant(element)
+    const outer = outerRef.current
+    invariant(outer)
+    const isSelected = props.selectedPhotos.some((picture) => picture.id === props.picture.id)
+    const isDraggingSelected = props.selectedPhotos.some((picture) => picture.id === props.parentIsDragging?.id)
+
     return combine(
       draggable({
-        element,
-        getInitialData() {
-          return getPictureData(props.picture)
+        element: outer,
+        getInitialData: ({ element })  => {
+          return getPictureData({ picture: props.picture, rect: element.getBoundingClientRect() })
         },
-        canDrag: () => true,
-        onGenerateDragPreview({ nativeSetDragImage }) {
+        onGenerateDragPreview({ source, nativeSetDragImage }) {
+          const data = source.data
+          invariant(isPictureData(data))
+
           setCustomNativeDragPreview({
             nativeSetDragImage,
             getOffset: pointerOutsideOfPreview({
@@ -146,52 +180,70 @@ export const Picture = (props: PictureProps) => {
               y: '8px'
             }),
             render({ container }) {
-              setState({ type: 'preview', container })
+              setState({ 
+                type: 'preview', 
+                container,
+                dragging: outer.getBoundingClientRect()
+              })
             }
           })
         },
         onDragStart() {
           setState({ type: 'is-dragging' })
+          props.parentUpdateIsDragging(props.picture)
         },
         onDrop() {
           setState(idle)
-        }
+          props.parentUpdateIsDragging(undefined)
+        },
+        canDrag: () => !expanded,
       }),
       dropTargetForElements({
-        element,
-        canDrop({ source }) {
-          if(source.element === element) {
-            return false
-          }
-
-          return isPictureData(source.data)
-        },
-        getData({ input }) {
-          const data = getPictureData(props.picture)
+        element: outer,
+        getIsSticky: () => true,
+        canDrop: isDraggingAPicture,
+        getData({ input, element }) {
+          const data = getPictureDropTargetData({ picture: props.picture })
           return attachClosestEdge(data, {
             element,
             input,
             allowedEdges: ['left', 'right']
           })
         },
-        getIsSticky(){
-          return true
-        },
-        onDragEnter({ self }) {
+        onDragEnter({ source, self }) {
+          if(!isPictureData(source.data)) return
+          if(source.data.picture.id === props.picture.id) return
           const closestEdge = extractClosestEdge(self.data)
-          setState({ type: 'is-dragging-over', closestEdge })
-        },
-        onDrag({ self }) {
-          const closestEdge = extractClosestEdge(self.data)
+          if(!closestEdge) return
 
+          if((isDraggingSelected && !isSelected) || !isDraggingSelected) {
+            setState({ type: 'is-over', dragging: source.data.rect, closestEdge })
+          }
+        },
+        onDrag({ source, self }) {
+          if(!isPictureData(source.data)) return
+          if(source.data.picture.id === props.picture.id) return
+          const closestEdge = extractClosestEdge(self.data)
+          if(!closestEdge) return
+
+          const proposed: PictureState = {
+            type: 'is-over',
+            dragging: source.data.rect,
+            closestEdge,
+          }
           setState((current) => {
-            if(current.type === 'is-dragging-over' && current.closestEdge === closestEdge) {
-              return current
+            if((isDraggingSelected && !isSelected) || !isDraggingSelected) {
+              if(current.type === 'is-over' && current.closestEdge === closestEdge) {
+                return current
+              }
+              return proposed
             }
-            return { type: 'is-dragging-over', closestEdge }
+            return current
           })
         },
-        onDragLeave() {
+        onDragLeave({ source }) {
+          if(!isPictureData(source.data)) return
+          if(source.data.picture.id === props.picture.id) return;
           setState(idle)
         },
         onDrop() {
@@ -199,7 +251,7 @@ export const Picture = (props: PictureProps) => {
         }
       })
     )
-  }, [props.picture])
+  }, [props.picture, props.selectedPhotos, props.parentIsDragging ])
 
   const deletePath = useMutation({
     mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
@@ -244,16 +296,19 @@ export const Picture = (props: PictureProps) => {
     }
   })
 
+
   return (
     <>
       <div
         data-picture-id={props.picture.id}
         id='image-container'
-        ref={ref}
+        ref={outerRef}
         className={`
-          ${props.pictureStyle(props.picture.id)} ${stateStyles[state.type] ?? ''}
+          ${props.pictureStyle(props.picture.id)} ${outerStyles[state.type] ?? ''} 
+          ${props.parentIsDragging !== undefined && props.parentIsDragging.id !== props.picture.id && 
+            props.selectedPhotos.some((picture) => props.parentIsDragging?.id === picture.id) && props.selectedPhotos.some((picture) => picture.id === props.picture.id) ? 
+            'opacity-40' : ''}
         `}
-        //TODO: please reenable me
         onClick={(event) => {
           const temp = [...props.selectedPhotos]
           if((event.target as HTMLElement).id.includes('image')){
@@ -292,6 +347,18 @@ export const Picture = (props: PictureProps) => {
         onMouseLeave={() => {
           props.setDisplayPhotoControls(undefined)
         }}
+        onKeyDown={(e) => {
+          e.preventDefault()
+          if(props.selectedPhotos.length > 0) {
+            if(!expanded) {
+              handleKeyDown(e, props.selectedPhotos)
+            }
+          }
+          else if(expanded || e.key === 'Escape') {
+            handleClose()
+          }
+        }}
+        tabIndex={0}
       >
         {props.url === undefined || props.url.isLoading ? (
           <div className="flex items-center justify-center w-[200px] h-[300px] bg-gray-300 rounded sm:w-96">
@@ -309,23 +376,33 @@ export const Picture = (props: PictureProps) => {
             id='image'
             loading='lazy'
             draggable={false}
+            style={
+              state.type === 'preview' ? {
+                width: state.dragging.width,
+                height: state.dragging.height
+              } : undefined
+            }
           />
         )}
         {expanded && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black transition-all duration-300 ease-in-out"
-            style={{ backgroundColor: isAnimating ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.8)' }}
+            style={{ backgroundColor: closing ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.8)' }}
             onClick={handleClose}
           >
             <div
               ref={expandedRef}
               className="relative max-h-screen transition-all duration-300 ease-in-out"
               style={{
-                transformOrigin: 'top left',
+                transformOrigin: 'center',
                 willChange: 'transform, opacity'
               }}
             >
+              <button className="absolute opacity-60 hover:cursor-pointer hover:opacity-85 pointer-events-auto">
+                <HiOutlineXCircle size={48} className="fill-white"/>
+              </button>
               <img 
+                ref={expandedImageRef}
                 src={props.url?.data?.[1]}
                 className="w-full max-h-screen object-contain rounded shadow-xl"
               />
@@ -335,7 +412,6 @@ export const Picture = (props: PictureProps) => {
                   className="absolute inset-0 w-full max-h-screen top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
                 />
               )}
-              {/* TODO: show a utility bar with a navigate to fullscreen carousel */}
             </div>
           </div>
         )}
@@ -451,15 +527,15 @@ export const Picture = (props: PictureProps) => {
             <HiOutlineDownload size={20} />
           </button>
           <button
-            title='Expand Image'
-            onClick={handleExpand
-              // navigate({
-              //   to: `/photo-fullscreen`,
-              //   search: {
-              //     set: props.set.id,
-              //     path: props.picture.id
-              //   }
-              // })
+            title='Full Screen View'
+            onClick={() =>
+              navigate({
+                to: `/photo-fullscreen`,
+                search: {
+                  set: props.set.id,
+                  path: props.picture.id
+                }
+              })
             }
           >
             <CgArrowsExpandRight size={20} />
@@ -598,14 +674,22 @@ export const Picture = (props: PictureProps) => {
           <p id="image-name">{parsePathName(props.picture.path)}</p>
         </div>
       </div>
-      {state.type === 'is-dragging-over' && state.closestEdge && (
-        <DropIndicator edge={state.closestEdge} gap='8px' />
+      {state.type === 'is-over' && state.closestEdge && (
+        <DropIndicator edge={state.closestEdge} gap="8px" />
       )}
-      {state.type === 'preview' && createPortal(<DragPreview item={props.picture} />, state.container)}
+      {state.type === 'preview' && createPortal(<DragPreview item={props.picture} selectedPhotos={props.selectedPhotos} />, state.container)}
     </>
   )
 }
 
-function DragPreview({ item }: { item: PicturePath }) {
-  return <div className="border-solid rounded p-2 bg-white">{parsePathName(item.path)}</div>
+function DragPreview({ item, selectedPhotos }: { item: PicturePath, selectedPhotos: PicturePath[] }) {
+  return (
+    <div className="border-solid rounded p-2 bg-white">
+      {selectedPhotos.length === 0 || !selectedPhotos.some((photo) => photo.id === item.id) ? (
+        <span>{parsePathName(item.path)}</span>
+      ) : (
+        <span>{`${selectedPhotos.length} Item${selectedPhotos.length === 1 ? '' : 's'}`}</span>
+      )}
+    </div>
+  )
 }

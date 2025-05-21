@@ -57,7 +57,8 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
             //unnecessary
             timeslot: [],
             userTags: [],
-            notifications: []
+            notifications: [],
+            collections: []
           }
           participantMemo.set(mappedParticipant.id, mappedParticipant)
 
@@ -86,7 +87,9 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
           const mappedTag: UserTag = {
             ...tag.data,
             color: tag.data.color ?? undefined,
-            notifications: undefined
+            notifications: undefined,
+            //TODO: implement children
+            children: []
           }
           tagMemo.set(mappedTag.id, mappedTag)
 

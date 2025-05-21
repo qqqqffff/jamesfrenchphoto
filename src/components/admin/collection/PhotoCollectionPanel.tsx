@@ -148,7 +148,12 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     }
   })
 
-  const participants = useQuery(getAllParticipantsQueryOptions({ siTags: true }))
+  const participants = useQuery(getAllParticipantsQueryOptions({ 
+    siTags: {
+      siCollections: true
+    },
+    siCollections: true
+  }))
 
   const collectionParticipants = useQuery(getAllCollectionParticipantsQueryOptions(collection.id, { siTags: true }))
 

@@ -98,7 +98,7 @@ function RouteComponent() {
 
   function FormattedRegisteredTimeslots(){
     return (timeslots.data ?? [])
-      .filter((timeslot) => timeslot.participant?.id === participant.id)
+      .filter((timeslot) => timeslot.participantId === participant.id)
       .map((timeslot, index) => {
         const color = timeslot.tag?.color ?? 'black'
 
@@ -127,7 +127,7 @@ function RouteComponent() {
             const response = await registerTimeslot.mutateAsync({
               ...selectedTimeslot,
               register: userEmail,
-              participant: participant,
+              participantId: participant.id,
             })
             if(response){
               const updatedTimeslot = participant.timeslot ?? []
@@ -172,7 +172,7 @@ function RouteComponent() {
             const response = await registerTimeslot.mutateAsync({
               ...selectedTimeslot,
               register: undefined,
-              participant: undefined
+              participantId: undefined
             })
             if(response){
               const updatedTimeslot = (participant.timeslot ?? [])

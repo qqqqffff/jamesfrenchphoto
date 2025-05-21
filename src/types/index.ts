@@ -52,7 +52,8 @@ export interface Participant {
     contact: boolean,
     timeslot?: Timeslot[],
     userEmail: string,
-    notifications: Notification[]
+    notifications: Notification[],
+    collections: PhotoCollection[]
 }
 
 export type Notification = {
@@ -151,7 +152,7 @@ export type Timeslot = {
     register?: string,
     start: Date;
     end: Date;
-    participant?: Participant,
+    participantId?: string,
 }
 
 export type UserTag = {
@@ -161,14 +162,45 @@ export type UserTag = {
     collections?: PhotoCollection[],
     timeslots?: Timeslot[]
     package?: Package,
-    notifications?: Notification[]
+    notifications?: Notification[],
+    children: UserTag[],
 }
 
 export type Package = {
     id: string,
     name: string,
-    tag: UserTag,
-    pdfPath: string,
+    description?: string,
+    items: PackageItem[]
+    tagId: string,
+    parentTagId?: string,
+    pdfPath?: string,
+    createdAt: string,
+    temporary?: boolean,
+    advertise: boolean,
+    price?: string,
+}
+
+export type PackageItem = {
+    id: string
+    name: string
+    description?: string
+    quantities?: number
+    max?: number
+    hardCap?: number
+    packageId: string,
+    price?: string,
+    collectionIds: string[],
+    order: number,
+    dependent?: string,
+    statements?: string[]
+    unique?: boolean
+}
+
+export type PackageDiscount = {
+    id: string,
+    packageId: string,
+    itemId: string,
+    discount: number,
 }
 
 export interface TableGroup {
