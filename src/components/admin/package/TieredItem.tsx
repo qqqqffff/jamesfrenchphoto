@@ -6,14 +6,14 @@ import { textInputTheme } from "../../../utils"
 import { HiOutlineArrowUp, HiOutlineArrowDown, HiOutlineX } from 'react-icons/hi'
 import { evaluateBooleanOperator, splitStatement } from "../../../functions/packageFunctions"
 
-interface BooleanItemProps { 
+interface TieredItemProps { 
   item: PackageItem,
   selectedPackage: Package
   parentUpdatePackage: Dispatch<SetStateAction<Package | undefined>>
   parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>
 }
 
-export const BooleanItem = (props: BooleanItemProps) => {
+export const TieredItem = (props: TieredItemProps) => {
   if(props.item.statements === undefined) return (<></>)
 
   return (
@@ -33,11 +33,12 @@ export const BooleanItem = (props: BooleanItemProps) => {
         //TODO: error handle
         if(!variable || !operator || !quantity || !equal || !final) return (<></>)
 
+        const splitEvaluation = evaluateBooleanOperator(operator, quantity).split(/\d+/g)
+
         return (
           <div className="border rounded-lg flex flex-row min-w-max justify-between px-4 py-1 items-center whitespace-nowrap" key={index}>
             <div className="flex flex-row gap-2 items-center">
-              <span className="font-semibold"># Items</span>
-              <span className="font-extrabold">{evaluateBooleanOperator(operator)}</span>
+              {splitEvaluation[0] !== '' && (<span className="font-extrabold">{splitEvaluation[0].substring(0,1).toLocaleUpperCase()+splitEvaluation[0].substring(1)}</span>)}
               <TextInput 
                 theme={textInputTheme}
                 sizing="sm"
@@ -198,7 +199,7 @@ export const BooleanItem = (props: BooleanItemProps) => {
                   }
                 }}
               />
-              <span className="font-extrabold">Price is</span>
+              <span className="font-extrabold">{splitEvaluation[1]} price is</span>
               <PriceInput 
                 className='max-w-[100px] min-w-[100px]'
                 value={final}

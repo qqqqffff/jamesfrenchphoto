@@ -18,7 +18,7 @@ export const PricedItem = (props: PricedItemProps) => {
     }
   }, [props.expand])
 
-  const extendedDetails = `. ${props.item.max} item${(props.item?.max ?? 0) > 1 ? 's' : ''} included in the package. $${props.item.price} per item${props.item?.hardCap === Infinity ? '' : ` limit of ${props.item.hardCap} items`}.`
+  const extendedDetails = `. ${props.item.max === 0 ? '' : `${props.item.max} included in the package.`} ${props.item.price === '0' ? '' : `$${props.item.price} per item ${props.item?.hardCap === Infinity ? '' : ` with a limit of ${props.item.hardCap} items.`}`}`
   return (
     <div className="w-full flex flex-row gap-2 px-2">
       <span>&bull;</span>

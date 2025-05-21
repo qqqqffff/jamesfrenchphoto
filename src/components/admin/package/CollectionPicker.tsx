@@ -14,7 +14,7 @@ export const CollectionPicker = (props: CollectionPickerProps) => {
   const [search, setSearch] = useState<string>('')
   return (
     <Dropdown
-     label={<span className="h-min">Select Collections</span>}
+     label={<span className="h-min">Collections</span>}
      dismissOnClick={false}
      color='gray'
      size="xs"

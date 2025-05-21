@@ -1,14 +1,13 @@
 import { Dispatch, SetStateAction } from "react"
 import { Package, PackageItem, PhotoCollection } from "../../../types"
 import { HiOutlineMinus, HiOutlinePlus } from 'react-icons/hi'
-import { TextInput } from "flowbite-react"
+import { Checkbox, TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
-import { PercentInput } from "../../common/PercentInput"
 import { PriceInput } from "../../common/PriceInput"
 import { CollectionPicker } from "./CollectionPicker"
 import { UseQueryResult } from "@tanstack/react-query"
 
-interface SelectableItemProps {
+interface PricedItemProps {
   item: PackageItem
   selectedPackage: Package
   collectionListQuery: UseQueryResult<PhotoCollection[] | undefined, Error>
@@ -16,7 +15,7 @@ interface SelectableItemProps {
   parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>
 }
 
-export const SelectableItem = (props: SelectableItemProps) => {
+export const PricedItem = (props: PricedItemProps) => {
   if(props.item.max === undefined || props.item.hardCap === undefined) return (<></>)
 
   return (
@@ -26,14 +25,18 @@ export const SelectableItem = (props: SelectableItemProps) => {
           <span className="text-lg font-light italic">Items:</span>
           <div className="flex flex-row items-center gap-2">
             <button
-              className="p-1 border rounded-lg aspect-square flex justify-center items-center disabled:opacity-60 enabled:hover:bg-gray-100"
-              disabled={props.item.max === 0}
+              className="
+                p-1 border rounded-lg aspect-square flex justify-center items-center 
+                disabled:opacity-60 enabled:hover:bg-gray-100 disabled:hover:cursor-not-allowed
+              "
+              disabled={props.item.max === 0 || (props.item.price === '0' && props.item.max === 1)}
               onClick={() => {
                 const tempPackage: Package = {
                   ...props.selectedPackage,
                   items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
                     ...props.item,
-                    max: (props.item.max ?? 1) - 1
+                    max: (props.item.max ?? 1) - 1,
+                    hardCap: props.item.price === '0' ? (props.item.max ?? 1) - 1 : props.item.hardCap
                   }) : pItem))
                 }
       
@@ -105,8 +108,11 @@ export const SelectableItem = (props: SelectableItemProps) => {
           <span className="text-lg font-light italic pe-2">Max:</span>
           <div className="flex flex-row items-center gap-2">
             <button
-              className="p-1 border rounded-lg aspect-square flex justify-center items-center disabled:opacity-60 enabled:hover:bg-gray-100"
-              disabled={props.item.max >= props.item.hardCap && props.item.hardCap !== 0}
+              className="
+                p-1 border rounded-lg aspect-square flex justify-center items-center 
+                disabled:opacity-60 enabled:hover:bg-gray-100 disabled:hover:cursor-not-allowed
+              "
+              disabled={props.item.max >= props.item.hardCap || props.item.hardCap === 1 || props.item.price === '0'}
               onClick={() => {
                 const tempPackage: Package = {
                   ...props.selectedPackage,
@@ -131,13 +137,13 @@ export const SelectableItem = (props: SelectableItemProps) => {
               value={props.item.hardCap === Infinity ? '∞' : props.item.hardCap}
               onBlur={() => {
                 if(props.item.max !== undefined && props.item.hardCap !== undefined){
-                  if(props.item.max > props.item.hardCap) {
+                  if(props.item.max > props.item.hardCap || props.item.hardCap <= 0) {
                     const tempPackage: Package = {
                       ...props.selectedPackage,
                       items: props.selectedPackage.items.map((pItem) => (pItem.id === props.item.id ? ({
                         ...props.item,
                         max: props.item.max,
-                        hardCap:  props.item.max
+                        hardCap: (props.item?.hardCap ?? 0) <= 0 ? 1 : props.item.max
                       }) : pItem))
                     }
           
@@ -148,6 +154,7 @@ export const SelectableItem = (props: SelectableItemProps) => {
                   }
                 }
               }}
+              disabled={props.item.price === '0'}
               onChange={(event) => {
                 const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
 
@@ -176,7 +183,10 @@ export const SelectableItem = (props: SelectableItemProps) => {
               }}
             />
             <button
-              className="p-1 border rounded-lg aspect-square flex justify-center items-center hover:bg-gray-100"
+              className="
+                p-1 border rounded-lg aspect-square flex justify-center items-center 
+                disabled:opacity-60 enabled:hover:bg-gray-100 disabled:hover:cursor-not-allowed
+              "
               onClick={() => {
                 const tempPackage: Package = {
                   ...props.selectedPackage,
@@ -191,35 +201,68 @@ export const SelectableItem = (props: SelectableItemProps) => {
                   pack.id === tempPackage.id ? tempPackage : pack
                 )))
               }}
+              disabled={props.item.price === '0'}
             >
               <HiOutlinePlus size={20} />
             </button>
           </div>
         </div>
-        <PriceInput 
-          value={props.item.price ?? ''}
-          discount={props.item.discount}
-          displayDiscount={true}
-          updateState={(value) => {
-            const tempPackage: Package = {
-              ...props.selectedPackage,
-              items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
-                ...props.item,
-                price: value
-              }) : item))
+        <div className="flex flex-row items-center gap-2">
+          <PriceInput 
+            value={
+              props.item.price ?? ''
             }
-      
-            props.parentUpdatePackage(tempPackage)
-            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
-          }}
-        />
-        <div className="flex flex-row gap-2">
-          <PercentInput 
-            item={props.item}
-            selectedPackage={props.selectedPackage}
-            parentUpdatePackage={props.parentUpdatePackage}
-            parentUpdatePackageList={props.parentUpdatePackageList}
+            updateState={(value) => {
+              const tempPackage: Package = {
+                ...props.selectedPackage,
+                items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                  ...props.item,
+                  price: value,
+                  hardCap: value === '0' ? item.max : item.hardCap
+                }) : item))
+              }
+        
+              props.parentUpdatePackage(tempPackage)
+              props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+            }}
           />
+          <button
+            className="flex flex-row items-center gap-2 disabled:opacity-65 disabled:hover:cursor-not-allowed"
+            onClick={(event) => {
+              event.stopPropagation()
+              const tempPackage: Package = {
+                ...props.selectedPackage,
+                items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                  ...props.item,
+                  unique: !props.item.unique
+                }) : item))
+              }
+        
+              props.parentUpdatePackage(tempPackage)
+              props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+            }}
+            disabled={props.item.collectionIds.length == 0}
+          >
+            <Checkbox 
+              className='disabled:hover:cursor-not-allowed' 
+              disabled={props.item.collectionIds.length == 0} 
+              onClick={() => {
+                const tempPackage: Package = {
+                  ...props.selectedPackage,
+                  items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                    ...props.item,
+                    unique: !props.item.unique
+                  }) : item))
+                }
+          
+                props.parentUpdatePackage(tempPackage)
+                props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+              }}
+              checked={props.item.unique && props.item.collectionIds.length !== 0}
+              readOnly 
+            />
+            <span className="italic font-light">Unique</span>
+          </button>
         </div>
       </div>
       <div className="flex flex-col gap-2">
@@ -234,9 +277,11 @@ export const SelectableItem = (props: SelectableItemProps) => {
                   [...props.item.collectionIds, collectionId] 
                 ) : ( 
                   props.item.collectionIds.filter((id) => id !== collectionId)
-                )
+                ),
+              unique: !selected ? props.item.collectionIds.filter((id) => id === collectionId).length === 0 ? false : pItem.unique : pItem.unique
               }) : pItem))
             }
+
   
             props.parentUpdatePackage(tempPackage)
             props.parentUpdatePackageList((prev) => prev.map((pack) => (

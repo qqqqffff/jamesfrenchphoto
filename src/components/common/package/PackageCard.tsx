@@ -5,6 +5,7 @@ import { DependentItem } from "./DependentItem"
 import { PricedItem } from "./PricedItem"
 import { TieredItem } from "./TieredItem"
 import { useState } from "react"
+import { priceFormatter } from "../../../functions/packageFunctions"
 
 interface PackageCardProps {
   package: Package
@@ -15,11 +16,16 @@ export const PackageCard = (props: PackageCardProps) => {
   const [allExpanded, setAllExpanded] = useState(false)
 
   return (
-    <div className="max-h-[80vh] overflow-y-auto border rounded-lg px-2 py-1 min-w-[500px] max-w-[500px] flex flex-col gap-2">
+    <div className="max-h-[75vh] overflow-y-auto border rounded-lg px-2 py-1 min-w-[500px] max-w-[500px] flex flex-col gap-2">
       <div className="flex flex-row items-center justify-center">
         <span className="font-bodoni text-xl">{props.package.name}</span>
       </div>
       <div className="border"/>
+      {props.package.description && (
+        <div className=" border-b pb-2 flex flex-row justify-center mx-8">
+          <span className="text-sm font-thin text-wrap">{props.package.description}</span>
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         {props.package.items.map((item, index) => {
           if(item.max !== undefined && item.hardCap !== undefined) {
@@ -66,6 +72,9 @@ export const PackageCard = (props: PackageCardProps) => {
           }
         })}
       </div>
+      {props.package.price && props.package.price !== '0' && (
+        <div className="border-t pt-2 flex flex-row justify-center text-xl mx-8 italic">Base Cost: {priceFormatter.format(parseFloat(props.package.price))}</div>
+      )}
       <div className="w-full flex flex-row-reverse pb-3 pe-2 sticky">
         <Button size="sm" color="gray" onClick={() => setAllExpanded(!allExpanded)}>{allExpanded ? 'Hide All' : 'Show All'} Details</Button>
       </div>

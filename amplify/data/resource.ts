@@ -145,7 +145,8 @@ const schema = a.schema({
       pdfPath: a.string(),
       createdAt: a.datetime().required(),
       flag: a.string().default('true'),
-      advertise: a.boolean().default(true).required()
+      advertise: a.boolean().default(true).required(),
+      price: a.string(),
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId'), index('flag').sortKeys(['createdAt'])])
@@ -170,15 +171,17 @@ const schema = a.schema({
       quantity: a.integer(),
       packageId: a.id().required(),
       package: a.belongsTo('Package', 'packageId'),
-      itemCollections: a.hasMany('PackageItemCollection', 'packageItemId'),
       //grouped for selectable
       max: a.integer(),
       hardCap: a.integer(),
       price: a.string(),
-      discount: a.string(),
       order: a.integer().required(),
-      //grouped for boolean
-      statements: a.string().array(), //each line is of the format items (max) > | < | == quantity = pricing
+      unique: a.boolean(),
+      itemCollections: a.hasMany('PackageItemCollection', 'packageItemId'),
+      //grouped for tiered
+      statements: a.string().array(),
+      //grouped for dependent
+      dependent: a.string(),
       flag: a.string().default('true'),
       createdAt: a.datetime().required(),
     })

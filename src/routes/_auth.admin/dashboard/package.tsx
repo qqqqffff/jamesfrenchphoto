@@ -6,7 +6,7 @@ import { BuilderPanel } from '../../../components/admin/package/BuilderPanel'
 import { Package, PackageItem, UserTag } from '../../../types'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { getAllPackageItemsQueryOptions } from '../../../services/packageService'
+import { getAllPackagesQueryOptions, getInfinitePackageItemsQueryOptions } from '../../../services/packageService'
 import { getAllPhotoCollectionsQueryOptions } from '../../../services/collectionService'
 
 interface PackageSearchParams {
@@ -37,7 +37,6 @@ function RouteComponent() {
       'pricelist' as 'pricelist'
     ) : undefined)
   )
-  //TODO: api call
   const [packages, setPackages] = useState<Package[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
   const [allPackageItems, setAllPackageItems] = useState<PackageItem[]>([])
@@ -49,7 +48,7 @@ function RouteComponent() {
     siPackages: { }
   }))
 
-  const packageItemsInfiniteQuery = useInfiniteQuery(getAllPackageItemsQueryOptions({
+  const packageItemsInfiniteQuery = useInfiniteQuery(getInfinitePackageItemsQueryOptions({
     siCollectionItems: false
   }))
 
@@ -57,6 +56,10 @@ function RouteComponent() {
     siPaths: false,
     siSets: false,
     siTags: false
+  }))
+
+  const packagesQuery = useQuery(getAllPackagesQueryOptions({
+    siPackageItems: undefined
   }))
 
   useEffect(() => {
@@ -79,6 +82,12 @@ function RouteComponent() {
   }, [packageItemsInfiniteQuery.data])
 
   useEffect(() => {
+    if(packagesQuery.data && packagesQuery.data.length > 0) {
+      setPackages(packagesQuery.data)
+    }
+  }, [packagesQuery.data])
+
+  useEffect(() => {
     if(tagsQuery.data) {
       if(!tags.some((tag) => tagsQuery.data.some((pTag) => pTag.id === tag.id)) ||
         !tagsQuery.data.some((pTag) => tags.some((tag) => tag.id === pTag.id))
@@ -93,6 +102,7 @@ function RouteComponent() {
       {activeConsole === 'builder' ? (
         <BuilderPanel 
           packages={packages}
+          packagesQuery={packagesQuery}
           parentUpdatePackages={setPackages}
           tags={tags}
           parentUpdateTags={setTags}

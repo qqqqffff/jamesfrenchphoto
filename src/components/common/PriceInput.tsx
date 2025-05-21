@@ -1,6 +1,7 @@
 import { TextInput } from "flowbite-react"
 import { textInputTheme } from "../../utils"
 import { ChangeEvent, useEffect, useState } from "react"
+import { priceFormatter } from "../../functions/packageFunctions"
 
 interface PriceInputProps {
   value: string,
@@ -11,12 +12,6 @@ interface PriceInputProps {
   label?: JSX.Element
 }
 
-const priceFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-})
 //TODO: put in a useeffect to destroy states
 export const PriceInput = (props: PriceInputProps) => {
   const [isFocused, setIsFocused] = useState(false)
@@ -30,7 +25,7 @@ export const PriceInput = (props: PriceInputProps) => {
 
     if(isNaN(numericValue)) return ''
 
-    return `${priceFormatter.format(numericValue)}${props.displayDiscount ? ` (${calculateDiscountedPrice(numericValue, props.discount ?? '')}` : ''}`
+    return `${priceFormatter.format(numericValue)}${props.displayDiscount ? ` (${priceFormatter.format(parseFloat(calculateDiscountedPrice(numericValue, props.discount ?? '')))})` : ''}`
   }
 
   const calculateDiscountedPrice = (price: number, discount: string): string => {
@@ -43,10 +38,10 @@ export const PriceInput = (props: PriceInputProps) => {
   }
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value.charAt(0) === '0' ? e.target.value.slice(1) : e.target.value
+    const inputValue = (e.target.value.charAt(0) === '0' ? e.target.value.slice(1) : e.target.value).replace(/[^\d.]/g, '')
 
     const parts = inputValue.split('.')
-    const sanitized = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '')
+    const sanitized = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('').substring(0,2) : '')
     
     const numericValue = parseFloat(sanitized)
     if(!isNaN(numericValue)) {
@@ -78,7 +73,7 @@ export const PriceInput = (props: PriceInputProps) => {
         sizing="sm"
         placeholder="$0.00"
         className={props.className ?? "min-w-[123px] max-w-[123px]"}
-        value={isFocused ? props.value : formattedValue}
+        value={isFocused ? props.value : formattedValue === '$0.00' ? '' : formattedValue}
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}

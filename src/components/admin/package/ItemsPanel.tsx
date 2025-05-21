@@ -1,6 +1,6 @@
 import { Button, Dropdown, Radio, TextInput, Tooltip } from "flowbite-react"
 import { HiBars3, HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineMinus, HiOutlinePlus, HiOutlinePlusCircle, HiOutlineXMark } from 'react-icons/hi2'
-import { Package, PackageItem, PhotoCollection, UserTag } from "../../../types"
+import { Package, PackageItem, PhotoCollection } from "../../../types"
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react"
 import { v4 } from 'uuid'
 import { textInputTheme } from "../../../utils"
@@ -9,13 +9,12 @@ import { HiOutlineDownload } from "react-icons/hi"
 import { PackageItemLoader } from "../../modals/PackageItemLoader"
 import { InfiniteData, UseInfiniteQueryResult, UseQueryResult } from "@tanstack/react-query"
 import { GetInfinitePackageItemsData } from "../../../services/packageService"
-import { SelectableItem } from "./SelectableItem"
-import { BooleanItem } from "./BooleanItem"
+import { PricedItem } from "./PricedItem"
+import { TieredItem } from "./TieredItem"
 import { DependentItem } from "./DependentItem"
 
 interface ItemsPanelProps {
   selectedPackage: Package,
-  selectedTag: UserTag,
   parentUpdatePackage: Dispatch<SetStateAction<Package | undefined>>
   parentUpdatePackageList: Dispatch<SetStateAction<Package[]>>,
   allPackageItems: PackageItem[],
@@ -128,11 +127,13 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                               <div>
                                 <span className="font-semibold ms-1">Priced Items:</span>
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-normal">Price applies to items over the item count. Max can be infinite,</span>
-                                  <span className="text-sm font-normal">set to 0 and then press minus button, or press delete twice with 0 max.</span>
-                                  <span className="text-sm font-normal">Selected collections allow the user to pick pictures from those collection.</span>
+                                  <span className="text-sm font-normal">Price applies to items over the item count. Does NOT need to be priced.</span>
+                                  <span className="text-sm font-normal">Max is equal to the item count without a price. Max can be infinite,</span>
+                                  <span className="text-sm font-normal">press delete while max is equal to 0 while editing max quantity.</span>
+                                  <span className="text-sm font-normal">Selected collections allow the client to pick pictures from those collections.</span>
                                   <span className="text-sm font-normal">Item count MUST be greater than or equal to 0, max MUST be greater than</span>
                                   <span className="text-sm font-normal">or equal to item count. Price, discount and collections are optional.</span>
+                                  <span className="text-sm font-normal">Can designate whether item selections must be unique.</span>
                                 </div>
                               </div>
                             ) : (
@@ -148,9 +149,9 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                               <div>
                                 <span className="font-semibold ms-1">Dependent Items:</span>
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-normal">Item must be tied to a priced item. Price applies</span>
+                                  <span className="text-sm font-normal">Item must depend on a priced or tiered item. Price applies</span>
                                   <span className="text-sm font-normal">per quantity of the priced item. Baseline is equal</span>
-                                  <span className="text-sm font-normal">to the number of items for the priced item.</span>
+                                  <span className="text-sm font-normal">to the number of items for the priced item or the max tier.</span>
                                 </div>
                               </div>
                             ) : (
@@ -240,6 +241,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                                   ...item,
                                   max: 1,
                                   hardCap: 1,
+                                  price: '5.00',
                                   quantities: undefined,
                                   statements: undefined,
                                   dependent: undefined
@@ -363,8 +365,8 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                         parentValue={item.description}
                       />
                     </div>
-                    {item.max !== undefined && item.hardCap !== undefined && (
-                      <SelectableItem 
+                    {item.max !== undefined && (
+                      <PricedItem 
                         item={item}
                         selectedPackage={props.selectedPackage}
                         parentUpdatePackage={props.parentUpdatePackage}
@@ -455,7 +457,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                       </div>
                     )}
                     {item.statements !== undefined && (
-                      <BooleanItem 
+                      <TieredItem 
                         item={item}
                         selectedPackage={props.selectedPackage}
                         parentUpdatePackage={props.parentUpdatePackage}

@@ -16,7 +16,7 @@ export const DefaultItem = (props: DefaultItemProps) => {
     }
   }, [props.expand])
   
-  const extendedDetails = `. ${props.item.quantities} item${(props.item?.quantities ?? 0) > 1 ? 's' : ''} included in the package.`
+  const extendedDetails = `. ${props.item.quantities} ${props.item.name} included in the package.`
 
   return (
     <div className="w-full flex flex-row gap-2 px-2">

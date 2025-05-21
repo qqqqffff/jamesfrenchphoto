@@ -183,6 +183,12 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
           return pTemp
         })
+
+        setNotification({ text: 'Repaired Collection\'s Paths', color: 'green' })
+        activeTimeout = setTimeout(() => {
+          setNotification(undefined)
+          activeTimeout = undefined
+        }, 5000)
       }
     }
   })
@@ -676,7 +682,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
               className="disabled:cursor-wait flex flex-row items-center gap-2"
               disabled={repairPaths.isPending}
               onClick={() => {
-                //TODO: display a notification if something happens
                 repairPaths.mutate({
                   collectionId: photoCollection.id,
                   setId: photoSet.id,

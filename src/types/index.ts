@@ -172,11 +172,12 @@ export type Package = {
     description?: string,
     items: PackageItem[]
     tagId: string,
-    parentTagId: string,
+    parentTagId?: string,
     pdfPath?: string,
     createdAt: string,
     temporary?: boolean,
-    advertise: boolean
+    advertise: boolean,
+    price?: string,
 }
 
 export type PackageItem = {
@@ -188,11 +189,11 @@ export type PackageItem = {
     hardCap?: number
     packageId: string,
     price?: string,
-    discount?: string, //TODO: remove me please
     collectionIds: string[],
     order: number,
     dependent?: string,
     statements?: string[]
+    unique?: boolean
 }
 
 export type PackageDiscount = {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { PackageItem } from "../../../types"
+import { splitStatement } from "../../../functions/packageFunctions"
 
 interface DependentItemProps {
   packageItems: PackageItem[]
@@ -18,7 +19,7 @@ export const DependentItem = (props: DependentItemProps) => {
   }, [props.expand])
 
   const dependentItem = props.packageItems.find((item) => item.id === props.item.dependent)
-  const expandedDetails = `Depdends on ${dependentItem?.name}. Charged $${props.item.price} per ${props.item.quantities} of ${dependentItem?.name} over the aloted amount of ${dependentItem?.max} ${dependentItem?.name}.`
+  const expandedDetails = `Depdends on ${dependentItem?.name}. Charged $${props.item.price} per ${props.item.quantities} of ${dependentItem?.name} over the ${dependentItem?.statements ? '' : 'included'} ${dependentItem?.statements ? splitStatement(dependentItem.statements[dependentItem.statements.length - 1]).quantity : dependentItem?.max} ${dependentItem?.name}.`
 
   return (
     <div className="w-full flex flex-row gap-2 px-2">

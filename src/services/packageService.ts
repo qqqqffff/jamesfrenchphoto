@@ -54,9 +54,10 @@ async function getPackagesByUserTags(client: V6Client<Schema>, tags: UserTag[], 
                         description: item.description ?? undefined,
                         max: item.max ?? undefined,
                         price: item.price ?? undefined,
-                        discount: item.discount ?? undefined,
                         quantities: item.quantity ?? undefined,
                         hardCap: item.hardCap ?? undefined,
+                        dependent: item.dependent ?? undefined,
+                        unique: item.unique ?? undefined,
                         collectionIds: collectionIds,
                         statements: item.statements?.filter((item) => item !== null)
                     }
@@ -70,6 +71,7 @@ async function getPackagesByUserTags(client: V6Client<Schema>, tags: UserTag[], 
                 parentTagId: (await pack.packageParentTag()).data?.tagId ?? '',
                 pdfPath: pack.pdfPath ?? undefined,
                 description: pack.description ?? undefined,
+                price: pack.price ?? undefined
             }
 
             return mappedPackage
@@ -142,10 +144,11 @@ async function getInfinitePackages(client: V6Client<Schema>, initial: GetInfinit
                         description: item.description ?? undefined,
                         max: item.max ?? undefined,
                         price: item.price ?? undefined,
-                        discount: item.discount ?? undefined,
                         quantities: item.quantity ?? undefined,
                         hardCap: item.hardCap ?? undefined,
                         collectionIds: collectionIds,
+                        dependent: item.dependent ?? undefined,
+                        unique: item.unique ?? undefined,
                         statements: item.statements?.filter((item) => item !== null)
                     }
                     return mappedItem
@@ -158,6 +161,7 @@ async function getInfinitePackages(client: V6Client<Schema>, initial: GetInfinit
                 parentTagId: (await pack.packageParentTag()).data?.tagId ?? '',
                 pdfPath: pack.pdfPath ?? undefined,
                 description: pack.description ?? undefined,
+                price: pack.price ?? undefined
             }
 
             return mappedPackage
@@ -173,6 +177,59 @@ async function getInfinitePackages(client: V6Client<Schema>, initial: GetInfinit
     }
 
     return returnData
+}
+
+interface GetAllPackagesOptions {
+    siPackageItems?: {
+        siCollections?: boolean
+    }
+}
+async function getAllPackages(client: V6Client<Schema>, options?: GetAllPackagesOptions) {
+    const packages: Package[] = []
+
+    let packageResponse = await client.models.Package.listPackageByFlagAndCreatedAt({
+        flag: 'true'
+    }, {
+        sortDirection: 'DESC',
+    })
+    const packageData = packageResponse.data
+
+    while(packageResponse.nextToken) {
+        packageResponse = await client.models.Package.listPackageByFlagAndCreatedAt({
+            flag: 'true'
+        }, {
+            sortDirection: 'DESC',
+            nextToken: packageResponse.nextToken
+        })
+        packageData.push(...packageResponse.data)
+    }
+
+    packages.push(...(await Promise.all(
+        packageData.map(async (pack) => {
+            const items: PackageItem[] = []
+
+            if(options?.siPackageItems) {
+                items.push(...await getAllPackageItems(
+                    client, 
+                    pack.id, 
+                    { siCollectionItems: options.siPackageItems.siCollections }
+                ))
+            }
+
+            const mappedPackage: Package = {
+                ...pack,
+                items: items,
+                parentTagId: (await pack.packageParentTag()).data?.tagId ?? '',
+                pdfPath: pack.pdfPath ?? undefined,
+                description: pack.description ?? undefined,
+                price: pack.price ?? undefined
+            }
+
+            return mappedPackage
+        })
+    )))
+
+    return packages
 }
 
 export interface GetInfinitePackageItemsData {
@@ -218,10 +275,11 @@ async function getInfinitePackageItems(client: V6Client<Schema>, initial: GetInf
             description: item.description ?? undefined,
             max: item.max ?? undefined,
             price: item.price ?? undefined,
-            discount: item.discount ?? undefined,
             quantities: item.quantity ?? undefined,
             hardCap: item.hardCap ?? undefined,
             collectionIds: collectionIds,
+            dependent: item.dependent ?? undefined,
+            unique: item.unique ?? undefined,
             statements: item.statements?.filter((item) => item !== null)
         }
 
@@ -237,6 +295,56 @@ async function getInfinitePackageItems(client: V6Client<Schema>, initial: GetInf
     }
     
     return returnData
+}
+
+interface GetAllPackageItemsOptions {
+    siCollectionItems?: boolean
+}
+async function getAllPackageItems(client: V6Client<Schema>, packageId?: string, options?: GetAllPackageItemsOptions): Promise<PackageItem[]> {
+    const packageItems: PackageItem[] = []
+
+    if(!packageId) return packageItems
+
+    let itemsResponse = await client.models.PackageItem.listPackageItemByPackageId({ packageId: packageId })
+    const itemsData = itemsResponse.data
+
+    while(itemsResponse.nextToken) {
+        itemsResponse = await client.models.PackageItem.listPackageItemByPackageId({ packageId: packageId }, { nextToken: itemsResponse.nextToken })
+        itemsData.push(...itemsResponse.data)
+    }
+    
+    //memo not need since only ids are required in the package item
+    packageItems.push(...(await Promise.all(
+        itemsData.map(async (item) => {
+            const collectionIds: string[] = []
+
+            if(options?.siCollectionItems) {
+                let collectionsResponse = await item.itemCollections()
+                const collectionsData = collectionsResponse.data
+                while(collectionsResponse.nextToken) {
+                    collectionsResponse = await item.itemCollections({ nextToken: collectionsResponse.nextToken })
+                    collectionsData.push(...collectionsResponse.data)
+                }
+                collectionIds.push(...collectionsData.map((connection) => connection.collectionId))
+            }
+
+            const mappedItem: PackageItem = {
+                ...item,
+                description: item.description ?? undefined,
+                max: item.max ?? undefined,
+                price: item.price ?? undefined,
+                quantities: item.quantity ?? undefined,
+                hardCap: item.hardCap ?? undefined,
+                collectionIds: collectionIds,
+                dependent: item.dependent ?? undefined,
+                unique: item.unique ?? undefined,
+                statements: item.statements?.filter((item) => item !== null)
+            }
+
+            return mappedItem
+        })
+    )))
+    return packageItems
 }
 
 async function getPackageDataFromPath(path: string){
@@ -269,15 +377,18 @@ export async function createPackageMutation(params: CreatePackageParams) {
         //optionals
         description: params.pack.description,
         pdfPath: params.pack.pdfPath,
+        price: params.pack.price
     })
     if(params.options?.logging) console.log(createPackageResponse)
 
-    const createParentTagging = await client.models.PackageParentTag.create({
-        packageId: params.pack.id,
-        tagId: params.pack.parentTagId,
-    })
-    if(params.options?.logging) console.log(createParentTagging)
-
+    if(params.pack.parentTagId) {
+        const createParentTagging = await client.models.PackageParentTag.create({
+            packageId: params.pack.id,
+            tagId: params.pack.parentTagId,
+        })
+        if(params.options?.logging) console.log(createParentTagging)
+    }
+    
     const createPackageItemsResponses = await Promise.all(params.pack.items.map(async (item) => {
         const collectionItemsResponses = await Promise.all(item.collectionIds.map((id) => {
             return client.models.PackageItemCollection.create({ 
@@ -297,8 +408,11 @@ export async function createPackageMutation(params: CreatePackageParams) {
                 description: item.description,
                 quantity: item.quantities,
                 max: item.max,
+                hardCap: item.hardCap,
                 price: item.price,
-                discount: item.discount,
+                unique: item.unique,
+                dependent: item.dependent,
+                statements: item.statements,
                 createdAt: new Date().toISOString()
             })
         ]
@@ -309,12 +423,13 @@ export async function createPackageMutation(params: CreatePackageParams) {
 }
 
 export interface UpdatePackageParams {
-    pack: Package,
+    pack: Package, //old package
     name: string,
     tagId: string,
     description?: string,
     items: PackageItem[],
     pdfPath?: string,
+    price?: string,
     options?: {
         logging?: boolean,
         metric?: boolean
@@ -377,8 +492,11 @@ export async function updatePackageMutation(params: UpdatePackageParams) {
                     description: item.description,
                     quantity: item.quantities,
                     max: item.max,
+                    hardCap: item.hardCap,
                     price: item.price,
-                    discount: item.discount,
+                    unique: item.unique,
+                    dependent: item.dependent,
+                    statements: item.statements,
                     createdAt: new Date().toISOString()
                 })
             ]
@@ -392,7 +510,11 @@ export async function updatePackageMutation(params: UpdatePackageParams) {
             item.collectionIds.some((id) => !packItems[item.id].collectionIds.some((nId) => nId === id)) ||
             packItems[item.id].max !== item.max ||
             packItems[item.id].price !== item.price ||
-            packItems[item.id].discount !== item.discount
+            packItems[item.id].hardCap !== item.hardCap ||
+            packItems[item.id].unique !== item.unique ||
+            packItems[item.id].dependent !== item.dependent ||
+            packItems[item.id].statements?.some((statement) => !item.statements?.some((pStatement) => pStatement === statement)) ||
+            item.statements?.some((statement) => !packItems[item.id].statements?.some((pStatement) => pStatement === statement))
         ) {
             const removedCollectionItems = await Promise.all(packItems[item.id].collectionIds
                 .filter((id) => !item.collectionIds.some((nId) => nId === id))
@@ -427,8 +549,12 @@ export async function updatePackageMutation(params: UpdatePackageParams) {
                     description: item.description,
                     quantity: item.quantities,
                     max: item.max,
+                    hardCap: item.hardCap,
                     price: item.price,
-                    discount: item.discount,
+                    unique: item.unique,
+                    dependent: item.dependent,
+                    statements: item.statements,
+                    createdAt: new Date().toISOString()
                 })
             ]
         }
@@ -436,7 +562,10 @@ export async function updatePackageMutation(params: UpdatePackageParams) {
 
     if(params.options?.logging) console.log(itemUpdatesResponse)
 
-    const removedItemsResponse = await Promise.all(removedItems.map((item) => client.models.PackageItem.delete({ id: item.id })))
+    const removedItemsResponse = await Promise.all(removedItems.map(async (item) => [
+        client.models.PackageItem.delete({ id: item.id }),
+        await Promise.all(currentItemConnections[item.id].map((connection) => client.models.PackageItemCollection.delete({ id: connection[0] })))
+    ]))
 
     if(params.options?.logging) console.log(removedItemsResponse)
 
@@ -444,7 +573,8 @@ export async function updatePackageMutation(params: UpdatePackageParams) {
         params.pack.name !== params.name ||
         params.pack.description !== params.description ||
         params.pack.tagId !== params.tagId ||
-        params.pack.pdfPath !== params.pdfPath
+        params.pack.pdfPath !== params.pdfPath ||
+        params.pack.price !== params.price
     ) {
         const response = await client.models.Package.update({
             id: params.pack.id,
@@ -499,8 +629,8 @@ export const getPackagesByUserTagsQueryOptions = (tags: UserTag[]) => queryOptio
     queryFn: () => getPackagesByUserTags(client, tags)
 })
 
-export const getAllPackagesQueryOptions = (options?: GetInfinitePackagesOptions) => infiniteQueryOptions({
-    queryKey: ['package', client, options],
+export const getInfinitePackagesQueryOptions = (options?: GetInfinitePackagesOptions) => infiniteQueryOptions({
+    queryKey: ['infinitePackages', client, options],
     queryFn: ({ pageParam }) => getInfinitePackages(client, pageParam, options),
     getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
     initialPageParam: ({
@@ -509,14 +639,24 @@ export const getAllPackagesQueryOptions = (options?: GetInfinitePackagesOptions)
     refetchOnWindowFocus: false,
 })
 
-export const getAllPackageItemsQueryOptions = (options?: GetInfinitePackageItemsOptions) => infiniteQueryOptions({
-    queryKey: ['packageItems', client, options],
+export const getAllPackagesQueryOptions = (options?: GetAllPackagesOptions) => queryOptions({
+    queryKey: ['package', client, options],
+    queryFn: () => getAllPackages(client, options)
+})
+
+export const getInfinitePackageItemsQueryOptions = (options?: GetInfinitePackageItemsOptions) => infiniteQueryOptions({
+    queryKey: ['infinitePackageItems', client, options],
     queryFn: ({ pageParam }) => getInfinitePackageItems(client, pageParam, options),
     getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
     initialPageParam: ({
         memo: [] as PackageItem[]
     } as GetInfinitePackageItemsData),
     refetchOnWindowFocus: false,
+})
+
+export const getAllPackageItemsQueryOptions = (packageId?: string, options?: GetAllPackageItemsOptions) => queryOptions({
+    queryKey: ['packageItems', client, options],
+    queryFn: () => getAllPackageItems(client, packageId, options)
 })
 
 export const getPackageDataFromPathQueryOptions = (path: string) => queryOptions({

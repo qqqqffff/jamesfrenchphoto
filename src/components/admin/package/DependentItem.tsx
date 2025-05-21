@@ -4,6 +4,7 @@ import { HiOutlineMinus, HiOutlinePlus, HiOutlineXMark } from "react-icons/hi2"
 import { TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
 import { PriceInput } from "../../common/PriceInput"
+import { splitStatement } from "../../../functions/packageFunctions"
 
 interface DependentItemProps {
   item: PackageItem
@@ -20,8 +21,10 @@ export const DependentItem = (props: DependentItemProps) => {
       item.name.toLowerCase().includes(search.toLowerCase()) && 
       item.id !== props.item.dependent &&
       !props.selectedPackage.items.some((a) => item.id === a.dependent) &&
-      item.max !== undefined && 
-      item.hardCap !== undefined
+      ((item.max !== undefined && 
+      item.hardCap !== undefined &&
+      item.hardCap > item.max) ||
+      item.statements)
     ))
 
   const dependentItem = props.selectedPackage.items.find((item) => item.id === props.item.dependent)
@@ -60,9 +63,9 @@ export const DependentItem = (props: DependentItemProps) => {
               </div>
               <div className="max-h-60 overflow-y-auto py-1 min-w-max">
                 {filteredItems.length > 0 ? (
-                  filteredItems.map((item) => {
+                  filteredItems.map((item, index) => {
                     return (
-                      <div className="flex flex-row justify-between items-center pe-2">
+                      <div className="flex flex-row justify-between items-center pe-2" key={index}>
                         <button
                           className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
                           onClick={() => {
@@ -94,7 +97,7 @@ export const DependentItem = (props: DependentItemProps) => {
           <>
             <div className="flex flex-row items-center gap-2">
               <span className="text-lg font-light italic">Baseline:</span>
-              <span className="text-lg font-semibold">{dependentItem.max}</span>
+              <span className="text-lg font-semibold">{dependentItem.statements ? splitStatement(dependentItem.statements[dependentItem.statements.length - 1]).quantity : dependentItem.max}</span>
             </div>
             <div className="flex flex-row items-center gap-2">
               <span className="text-lg font-light italic">Quantity:</span>

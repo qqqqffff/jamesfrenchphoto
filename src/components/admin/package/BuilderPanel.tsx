@@ -8,6 +8,7 @@ import { GetInfinitePackageItemsData } from "../../../services/packageService"
 
 interface BuilderPanelProps {
   packages: Package[]
+  packagesQuery: UseQueryResult<Package[] | undefined, Error>
   parentUpdatePackages: Dispatch<SetStateAction<Package[]>>
   tags: UserTag[],
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
@@ -38,7 +39,8 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
                 tagId: '',
                 parentTagId: '',
                 createdAt: new Date().toISOString(),
-                advertise: true
+                advertise: true,
+                temporary: true
               }
               temp.push(tempPackage)
 
@@ -83,6 +85,8 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
         {selectedPackage ? (
           <BuilderForm 
             selectedPackage={selectedPackage}
+            queriedPackage={props.packagesQuery.data?.find((pack) => pack.id === selectedPackage.id)}
+            packagesQuery={props.packagesQuery}
             parentUpdateSelectedPackage={setSelectedPackage}
             tags={props.tags}
             parentUpdateTags={props.parentUpdateTags}
