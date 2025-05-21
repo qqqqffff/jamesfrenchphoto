@@ -23,9 +23,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE }}
           role-session-name: Github_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
-      - name: Validate Sandbox
+      - name: Generate Outputs
         run: |
-          npx ampx sandbox --identifier apollo --once
+          npx ampx generate outputs
       - name: Run Build
         run: npm run build
     

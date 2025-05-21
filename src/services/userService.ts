@@ -76,6 +76,7 @@ async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapU
                 parentTagId: (await packageResponse.data.packageParentTag()).data?.tagId ?? '',
                 pdfPath: packageResponse.data.pdfPath ?? undefined,
                 description: packageResponse.data.description ?? undefined,
+                price: packageResponse.data.price ?? undefined,
                 items: options.siPackages.siItems ? (
                     await Promise.all((await packageResponse.data.items()).data.map(async (itemResponse) => {
                         const collections: string[] = []
@@ -92,9 +93,10 @@ async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapU
                             description: itemResponse.description ?? undefined,
                             max: itemResponse.max ?? undefined,
                             price: itemResponse.price ?? undefined,
-                            discount: itemResponse.discount ?? undefined,
                             quantities: itemResponse.quantity ?? undefined,
                             hardCap: itemResponse.hardCap ?? undefined,
+                            dependent: itemResponse.dependent ?? undefined,
+                            unique: itemResponse.unique ?? undefined,
                             statements: itemResponse.statements?.filter((item) => item !== null),
                             collectionIds: collections
                         }
@@ -171,12 +173,13 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
     return mappedTags
 }
 
-interface GetAllUserTagsInfiniteData {
-}
-interface GetAllUserTagsInfiniteOptions { 
-}
-async function getAllUserTagsInfinite(client: V6Client<Schema>, initial: GetAllUserTagsInfiniteData, options?: GetAllUserTagsInfiniteOptions) {
-}
+//TODO: implement me please
+// interface GetAllUserTagsInfiniteData {
+// }
+// interface GetAllUserTagsInfiniteOptions { 
+// }
+// async function getAllUserTagsInfinite(client: V6Client<Schema>, initial: GetAllUserTagsInfiniteData, options?: GetAllUserTagsInfiniteOptions) {
+// }
 
 interface GetUserProfileByEmailOptions {
     siTags?: boolean,
@@ -572,12 +575,13 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                             const packageResponse = await tagResponse.data.packages()
                             if(packageResponse.data) {
                                 pack = {
-                                    ...packageResponse.data,
-                                    parentTagId: (await packageResponse.data.packageParentTag()).data?.tagId ?? '',
-                                    description: packageResponse.data.description ?? undefined,
-                                    pdfPath: packageResponse.data.pdfPath ?? undefined,
-                                    //shallow depth
-                                    items: []
+                                ...packageResponse.data,
+                                parentTagId: (await packageResponse.data.packageParentTag()).data?.tagId ?? '',
+                                description: packageResponse.data.description ?? undefined,
+                                pdfPath: packageResponse.data.pdfPath ?? undefined,
+                                price: packageResponse.data.price ?? undefined,
+                                //shallow depth
+                                items: []
                                 }
                             }
                         }
