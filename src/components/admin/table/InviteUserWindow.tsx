@@ -1,23 +1,27 @@
 import { Dropdown } from "flowbite-react"
-import { Participant, Table, TableColumn, UserProfile } from "../../../types"
+import { Participant, Table, TableColumn, UserProfile, UserTag } from "../../../types"
 import { Dispatch, SetStateAction, useState } from "react"
 import { HiOutlinePlusCircle } from "react-icons/hi2"
 import { v4 } from 'uuid'
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import { InviteUserParams, inviteUserMutation } from "../../../services/userService"
+import { TagPicker } from "../package/TagPicker"
 
 interface InviteUserWindowProps {
   email: string,
   table: Table,
   rowIndex: number,
   submit: Dispatch<SetStateAction<UserProfile | undefined>>
+  tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
 }
 
 export const InviteUserWindow = (props: InviteUserWindowProps) => {
   const [sittingNumber, setSittingNumber] = useState<string>('')
   const [firstName, setFirstName] = useState<string>('')
   const [lastName, setLastName] = useState<string>('')
-  const [selectedColumns, setSelectedColumns] = useState<[TableColumn, string, "first" | 'last' | 'preferred' | 'email' | 'sitting'][]>([])
+  const [selectedColumns, setSelectedColumns] = useState<[TableColumn, string, 
+    "first" | 'last' | 'preferred' | 'email' | 'sitting' | 'middle' | 'tags'][]
+  >([])
   const [participants, setParticipants] = useState<Participant[]>([])
 
   const inviteUser = useMutation({
@@ -96,6 +100,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
           >
             {props.table.columns
               .filter(() => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user'))
+              .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
               .map((column, index) => {
                 return (
                   <Dropdown.Item 
@@ -125,7 +130,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
               const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'last')
 
               setSelectedColumns(temp)
-              setFirstName(event.target.value)
+              setLastName(event.target.value)
             }}
             value={lastName}
           />
@@ -134,6 +139,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
           >
             {props.table.columns
               .filter(() => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user'))
+              .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
               .map((column, index) => {
                 return (
                   <Dropdown.Item 
@@ -211,6 +217,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                 >
                   {props.table.columns
                     .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
+                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
                     .map((column, index) => {
                       return (
                         <Dropdown.Item 
@@ -269,13 +276,80 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                       return temp
                     })
                   }}
-                  value={participant.preferredName}
+                  value={participant.preferredName ?? ''}
                 />
                 <Dropdown
                   inline
                 >
                   {props.table.columns
                     .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
+                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
+                    .map((column, index) => {
+                      return (
+                        <Dropdown.Item
+                          key={index} 
+                          className="text-xs"
+                          onClick={() => {
+                            const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'preferred')
+                            setSelectedColumns([...temp, [column, participant.id, 'preferred']])
+                            setParticipants((prev) => {
+                              const temp = [...prev]
+                                .map((part) => {
+                                  if(part.id === participant.id){
+                                    return {
+                                      ...part,
+                                      preferredName: column.values[props.rowIndex]
+                                    }
+                                  }
+                                  return part
+                                })
+
+                              return temp
+                            })
+                          }}
+                        >
+                          {column.header}
+                        </Dropdown.Item>
+                      )
+                    })
+                  }
+                </Dropdown>
+              </div>
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Middle Name:</span>
+                <input
+                  className={`
+                    font-thin p-0 text-xs border-transparent ring-transparent w-full border-b-gray-400 
+                    border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
+                  `}
+                  placeholder="Middle Name..."
+                  onChange={(event) => {
+                    const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'middle')
+
+                    setSelectedColumns(temp)
+                    setParticipants((prev) => {
+                      const temp = [...prev]
+                        .map((part) => {
+                          if(part.id === participant.id) {
+                            return {
+                              ...part,
+                              middleName: event.target.value
+                            }
+                          }
+                          return part
+                        })
+
+                      return temp
+                    })
+                  }}
+                  value={participant.middleName ?? ''}
+                />
+                <Dropdown
+                  inline
+                >
+                  {props.table.columns
+                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
+                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
                     .map((column, index) => {
                       return (
                         <Dropdown.Item
@@ -341,6 +415,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                 >
                   {props.table.columns
                     .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
+                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
                     .map((column, index) => {
                       return (
                         <Dropdown.Item
@@ -399,13 +474,96 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                       return temp
                     })
                   }}
-                  value={participant.email}
+                  value={participant.email ?? ''}
                 />
                 <Dropdown
                   inline
                 >
                   {props.table.columns
                     .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
+                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
+                    .map((column, index) => {
+                      return (
+                        <Dropdown.Item 
+                          key={index}
+                          className="text-xs"
+                          onClick={() => {
+                            const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'email')
+                            setSelectedColumns([...temp, [column, participant.id, 'email']])
+                            setParticipants((prev) => {
+                              const temp = [...prev]
+                                .map((part) => {
+                                  if(part.id === participant.id){
+                                    return {
+                                      ...part,
+                                      firstName: column.values[props.rowIndex]
+                                    }
+                                  }
+                                  return part
+                                })
+
+                              return temp
+                            })
+                          }}
+                        >
+                          {column.header}
+                        </Dropdown.Item>
+                      )
+                    })
+                  }
+                </Dropdown>
+              </div>
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Tags:</span>
+                <TagPicker 
+                  tags={props.tagsQuery.data ?? []}
+                  parentPickTag={(tag) => {
+                    const selectedTag = participant.userTags.some((pTag) => pTag.id === tag.id)
+                    const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'email')
+
+                    if(selectedTag) {
+                      setSelectedColumns(temp)
+                      setParticipants((prev) => {
+                        const temp = [...prev]
+                          .map((part) => {
+                            if(part.id === participant.id) {
+                              return {
+                                ...part,
+                                userTags: part.userTags.filter((pTag) => pTag.id !== tag.id)
+                              }
+                            }
+                            return part
+                          })
+
+                        return temp
+                      })
+                    }
+                    else {
+                      setSelectedColumns(temp)
+                      setParticipants((prev) => {
+                        const temp = [...prev]
+                          .map((part) => {
+                            if(part.id === participant.id) {
+                              return {
+                                ...part,
+                                userTags: [...part.userTags, tag]
+                              }
+                            }
+                            return part
+                          })
+
+                        return temp
+                      })
+                    }
+                  }}
+                  pickedTag={participant.userTags}
+                />
+                <Dropdown
+                  inline
+                >
+                  {props.table.columns
+                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
+                    .filter((column) => column.type === 'tag')
                     .map((column, index) => {
                       return (
                         <Dropdown.Item 

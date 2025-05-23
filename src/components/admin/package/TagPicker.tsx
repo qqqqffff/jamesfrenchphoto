@@ -1,14 +1,13 @@
-import { Dispatch, SetStateAction, useState } from "react"
+import { useState } from "react"
 import { UserTag } from "../../../types"
-import { TextInput } from "flowbite-react"
+import { Checkbox, TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
 import { HiOutlineXMark } from "react-icons/hi2"
 
 interface TagPickerProps {
   tags: UserTag[],
-  parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
   parentPickTag: (tag: UserTag) => void
-  pickedTag?: UserTag,
+  pickedTag?: UserTag[],
   placeholder?: string
 }
 
@@ -22,11 +21,12 @@ export const TagPicker = (props: TagPickerProps) => {
         <TextInput
           theme={textInputTheme}
           placeholder={props.placeholder ?? 'Pick User Tag...'}
-          color={props.pickedTag?.color ?? 'gray'}
           className={`
             max-w-[400px] min-w-[400px] placeholder:italic 
+            text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color}
           `}
-          value={props.pickedTag?.name ?? ''}
+          value={!props.pickedTag || props.pickedTag.length === 0 ? '' : 
+            props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
           onFocus={() => setFocused(true)}
           readOnly
         />
@@ -36,9 +36,7 @@ export const TagPicker = (props: TagPickerProps) => {
               <span>Pick Tag</span>
               <button 
                 className=""
-                onClick={() => {
-                  setFocused(false)
-                }}
+                onClick={() => setFocused(false)}
               >
                 <HiOutlineXMark size={16} className="text-gray-400 hover:text-gray-800"/>
               </button>
@@ -56,6 +54,7 @@ export const TagPicker = (props: TagPickerProps) => {
                 props.tags
                   .filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase()))
                   .map((tag, index) => {
+                    const selected = props.pickedTag?.some((pTag) => pTag.id === tag.id)
                     return (
                       <div 
                         className="flex flex-row justify-start items-center pe-2" 
@@ -63,11 +62,16 @@ export const TagPicker = (props: TagPickerProps) => {
                       >
                         <button 
                           className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
-                          onClick={() => {
-                            setFocused(false)
+                          onClick={(event) => {
+                            event.stopPropagation()
                             props.parentPickTag(tag)
                           }}
                         >
+                          <Checkbox 
+                            readOnly
+                            checked={selected}
+                            onClick={() => props.parentPickTag(tag)}
+                          />
                           <span className={`text-${tag.color ?? 'black'} truncate max-w-[500px]`}>{tag.name}</span>
                         </button>
                       </div>

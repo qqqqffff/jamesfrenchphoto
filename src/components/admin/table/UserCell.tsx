@@ -1,7 +1,7 @@
 import { useQuery, UseQueryResult } from "@tanstack/react-query";
 import { ComponentProps, useEffect, useRef, useState } from "react";
 import Loading from "../../common/Loading";
-import { Participant, Table, UserData, UserProfile } from "../../../types";
+import { Participant, Table, UserData, UserProfile, UserTag } from "../../../types";
 import { Tooltip } from "flowbite-react";
 import { HiOutlineXMark } from 'react-icons/hi2'
 import validator from 'validator'
@@ -12,6 +12,7 @@ interface UserCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void
   userData: UseQueryResult<UserData[] | undefined, Error>,
+  tagsData: UseQueryResult<UserTag[] | undefined, Error>,
   table: Table,
   rowIndex: number,
   columnId: string,
@@ -154,6 +155,14 @@ export const UserCell = (props: UserCellProps) => {
             </div>
           )
         })}
+        {type === 'tempUser' && (
+          <button 
+            className="self-end px-4 py-1 border rounded-lg mb-2 hover:bg-gray-100"
+            onClick={() => {
+              //TODO: do something -> need to connect api call to revoke invites
+            }}
+          >Revoke Invite</button>
+        )}
       </div>
     ) : (
       type === 'participant' && participant ? (
@@ -350,6 +359,7 @@ export const UserCell = (props: UserCellProps) => {
             }}
             rowIndex={props.rowIndex}
             submit={setTempProfile}
+            tagsQuery={props.tagsData}
           />
         </div>
       )}

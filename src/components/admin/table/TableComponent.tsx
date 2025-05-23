@@ -763,6 +763,7 @@ export const TableComponent = (props: TableComponentProps) => {
                               table={props.table}
                               rowIndex={i}
                               columnId={id}
+                              tagsData={props.tagData}
                             />
                           )
                         }

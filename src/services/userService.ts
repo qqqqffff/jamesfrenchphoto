@@ -1064,6 +1064,7 @@ export async function inviteUserMutation(params: InviteUserParams) {
             userEmail: params.email,
             firstName: participant.firstName,
             preferredName: participant.preferredName,
+            middleName: participant.middleName,
             lastName: participant.lastName,
             email: participant.email
         })
