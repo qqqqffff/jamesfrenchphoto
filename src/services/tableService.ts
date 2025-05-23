@@ -69,7 +69,8 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
                     color: tagResponse.data.color ?? undefined,
                     notifications: undefined,
                     //TODO: implement children
-                    children: []
+                    children: [],
+                    participants: []
                 }
                 return mappedTag
             }))).filter((tag) => tag !== undefined) : [],

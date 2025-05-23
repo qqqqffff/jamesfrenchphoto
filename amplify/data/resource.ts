@@ -257,6 +257,7 @@ const schema = a.schema({
       participant: a.belongsTo('Participant', 'participantId'),
       participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]), 
     })
+    .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
     .model({

@@ -77,7 +77,7 @@ function RouteComponent() {
           <Button
             color="gray"
             onClick={() => {
-                navigate({ to: '/admin/dashboard/package', search: { console: undefined }})
+                navigate({ to: '/admin/dashboard/package' })
             }}
             className={activeConsoleClassName('package')}
           >

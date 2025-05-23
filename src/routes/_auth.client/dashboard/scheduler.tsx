@@ -44,7 +44,7 @@ function RouteComponent() {
   const router = useRouter()
   const queryClient = useQueryClient()
 
-  const timeslots = useQuery(getAllTimeslotsByUserTagListQueryOptions(userTags))
+  const timeslots = useQuery(getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
 
   const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
     (timeslots.data ?? []).map((timeslot) => {

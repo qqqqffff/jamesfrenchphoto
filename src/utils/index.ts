@@ -170,6 +170,7 @@ export const defaultColumnColors: Record<string, {text: string, bg: string}> = {
 export const badgeColorThemeMap_hoverable: CustomFlowbiteTheme['badge'] = {
     root: {
         color: {
+            'black': 'bg-gray-100 text-gray-700 group-hover:bg-gray-200 hover:bg-gray-300',
             'pink-400': "bg-pink-200 text-pink-600 group-hover:bg-pink-200 hover:bg-pink-300",
             'rose-500': "bg-rose-200 text-rose-600 group-hover:bg-rose-200 hover:bg-rose-300",
             'red-600': "bg-red-200 text-red-600 group-hover:bg-red-200 hover:bg-red-300",
@@ -185,14 +186,24 @@ export const badgeColorThemeMap_hoverable: CustomFlowbiteTheme['badge'] = {
             'orange-400': "bg-orange-200 text-orange-600 group-hover:bg-orange-200 hover:bg-orange-300",
             'amber-600': "bg-amber-200 text-amber-700 group-hover:bg-amber-200 hover:bg-amber-300",
             'gray': 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+        },
+        size: {
+            'md': 'px-4 py-1.5',
+            'lg': 'px-6 py-2'
         }
     },
-    
+    icon: {
+        size: {
+            'md': 'text-base',
+            'lg': 'text-lg',
+        }
+    }
 }
 
 export const badgeColorThemeMap: CustomFlowbiteTheme['badge'] = {
     root: {
         color: {
+            'black': 'bg-gray-100 text-gray-700 group-hover:bg-gray-200',
             'pink-400': "bg-pink-200 text-pink-600 group-hover:bg-pink-200",
             'rose-500': "bg-rose-200 text-rose-600 group-hover:bg-rose-200",
             'red-600': "bg-red-200 text-red-600 group-hover:bg-red-200",
@@ -207,11 +218,16 @@ export const badgeColorThemeMap: CustomFlowbiteTheme['badge'] = {
             'yellow-300': "bg-yellow-200 text-yellow-600 group-hover:bg-yellow-200",
             'orange-400': "bg-orange-200 text-orange-600 group-hover:bg-orange-200",
             'amber-600': "bg-amber-200 text-amber-700 group-hover:bg-amber-200",
+        },
+        size: {
+            'md': 'px-4 py-1.5',
+            'lg': 'px-6 py-2'
         }
     },
     icon: {
         size: {
-            
+            'md': 'text-base',
+            'lg': 'text-lg',
         }
     }
 }

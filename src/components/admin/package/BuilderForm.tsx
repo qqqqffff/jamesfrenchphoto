@@ -230,7 +230,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
   const foundParentTag = props.tags.find((tag) => props.selectedPackage.parentTagId === tag.id)
 
   return (
-    <div className="flex flex-col h-full border relative">
+    <div className="flex flex-col h-full relative">
       {notification && (
         <Alert 
           color={notification.color} 

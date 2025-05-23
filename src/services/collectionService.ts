@@ -10,15 +10,116 @@ import { mapParticipant } from "./userService";
 
 const client = generateClient<Schema>()
 
-interface GetAllCollectionsOptions {
-    siTags?: boolean
-    siSets?: boolean
-    siPaths?: boolean,
+interface MapCollectionOptions {
+  siTags?: boolean
+  siSets?: boolean
+  siPaths?: boolean
+  unauthenticated?: boolean
+  participantId?: string,
+}
+async function mapCollection(collectionResponse: Schema['PhotoCollection']['type'], options?: MapCollectionOptions): Promise<PhotoCollection> {
+  const mappedSets: PhotoSet[] = []
+  const mappedTags: UserTag[] = []
+  if(!options || options.siSets){
+    let setsResponse = await collectionResponse.sets({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    let setData = setsResponse.data
+
+    while(setsResponse.nextToken) {
+      setsResponse = await collectionResponse.sets({ 
+        nextToken: setsResponse.nextToken, 
+        authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
+      })
+      setData.push(...setsResponse.data)
+    }
+
+    mappedSets.push(...await Promise.all(setData.map(async (set) => {
+      let mappedPaths: PicturePath[] = []
+      if(options?.siPaths) {
+        let pathResponse = await set.paths({
+          authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
+        })
+        let pathData = pathResponse.data
+
+        while(pathResponse.nextToken) {
+          pathResponse = await set.paths({ 
+            nextToken: pathResponse.nextToken,
+            authMode: options?.unauthenticated ? 'identityPool' : 'userPool'  
+          })
+          pathData.push(...pathResponse.data)
+        }
+
+        mappedPaths.push(...(await Promise.all(
+          pathData.map(async (path) => {
+            let favorite: string | undefined
+            if(options?.participantId){
+              favorite = (await path.favorites()).data.find((favorite) => favorite.participantId === options.participantId)?.id
+            }
+            return ({ ...path, favorites: favorite, url: '' })
+          })))
+        )
+      }
+
+      const mappedSet: PhotoSet = {
+        ...set,
+        watermarkPath: set.watermarkPath ?? undefined,
+        paths: mappedPaths,
+        items: set.items ?? 0
+      }
+      return mappedSet
+    })))
+  }
+
+  if(!options || options.siTags){
+    let tagResponse = await collectionResponse.tags()
+    let tagData = tagResponse.data
+
+    while(tagResponse.nextToken) {
+      tagResponse = await collectionResponse.tags({ nextToken: tagResponse.nextToken })
+      tagData.push(...tagResponse.data)
+    }
+
+    mappedTags.push(...(await Promise.all(tagData.map(async (collTag) => {
+      let tag = await collTag.tag()
+      if(!tag || !tag.data) return
+      const mappedTag: UserTag = {
+        ...tag.data,
+        color: tag.data.color ?? undefined,
+        notifications: undefined,
+        //TODO: implement children
+        children: [],
+        participants: []
+      }
+      return mappedTag
+    }))).filter((tag) => tag !== undefined))
+  }
+  
+  const mappedCollection: PhotoCollection = {
+    ...collectionResponse,
+    coverPath: collectionResponse.coverPath ?? undefined,
+    coverType: {
+      textColor: collectionResponse.coverType?.textColor ?? undefined,
+      bgColor: collectionResponse.coverType?.bgColor ?? undefined,
+      placement: collectionResponse.coverType?.placement ?? undefined,
+      textPlacement: collectionResponse.coverType?.textPlacement ?? undefined,
+      date: collectionResponse.coverType?.date ?? undefined
+    },
+    publicCoverPath: collectionResponse.publicCoverPath ?? undefined,
+    downloadable: collectionResponse.downloadable ?? false,
+    watermarkPath: collectionResponse.watermarkPath ?? undefined,
+    tags: mappedTags,
+    sets: mappedSets,
+    items: collectionResponse.items ?? 0,
+    published: collectionResponse.published ?? false,
+  }
+
+  return mappedCollection
+}
+
+interface GetAllCollectionsOptions extends MapCollectionOptions{
     metric?: boolean,
     logging?: boolean
 }
 async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAllCollectionsOptions): Promise<PhotoCollection[]> {
-    console.log('api call')
     const start = new Date().getTime()
 
     let collectionResponse = await client.models.PhotoCollection.list()
@@ -30,86 +131,9 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
     }
 
     const mappedCollections: PhotoCollection[] = await Promise.all(
-      collectionData.map(async (collection) => {
+      collectionData.map((collection) => {
         if(options?.logging) console.log(collection)
-        const mappedSets: PhotoSet[] = []
-        const mappedTags: UserTag[] = []
-        if(!options || options.siSets){
-          let setsResponse = await collection.sets()
-          let setData = setsResponse.data
-
-          while(setsResponse.nextToken) {
-            setsResponse = await collection.sets({ nextToken: setsResponse.nextToken })
-            setData.push(...setsResponse.data)
-          }
-
-          mappedSets.push(...await Promise.all(setData.map(async (set) => {
-            let mappedPaths: PicturePath[] = []
-            if(options?.siPaths) {
-              let pathResponse = await set.paths()
-              let pathData = pathResponse.data
-
-              while(pathResponse.nextToken) {
-                pathResponse = await set.paths({ nextToken: pathResponse.nextToken })
-                pathData.push(...pathResponse.data)
-              }
-
-              mappedPaths.push(...(pathData.map((path) => ({ ...path, url: '' }))))
-            }
-
-            const mappedSet: PhotoSet = {
-              ...set,
-              watermarkPath: set.watermarkPath ?? undefined,
-              paths: mappedPaths,
-              items: set.items ?? 0
-            }
-            return mappedSet
-          })))
-        }
-
-        if(!options || options.siTags){
-          let tagResponse = await collection.tags()
-          let tagData = tagResponse.data
-
-          while(tagResponse.nextToken) {
-            tagResponse = await collection.tags({ nextToken: tagResponse.nextToken })
-            tagData.push(...tagResponse.data)
-          }
-
-          mappedTags.push(...(await Promise.all(tagData.map(async (collTag) => {
-            let tag = await collTag.tag()
-            if(!tag || !tag.data) return
-            const mappedTag: UserTag = {
-              ...tag.data,
-              color: tag.data.color ?? undefined,
-              notifications: undefined,
-              //TODO: implement children
-              children: []
-            }
-            return mappedTag
-          }))).filter((tag) => tag !== undefined))
-        }
-        
-        const mappedCollection: PhotoCollection = {
-          ...collection,
-          coverPath: collection.coverPath ?? undefined,
-          coverType: {
-            textColor: collection.coverType?.textColor ?? undefined,
-            bgColor: collection.coverType?.bgColor ?? undefined,
-            placement: collection.coverType?.placement ?? undefined,
-            textPlacement: collection.coverType?.textPlacement ?? undefined,
-            date: collection.coverType?.date ?? undefined
-          },
-          publicCoverPath: collection.publicCoverPath ?? undefined,
-          downloadable: collection.downloadable ?? false,
-          watermarkPath: collection.watermarkPath ?? undefined,
-          tags: mappedTags,
-          sets: mappedSets,
-          items: collection.items ?? 0,
-          published: collection.published ?? false,
-        }
-
-        return mappedCollection
+        return mapCollection(collection, options)
       })
     )
     const end = new Date().getTime()
@@ -118,121 +142,78 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
     return mappedCollections
 }
 
-interface GetAllCollectionsFromUserTagsOptions {
-    siTags?: boolean
-    siSets?: boolean
-    siPaths?: boolean
-    collectionsMemo?: PhotoCollection[]
+interface GetAllCollectionsFromUserTagIdOptions extends MapCollectionOptions {
+  collectionsMemo?: PhotoCollection[]
 }
-export async function getAllCollectionsFromUserTags(client: V6Client<Schema>, tags: UserTag[], options?: GetAllCollectionsFromUserTagsOptions): Promise<PhotoCollection[]> {
-    console.log('api call')
-    const collections: PhotoCollection[] = (await Promise.all(tags.map(async (tag) => {
-      let collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: tag.id })
-      let collectionTagsData = collectionTagsResponse.data
+export async function getAllCollectionsFromUserTagId(client: V6Client<Schema>, tagId?: string, options?: GetAllCollectionsFromUserTagIdOptions): Promise<PhotoCollection[]> {
+  const collections: PhotoCollection[] = []
 
-      while(collectionTagsResponse.nextToken) {
-        collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: tag.id }, { nextToken: collectionTagsResponse.nextToken })
-        collectionTagsData.push(...collectionTagsResponse.data)
+  if(!tagId) return collections
+
+  let collectionsResponse = await client.models.CollectionTag.listCollectionTagByTagId({
+    tagId: tagId
+  })
+  const collectionsData = collectionsResponse.data
+
+  while(collectionsResponse.nextToken) {
+    collectionsResponse = await client.models.CollectionTag.listCollectionTagByTagId(
+      { tagId: tagId }, 
+      { nextToken: collectionsResponse.nextToken }
+    )
+    collectionsData.push(...collectionsResponse.data)
+  }
+
+  collections.push(...(await Promise.all(
+    collectionsData.map(async (collection) => {
+      const foundCollection = options?.collectionsMemo?.find((mCol) => mCol.id === collection.collectionId)
+      if(foundCollection) return foundCollection
+      const collectionResponse = (await collection.collection()).data
+      if(collectionResponse !== null) {
+        return mapCollection(collectionResponse, options)
       }
+    })
+  )).filter((collection) => collection !== undefined))
 
-      const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagsData.map(async (collectionTag) => {
-        const collectionResponse = await collectionTag.collection()
-        if (
-          !collectionResponse.data || 
-          !collectionResponse.data || 
-          options?.collectionsMemo?.some((collection) => collection.id === collectionResponse.data?.id)
-        ) return
-        const tags: UserTag[] = []
-        
-        if(!options || options.siTags){
-          let tagsResponse = await collectionResponse.data.tags()
-          let tagsData = tagsResponse.data
+  return collections
+}
 
-          while(tagsResponse.nextToken) {
-            tagsResponse = await collectionResponse.data.tags({ nextToken: tagsResponse.nextToken })
-            tagsData.push(...tagsResponse.data)
-          }
+interface GetAllCollectionsFromUserTagIdsOptions extends GetAllCollectionsFromUserTagIdOptions { }
+export async function getAllCollectionsFromUserTagIds(client: V6Client<Schema>, tagIds: string[], options?: GetAllCollectionsFromUserTagIdsOptions): Promise<PhotoCollection[]> {
+    console.log('api call')
 
-          tags.push(...(await Promise.all(tagsData.map(async (collTag) => {
-            const tag = await collTag.tag()
-            if(!tag || !tag.data) return
-            const mappedTag: UserTag = {
-                ...tag.data,
-                color: tag.data.color ?? undefined,
-                notifications: undefined,
-                //TODO: implement children
-                children: []
-            }
-            return mappedTag
-          }))).filter((tag) => tag !== undefined))
+    const tempMemo: PhotoCollection[] = options?.collectionsMemo ?? []
+
+    const collections: PhotoCollection[] = (await Promise.all(
+      tagIds.map(async (tagId) => {
+        let collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: tagId })
+        let collectionTagsData = collectionTagsResponse.data
+
+        while(collectionTagsResponse.nextToken) {
+          collectionTagsResponse = await client.models.CollectionTag.listCollectionTagByTagId({ tagId: tagId }, { nextToken: collectionTagsResponse.nextToken })
+          collectionTagsData.push(...collectionTagsResponse.data)
         }
 
-        const sets: PhotoSet[] = []
+        const mappedCollections: PhotoCollection[] = (await Promise.all(
+          collectionTagsData.map(async (collectionTag) => {
+            const foundCollection = tempMemo.find((mCol) => mCol.id === collectionTag.collectionId)
+            if(foundCollection) return //no duplicates
 
-        if(options?.siSets) {
-          let setsResponse = await collectionResponse.data.sets()
-          let setsData = setsResponse.data
+            const collectionResponse = await collectionTag.collection()
+            if (
+              !collectionResponse.data || 
+              !collectionResponse.data 
+            ) return
+            
+            const collection = await mapCollection(collectionResponse.data, options)
+            tempMemo.push(collection)
 
-          while(setsResponse.nextToken) {
-              setsResponse = await collectionResponse.data.sets({ nextToken: setsResponse.nextToken })
-              setsData.push(...setsResponse.data)
-          }
+            return collection
+          })
+        )).filter((collection) => collection !== undefined)
 
-          sets.push(...(await Promise.all(setsData.map(async (set) => {
-            const mappedPaths: PicturePath[] = []
-            if(options.siPaths) {
-              let pathsResponse = await set.paths()
-              let pathsData = pathsResponse.data
-
-              while(pathsResponse.nextToken) {
-                pathsResponse = await set.paths({ nextToken: pathsResponse.nextToken })
-                pathsData.push(...pathsResponse.data)
-              }
-
-              mappedPaths.push(...pathsData.map((path) => {
-                const mappedPath: PicturePath = {
-                  ...path,
-                  url: ''
-                }
-                return mappedPath
-              }))
-            }
-
-            const mappedSet: PhotoSet = {
-              ...set,
-              watermarkPath: set.watermarkPath ?? undefined,
-              paths: mappedPaths,
-              items: set.items ?? 0
-            }
-
-            return mappedSet
-          }))))
-        }
-
-        const mappedCollection: PhotoCollection = {
-          ...collectionResponse.data,
-          coverPath: collectionResponse.data.coverPath ?? undefined,
-          publicCoverPath: collectionResponse.data.publicCoverPath ?? undefined,
-          coverType: {
-            textColor: collectionResponse.data.coverType?.textColor ?? undefined,
-            bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
-            placement: collectionResponse.data.coverType?.placement ?? undefined,
-            textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
-            date: collectionResponse.data.coverType?.date ?? undefined
-          },
-          downloadable: collectionResponse.data.downloadable ?? false,
-          watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
-          tags: tags,
-          items: collectionResponse.data.items ?? 0,
-          published: collectionResponse.data.published ?? false,
-          sets: sets
-        }
-
-        return mappedCollection
-      }))).filter((collection) => collection !== undefined)
-
-      return mappedCollections
-    }))).reduce((prev, cur) => {
+        return mappedCollections
+      }))
+    ).reduce((prev, cur) => {
       cur.forEach((collection) => {
         if(prev.find((col) => col.id === collection.id) === undefined) {
           prev.push(collection)
@@ -298,107 +279,14 @@ async function getPath(path?: string, id?: string): Promise<[string | undefined,
   })).url.toString()]
 }
 
-interface GetPhotoCollectionByIdOptions {
-  siTags?: boolean,
-  siSets?: boolean,
-  siPaths?: boolean,
-  resolveUrls?: boolean,
-  participantId?: string,
-  unauthenticated?: boolean
-}
-//TODO: fix favorite secondary indexing
+interface GetPhotoCollectionByIdOptions extends MapCollectionOptions { }
 export async function getCollectionById(client: V6Client<Schema>, collectionId?: string, options?: GetPhotoCollectionByIdOptions): Promise<PhotoCollection | null> {
   if(!collectionId) return null
   console.log('api call')
-  const collection = await client.models.PhotoCollection.get({ id: collectionId }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
+  const collection = await client.models.PhotoCollection.get({ id: collectionId }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
   if(!collection || !collection.data) return null
-  const sets: PhotoSet[] = []
-  if(!options || options.siSets){
-    sets.push(...await Promise.all((await collection.data.sets(
-      { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'}
-    )).data.map((async (set) => {
-      const mappedPaths: PicturePath[] = []
-      if(!options || options?.siPaths) {
-        let pathsResponse = await set.paths()
-        let paths = pathsResponse.data
-        while(pathsResponse.nextToken) {
-          pathsResponse = await set.paths({ nextToken: pathsResponse.nextToken })
-          paths.push(...pathsResponse.data)
-        }
-        mappedPaths.push(...await Promise.all(paths.map(async (path) => {
-          let favorite: undefined | string
-          if(options?.participantId){
-            favorite = (await path.favorites()).data.find((favorite) => favorite.participantId === options.participantId)?.id
-          }
-          const mappedPath: PicturePath = {
-            ...path,
-            url: options?.resolveUrls ? (
-              await getUrl({
-                path: path.path,
-              })
-            ).url.toString() : '',
-            favorite: favorite
-          }
-          return mappedPath
-        })))
-      }
-      const mappedSet: PhotoSet = {
-          ...set,
-          watermarkPath: set.watermarkPath ?? undefined,
-          paths: mappedPaths,
-          items: set.items ?? 0
-      }
-      return mappedSet
-    }))))
-
-
-    //validate set order
-    const orderedSets = [...sets].sort((a, b) => a.order - b.order)
-    for(let i = 0; i < sets.length; i++) {
-      if(orderedSets[i].order !== i) {
-        reorderSetsMutation({
-          collectionId: collectionId,
-          sets: orderedSets.map((set, index) => ({ ...set, order: index }))
-        })
-      }
-    }
-  }
-
   
-  const tags: UserTag[] = []
-  if(!options || options.siTags){
-    tags.push(...(await Promise.all((await collection.data.tags()).data.map(async (colTag) => {
-      const tag = (await colTag.tag()).data
-      if(!tag) return
-      const mappedTag: UserTag = {
-        ...tag,
-        color: tag.color ?? undefined,
-        notifications: undefined,
-        //TODO: implement children
-        children: []
-      }
-      return mappedTag
-    }))).filter((tag) => tag !== undefined))
-  }
-  const mappedCollection: PhotoCollection = {
-    ...collection.data,
-    watermarkPath: collection.data.watermarkPath ?? undefined,
-    downloadable: collection.data.downloadable ?? false,
-    coverPath: collection.data.coverPath ?? undefined,
-    publicCoverPath: collection.data.publicCoverPath ?? undefined,
-    coverType: {
-        textColor: collection.data.coverType?.textColor ?? undefined,
-        bgColor: collection.data.coverType?.bgColor ?? undefined,
-        placement: collection.data.coverType?.placement ?? undefined,
-        textPlacement: collection.data.coverType?.textPlacement ?? undefined,
-        date: collection.data.coverType?.date ?? undefined
-    },
-    items: collection.data.items ?? 0,
-    published: collection.data.published ?? false,
-    sets: sets.sort((a, b) => a.order - b.order),
-    tags: tags,
-  }
-  return mappedCollection
+  return mapCollection(collection.data, options)
 }
 
 interface GetAllCollectionParticipantsOptions {
@@ -438,30 +326,33 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
     return participants;
 }
 
-interface GetParticipantCollectionsOptions {
-    siTags?: boolean
-    siSets?: boolean
-    siPaths?: boolean
-}
-//TODO: improve with memoization
+interface GetParticipantCollectionsOptions extends GetAllCollectionsFromUserTagIdOptions { }
 async function getParticipantCollections(client: V6Client<Schema>, participantId?: string, options?: GetParticipantCollectionsOptions): Promise<PhotoCollection[]> {
-    if(!participantId) return []
-    let collectionTagResponse = await client.models.ParticipantCollections.listParticipantCollectionsByParticipantId({ participantId: participantId })
-    const collectionTagData = collectionTagResponse.data
+  if(!participantId) return []
 
-    while(collectionTagResponse.nextToken) {
-      collectionTagResponse = await client.models.ParticipantCollections.listParticipantCollectionsByParticipantId({ participantId: participantId }, { nextToken: collectionTagResponse.nextToken })
-      collectionTagData.push(...collectionTagResponse.data)
-    }
+  const tempMemo: PhotoCollection[] = options?.collectionsMemo ?? []
 
-    const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagData.map(async (collectionTag) => {
-      const mappedCollection = await getCollectionById(client, collectionTag.collectionId, { ...options })
-      return mappedCollection
-    })))
-      .filter((collection) => collection?.published)
-      .filter((collection) => collection !== null)
+  let collectionTagResponse = await client.models.ParticipantCollections.listParticipantCollectionsByParticipantId({ participantId: participantId })
+  const collectionTagData = collectionTagResponse.data
 
-    return mappedCollections
+  while(collectionTagResponse.nextToken) {
+    collectionTagResponse = await client.models.ParticipantCollections.listParticipantCollectionsByParticipantId({ participantId: participantId }, { nextToken: collectionTagResponse.nextToken })
+    collectionTagData.push(...collectionTagResponse.data)
+  }
+
+  const mappedCollections: PhotoCollection[] = (await Promise.all(collectionTagData.map(async (collectionTag) => {
+    const foundCollection = tempMemo.find((col) => collectionTag.collectionId === col.id)
+    if(foundCollection !== undefined) return foundCollection
+    const collectionResponse = await collectionTag.collection()
+    if(collectionResponse.data === null) return
+    const mappedCollection = await mapCollection(collectionResponse.data, options)
+    tempMemo.push(mappedCollection)
+    return mappedCollection
+  })))
+    .filter((collection) => collection?.published)
+    .filter((collection) => collection !== undefined)
+
+  return mappedCollections
 }
 
 export interface CreateCollectionParams {
@@ -917,9 +808,14 @@ export async function repairItemCountMutation (params: RepairItemCountsParams): 
   }
 }
 
-export const collectionsFromUserTagIdQueryOptions = (tags: UserTag[]) => queryOptions({
-    queryKey: ['photoCollection', client, tags],
-    queryFn: () => getAllCollectionsFromUserTags(client, tags)
+export const getAllCollectionsFromUserTagIdQueryOptions = (tagId?: string, options?: GetAllCollectionsFromUserTagIdsOptions) => queryOptions({
+  queryKey: ['tag-PhotoCollection', client, tagId, options],
+  queryFn: () => getAllCollectionsFromUserTagId(client, tagId, options)
+})
+
+export const getAllCollectionsFromUserTagIdsQueryOptions = (tags: string[], options?: GetAllCollectionsFromUserTagIdsOptions) => queryOptions({
+    queryKey: ['photoCollection', client, tags, options],
+    queryFn: () => getAllCollectionsFromUserTagIds(client, tags, options)
 })
 
 export const getAllWatermarkObjectsQueryOptions = (options?: GetAllWatermarkObjectsOptions) => queryOptions({

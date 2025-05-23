@@ -22,7 +22,7 @@ export const PackageCard = (props: PackageCardProps) => {
       </div>
       <div className="border"/>
       {props.package.description && (
-        <div className=" border-b pb-2 flex flex-row justify-center mx-8">
+        <div className="border-b pb-2 flex flex-row justify-center mx-8">
           <span className="text-sm font-thin text-wrap">{props.package.description}</span>
         </div>
       )}

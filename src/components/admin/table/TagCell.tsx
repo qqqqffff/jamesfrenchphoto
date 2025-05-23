@@ -1,8 +1,7 @@
 import { ComponentProps, useEffect, useState } from "react";
 import { Participant, Table, UserTag } from "../../../types";
 import { Checkbox, Dropdown, ToggleSwitch, Tooltip } from "flowbite-react";
-import { HiMinus, HiOutlineExclamationTriangle, HiOutlinePencil, HiOutlinePlusCircle, HiOutlineXMark } from "react-icons/hi2";
-import { CreateTagModal } from "../../modals";
+import { HiMinus, HiOutlineExclamationTriangle, HiOutlineXMark } from "react-icons/hi2";
 import { useMutation } from "@tanstack/react-query";
 import { updateParticipantMutation, UpdateParticipantMutationParams } from "../../../services/userService";
 
@@ -22,8 +21,6 @@ export const TagCell = (props: TagCellProps) => {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [search, setSearch] = useState<string>('')
-  const [createTagVisible, setCreateTagVisible] = useState(false)
-  const [selectedTag, setSelectedTag] = useState<UserTag>()
   const [foundParticipant, setFoundParticipant] = useState<Participant | undefined>();
   const [tags, setTags] = useState<UserTag[]>(props.tags)
   const [mode, setMode] = useState<'column' | 'participant'>('column')
@@ -73,32 +70,6 @@ export const TagCell = (props: TagCellProps) => {
 
   return (
     <>
-      <CreateTagModal 
-        onSubmit={(tag) => (
-          setTags((prev) => {
-            const temp = [...prev]
-            if(!temp.some((pTag) => tag.id === pTag.id)) {
-              temp.push(tag)
-              return temp
-            }
-            return temp.map((pTag) => {
-              if(pTag.id === tag.id) {
-                return tag
-              }
-              return pTag
-            })
-          }
-          )
-        )}
-        existingTag={selectedTag}
-        open={createTagVisible} 
-        onClose={() => setCreateTagVisible(false)}
-        //TODO: fix me please
-        timeslots={[]}
-        collections={[]}
-        parentUpdateActiveDate={() => {}}
-
-      />
       <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
         <input
           placeholder={foundParticipant ? 'Pick Tags...' : 'Pick Source...'}
@@ -150,11 +121,6 @@ export const TagCell = (props: TagCellProps) => {
                 onChange={(event) => setSearch(event.target.value)}
                 value={search}
               />
-              <button
-                onClick={() => setCreateTagVisible(true)}
-              >
-                <HiOutlinePlusCircle size={16} className="text-gray-400 hover:text-gray-800" />
-              </button>
             </div>
             
             <div className="max-h-60 overflow-y-auto py-1 min-w-max">
@@ -172,7 +138,7 @@ export const TagCell = (props: TagCellProps) => {
                 .map((tag, index) => {
                   return (
                     <div 
-                      className="flex flex-row justify-between items-center pe-2" 
+                      className="flex flex-row justify-start items-center pe-2" 
                       key={index}
                     >
                       <button 
@@ -221,14 +187,6 @@ export const TagCell = (props: TagCellProps) => {
                           checked={foundParticipant.userTags.some((participantTag) => participantTag.id === tag.id)}
                         />
                         <span className={`text-${tag.color ?? 'black'} text-ellipsis`}>{tag.name}</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedTag(tag)
-                          setCreateTagVisible(true)
-                        }}
-                      >
-                        <HiOutlinePencil size={16} className="text-gray-400 hover:text-gray-800"/>
                       </button>
                     </div>
                   )

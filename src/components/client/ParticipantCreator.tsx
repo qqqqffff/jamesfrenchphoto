@@ -65,7 +65,8 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                         color: tagResponse.data.color ?? undefined,
                         notifications: undefined,
                         //TODO: implement children
-                        children: []
+                        children: [],
+                        participants: []
                     }
                     return userTag
                 }

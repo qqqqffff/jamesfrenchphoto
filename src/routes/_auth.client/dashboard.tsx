@@ -32,7 +32,7 @@ function RouteComponent() {
     ) : (
       tags.data ?? [])
     ).map((tag) => {
-      return getAllTimeslotsByUserTagQueryOptions(tag)
+      return getAllTimeslotsByUserTagQueryOptions(tag.id)
     })
   })
 

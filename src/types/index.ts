@@ -164,6 +164,9 @@ export type UserTag = {
     package?: Package,
     notifications?: Notification[],
     children: UserTag[],
+    temporary?: boolean,
+    participants: Participant[],
+    createdAt: string,
 }
 
 export type Package = {
@@ -194,6 +197,7 @@ export type PackageItem = {
     dependent?: string,
     statements?: string[]
     unique?: boolean
+    createdAt: string,
 }
 
 export type PackageDiscount = {
