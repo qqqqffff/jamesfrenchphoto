@@ -210,14 +210,19 @@ export type PackageDiscount = {
 export interface TableGroup {
     id: string,
     name: string,
-    tables: Table[]
+    tables: Table[],
+    temporary?: boolean,
+    editting?: boolean,
+    createdAt: string,
 }
 
 export interface Table {
     id: string,
     name: string,
     columns: TableColumn[],
-    tableGroupId: string
+    tableGroupId: string,
+    temporary?: boolean,
+    createdAt: string,
 }
 
 export interface TableColumn {

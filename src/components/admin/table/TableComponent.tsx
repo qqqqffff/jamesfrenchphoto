@@ -46,7 +46,7 @@ interface TableComponentProps {
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
   parentDeleteColumns: Dispatch<SetStateAction<TableColumn[]>>
   userData: UseQueryResult<UserData[] | undefined, Error>
-  tagData: UseQueryResult<UserTag[], Error>
+  tagData: UseQueryResult<UserTag[] | undefined, Error>
 }
 
 export const TableComponent = (props: TableComponentProps) => {

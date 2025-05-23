@@ -73,16 +73,6 @@ export const UserCell = (props: UserCellProps) => {
   const displayNoResults = foundUser === undefined && props.value !== value && !validator.isEmail(value) && filteredItems && filteredItems.length === 0 && isFocused
   const displayInvite = foundUser === undefined && props.value === value && isFocused && validator.isEmail(props.value) && isFocused
   const displaySearchResults = isFocused && ((props.value !== value || foundUser === undefined) && !validator.isEmail(value)) && filteredItems && filteredItems.length > 0
-  const duplicateEmails = foundUser !== undefined && foundUser === 'participant' && 
-    !Object.entries(participants)
-      .filter((participant) => participant[0] !== props.value)
-      .reduce((prev, cur) => {
-        if(!prev) return prev
-        if(cur[1].email === participants[props.value].email) {
-          return false
-        }
-        return prev
-      }, true)
 
   function userPanel(type: 'user' | 'participant' | 'tempUser', value: string): JSX.Element | undefined {
     let profile: UserData | undefined
@@ -217,9 +207,7 @@ export const UserCell = (props: UserCellProps) => {
           setValue(event.target.value)
         }}
         value={foundUser === 'participant' ? (
-          !participants[value]?.email || duplicateEmails ? (
-            `${participants[value].firstName}, ${participants[value].lastName}`
-          ) : participants[value].email
+          `${participants[value]?.firstName}, ${participants[value]?.lastName}`
         ) : value}
         onKeyDown={async (event) => {
           if(inputRef.current){
@@ -295,7 +283,7 @@ export const UserCell = (props: UserCellProps) => {
                     }}
                   >
                     {item[1] === 'participant' ? (
-                      duplicateEmails || !participant?.email ? `${participants[item[0]].firstName}, ${participants[item[0]].lastName}` : participant.email 
+                      `${participants[item[0]].firstName}, ${participants[item[0]].lastName}`
                     ) : (
                       item[0]
                     )}

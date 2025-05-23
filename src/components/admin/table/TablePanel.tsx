@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useState } from "react"
-import { Table, TableColumn, TableGroup } from "../../../types"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { Table, TableColumn, TableGroup, UserData, UserTag } from "../../../types"
+import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { deleteTableMutation, DeleteTableParams, getTableQueryOptions, updateTableMutation, UpdateTableParams } from "../../../services/tableService"
 import { EditableTextField } from "../../common/EditableTextField"
 import { textInputTheme } from "../../../utils"
@@ -8,13 +8,14 @@ import { Dropdown, TextInput } from "flowbite-react"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
 import { TableComponent } from "./TableComponent"
 import Loading from "../../common/Loading"
-import { getAllUserTagsQueryOptions, getAuthUsersQueryOptions } from "../../../services/userService"
 
 interface TablePanelProps {
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   selectedTable: Table
   parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>>
+  tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
+  usersQuery: UseQueryResult<UserData[] | undefined, Error>
 }
 
 //TODO: fix row deletion
@@ -24,9 +25,7 @@ export const TablePanel = (props: TablePanelProps) => {
 
   const table = useQuery(getTableQueryOptions(props.selectedTable.id, { siUserTags: true, logging: true }))
 
-  const userData = useQuery(getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
-
-  const tagData = useQuery(getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: true }))
+  
 
   const updateTable = useMutation({
       mutationFn: (params: UpdateTableParams) => updateTableMutation(params)
@@ -166,8 +165,8 @@ export const TablePanel = (props: TablePanelProps) => {
                   parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
                   parentUpdateTableGroups={props.parentUpdateTableGroups}
                   parentDeleteColumns={setDeletedColumns}
-                  userData={userData}
-                  tagData={tagData}
+                  userData={props.usersQuery}
+                  tagData={props.tagsQuery}
                 />
               </>
             ) : (
