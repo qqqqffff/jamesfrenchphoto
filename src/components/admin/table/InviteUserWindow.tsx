@@ -47,13 +47,22 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
             `}
             placeholder="Sitting Number..."
             onChange={(event) => {
-              const inputValue = event.target.value;
-              if (inputValue === "" || /^[0-9]+$/.test(inputValue)) {
-                const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'sitting')
+              const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
 
-                setSelectedColumns(temp)
-                setSittingNumber(inputValue);
+              if(!/^\d*$/g.test(input)) {
+                return
               }
+
+              const numValue = parseInt(input)
+              
+              if(numValue <= -1) {
+                return
+              }
+
+              const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'sitting')
+
+              setSelectedColumns(temp)
+              setSittingNumber(String(numValue));
             }}
             value={sittingNumber}
           />
@@ -516,6 +525,11 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
               <div className="flex flex-row gap-2 items-center text-nowrap">
                 <span>Tags:</span>
                 <TagPicker 
+                  allowMultiple
+                  className='
+                    font-thin p-0 text-xs border-transparent ring-transparent w-full border-b-gray-400 
+                    border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
+                  '
                   tags={props.tagsQuery.data ?? []}
                   parentPickTag={(tag) => {
                     const selectedTag = participant.userTags.some((pTag) => pTag.id === tag.id)
@@ -610,6 +624,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
       <button 
         onClick={() => {
           inviteUser.mutate({
+            sittingNumber: parseInt(sittingNumber),
             email: props.email,
             firstName: firstName,
             lastName: lastName,
@@ -625,7 +640,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
             firstName: firstName,
             lastName: lastName,
             participant: participants,
-            sittingNumber: /^-?\d+(\.\d+)?$/.test(sittingNumber) ? Number.parseInt(sittingNumber) : 0,
+            sittingNumber: /^\d*$/g.test(sittingNumber) && !isNaN(parseInt(sittingNumber)) ? parseInt(sittingNumber) : 0,
             userTags: [],
             preferredContact: 'EMAIL'
           })

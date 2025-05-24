@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
-import { ColumnColor, Participant, Table, TableColumn, TableGroup, UserData, UserTag } from "../../../types"
+import { ColumnColor, Participant, Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from "../../../types"
 import { 
   HiOutlineCalendar, 
   HiOutlineDocumentText, 
@@ -47,10 +47,12 @@ interface TableComponentProps {
   parentDeleteColumns: Dispatch<SetStateAction<TableColumn[]>>
   userData: UseQueryResult<UserData[] | undefined, Error>
   tagData: UseQueryResult<UserTag[] | undefined, Error>
+  tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
 }
 
 export const TableComponent = (props: TableComponentProps) => {
   const [deleteColumnConfirmation, setDeleteColumnConfirmation] = useState(false)
+  const [tempUsers, setTempUsers] = useState<UserProfile[]>([])
 
   const columnType = useRef<'value' | 'user' | 'date' | 'choice' | 'tag' | 'file' | null>(null)
   const refColumn = useRef<TableColumn | null>()
@@ -238,6 +240,12 @@ export const TableComponent = (props: TableComponentProps) => {
       }
     }
   }, [props.table])
+
+  useEffect(() => {
+    if(props.tempUsersData.data && props.tempUsersData.data.length > 0) {
+      setTempUsers(props.tempUsersData.data)
+    }
+  }, [props.tempUsersData.data])
 
   const pushColumn = (type: 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file') => {
     const temp: TableColumn = {
@@ -764,6 +772,9 @@ export const TableComponent = (props: TableComponentProps) => {
                               rowIndex={i}
                               columnId={id}
                               tagsData={props.tagData}
+                              tempUsers={tempUsers}
+                              parentUpdateTempUsers={setTempUsers}
+                              tempUsersQuery={props.tempUsersData}
                             />
                           )
                         }

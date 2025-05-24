@@ -157,7 +157,9 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
               <Loading />
             </span>
           ) : (
-            props.tableGroups.map((group, index) => {
+            props.tableGroups
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .map((group, index) => {
               const selected = props.selectedTableGroups.some((selectedGroup) => group.id === selectedGroup.id)
               if(group.temporary || group.editting){
                 return (
@@ -361,7 +363,9 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                   </div>
                   {selected && !group.editting && (
                     <ol className="ps-10">
-                      {group.tables.map((table, index) => {
+                      {group.tables
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .map((table, index) => {
                         const tableSelected = table.id === props.selectedTable?.id
                         if(table.temporary) {
                           return (

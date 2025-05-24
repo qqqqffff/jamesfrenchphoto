@@ -224,13 +224,16 @@ interface GetUserProfileByEmailOptions {
     siTimeslot?: boolean,
     siCollections?: boolean,
     siSets?: boolean,
+    siTemporaryToken?: boolean,
     siNotifications?: boolean
     unauthenticated?: boolean
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
     if(!profileResponse || !profileResponse.data) return
+    const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate()).data?.id : undefined
     const participantResponse = await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    console.log(participantResponse)
 
     const notificationMemo: Notification[] = []
     const collectionsMemo: PhotoCollection[] = []
@@ -352,7 +355,8 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
         participantContact: undefined,
         participantEmail: undefined,
         firstName: profileResponse.data.firstName ?? undefined,
-        lastName: profileResponse.data.lastName ?? undefined
+        lastName: profileResponse.data.lastName ?? undefined,
+        temporary: temporaryToken
     }
 
     return userProfile
@@ -439,12 +443,13 @@ interface GetTemporaryUserOptions {
 }
 async function getTemporaryUser(client: V6Client<Schema>, id?: string, options?: GetTemporaryUserOptions): Promise<UserProfile | undefined> {
     if(id) {
-        const tokenResponse = await client.models.TemporaryCreateUsersTokens.get({ id: id })
+        const tokenResponse = await client.models.TemporaryCreateUsersTokens.get({ id: id }, { authMode: 'identityPool' })
 
         if(options?.logging) console.log(tokenResponse)
         if(!tokenResponse.data) return
 
         const mappedResponse = await getUserProfileByEmail(client, tokenResponse.data.userEmail, { siTags: true, unauthenticated: true })
+        if(options?.logging) console.log(mappedResponse)
 
         return mappedResponse
     }
@@ -1049,6 +1054,7 @@ export async function createTempUserProfileMutation(params: CreateTempUserProfil
 }
 
 export interface InviteUserParams {
+    sittingNumber: number
     email: string,
     firstName: string,
     lastName: string,
@@ -1059,7 +1065,10 @@ export interface InviteUserParams {
     }
 }
 export async function inviteUserMutation(params: InviteUserParams) {
-    const participantResponses = await Promise.all(params.participants.map(async (participant) => {
+    const participantResponses: [
+        Schema['Participant']['type'] | null, 
+        (Schema['ParticipantUserTag']['type'] | null)[]
+    ][] = await Promise.all(params.participants.map(async (participant) => {
         const response = await client.models.Participant.create({
             userEmail: params.email,
             firstName: participant.firstName,
@@ -1068,18 +1077,27 @@ export async function inviteUserMutation(params: InviteUserParams) {
             lastName: participant.lastName,
             email: participant.email
         })
-        return response
+        return [
+            response.data,
+            (await Promise.all(participant.userTags.map((tag) => (
+                client.models.ParticipantUserTag.create({
+                    participantId: participant.id,
+                    tagId: tag.id
+                })
+            )))).map((response) => response.data)
+        ]
     }))
 
     if(params.options?.logging) console.log(participantResponses)
 
 
     const userResponse = await client.models.UserProfile.create({
+        sittingNumber: params.sittingNumber,
         email: params.email,
         firstName: params.firstName,
         lastName: params.lastName,
         activeParticipant: participantResponses.length > 0 ? 
-            participantResponses[Math.floor(Math.random() * participantResponses.length)].data?.id : undefined
+            participantResponses[Math.floor(Math.random() * participantResponses.length)][0]?.id : undefined
     })
 
     if(params.options?.logging) console.log(userResponse)
@@ -1100,6 +1118,56 @@ export async function inviteUserMutation(params: InviteUserParams) {
     })
 
     if(params.options?.logging) console.log(shareResponse)
+}
+
+export interface RevokeUserInviteMutationParams {
+    userEmail: string,
+    options?: {
+        logging?: boolean,
+        metric?: boolean
+    }
+}
+export async function revokeUserInviteMutation(params: RevokeUserInviteMutationParams) {
+    const start = new Date()
+    const profile = await getUserProfileByEmail(client, params.userEmail, {
+        siCollections: false, // check if individual collections / notifications are needed too 
+        siNotifications: false,
+        siSets: false,
+        siTags: true, //tags needed
+        siTimeslot: false, //not possible to register for a timeslot if user is temporary
+        siTemporaryToken: true
+    })
+
+    if(params.options?.logging) console.log(profile)
+
+    if(!profile || !profile.temporary) return
+
+    const deleteProfileResponse = await client.models.UserProfile.delete({
+        email: params.userEmail
+    })
+
+    if(params.options?.logging) console.log(deleteProfileResponse)
+
+    const deleteParticipantsResponse = await Promise.all(profile.participant.map(async (participant) => {
+        const deleteParticipantResponse = await client.models.Participant.delete({ id: participant.id })
+
+        const deleteTagsResponse = await Promise.all((await client.models.ParticipantUserTag
+            .listParticipantUserTagByParticipantId({ participantId: participant.id })).data.map((connection) => (
+                client.models.ParticipantUserTag.delete({ id: connection.id })
+            ))
+        )
+
+        return [
+            deleteParticipantResponse,
+            deleteTagsResponse
+        ]
+    }))
+
+    if(params.options?.logging) console.log(deleteParticipantsResponse)
+
+    const deleteTemporaryToken = await client.models.TemporaryCreateUsersTokens.delete({ id: profile.temporary })
+    if(params.options?.logging) console.log(deleteTemporaryToken)
+    if(params.options?.metric) console.log(`REVOKEUSERINVITE:${new Date().getTime() - start.getTime()}ms`)
 }
 
 export interface CreateTagParams {

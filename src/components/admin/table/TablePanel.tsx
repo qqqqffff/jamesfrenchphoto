@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useState } from "react"
-import { Table, TableColumn, TableGroup, UserData, UserTag } from "../../../types"
+import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from "../../../types"
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { deleteTableMutation, DeleteTableParams, getTableQueryOptions, updateTableMutation, UpdateTableParams } from "../../../services/tableService"
 import { EditableTextField } from "../../common/EditableTextField"
@@ -16,6 +16,7 @@ interface TablePanelProps {
   parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>>
   tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
   usersQuery: UseQueryResult<UserData[] | undefined, Error>
+  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>
 }
 
 //TODO: fix row deletion
@@ -24,8 +25,6 @@ export const TablePanel = (props: TablePanelProps) => {
   const [deletedColumns, setDeletedColumns] = useState<TableColumn[]>([])
 
   const table = useQuery(getTableQueryOptions(props.selectedTable.id, { siUserTags: true, logging: true }))
-
-  
 
   const updateTable = useMutation({
       mutationFn: (params: UpdateTableParams) => updateTableMutation(params)
@@ -167,6 +166,7 @@ export const TablePanel = (props: TablePanelProps) => {
                   parentDeleteColumns={setDeletedColumns}
                   userData={props.usersQuery}
                   tagData={props.tagsQuery}
+                  tempUsersData={props.tempUsersQuery}
                 />
               </>
             ) : (

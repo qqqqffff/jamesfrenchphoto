@@ -38,7 +38,8 @@ export interface UserProfile {
     participant: Participant[],
     activeParticipant?: Participant,
     firstName?: string,
-    lastName?: string
+    lastName?: string,
+    temporary?: string
 }
 
 export interface Participant {

@@ -5,7 +5,7 @@ import { Table, TableGroup } from '../../../types'
 import { TableSidePanel } from '../../../components/admin/table/TableSidePanel'
 import { TablePanel } from '../../../components/admin/table/TablePanel'
 import { useQuery } from '@tanstack/react-query'
-import { getAuthUsersQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
+import { getAuthUsersQueryOptions, getAllUserTagsQueryOptions, getAllTemporaryUsersQueryOptions } from '../../../services/userService'
 
 interface ManagementTablesSearchParams {
   table?: string,
@@ -37,6 +37,8 @@ function RouteComponent() {
   const usersQuery = useQuery(getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
   
   const tagsQuery = useQuery(getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: true }))
+
+  const tempUsersQuery = useQuery(getAllTemporaryUsersQueryOptions())
 
   useEffect(() => {
     if(tableGroupsQuery.data && tableGroupsQuery.data.length > 0) {
@@ -70,6 +72,7 @@ function RouteComponent() {
             selectedTable={selectedTable}
             tagsQuery={tagsQuery}
             usersQuery={usersQuery}
+            tempUsersQuery={tempUsersQuery}
           />
         ) : (
           <div className="flex flex-col w-full items-center border border-gray-400 gap-2 rounded-2xl p-4">

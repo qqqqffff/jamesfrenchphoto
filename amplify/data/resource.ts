@@ -299,7 +299,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('userEmail')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update', 'list']), allow.guest().to(['create'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update', 'list']), allow.guest().to(['create', 'get', 'list'])]),
   ParticipantUserTag: a.
     model({
       id: a.id().required(),
@@ -310,7 +310,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId'), index('participantId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list']), allow.guest().to(['create', 'list', 'get'])]),
   ParticipantCollections: a.
     model({
       id: a.id().required(),

@@ -9,6 +9,8 @@ interface TagPickerProps {
   parentPickTag: (tag: UserTag) => void
   pickedTag?: UserTag[],
   placeholder?: string
+  className?: string,
+  allowMultiple?: boolean
 }
 
 export const TagPicker = (props: TagPickerProps) => {
@@ -18,18 +20,29 @@ export const TagPicker = (props: TagPickerProps) => {
   return (
     <>
       <div className="relative">
-        <TextInput
-          theme={textInputTheme}
-          placeholder={props.placeholder ?? 'Pick User Tag...'}
-          className={`
-            max-w-[400px] min-w-[400px] placeholder:italic 
-            text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color}
-          `}
-          value={!props.pickedTag || props.pickedTag.length === 0 ? '' : 
-            props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
-          onFocus={() => setFocused(true)}
-          readOnly
-        />
+        {props.className ? (
+          <input 
+            placeholder={props.placeholder ?? 'Pick User Tag...'}
+            className={props.className + ` text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color}`}
+            value={!props.pickedTag || props.pickedTag.length === 0 ? '' : 
+              props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
+            onFocus={() => setFocused(true)}
+            readOnly
+          />
+        ) : (
+          <TextInput
+            theme={textInputTheme}
+            placeholder={props.placeholder ?? 'Pick User Tag...'}
+            className={`
+              max-w-[400px] min-w-[400px] placeholder:italic
+            `}
+            color={!props.pickedTag || props.pickedTag.length === 0 ? 'gray' : props.pickedTag[0].color}
+            value={!props.pickedTag || props.pickedTag.length === 0 ? '' : 
+              props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
+            onFocus={() => setFocused(true)}
+            readOnly
+          />
+        )}
         {focused && (
           <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
             <div className="w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between">
@@ -67,11 +80,13 @@ export const TagPicker = (props: TagPickerProps) => {
                             props.parentPickTag(tag)
                           }}
                         >
-                          <Checkbox 
-                            readOnly
-                            checked={selected}
-                            onClick={() => props.parentPickTag(tag)}
-                          />
+                          {props.allowMultiple && (
+                            <Checkbox 
+                              readOnly
+                              checked={selected}
+                              onClick={() => props.parentPickTag(tag)}
+                            />
+                            )}
                           <span className={`text-${tag.color ?? 'black'} truncate max-w-[500px]`}>{tag.name}</span>
                         </button>
                       </div>

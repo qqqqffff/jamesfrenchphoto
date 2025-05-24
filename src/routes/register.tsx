@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { generateClient } from "aws-amplify/api"
 import { confirmSignUp, resendSignUpCode, signUp } from "aws-amplify/auth"
 import { Alert, Badge, Button, Checkbox, Label, Modal, TextInput } from "flowbite-react"
 import { FormEvent, useRef, useState } from "react"
@@ -7,8 +6,7 @@ import { HiOutlineCheckCircle, HiOutlineExclamationCircle } from "react-icons/hi
 import validator from 'validator'
 import { v4 } from 'uuid'
 import { useNavigate } from "@tanstack/react-router"
-import { Schema } from '../../amplify/data/resource'
-import { Participant, UserTag } from '../types'
+import { Participant } from '../types'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { TermsAndConditionsModal } from '../components/modals'
 import { textInputTheme } from '../utils'
@@ -22,59 +20,21 @@ interface RegisterParams {
 export const Route = createFileRoute('/register')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): RegisterParams => ({
-    token: (search.tags as string)
+    token: (search.token as string)
   }),
   beforeLoad: ({ search }) => {
     return search
   },
   loader: async ({ context }) => {
-    const profile = await context.queryClient.ensureQueryData(getTemporaryUserQueryOptions(context.token))
+    const profile = await context.queryClient.ensureQueryData(
+        getTemporaryUserQueryOptions(context.token, { logging: true })
+    )
 
     return profile
   }
 })
 
-const client = generateClient<Schema>()
 
-interface SignUpFormElements extends HTMLFormControlsCollection {
-    participantEmail: HTMLInputElement
-    email: HTMLInputElement
-    password: HTMLInputElement
-    confirmPassword: HTMLInputElement
-    firstName: HTMLInputElement
-    lastName: HTMLInputElement
-    participantFirstName: HTMLInputElement
-    participantLastName: HTMLInputElement
-    participantMiddleName: HTMLInputElement
-    participantPreferredName: HTMLInputElement
-    phoneNumber: HTMLInputElement
-}
-
-interface AuthFormElements extends HTMLFormControlsCollection {
-    authCode: HTMLInputElement
-}
-
-interface SignUpForm extends HTMLFormElement{
-    readonly elements: SignUpFormElements
-}
-
-interface AuthCodeForm extends HTMLFormElement{
-    readonly elements: AuthFormElements
-}
-
-export type SignupAvailableTag = {
-    tag: UserTag, 
-    selected: {participantId?: string, selected: boolean}
-}
-
-interface SignupFormError {
-    id: string
-    message: string
-}
-
-interface SignupParticipant extends Participant {
-    sameDetails: boolean
-}
 
 export function RouteComponent(){
     const [openModal, setOpenModal] = useState(false);
@@ -83,16 +43,6 @@ export function RouteComponent(){
     const [termsAndConditions, setTermsAndConditions] = useState(false)
 
     const profile = Route.useLoaderData()
-
-    const [password, setPassword] = useState<string>()
-    const [confirmPassword, setConfirmPassword] = useState<string>()
-
-    const [passwordNumber, setPasswordNumber] = useState(false)
-    const [passwordSpecialCharacter, setPasswordSpecialCharacter] = useState(false)
-    const [passwordMinCharacters, setPasswordMinCharacters] = useState(false)
-    const [passwordUpperCharacter, setPasswordUpperCharacter] = useState(false)
-    const [passwordLowerCharacter, setPasswordLowerCharacter] = useState(false)
-    const [passwordMatch, setPasswordMatch] = useState(false)
     
     const [userFirstName, setUserFirstName] = useState<string | undefined>(profile?.firstName)
     const userFirstNameRef = useRef<HTMLInputElement>(null)
@@ -157,24 +107,25 @@ export function RouteComponent(){
         try {
 
             //creating the main user
-            const profileCreateResponse = await client.models.UserProfile.create({
-                sittingNumber: Number.parseInt(sittingNumber),
-                email: userEmail,
-                participantEmail: participantEmail!,
-                // userTags: responseTags, TODO: deprecate me, i believe no more dependencies
-                participantFirstName: participantFirstName!,
-                participantLastName: participantLastName!,
-                participantMiddleName: form.elements.participantMiddleName.value ? form.elements.participantMiddleName.value : undefined,
-                participantPreferredName: form.elements.participantPreferredName.value ? form.elements.participantPreferredName.value : undefined,
-                preferredContact: preferredContact ? 'PHONE' : 'EMAIL',
-                participantContact: participantContact,
-            },
-            { authMode: 'iam' }
-            )
+            //TODO: move me to a query
+            // const profileCreateResponse = await client.models.UserProfile.create({
+            //     sittingNumber: Number.parseInt(sittingNumber),
+            //     email: userEmail,
+            //     participantEmail: participantEmail!,
+            //     // userTags: responseTags, TODO: deprecate me, i believe no more dependencies
+            //     participantFirstName: participantFirstName!,
+            //     participantLastName: participantLastName!,
+            //     participantMiddleName: form.elements.participantMiddleName.value ? form.elements.participantMiddleName.value : undefined,
+            //     participantPreferredName: form.elements.participantPreferredName.value ? form.elements.participantPreferredName.value : undefined,
+            //     preferredContact: preferredContact ? 'PHONE' : 'EMAIL',
+            //     participantContact: participantContact,
+            // },
+            // { authMode: 'iam' }
+            // )
 
-            if(profileCreateResponse.errors && profileCreateResponse.errors.length > 0) {
-                throw new Error(JSON.stringify(profileCreateResponse.errors))
-            }
+            // if(profileCreateResponse.errors && profileCreateResponse.errors.length > 0) {
+            //     throw new Error(JSON.stringify(profileCreateResponse.errors))
+            // }
             
             //creating participants
             const tempParticipants = participants
@@ -277,15 +228,19 @@ export function RouteComponent(){
             userLastName === undefined || 
             userEmail === undefined || ((
             participantFirstName === undefined ||
-            participantLastName === undefined ) && participants.length <= 0)) ||
-            !(passwordMatch &&
+            participantLastName === undefined ) && participants.length <= 0)
+        ) ||
+        !(
+            passwordMatch &&
             passwordNumber &&
             passwordSpecialCharacter &&
             passwordUpperCharacter &&
             passwordLowerCharacter && 
             passwordMinCharacters &&
-            termsAndConditions) ||
-            window.localStorage.getItem('user') !== null
+            termsAndConditions
+        ) ||
+        window.localStorage.getItem('user') !== null ||
+        window.localStorage.getItem('jfp.auth.user') !== null
     }
 
 
@@ -314,75 +269,7 @@ export function RouteComponent(){
         return total
     }
 
-    function validateForm(){
-        let errors: SignupFormError[] = []
-        let formErrors: string[] = []
-        if(userFirstName && userFirstNameRef.current){
-            if(userFirstName.length <= 0){
-                errors.push({
-                    id: userFirstNameRef.current.id,
-                    message: 'Your First Name is Required'
-                })
-            }
-        }
-        if(userFirstName && userFirstNameRef.current){
-            if(userFirstName.length <= 0){
-                errors.push({
-                    id: userFirstNameRef.current.id,
-                    message: 'Your First Name is Required'
-                })
-            }
-        }
-        if(userPhoneNumber && userPhoneNumberRef.current){
-            if(!validator.isMobilePhone(`+1${userPhoneNumber.replace(/\D/g, '')}`, 'en-US')){
-                errors.push({
-                    id: userPhoneNumberRef.current.id,
-                    message: 'Invalid Phone Number'
-                })
-            }
-        }
-        if(userEmail && userEmailRef.current){
-            if(userEmail.length <= 0){
-                errors.push({
-                    id: userEmailRef.current.id,
-                    message: 'Email is Required'
-                })
-            }
-            if(!validator.isEmail(userEmail)){
-                errors.push({
-                    id: userEmailRef.current.id,
-                    message: 'Invalid Email Address'
-                })
-            }
-        }
-        if(participantFirstNameRef.current && participantLastNameRef.current){
-            if(participants.length > 0){
-                let encounteredError = false
-                participants.forEach((participant) => {
-                    if(participant.email && !validator.isEmail(participant.email)){
-                        encounteredError = true
-                        formErrors.push(`${participant.preferredName ? participant.preferredName : participant.firstName} ${participant.lastName} has an invalid email`)
-                    }
-                })
-                if(encounteredError){
-                    errors.push({id: participantFirstNameRef.current.id, message: 'Missing'})
-                    errors.push({id: participantLastNameRef.current.id, message: 'Missing'})
-                }
-            }
-            else if(activeParticipant === undefined && (participantFirstName === undefined || participantLastName === undefined)){
-                formErrors.push('At least one participant must be submitted or filled out')
-                errors.push({id: participantFirstNameRef.current.id, message: 'Missing'})
-                errors.push({id: participantLastNameRef.current.id, message: 'Missing'})
-            }
-        }
-
-        if(errors.length > 0 || formErrors.length > 0) {
-            setInnerFormErrors(errors)
-            setFormErrors(formErrors)
-            return false
-        }
-        return true
-    }
+    
 
     return (
         <>
@@ -397,33 +284,7 @@ export function RouteComponent(){
                     )
                 }) : (<></>)}
             </div>
-            <Modal show={openModal} onClose={() => setOpenModal(false)}>
-                <Modal.Header>Verification Code</Modal.Header>
-                <Modal.Body className="flex flex-col gap-3 font-main">
-                    <form onSubmit={handleCodeSubmit}>
-                        <p>Please enter in the verification code sent to the user's email.</p>
-                        <p><b>Do not close this window until account has been confirmed.</b></p>
-                        <div className="flex items-center gap-4 mt-4">
-                            <Label className="font-medium text-lg" htmlFor="authCode">Verification Code:</Label>
-                            <TextInput color={invalidCode ? 'failure' : undefined} className='' sizing='md' placeholder="Verification Code" type="number" id="authCode" name="authCode" onChange={() => {
-                                setInvalidCode(false)
-                            }} helperText={ invalidCode ? (
-                                <div className="-mt-2 mb-4 ms-2 text-sm">
-                                    <span>Invalid Code</span>
-                                </div>) : (<></>)}/>
-                        </div>
-                        <div className="flex flex-row justify-end gap-4 mt-4">
-                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6" onClick={() => {
-                                resendSignUpCode({
-                                    username: userEmail!
-                                })
-                            }}>Resend</Button>
-                            <Button className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" onClick={() => setCodeSubmitting(true)} isProcessing={codeSubmitting}>Submit</Button>
-                        </div>
-                    </form>
-                </Modal.Body>
-            </Modal>
-            <TermsAndConditionsModal open={termsAndConditionsVisible} onClose={() => setTermsAndConditionsVisible(false)} />
+            
             <form className={`flex flex-col items-center justify-center font-main my-12 w-full ${width > 500 ? 'px-4' : 'px-0'}`} onSubmit={handleSubmit}>
                 <div className={`flex flex-col items-center justify-center ${width > 800 ? 'w-[60%]' : 'w-full'} max-w-[48rem] border-2 px-4 py-4 border-gray-500`}>
                     <p className="font-bold text-4xl mb-8 text-center">Create an account</p>
