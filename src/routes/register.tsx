@@ -12,6 +12,7 @@ import { TermsAndConditionsModal } from '../components/modals'
 import { textInputTheme } from '../utils'
 import { createParticipantMutation, getTemporaryUserQueryOptions, CreateParticipantParams } from '../services/userService'
 import { useMutation } from '@tanstack/react-query'
+import { RegisterForm } from '../components/register/RegisterForm';
 
 interface RegisterParams {
   token: string,
@@ -53,7 +54,6 @@ export function RouteComponent(){
     const [userPhoneNumber, setUserPhoneNumber] = useState<string>()
     const userPhoneNumberRef = useRef<HTMLInputElement>(null)
     
-    const [innerFormErrors, setInnerFormErrors] = useState<SignupFormError[]>([])
 
     const [participantEmail, setParticipantEmail] = useState<string | undefined>(profile?.activeParticipant?.email)
     const [participantFirstName, setParticipantFirstName] = useState<string | undefined>(profile?.activeParticipant?.firstName)
@@ -64,8 +64,6 @@ export function RouteComponent(){
     const [participantMiddleName, setParticipantMiddleName] = useState<string>()
     const [participantContact, setParticipantContact] = useState(false)
     const [participantSameDetails, setParticipantSameDetails] = useState(false)
-    const [participants, setParticipants] = useState<SignupParticipant[]>(profile?.participant.map((participant) => ({...participant, sameDetails: false})) ?? [])
-    const [activeParticipant, setActiveParticipant] = useState<SignupParticipant | undefined>(profile?.activeParticipant ? ({...profile.activeParticipant, sameDetails: false}) : undefined)
     const [participantSubmitting, setParticipantSubmitting] = useState(false)
 
     const [formErrors, setFormErrors] = useState<string[]>(() => {
@@ -86,162 +84,141 @@ export function RouteComponent(){
         mutationFn: (params: CreateParticipantParams) => createParticipantMutation(params)
     })
 
-    async function handleSubmit(event: FormEvent<SignUpForm>){
-        event.preventDefault()
-        const form = event.currentTarget;
+    // async function handleSubmit(event: FormEvent<SignUpForm>){
+    //     event.preventDefault()
+    //     const form = event.currentTarget;
 
-        if(validate()) {
-            setFormErrors(['Invalid form, fill out required fields!'])
-            setFormSubmitting(false)
-            return
-        }
+    //     if(validate()) {
+    //         setFormErrors(['Invalid form, fill out required fields!'])
+    //         setFormSubmitting(false)
+    //         return
+    //     }
 
-        if(!validateForm()) {
-            setFormSubmitting(false)
-            return
-        }
+    //     if(!validateForm()) {
+    //         setFormSubmitting(false)
+    //         return
+    //     }
 
-        const sittingNumber = (250_000 + (Math.random() * 99_998) + 1).toFixed(0)
-        const userEmail = form.elements.email.value
+    //     const sittingNumber = (250_000 + (Math.random() * 99_998) + 1).toFixed(0)
+    //     const userEmail = form.elements.email.value
 
-        try {
+    //     try {
 
-            //creating the main user
-            //TODO: move me to a query
-            // const profileCreateResponse = await client.models.UserProfile.create({
-            //     sittingNumber: Number.parseInt(sittingNumber),
-            //     email: userEmail,
-            //     participantEmail: participantEmail!,
-            //     // userTags: responseTags, TODO: deprecate me, i believe no more dependencies
-            //     participantFirstName: participantFirstName!,
-            //     participantLastName: participantLastName!,
-            //     participantMiddleName: form.elements.participantMiddleName.value ? form.elements.participantMiddleName.value : undefined,
-            //     participantPreferredName: form.elements.participantPreferredName.value ? form.elements.participantPreferredName.value : undefined,
-            //     preferredContact: preferredContact ? 'PHONE' : 'EMAIL',
-            //     participantContact: participantContact,
-            // },
-            // { authMode: 'iam' }
-            // )
+    //         //creating the main user
+    //         //TODO: move me to a query
+    //         // const profileCreateResponse = await client.models.UserProfile.create({
+    //         //     sittingNumber: Number.parseInt(sittingNumber),
+    //         //     email: userEmail,
+    //         //     participantEmail: participantEmail!,
+    //         //     // userTags: responseTags, TODO: deprecate me, i believe no more dependencies
+    //         //     participantFirstName: participantFirstName!,
+    //         //     participantLastName: participantLastName!,
+    //         //     participantMiddleName: form.elements.participantMiddleName.value ? form.elements.participantMiddleName.value : undefined,
+    //         //     participantPreferredName: form.elements.participantPreferredName.value ? form.elements.participantPreferredName.value : undefined,
+    //         //     preferredContact: preferredContact ? 'PHONE' : 'EMAIL',
+    //         //     participantContact: participantContact,
+    //         // },
+    //         // { authMode: 'iam' }
+    //         // )
 
-            // if(profileCreateResponse.errors && profileCreateResponse.errors.length > 0) {
-            //     throw new Error(JSON.stringify(profileCreateResponse.errors))
-            // }
+    //         // if(profileCreateResponse.errors && profileCreateResponse.errors.length > 0) {
+    //         //     throw new Error(JSON.stringify(profileCreateResponse.errors))
+    //         // }
             
-            //creating participants
-            const tempParticipants = participants
-            if(activeParticipant == undefined && (participantFirstName && participantLastName)){
-                const participant: SignupParticipant = {
-                    id: v4(),
-                    firstName: participantFirstName,
-                    lastName: participantLastName,
-                    email: participantEmail,
-                    preferredName: participantPreferredName,
-                    middleName: participantPreferredName,
-                    contact: participantContact,
-                    userTags: [],
-                    sameDetails: false,
-                    userEmail: userEmail,
-                    notifications: [],
-                    collections: []
-                }
-                tempParticipants.push(participant)
-            }
+    //         //creating participants
+    //         const tempParticipants = participants
+    //         if(activeParticipant == undefined && (participantFirstName && participantLastName)){
+    //             const participant: SignupParticipant = {
+    //                 id: v4(),
+    //                 firstName: participantFirstName,
+    //                 lastName: participantLastName,
+    //                 email: participantEmail,
+    //                 preferredName: participantPreferredName,
+    //                 middleName: participantPreferredName,
+    //                 contact: participantContact,
+    //                 userTags: [],
+    //                 sameDetails: false,
+    //                 userEmail: userEmail,
+    //                 notifications: [],
+    //                 collections: []
+    //             }
+    //             tempParticipants.push(participant)
+    //         }
 
-            await Promise.all(tempParticipants.map(async (participant) => {
-                await createParticipant.mutateAsync({
-                    participant: participant,
-                    authMode: 'identityPool'
-                })
-            }))
+    //         await Promise.all(tempParticipants.map(async (participant) => {
+    //             await createParticipant.mutateAsync({
+    //                 participant: participant,
+    //                 authMode: 'identityPool'
+    //             })
+    //         }))
 
-            const response = await signUp({
-                username: userEmail,
-                password: password!,
-                options: {
-                    userAttributes: {
-                        email: userEmail!,
-                        phone_number: userPhoneNumber ? `+1${userPhoneNumber.replace(/\D/g, '')}` : undefined,
-                        given_name: userFirstName,
-                        family_name: userLastName,
-                        'custom:verified': 'true'
-                    }
-                }
-            })
+    //         const response = await signUp({
+    //             username: userEmail,
+    //             password: password!,
+    //             options: {
+    //                 userAttributes: {
+    //                     email: userEmail!,
+    //                     phone_number: userPhoneNumber ? `+1${userPhoneNumber.replace(/\D/g, '')}` : undefined,
+    //                     given_name: userFirstName,
+    //                     family_name: userLastName,
+    //                     'custom:verified': 'true'
+    //                 }
+    //             }
+    //         })
 
-            if(response.nextStep.signUpStep !== 'DONE') {
-                setOpenModal(true);
-                setFormSubmitting(false);
-                setUserEmail(form.elements.email.value)
-            }
-            else{
-                setFormSubmitting(false)
-                navigate({ to: '/login', params: { createAccountSuccess: true }})
-            }
+    //         if(response.nextStep.signUpStep !== 'DONE') {
+    //             setOpenModal(true);
+    //             setFormSubmitting(false);
+    //             setUserEmail(form.elements.email.value)
+    //         }
+    //         else{
+    //             setFormSubmitting(false)
+    //             navigate({ to: '/login', params: { createAccountSuccess: true }})
+    //         }
 
-        } catch(err: any) {
-            const error = err as Error
-            let formattedErrors = [] as string[]
+    //     } catch(err: any) {
+    //         const error = err as Error
+    //         let formattedErrors = [] as string[]
 
-            try{
-                const errors = JSON.parse(error.message) as string[]
-                errors.forEach((error) => {
-                    if(error === 'DynamoDB:ConditionalCheckFailedException'){
-                        formattedErrors.push(`Account with participant's email already exists!`)
-                    }
-                    else{
-                        formattedErrors.push('Unexpected Error, please contact us about your issue!')
-                    }
-                })
-            }
-            catch (e) {
-                formattedErrors.push(error.message)
-            }
+    //         try{
+    //             const errors = JSON.parse(error.message) as string[]
+    //             errors.forEach((error) => {
+    //                 if(error === 'DynamoDB:ConditionalCheckFailedException'){
+    //                     formattedErrors.push(`Account with participant's email already exists!`)
+    //                 }
+    //                 else{
+    //                     formattedErrors.push('Unexpected Error, please contact us about your issue!')
+    //                 }
+    //             })
+    //         }
+    //         catch (e) {
+    //             formattedErrors.push(error.message)
+    //         }
             
-            setFormSubmitting(false)
-            setFormErrors(formattedErrors)
-        }
-    }
+    //         setFormSubmitting(false)
+    //         setFormErrors(formattedErrors)
+    //     }
+    // }
 
-    async function handleCodeSubmit(event: FormEvent<AuthCodeForm>){
-        event.preventDefault()
-        const form = event.currentTarget;
+    // async function handleCodeSubmit(event: FormEvent<AuthCodeForm>){
+    //     event.preventDefault()
+    //     const form = event.currentTarget;
 
-        try{
-            const response = await confirmSignUp({
-                username: userEmail!,
-                confirmationCode: form.elements.authCode.value,
-            })
+    //     try{
+    //         const response = await confirmSignUp({
+    //             username: userEmail!,
+    //             confirmationCode: form.elements.authCode.value,
+    //         })
 
-            if(response.isSignUpComplete){
-                navigate({ to: '/login', params: { createAccountSuccess: true }})
-            }
-        }catch(err){
-            //todo error handling
-            setInvalidCode(true)
-        }
-        setCodeSubmitting(false)
-    }
-
-    function validate(): boolean {
-        return (
-            userFirstName === undefined || 
-            userLastName === undefined || 
-            userEmail === undefined || ((
-            participantFirstName === undefined ||
-            participantLastName === undefined ) && participants.length <= 0)
-        ) ||
-        !(
-            passwordMatch &&
-            passwordNumber &&
-            passwordSpecialCharacter &&
-            passwordUpperCharacter &&
-            passwordLowerCharacter && 
-            passwordMinCharacters &&
-            termsAndConditions
-        ) ||
-        window.localStorage.getItem('user') !== null ||
-        window.localStorage.getItem('jfp.auth.user') !== null
-    }
+    //         if(response.isSignUpComplete){
+    //             navigate({ to: '/login', params: { createAccountSuccess: true }})
+    //         }
+    //     }catch(err){
+    //         //todo error handling
+    //         setInvalidCode(true)
+    //     }
+    //     setCodeSubmitting(false)
+    // }
 
 
     function calculateUserDetails(): number {
@@ -273,7 +250,15 @@ export function RouteComponent(){
 
     return (
         <>
-            <div className="mt-4">
+            <RegisterForm 
+                temporaryProfile={profile ? {
+                    ...profile,
+                    password: '',
+                    confirm: '',
+                    terms: false
+                } : undefined}
+            />
+            {/* <div className="mt-4">
                 {formErrors.length > 0 ? formErrors.map((error, index) => {
                     return (
                         <div key={index} className="flex justify-center items-center font-main mb-4">
@@ -285,9 +270,9 @@ export function RouteComponent(){
                 }) : (<></>)}
             </div>
             
-            <form className={`flex flex-col items-center justify-center font-main my-12 w-full ${width > 500 ? 'px-4' : 'px-0'}`} onSubmit={handleSubmit}>
-                <div className={`flex flex-col items-center justify-center ${width > 800 ? 'w-[60%]' : 'w-full'} max-w-[48rem] border-2 px-4 py-4 border-gray-500`}>
-                    <p className="font-bold text-4xl mb-8 text-center">Create an account</p>
+            <form className={``} onSubmit={handleSubmit}>
+                <div className=''>
+                    
                     <div className="flex flex-col gap-1 w-[80%] max-w-[40rem]">
                         <div className="text-xl flex flex-row items-center">
                             <span>User Details</span> {calculateUserDetails() === 3 ? 
@@ -531,50 +516,7 @@ export function RouteComponent(){
                         <div className="text-xl flex flex-row items-center">
                             <span>Create Password</span>
                         </div>
-                        <div className="flex flex-col gap-1">
-                            <Label className="ms-2 font-medium text-lg" htmlFor="password">Password<sup className="italic text-red-600">*</sup>:</Label>
-                            <TextInput theme={textInputTheme} sizing='lg' className="" placeholder="Password" type="password" id="password" name="password" 
-                                onChange={(event) => {
-                                    const password = event.target.value
-                                    
-                                    setPassword(password)
-                                    setPasswordMatch(password === confirmPassword)
-                                    setPasswordNumber(/\d/.test(password))
-                                    setPasswordSpecialCharacter(/[!@#$%^&*(),.?":{}|<>]/.test(password))
-                                    setPasswordUpperCharacter(/[A-Z]/.test(password))
-                                    setPasswordLowerCharacter(/[a-z]/.test(password))
-                                    setPasswordMinCharacters(password.length >= 8)
-                                }}
-                                helperText={
-                                    (<div className="-mt-2 mb-4 ms-2 text-sm">
-                                        <span>
-                                            Your password must 
-                                            <span className={`${passwordMatch ? 'text-green-500' : 'text-red-600'}`}> match</span> and include: a 
-                                            <span className={`${passwordNumber ? 'text-green-500' : 'text-red-600'}`}> number</span>, 
-                                            <span className={`${passwordSpecialCharacter ? 'text-green-500' : 'text-red-600'}`}> special character</span>, 
-                                            <span className={`${passwordUpperCharacter ? 'text-green-500' : 'text-red-600'}`}> upper</span> and 
-                                            <span className={`${passwordLowerCharacter ? 'text-green-500' : 'text-red-600'}`}> lower</span> case characters, and 
-                                            <span className={`${passwordMinCharacters ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>.</span>
-                                    </div>)
-                                }
-                            />
-                            <Label className="ms-2 font-medium text-lg" htmlFor="confirmPassword">Confirm Password<sup className="italic text-red-600">*</sup>:</Label>
-                            <TextInput theme={textInputTheme} sizing='lg'  placeholder="Password" type="password" id="confirmPassword" name="confirmPassword" 
-                                onChange={(event) => {
-                                    const confirmPassword = event.target.value
-
-                                    setConfirmPassword(confirmPassword)
-                                    setPasswordMatch(password === confirmPassword)
-                                }}/>
-                            <p className="italic text-sm"><sup className="italic text-red-600">*</sup> Indicates required fields.</p>
-                            <p className="italic text-sm"><sup className="text-gray-400">1</sup> US Phone numbers only, without country code. No special formatting needed.</p>
-                            <div className="flex flex-row text-left items-center gap-2">
-                                <button className="flex flex-row gap-2 text-left items-center" onClick={() => setTermsAndConditions(!termsAndConditions)} type="button">
-                                    <Checkbox className="mt-1" checked={termsAndConditions} readOnly />
-                                    <span>Agree to <span className="hover:underline underline-offset-2 hover:cursor-pointer text-blue-500 hover:text-blue-700" onClick={() => setTermsAndConditionsVisible(true)}>terms and conditions</span><sup className="italic text-red-600">*</sup></span>
-                                    
-                                </button>
-                            </div>
+                        
                             <button className="flex flex-row gap-2 text-left items-center mb-2" onClick={() => setPreferredContact(!preferredContact)} type="button">
                                 <Checkbox className="mt-1" checked={preferredContact} readOnly />
                                 <span>Prefer to be contacted by phone</span>
@@ -586,7 +528,7 @@ export function RouteComponent(){
                         </div>
                     </div>
                 </div>
-            </form>
+            </form> */}
         </>
     )
 }

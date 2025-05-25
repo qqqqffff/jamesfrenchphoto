@@ -11,6 +11,7 @@ import { Duration } from "luxon";
 import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
 import { getAllTimeslotsByUserTag } from "./timeslotService";
 import { getAllNotificationsFromUserTag } from "./notificationService";
+import { RegistrationProfile } from "../components/register/RegisterForm";
 
 const client = generateClient<Schema>()
 
@@ -873,6 +874,15 @@ async function getAllParticipantsByUserTag(client: V6Client<Schema>, tagId?: str
     }
     
     return participants
+}
+
+//TODO: implement me please :)
+export interface RegisterUserMutationParams {
+    userProfile: RegistrationProfile,
+    token?: string,
+}
+export async function registerUserMutation(params: RegisterUserMutationParams) {
+
 }
 
 export interface CreateAccessTokenMutationParams {
