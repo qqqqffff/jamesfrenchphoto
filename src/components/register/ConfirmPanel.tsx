@@ -1,5 +1,5 @@
 import { resendSignUpCode } from "aws-amplify/auth"
-import { Modal, Label, TextInput, Button, Checkbox } from "flowbite-react"
+import { Modal, Label, TextInput, Button, Checkbox, Tooltip } from "flowbite-react"
 import { TermsAndConditionsModal } from "../modals"
 import { Dispatch, SetStateAction, useState } from "react"
 import { textInputTheme } from "../../utils"
@@ -68,10 +68,15 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
       <TermsAndConditionsModal open={termsAndConditionsVisible} onClose={() => setTermsAndConditionsVisible(false)} />
       <div className="flex flex-col gap-1">
         <Label 
-          className="ms-2 font-medium text-lg"
+          className="ms-2 font-normal text-lg flex flex-row"
         >
           <span>Password</span>
-          <sup className="italic text-red-600">*</sup>
+          <Tooltip
+            content={(<span className="whitespace-nowrap text-red-500 italic text-sm">Required Field</span>)}
+            style="light"
+          >
+            <sup className="italic text-red-600 pe-1">*</sup>
+          </Tooltip>
           <span>:</span>
         </Label>
         <TextInput 
@@ -89,21 +94,30 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
             <div className="-mt-2 mb-4 ms-2 text-sm">
               <span>
                 <span>Your password must</span>
-                <span className={`${props.userProfile.password === props.userProfile.confirm ? 'text-green-500' : 'text-red-600'}`}> match</span> 
+                <span className={`${props.userProfile.password === props.userProfile.confirm && props.userProfile.password ? 'text-green-500' : 'text-red-600'}`}> match </span> 
                 <span>and include: a</span>
-                <span className={`${/^\d+$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> number</span>, 
-                <span className={`${/^[!@#$%^&*(),.?":{}|<>]+$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> special character</span>, 
-                <span className={`${/^[A-Z]+$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> upper</span> and 
-                <span className={`${/^[a-z]+$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> lower</span> case characters, and 
-                <span className={`${props.userProfile.password.length >= 8 ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>.</span>
+                <span className={`${/^.*\d+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> number</span>, 
+                <span className={`${/^.*[!@#$%^&*(),.?":{}|<>]+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> special character</span>, 
+                <span className={`${/^.*[A-Z]+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> upper</span> 
+                <span> and </span>
+                <span className={`${/^.*[a-z]+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> lower</span> 
+                <span> case characters, and </span>
+                <span className={`${props.userProfile.password.length >= 8 ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>
+                <span>.</span>
+              </span>
             </div>
           )}
         />
         <Label 
-          className="ms-2 font-medium text-lg"
+          className="ms-2 font-medium text-lg flex flex-row"
         >
           <span>Confirm Password</span>
-          <sup className="italic text-red-600">*</sup>
+          <Tooltip
+            content={(<span className="whitespace-nowrap text-red-500 italic text-sm">Required Field</span>)}
+            style="light"
+          >
+            <sup className="italic text-red-600 pe-1">*</sup>
+          </Tooltip>
           <span>:</span>
         </Label>
         <TextInput 
@@ -118,7 +132,7 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
             })
           }}
         />
-        <div className="flex flex-row text-left items-center gap-2">
+        <div className="flex flex-row text-left items-center gap-2 mt-2">
           <button 
             className="flex flex-row gap-2 text-left items-center" 
             onClick={() => props.parentUpdateUserProfile({
@@ -135,16 +149,22 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
               terms: !props.userProfile.terms
             })}
           />
-          <span>
+          <span className="flex flex-row items-center gap-1">
             <span>Agree to </span>
-            <button 
+            <span 
               className="hover:underline underline-offset-2 text-blue-500 hover:text-blue-700" 
               onClick={() => setTermsAndConditionsVisible(true)}
             >
-                <span>terms and conditions</span>
-                <sup className="italic text-red-600">*</sup>
-            </button>
+              <span>terms and conditions</span>
+            </span>
+            <Tooltip
+              content={(<span className="whitespace-nowrap text-red-500 italic text-sm">Required Field</span>)}
+              style="light"
+            >
+              <sup className="italic text-red-600 -ms-1">*</sup>
+            </Tooltip>
           </span>
+
           </button>
         </div>
       </div>

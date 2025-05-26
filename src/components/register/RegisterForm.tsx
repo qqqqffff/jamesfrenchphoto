@@ -1,15 +1,14 @@
-import { SetStateAction, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { UserProfile } from "../../types"
 import validator from "validator"
-import { Label, TextInput } from "flowbite-react"
-import { textInputTheme } from "../../utils"
+import { Button } from "flowbite-react"
 import { useMutation } from "@tanstack/react-query"
 import useWindowDimensions from "../../hooks/windowDimensions"
 import { RegisterUserMutationParams, registerUserMutation } from "../../services/userService"
 import { UserPanel } from "./UserPanel"
 import { ParticipantPanel } from "./ParticipantPanel"
 import { ConfirmPanel } from "./ConfirmPanel"
-import { useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 
 export interface RegistrationProfile extends UserProfile { 
   password: string, 
@@ -61,25 +60,25 @@ export const RegisterForm = (props: RegisterFormProps) => {
   const { width } = useWindowDimensions()
   const navigate = useNavigate()
 
-  // useEffect(() => {
-  //   if(props.temporaryProfile) {
-  //     setUserProfile(props.temporaryProfile)
-  //   }
-  //   else {
-  //     setUserProfile({
-  //       email: '',
-  //       sittingNumber: -1,
-  //       userTags: [],
-  //       preferredContact: 'EMAIL',
-  //       participant: [],
-  //       password: '',
-  //       confirm: '',
-  //       terms: false
-  //     })
-  //   }
-  // }, [props.temporaryProfile])
+  useEffect(() => {
+    if(props.temporaryProfile) {
+      setUserProfile(props.temporaryProfile)
+    }
+    else {
+      setUserProfile({
+        email: '',
+        sittingNumber: -1,
+        userTags: [],
+        preferredContact: 'EMAIL',
+        participant: [],
+        password: '',
+        confirm: '',
+        terms: false
+      })
+    }
+  }, [props.temporaryProfile])
 
-  const validateForm = (() => {
+  useEffect(() => {
     let errors: FormError[] = []
     if(!userProfile.firstName || userProfile.firstName.length <= 0){
       errors.push({
@@ -235,10 +234,8 @@ export const RegisterForm = (props: RegisterFormProps) => {
 
     if(errors.length > 0) {
       setFormErrors(errors)
-      return false
     }
-    return true
-  })()
+  }, [userProfile])
 
 
   const handleNext = () => {
@@ -313,11 +310,11 @@ export const RegisterForm = (props: RegisterFormProps) => {
   )
 
   const confirmStepCriteria = (
-    userProfile.password.length <= 8 ||
-    !/^[!@#$%^&*(),.?":{}|<>]+$/g.test(userProfile.password) ||
-    !/^\d+$/g.test(userProfile.password) ||
-    !/^[A-Z]+$/g.test(userProfile.password) ||
-    !/^[a-z]+$/g.test(userProfile.password) ||
+    userProfile.password.length < 8 ||
+    !/^.*[!@#$%^&*(),.?":{}|<>]+.*$/g.test(userProfile.password) ||
+    !/^.*\d+.*$/g.test(userProfile.password) ||
+    !/^.*[A-Z]+.*$/g.test(userProfile.password) ||
+    !/^.*[a-z]+.*$/g.test(userProfile.password) ||
     userProfile.password !== userProfile.confirm ||
     !userProfile.terms
   )
@@ -328,14 +325,14 @@ export const RegisterForm = (props: RegisterFormProps) => {
         return userStepCriteria
       case FormStep.Participant:
         return (
-          userStepCriteria &&
+          userStepCriteria ||
           participantStepCriteria
         )
       case FormStep.Confirm:
         return (
-          userStepCriteria &&
-          participantStepCriteria &&
-          confirmStepCriteria &&
+          userStepCriteria ||
+          participantStepCriteria ||
+          confirmStepCriteria ||
           window.localStorage.getItem('user') !== null ||
           window.localStorage.getItem('jfp.auth.user') !== null
         )
@@ -347,22 +344,24 @@ export const RegisterForm = (props: RegisterFormProps) => {
   const registerUser = useMutation({
     mutationFn: (params: RegisterUserMutationParams) => registerUserMutation(params),
     //TODO: handle on settled / whatever
+    onSuccess: () => {
+      navigate({ to: '/login', search: { createAccount: true }})
+    }
   })
 
-  //TODO: conditional rendering
   return (
     <div className={`
-      flex flex-col items-center justify-center mx-4 gap-4 min-h-[96vh] max-h-[96vh] 
-      overflow-auto my-12 w-full 
+      flex flex-col items-center mt-10 mx-4 gap-4 min-h-[96vh] max-h-[96vh] 
+      overflow-auto
       ${width > 500 ? 'px-4' : 'px-0'}
     `}>
       <div className={`
         relative flex flex-col items-center justify-center 
-        ${width > 800 ? 'w-[70%]' : 'w-full'} 
+        ${width > 800 ? 'w-[70%]' : 'w-full'} h-full rounded-lg
         max-w-[48rem] border-2 px-4 py-4 border-gray-300
       `}>
+        <p className="font-bold text-4xl text-center">{props.temporaryProfile ? 'Confirm your account' : 'Create an account'}</p>
         <div className="p-6 flex flex-row items-center w-full justify-center">
-          <p className="font-bold text-4xl mb-8 text-center">{/* TODO: conditionally render this*/}Create an account</p>
           <div className="mb-4 ms-[17.5%] w-[80%]">
             <div className="flex items-center justify-between">
               {Object.keys(FormStep).map((step, index, array) => {
@@ -374,7 +373,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
                       <button 
                         className={`
                           w-8 h-8 rounded-full flex items-center justify-center border-2 
-                          ${index === stepIndex || !evaluateNext ? 'border-blue-600 text-blue-600' : 
+                          ${index === stepIndex ? 'border-blue-600 text-blue-600' : 
                               index < stepIndex ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-gray-300'
                           } enabled:hover:cursor-pointer disabled:hover:cursor-not-allowed
                         `}
@@ -391,11 +390,17 @@ export const RegisterForm = (props: RegisterFormProps) => {
                       </button>
                       {index < 2 && (
                         <div 
-                          className={`flex-1 h-0.5 mx-2 ${index < stepIndex || !evaluateNext ? 'bg-blue-600' : 'bg-gray-300'}`}
+                          className={`
+                            flex-1 h-0.5 mx-2 
+                            ${index < stepIndex ? 'bg-blue-600' : 'bg-gray-300'}
+                          `}
                         />
                       )}
                     </div>
-                    <div className={`absolute top-10 w-full text-start text-xs font-medium ${index <= stepIndex ? 'text-blue-600' : 'text-gray-500'}`}>
+                    <div className={`
+                      absolute top-10 w-full text-center -left-1/2 ms-[1rem]  -mt-1.5 text-lg
+                      ${index == stepIndex ? 'text-blue-600 font-medium' : 'text-gray-500 font-light'}
+                    `}>
                       {step}
                     </div>
                   </div>
@@ -403,26 +408,67 @@ export const RegisterForm = (props: RegisterFormProps) => {
               })}
             </div>
           </div>
-          <div className="flex flex-col gap-1 w-[80%] max-w-[40rem]">
-            {formStep === FormStep.User ? (
-              <UserPanel 
-                userProfile={userProfile}
-                parentUpdateUserProfile={setUserProfile}
-                width={width}
-                errors={formErrors}
-                setErrors={setFormErrors}
-              />
-            ) : (
-            formStep === FormStep.Participant ? (
-              <ParticipantPanel 
-              
-              />
-            ) : (
-              <ConfirmPanel 
-                userProfile={userProfile} 
-                parentUpdateUserProfile={setUserProfile}              
-              />
-            ))}
+        </div>
+        <div className="flex flex-col gap-1 w-[80%] max-w-[40rem]">
+          {formStep === FormStep.User ? (
+            <UserPanel 
+              userProfile={userProfile}
+              parentUpdateUserProfile={setUserProfile}
+              width={width}
+              errors={formErrors}
+              setErrors={setFormErrors}
+            />
+          ) : (
+          formStep === FormStep.Participant ? (
+            <ParticipantPanel 
+              userProfile={userProfile}
+              parentUpdateUserProfile={setUserProfile}
+              width={width}
+              errors={formErrors}
+              setErrors={setFormErrors}
+              token={props.temporaryProfile !== undefined}
+            />
+          ) : (
+            <ConfirmPanel 
+              userProfile={userProfile} 
+              parentUpdateUserProfile={setUserProfile}
+            />
+          ))}
+        </div>
+        <div className={`
+          flex items-center w-full mt-2 pe-4
+          ${formStep === FormStep.User ? 'justify-between' : 'justify-end'}
+        `}>
+          {formStep === FormStep.User && (
+            <Link 
+              to="/login" 
+              className="text-blue-500 hover:underline text-sm ms-[10%]"
+            >
+              <span>Already have an Account? Login here!</span>
+            </Link>
+          )}
+          <div className="flex flex-row gap-4">
+            {formStep !== FormStep.User && (
+              <Button 
+                color="light"
+                className="text-xl max-w-[8rem]"
+                onClick={handlePrevious} 
+                isProcessing={registerUser.isPending}
+              >Previous</Button>
+            )}
+            <Button 
+              className="text-xl max-w-[8rem]" 
+              disabled={evaluateAllowedNext(formStep)} 
+              onClick={handleNext} 
+              isProcessing={registerUser.isPending}
+            >{formStep === FormStep.Confirm ? 
+              props.temporaryProfile ? (
+                'Confirm'
+              ) : (
+                'Create'
+              ) :
+              'Next'
+            }</Button>
           </div>
         </div>
       </div>

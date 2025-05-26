@@ -234,7 +234,6 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate()).data?.id : undefined
     const participantResponse = await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
-    console.log(participantResponse)
 
     const notificationMemo: Notification[] = []
     const collectionsMemo: PhotoCollection[] = []
@@ -251,6 +250,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                 siTimeslots: options.siTimeslot
             } : undefined,
             siTimeslot: options?.siTimeslot,
+            unauthenticated: options?.unauthenticated,
             memos: {
                 notificationsMemo: notificationMemo,
                 tagsMemo: tagsMemo,
@@ -483,6 +483,7 @@ export interface MapParticipantOptions {
     },
     siTimeslot?: boolean,
     siNotifications?: boolean,
+    unauthenticated?: boolean,
     memos?: {
         notificationsMemo?: Notification[]
         tagsMemo?: UserTag[]
@@ -500,15 +501,18 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
     const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
     //no need to create a tags memo since the memo does not change
 
+    console.log(await participantResponse.tags({ authMode: 'identityPool' }))
+
     if(options?.siTags) {
         userTags.push(...(
             (await Promise.all(
-                ((await participantResponse.tags()).data ?? []).map(async (tag) => {
+                ((await participantResponse.tags({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data ?? []).map(async (tag) => {
+                    console.log(tag)
                     let mappedTag: UserTag | undefined = options.memos?.tagsMemo?.find((mTag) => tag.tagId === mTag.id)
                     if(mappedTag) {
                         return mappedTag
                     }
-                    const tagResponse = await tag.tag()
+                    const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
                     if(tagResponse.data) {
                         const children: UserTag[] = []
                         const notifications: Notification[] = []

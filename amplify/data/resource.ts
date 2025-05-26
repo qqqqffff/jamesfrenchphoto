@@ -110,7 +110,7 @@ const schema = a.schema({
       childTags: a.hasMany('PackageParentTag', 'tagId')
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get', 'list'])]),
   CollectionTag: a
     .model({
       id: a.id().required(),

@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useState } from "react";
 import { FormError, FormStep, RegistrationProfile } from "./RegisterForm";
-import { Label, TextInput } from "flowbite-react";
+import { Checkbox, Label, TextInput, Tooltip } from "flowbite-react";
 import { textInputTheme } from "../../utils";
 
 interface UserPanelProps {
@@ -19,17 +19,19 @@ export const UserPanel = (props: UserPanelProps) => {
 
   return (
     <>
-      <div className="text-xl flex flex-row items-center">
-        <span>User Details</span>
-      </div>
       <div className="flex flex-col gap-1">
         <div className={`flex ${props.width < 500 ? 'flex-col' : 'flex-row'} justify-between mb-4`}>
           <div className={`flex flex-col gap-1 ${props.width > 500 ? 'w-[45%]' : 'w-full mb-4' }`}>
               <Label 
-                className="ms-2 font-medium text-lg"
+                className="ms-2 font-normal text-lg flex flex-row"
               >
                 <span>User First Name</span>
-                <sup className="italic text-red-600">*</sup>
+                <Tooltip
+                  content={(<span className="whitespace-nowrap text-red-500 italic text-sm">Required Field</span>)}
+                  style="light"
+                >
+                  <sup className="italic text-red-600 pe-1">*</sup>
+                </Tooltip>
                 <span>:</span>
               </Label>
               <TextInput 
@@ -63,7 +65,7 @@ export const UserPanel = (props: UserPanelProps) => {
                   props.errors.some((error) => (
                     error.id.step === FormStep.User && 
                     error.id.location === 'first'
-                  )) ? 'failure' : undefined
+                  )) && firstUnfocused ? 'failure' : undefined
                 }
                 onFocus={() => setFirstUnfocused(false)}
                 onBlur={() => setFirstUnfocused(true)}
@@ -72,7 +74,7 @@ export const UserPanel = (props: UserPanelProps) => {
                     error.id.step === FormStep.User && 
                     error.id.location === 'first'
                   )) && firstUnfocused &&(
-                    <span color="text-red-600">
+                    <span color="text-red-600" className="absolute -mt-2">
                       {props.errors.find((error) => (
                         error.id.step === FormStep.User && 
                         error.id.location === 'first'
@@ -84,10 +86,15 @@ export const UserPanel = (props: UserPanelProps) => {
           </div>
           <div className={`flex flex-col gap-1 ${props.width > 500 ? 'w-[45%]' : 'w-full' }`}>
               <Label 
-                className="ms-2 font-medium text-lg"
+                className="ms-2 font-normal text-lg flex flex-row"
               >
                 <span>User Last Name</span>
-                <sup className="italic text-red-600">*</sup>
+                <Tooltip
+                  content={(<span className="whitespace-nowrap text-red-500 italic text-sm">Required Field</span>)}
+                  style="light"
+                >
+                  <sup className="italic text-red-600 pe-1">*</sup>
+                </Tooltip>
                 <span>:</span>
               </Label>
               <TextInput
@@ -121,7 +128,7 @@ export const UserPanel = (props: UserPanelProps) => {
                   props.errors.some((error) => (
                     error.id.step === FormStep.User && 
                     error.id.location === 'last'
-                  )) ? 'failure' : undefined
+                  )) && lastUnfocused ? 'failure' : undefined
                 }
                 onFocus={() => setLastUnfocused(false)}
                 onBlur={() => setLastUnfocused(true)}
@@ -130,7 +137,7 @@ export const UserPanel = (props: UserPanelProps) => {
                     error.id.step === FormStep.User && 
                     error.id.location === 'last'
                   )) && lastUnfocused && (
-                    <span color="text-red-600">
+                    <span color="text-red-600" className="absolute -mt-2">
                       {props.errors.find((error) => (
                         error.id.step === FormStep.User && 
                         error.id.location === 'last'
@@ -142,10 +149,10 @@ export const UserPanel = (props: UserPanelProps) => {
           </div>
         </div>
         <Label 
-          className="ms-2 font-medium text-lg"
+          className="ms-2 font-normal text-lg flex flex-row items-center"
         >
           <span>User Phone Number</span>
-          <sup className="text-gray-400">1</sup>
+          <sup className="text-gray-400 pe-1">1</sup>
           <span>:</span>
         </Label>
         <TextInput 
@@ -191,7 +198,7 @@ export const UserPanel = (props: UserPanelProps) => {
             props.errors.some((error) => (
               error.id.step === FormStep.User && 
               error.id.location === 'phone'
-            )) ? 'failure' : undefined
+            )) && phoneUnfocused ? 'failure' : undefined
           }
           onFocus={() => setPhoneUnfocused(false)}
           onBlur={() => setPhoneUnfocused(true)}
@@ -200,7 +207,7 @@ export const UserPanel = (props: UserPanelProps) => {
               error.id.step === FormStep.User && 
               error.id.location === 'phone'
             )) && phoneUnfocused && (
-              <span color="text-red-600">
+              <span color="text-red-600" className="absolute -mt-6">
                 {props.errors.find((error) => (
                   error.id.step === FormStep.User && 
                   error.id.location === 'phone'
@@ -210,10 +217,15 @@ export const UserPanel = (props: UserPanelProps) => {
           )}
         />
         <Label 
-          className="ms-2 font-medium text-lg"
+          className="ms-2 font-normal text-lg flex flex-row items-center"
         >
           <span>User Email</span>
-          <sup className="italic text-red-600">*</sup>
+          <Tooltip
+            content={(<span className="whitespace-nowrap text-red-500 italic text-sm">Required Field</span>)}
+            style="light"
+          >
+            <sup className="italic text-red-600 pe-1">*</sup>
+          </Tooltip>
           <span>:</span>
         </Label>
         <TextInput
@@ -248,16 +260,16 @@ export const UserPanel = (props: UserPanelProps) => {
             props.errors.some((error) => (
               error.id.step === FormStep.User && 
               error.id.location === 'email'
-            )) ? 'failure' : undefined
+            )) && emailUnfocused ? 'failure' : undefined
           }
           onFocus={() => setEmailUnfocused(false)}
           onBlur={() => setEmailUnfocused(true)}
           helperText={(
             props.errors.some((error) => (
               error.id.step === FormStep.User && 
-              error.id.location === 'phone'
+              error.id.location === 'email'
             )) && emailUnfocused && (
-              <span color="text-red-600">
+              <span color="text-red-600" className="absolute -mt-6">
                 {props.errors.find((error) => (
                   error.id.step === FormStep.User && 
                   error.id.location === 'email'
@@ -267,6 +279,34 @@ export const UserPanel = (props: UserPanelProps) => {
           )}
         />
       </div>
+      <button 
+        className="flex flex-row gap-2 text-left items-center mb-4 -mt-2" 
+        onClick={(event) => {
+          event.stopPropagation()
+          props.parentUpdateUserProfile({
+            ...props.userProfile,
+            preferredContact: props.userProfile.preferredContact === 'EMAIL' ? 'PHONE' : 'EMAIL'
+          })
+        }}
+      >
+        <Checkbox 
+          className="mt-1" 
+          checked={props.userProfile.preferredContact === 'PHONE'} 
+          readOnly 
+          onClick={() => {
+            props.parentUpdateUserProfile({
+              ...props.userProfile,
+              preferredContact: props.userProfile.preferredContact === 'EMAIL' ? 'PHONE' : 'EMAIL'
+            })
+          }}
+        />
+        <span>Prefer to be contacted by phone</span>
+      </button>
+      <p className="italic text-xs">
+        <p>Note</p>
+        <sup className="text-gray-400">1</sup> 
+        <p>: US Phone numbers only, without country code. No special formatting needed.</p>
+      </p>
     </>
   )
 }
