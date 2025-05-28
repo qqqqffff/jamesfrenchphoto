@@ -302,10 +302,10 @@ export const UserPanel = (props: UserPanelProps) => {
         />
         <span>Prefer to be contacted by phone</span>
       </button>
-      <p className="italic text-xs">
-        <p>Note</p>
+      <p className="italic text-xs flex flex-row items-center">
+        <span>Note</span>
         <sup className="text-gray-400">1</sup> 
-        <p>: US Phone numbers only, without country code. No special formatting needed.</p>
+        <span>: US Phone numbers only, without country code. No special formatting needed.</span>
       </p>
     </>
   )

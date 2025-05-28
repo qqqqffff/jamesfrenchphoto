@@ -1,72 +1,65 @@
-import { resendSignUpCode } from "aws-amplify/auth"
-import { Modal, Label, TextInput, Button, Checkbox, Tooltip } from "flowbite-react"
+import { Label, TextInput, Checkbox, Tooltip } from "flowbite-react"
 import { TermsAndConditionsModal } from "../modals"
 import { Dispatch, SetStateAction, useState } from "react"
 import { textInputTheme } from "../../utils"
 import { RegistrationProfile } from "./RegisterForm"
+import { ParticipantPanel } from "../common/ParticipantPanel"
 
 interface ConfirmPanelProps {
   userProfile: RegistrationProfile
   parentUpdateUserProfile: Dispatch<SetStateAction<RegistrationProfile>>
+  width: number
 }
 export const ConfirmPanel = (props: ConfirmPanelProps) => {
-  const [verificationModalVisible, setVerificationModalVisible] = useState(false)
   const [termsAndConditionsVisible, setTermsAndConditionsVisible] = useState(false)
-  const [invalidCode, setInvalidCode] = useState(false)
-  const [codeSubmitting, setCodeSubmitting] = useState(false)
-  const [verificationCode, setVerificationCode] = useState('')
+  
 
   return (
     <>
-      <Modal show={verificationModalVisible} onClose={() => setVerificationModalVisible(false)}>
-        <Modal.Header>Verification Code</Modal.Header>
-        <Modal.Body className="flex flex-col gap-3 font-main">
-          <p>Please enter in the verification code sent to the user's email.</p>
-          <p><b>Do not close this window until account has been confirmed.</b></p>
-          <div className="flex items-center gap-4 mt-4">
-              <Label className="font-medium text-lg" htmlFor="authCode">Verification Code:</Label>
-              <TextInput 
-                theme={textInputTheme}
-                color={invalidCode ? 'failure' : undefined} 
-                className='' 
-                sizing='md' 
-                placeholder="Verification Code" 
-                type="number"
-                onChange={(event) => {
-                  const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
-
-                  if(!/^\d*$/g.test(input)) {
-                    return
-                  }
-                  setInvalidCode(false)
-
-                  setVerificationCode(input)
-                }} 
-                helperText={invalidCode && (
-                  <div className="-mt-2 mb-4 ms-2 text-sm">
-                      <span>Invalid Code</span>
-                  </div>)
-                }
-                value={verificationCode}
-              />
-          </div>
-        </Modal.Body>
-        <Modal.Footer className="flex flex-row-reverse gap-2 mb-6">
-          <Button 
-            color="light"
-            className="text-xl w-[40%] max-w-[8rem]" 
-            //TODO: implement some async logic
-            onClick={() => resendSignUpCode({ username: props.userProfile.email })}
-          >Resend</Button>
-          <Button 
-            className="text-xl w-[40%] max-w-[8rem]" 
-            onClick={() => setCodeSubmitting(true)} 
-            isProcessing={codeSubmitting}
-          >Submit</Button>
-        </Modal.Footer>
-      </Modal>
       <TermsAndConditionsModal open={termsAndConditionsVisible} onClose={() => setTermsAndConditionsVisible(false)} />
       <div className="flex flex-col gap-1">
+        {props.width <= 1400 && (
+          <div className="border-2 rounded-lg px-8 py-2 top-0 flex flex-col my-4 max-w-min">
+            <span className="font-medium whitespace-nowrap text-lg">Registration Information</span>
+            <span className="text-blue-400">User Info</span>
+            <div className="flex flex-col px-2 text-xs">
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>First Name:</span>
+                <span className="italic">{props.userProfile.firstName}</span>
+              </div>
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Last Name:</span>
+                <span className="italic">{props.userProfile.lastName}</span>
+              </div>
+              {props.userProfile.phone && (
+                <div className="flex flex-row gap-2 items-center text-nowrap">
+                  <span>First Name:</span>
+                  <span className="italic">{props.userProfile.phone}</span>
+                </div>
+              )}
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Email:</span>
+                <span className="italic">{props.userProfile.email}</span>
+              </div>
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Contact:</span>
+                <span className="italic">{
+                  props.userProfile.preferredContact.substring(0,1).toUpperCase() + 
+                  props.userProfile.preferredContact.substring(1).toLowerCase()
+                }</span>
+              </div>
+            </div>
+            <div className="border mt-2"/>
+            {props.userProfile.participant.map((participant) => {
+              return (
+                <ParticipantPanel 
+                  participant={participant}
+                  hiddenOptions={{ tags: true }}
+                />
+              )
+            })}
+          </div>
+        )}
         <Label 
           className="ms-2 font-normal text-lg flex flex-row"
         >
@@ -91,7 +84,7 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
             })
           }}
           helperText={(
-            <div className="-mt-2 mb-4 ms-2 text-sm">
+            <span className="-mt-2 mb-4 ms-2 text-sm">
               <span>
                 <span>Your password must</span>
                 <span className={`${props.userProfile.password === props.userProfile.confirm && props.userProfile.password ? 'text-green-500' : 'text-red-600'}`}> match </span> 
@@ -105,7 +98,7 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
                 <span className={`${props.userProfile.password.length >= 8 ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>
                 <span>.</span>
               </span>
-            </div>
+            </span>
           )}
         />
         <Label 
@@ -168,6 +161,48 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
           </button>
         </div>
       </div>
+      {props.width > 1400 && (
+        <div className="absolute left-[100%] ms-8 border-2 rounded-lg px-4 py-2 top-0 flex flex-col">
+          <span className="font-medium whitespace-nowrap text-lg">Registration Information</span>
+          <span className="text-blue-400">User Info</span>
+          <div className="flex flex-col px-2 text-xs">
+            <div className="flex flex-row gap-2 items-center text-nowrap">
+              <span>First Name:</span>
+              <span className="italic">{props.userProfile.firstName}</span>
+            </div>
+            <div className="flex flex-row gap-2 items-center text-nowrap">
+              <span>Last Name:</span>
+              <span className="italic">{props.userProfile.lastName}</span>
+            </div>
+            {props.userProfile.phone && (
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>First Name:</span>
+                <span className="italic">{props.userProfile.phone}</span>
+              </div>
+            )}
+            <div className="flex flex-row gap-2 items-center text-nowrap">
+              <span>Email:</span>
+              <span className="italic">{props.userProfile.email}</span>
+            </div>
+            <div className="flex flex-row gap-2 items-center text-nowrap">
+              <span>Contact:</span>
+              <span className="italic">{
+                props.userProfile.preferredContact.substring(0,1).toUpperCase() + 
+                props.userProfile.preferredContact.substring(1).toLowerCase()
+              }</span>
+            </div>
+          </div>
+          <div className="border mt-2"/>
+          {props.userProfile.participant.map((participant) => {
+            return (
+              <ParticipantPanel 
+                participant={participant}
+                hiddenOptions={{ tags: true }}
+              />
+            )
+          })}
+        </div>
+      )}
     </>
   )
 }

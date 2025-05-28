@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { UserProfile } from "../../types"
 import validator from "validator"
-import { Button } from "flowbite-react"
+import { Alert, Button, Label, Modal, TextInput } from "flowbite-react"
 import { useMutation } from "@tanstack/react-query"
 import useWindowDimensions from "../../hooks/windowDimensions"
 import { RegisterUserMutationParams, registerUserMutation } from "../../services/userService"
@@ -9,6 +9,8 @@ import { UserPanel } from "./UserPanel"
 import { ParticipantPanel } from "./ParticipantPanel"
 import { ConfirmPanel } from "./ConfirmPanel"
 import { Link, useNavigate } from "@tanstack/react-router"
+import { resendSignUpCode } from "aws-amplify/auth"
+import { textInputTheme } from "../../utils"
 
 export interface RegistrationProfile extends UserProfile { 
   password: string, 
@@ -57,6 +59,10 @@ export const RegisterForm = (props: RegisterFormProps) => {
   }))
   const [formErrors, setFormErrors] = useState<FormError[]>([])
   const [formStep, setFormStep] = useState<FormStep>(FormStep.User)
+  const [invalidCode, setInvalidCode] = useState(false)
+  const [codeSubmitting, setCodeSubmitting] = useState(false)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [verificationModalVisible, setVerificationModalVisible] = useState(false)
   const { width } = useWindowDimensions()
   const navigate = useNavigate()
 
@@ -238,19 +244,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
   }, [userProfile])
 
 
-  const handleNext = () => {
-    switch(formStep) {
-      case FormStep.User:
-        setFormStep(FormStep.Participant)
-        return
-      case FormStep.Participant:
-        setFormStep(FormStep.Confirm)
-        return
-      case FormStep.Confirm:
-        setFormStep(FormStep.User)
-        return
-    }
-  }
+  
 
   const handlePrevious = () => {
     switch(formStep) {
@@ -343,146 +337,241 @@ export const RegisterForm = (props: RegisterFormProps) => {
 
   const registerUser = useMutation({
     mutationFn: (params: RegisterUserMutationParams) => registerUserMutation(params),
-    //TODO: handle on settled / whatever
-    onSuccess: () => {
-      navigate({ to: '/login', search: { createAccount: true }})
+    onSuccess: (event) => {
+      if(event.signUpStep === 'DONE') {
+        navigate({ to: '/login', search: { createAccount: true }})
+      }
+      else if(event.signUpStep === 'CONFIRM_SIGN_UP') {
+        setVerificationModalVisible(true)
+      }
+    },
+    onError: (err) => {
+      setFormErrors([...formErrors, {
+        id: {
+          step: 'global'
+        },
+        message: err.message
+      }])
     }
   })
 
+  const handleNext = () => {
+    switch(formStep) {
+      case FormStep.User:
+        setFormStep(FormStep.Participant)
+        return
+      case FormStep.Participant:
+        setFormStep(FormStep.Confirm)
+        return
+      case FormStep.Confirm:
+        setFormStep(FormStep.User)
+        return
+    }
+  }
+
   return (
-    <div className={`
-      flex flex-col items-center mt-10 mx-4 gap-4 min-h-[96vh] max-h-[96vh] 
-      overflow-auto
-      ${width > 500 ? 'px-4' : 'px-0'}
-    `}>
+    <>
+      <Modal show={verificationModalVisible} onClose={() => setVerificationModalVisible(false)}>
+        <Modal.Header>Verification Code</Modal.Header>
+        <Modal.Body className="flex flex-col gap-3 font-main">
+          <p>Please enter in the verification code sent to the user's email.</p>
+          <p className="font-semibold">Do not close this window until account has been confirmed.</p>
+          <div className="flex items-center gap-4 mt-4">
+            <Label className="font-medium text-lg" htmlFor="authCode">Verification Code:</Label>
+            <TextInput 
+              theme={textInputTheme}
+              color={invalidCode ? 'failure' : undefined} 
+              className='' 
+              sizing='md' 
+              placeholder="Verification Code" 
+              type="number"
+              onChange={(event) => {
+                const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
+
+                if(!/^\d*$/g.test(input)) {
+                  return
+                }
+                setInvalidCode(false)
+
+                setVerificationCode(input)
+              }} 
+              helperText={invalidCode && (
+                <div className="-mt-2 mb-4 ms-2 text-sm">
+                  <span>Invalid Code</span>
+                </div>)
+              }
+              value={verificationCode}
+            />
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="flex flex-row-reverse gap-2 mb-6">
+          <Button 
+            color="light"
+            className="text-xl w-[40%] max-w-[8rem]" 
+            //TODO: implement some async logic
+            onClick={() => resendSignUpCode({ username: userProfile.email })}
+          >Resend</Button>
+          <Button 
+            className="text-xl w-[40%] max-w-[8rem]" 
+            onClick={() => setCodeSubmitting(true)} 
+            isProcessing={codeSubmitting}
+          >Submit</Button>
+        </Modal.Footer>
+      </Modal>
+    
       <div className={`
-        relative flex flex-col items-center justify-center 
-        ${width > 800 ? 'w-[70%]' : 'w-full'} h-full rounded-lg
-        max-w-[48rem] border-2 px-4 py-4 border-gray-300
+        flex flex-col items-center mx-4 gap-4 min-h-[96vh] max-h-[96vh] 
+        overflow-auto
+        ${width > 500 ? 'px-4' : 'px-0'}
       `}>
-        <p className="font-bold text-4xl text-center">{props.temporaryProfile ? 'Confirm your account' : 'Create an account'}</p>
-        <div className="p-6 flex flex-row items-center w-full justify-center">
-          <div className="mb-4 ms-[17.5%] w-[80%]">
-            <div className="flex items-center justify-between">
-              {Object.keys(FormStep).map((step, index, array) => {
-                const stepIndex = currentStepIndex(formStep)
-                const evaluateNext = index > 0 ? evaluateAllowedNext(array[index - 1] as FormStep) : false
-                return (
-                  <div key={index} className="relative flex-1">
-                    <div className="flex items-center">
-                      <button 
-                        className={`
-                          w-8 h-8 rounded-full flex items-center justify-center border-2 
-                          ${index === stepIndex ? 'border-blue-600 text-blue-600' : 
-                              index < stepIndex ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-gray-300'
-                          } enabled:hover:cursor-pointer disabled:hover:cursor-not-allowed
-                        `}
-                        onClick={() => setFormStep(step as FormStep)}
-                        disabled={evaluateNext && (step as FormStep) !== formStep}
-                      >
-                        {index < stepIndex ? (
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule='evenodd' />
-                          </svg>
-                        ) : (
-                          <span>{index + 1}</span>
-                        )}
-                      </button>
-                      {index < 2 && (
-                        <div 
+        {formErrors.some((error) => error.id.step === 'global') && (
+          <div className="w-full flex flex-row items-center justify-center gap-2 mt-4">
+            {formErrors.filter((error) => error.id.step === 'global').map((error, index) => {
+              return (
+                <Alert 
+                  color={'red'} 
+                  key={index} 
+                  className="text-lg w-[90%]" 
+                  onDismiss={() => setFormErrors(formErrors.filter((pError) => error.message !== pError.message))}
+                >
+                  <span className="max-w-400 text-wrap">{error.message}</span>
+                </Alert>
+              )}
+            )}
+          </div>
+        )}
+        <div className={`
+          relative flex flex-col items-center justify-center 
+          ${width > 800 ? 'w-[70%] border-gray-300 border-2' : 'w-full'} 
+          max-w-[48rem] px-4 py-4  mt-4 h-full rounded-lg
+        `}>
+          <p className="font-bold text-4xl text-center">{props.temporaryProfile ? 'Confirm your account' : 'Create an account'}</p>
+          <div className="p-6 flex flex-row items-center w-full justify-center">
+            <div className="mb-4 ms-[17.5%] w-[80%]">
+              <div className="flex items-center justify-between">
+                {Object.keys(FormStep).map((step, index, array) => {
+                  const stepIndex = currentStepIndex(formStep)
+                  const evaluateNext = index > 0 ? evaluateAllowedNext(array[index - 1] as FormStep) : false
+                  return (
+                    <div key={index} className="relative flex-1">
+                      <div className="flex items-center">
+                        <button 
                           className={`
-                            flex-1 h-0.5 mx-2 
-                            ${index < stepIndex ? 'bg-blue-600' : 'bg-gray-300'}
+                            w-8 h-8 rounded-full flex items-center justify-center border-2 
+                            ${index === stepIndex ? 'border-blue-600 text-blue-600' : 
+                                index < stepIndex ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-gray-300'
+                            } enabled:hover:cursor-pointer disabled:hover:cursor-not-allowed
                           `}
-                        />
-                      )}
+                          onClick={() => setFormStep(step as FormStep)}
+                          disabled={evaluateNext && (step as FormStep) !== formStep}
+                        >
+                          {index < stepIndex ? (
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule='evenodd' />
+                            </svg>
+                          ) : (
+                            <span>{index + 1}</span>
+                          )}
+                        </button>
+                        {index < 2 && (
+                          <div 
+                            className={`
+                              flex-1 h-0.5 mx-2 
+                              ${index < stepIndex ? 'bg-blue-600' : 'bg-gray-300'}
+                            `}
+                          />
+                        )}
+                      </div>
+                      <div className={`
+                        absolute top-10 w-full text-center -left-1/2 ms-[1rem]  -mt-1.5 text-lg
+                        ${index == stepIndex ? 'text-blue-600 font-medium' : 'text-gray-500 font-light'}
+                      `}>
+                        {step}
+                      </div>
                     </div>
-                    <div className={`
-                      absolute top-10 w-full text-center -left-1/2 ms-[1rem]  -mt-1.5 text-lg
-                      ${index == stepIndex ? 'text-blue-600 font-medium' : 'text-gray-500 font-light'}
-                    `}>
-                      {step}
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1 w-[80%] max-w-[40rem]">
+            {formStep === FormStep.User ? (
+              <UserPanel 
+                userProfile={userProfile}
+                parentUpdateUserProfile={setUserProfile}
+                width={width}
+                errors={formErrors}
+                setErrors={setFormErrors}
+              />
+            ) : (
+            formStep === FormStep.Participant ? (
+              <ParticipantPanel 
+                userProfile={userProfile}
+                parentUpdateUserProfile={setUserProfile}
+                width={width}
+                errors={formErrors}
+                setErrors={setFormErrors}
+                token={props.temporaryProfile !== undefined}
+              />
+            ) : (
+              <ConfirmPanel 
+                userProfile={userProfile} 
+                parentUpdateUserProfile={setUserProfile}
+                width={width}
+              />
+            ))}
+          </div>
+          <div className={`
+            flex items-center w-full mt-2 pe-4
+            ${formStep === FormStep.User ? 'justify-between' : 'justify-end'}
+          `}>
+            {formStep === FormStep.User && (
+              <Link 
+                to="/login" 
+                className="text-blue-500 hover:underline text-sm ms-[10%]"
+              >
+                <span>Already have an Account? Login here!</span>
+              </Link>
+            )}
+            <div className="flex flex-row gap-4">
+              {formStep !== FormStep.User && (
+                <Button 
+                  color="light"
+                  className="text-xl max-w-[8rem]"
+                  onClick={handlePrevious} 
+                >Previous</Button>
+              )}
+              <Button 
+                className="text-xl max-w-[8rem]" 
+                disabled={evaluateAllowedNext(formStep) || registerUser.isPending} 
+                onClick={() => {
+                  if(formStep === FormStep.Confirm) {
+                    registerUser.mutate({
+                      token: userProfile.temporary,
+                      userProfile: userProfile,
+                      options: {
+                        logging: true,
+                        metric: true
+                      }
+                    })
+                  }
+                  else {
+                    handleNext()
+                  }
+                }}
+                isProcessing={registerUser.isPending}
+              >{formStep === FormStep.Confirm ? 
+                props.temporaryProfile ? (
+                  'Confirm'
+                ) : (
+                  'Create'
+                ) :
+                'Next'
+              }</Button>
             </div>
           </div>
         </div>
-        <div className="flex flex-col gap-1 w-[80%] max-w-[40rem]">
-          {formStep === FormStep.User ? (
-            <UserPanel 
-              userProfile={userProfile}
-              parentUpdateUserProfile={setUserProfile}
-              width={width}
-              errors={formErrors}
-              setErrors={setFormErrors}
-            />
-          ) : (
-          formStep === FormStep.Participant ? (
-            <ParticipantPanel 
-              userProfile={userProfile}
-              parentUpdateUserProfile={setUserProfile}
-              width={width}
-              errors={formErrors}
-              setErrors={setFormErrors}
-              token={props.temporaryProfile !== undefined}
-            />
-          ) : (
-            <ConfirmPanel 
-              userProfile={userProfile} 
-              parentUpdateUserProfile={setUserProfile}
-            />
-          ))}
-        </div>
-        <div className={`
-          flex items-center w-full mt-2 pe-4
-          ${formStep === FormStep.User ? 'justify-between' : 'justify-end'}
-        `}>
-          {formStep === FormStep.User && (
-            <Link 
-              to="/login" 
-              className="text-blue-500 hover:underline text-sm ms-[10%]"
-            >
-              <span>Already have an Account? Login here!</span>
-            </Link>
-          )}
-          <div className="flex flex-row gap-4">
-            {formStep !== FormStep.User && (
-              <Button 
-                color="light"
-                className="text-xl max-w-[8rem]"
-                onClick={handlePrevious} 
-                isProcessing={registerUser.isPending}
-              >Previous</Button>
-            )}
-            <Button 
-              className="text-xl max-w-[8rem]" 
-              disabled={evaluateAllowedNext(formStep)} 
-              onClick={handleNext} 
-              isProcessing={registerUser.isPending}
-            >{formStep === FormStep.Confirm ? 
-              props.temporaryProfile ? (
-                'Confirm'
-              ) : (
-                'Create'
-              ) :
-              'Next'
-            }</Button>
-          </div>
-        </div>
       </div>
-    </div>
+    </>
   )
 }
-
-/* TODO: move me please */
-// <p className="italic text-sm">
-//   <sup className="italic text-red-600">*</sup> 
-//   <span>Indicates required fields.</span>
-// </p>
-// {/* TODO: move me please too */}
-// <p className="italic text-sm">
-//   <sup className="text-gray-400">1</sup> 
-//   <span>US Phone numbers only, without country code. No special formatting needed.</span>
-// </p>

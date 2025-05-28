@@ -6,7 +6,7 @@ import { getAllCollectionsFromUserTagId } from "./collectionService";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
-import { updateUserAttributes } from "aws-amplify/auth";
+import { signUp, updateUserAttributes } from "aws-amplify/auth";
 import { Duration } from "luxon";
 import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
 import { getAllTimeslotsByUserTag } from "./timeslotService";
@@ -442,19 +442,19 @@ async function getAllTemporaryUsers(client: V6Client<Schema>, options?: GetAllTe
 interface GetTemporaryUserOptions {
     logging?: boolean
 }
-async function getTemporaryUser(client: V6Client<Schema>, id?: string, options?: GetTemporaryUserOptions): Promise<UserProfile | undefined> {
+async function getTemporaryUser(client: V6Client<Schema>, id?: string, options?: GetTemporaryUserOptions): Promise<UserProfile | null> {
     if(id) {
         const tokenResponse = await client.models.TemporaryCreateUsersTokens.get({ id: id }, { authMode: 'identityPool' })
 
         if(options?.logging) console.log(tokenResponse)
-        if(!tokenResponse.data) return
+        if(!tokenResponse.data) return null
 
         const mappedResponse = await getUserProfileByEmail(client, tokenResponse.data.userEmail, { siTags: true, unauthenticated: true })
         if(options?.logging) console.log(mappedResponse)
 
-        return mappedResponse
+        return mappedResponse ?? null
     }
-    return
+    return null
 }
 
 //TODO: address token expiration
@@ -500,8 +500,6 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
     const notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
     const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
     //no need to create a tags memo since the memo does not change
-
-    console.log(await participantResponse.tags({ authMode: 'identityPool' }))
 
     if(options?.siTags) {
         userTags.push(...(
@@ -884,9 +882,36 @@ async function getAllParticipantsByUserTag(client: V6Client<Schema>, tagId?: str
 export interface RegisterUserMutationParams {
     userProfile: RegistrationProfile,
     token?: string,
+    options?: {
+        logging?: boolean
+        metric?: boolean
+    }
 }
 export async function registerUserMutation(params: RegisterUserMutationParams) {
-
+    console.log(params, `+1${params.userProfile.phone?.replace(/\D/g, '')}`)
+    const start = new Date()
+    const response = await client.mutations.RegisterUser({
+        userProfile: JSON.stringify(params.userProfile),
+        token: params.token
+    }, { authMode: 'iam' })
+    if(params.options?.logging) console.log(response)
+    
+    const cognitoResponse = await signUp({
+        username: params.userProfile.email,
+        password: params.userProfile.password,
+        options: {
+            userAttributes: {
+                email: params.userProfile.email,
+                ...(params.userProfile.phone && params.userProfile.phone !== '' && ({phone_number: `+1${params.userProfile.phone.replace(/\D/g, '')}`})),
+                given_name: params.userProfile.firstName,
+                family_name: params.userProfile.lastName,
+                'custom:verified': 'true'
+            }
+        }
+    })
+    if(params.options?.logging) console.log(cognitoResponse)
+    if(params.options?.metric) console.log(`REGISTERUSER:${new Date().getTime() - start.getTime()}ms`)
+    return cognitoResponse.nextStep
 }
 
 export interface CreateAccessTokenMutationParams {

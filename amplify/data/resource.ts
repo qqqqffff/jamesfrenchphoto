@@ -12,6 +12,7 @@ import { addPublicPhoto } from '../functions/add-public-photo/resource';
 import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
 import { shareUserInvite } from '../functions/share-user-invite/resource';
 import { repairPaths } from '../functions/repair-paths/resource';
+import { registerUser } from '../functions/register-user/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -392,6 +393,16 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(addCreateUserQueue))
     .returns(a.json()),
+  RegisterUser: a
+    .mutation()
+    .arguments({
+      userProfile: a.string().required(), //json object with the user profile
+      token: a.string(),
+    })
+    .authorization((allow) => [allow.group('ADMINS'), allow.guest()])
+    .handler(a.handler.function(registerUser))
+    .returns(a.string()),
+    // TODO: add a consumed field for more verbose error handling
   TemporaryCreateUsersTokens: a
     .model({
       id: a.string().required(),
@@ -517,7 +528,8 @@ const schema = a.schema({
   allow.resource(postConfirmation),
   allow.resource(addCreateUserQueue),
   allow.resource(shareUserInvite),
-  allow.resource(repairPaths)
+  allow.resource(repairPaths),
+  allow.resource(registerUser)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

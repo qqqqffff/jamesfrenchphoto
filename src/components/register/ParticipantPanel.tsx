@@ -40,6 +40,14 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
     ) {
       setSameDetails(false)
     }
+
+    if(!props.userProfile.participant.some((participant) => participant.id === activeParticipant.id)) {
+      const tempProfile: RegistrationProfile = {
+        ...props.userProfile,
+        participant: [...props.userProfile.participant, activeParticipant]
+      }
+      props.parentUpdateUserProfile(tempProfile)
+    }
   }, [activeParticipant])
 
   return (
@@ -124,7 +132,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   }}
                   onFocus={() => setFirstUnfocused(false)}
                   onBlur={() => setFirstUnfocused(true)}
-                  value={activeParticipant.firstName}
+                  value={activeParticipant.firstName ?? ''}
                   color={
                     props.errors.some((error) => (
                       error.id.step === FormStep.Participant && 
@@ -187,7 +195,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   }}
                   onFocus={() => setFirstUnfocused(false)}
                   onBlur={() => setLastUnfocused(true)}
-                  value={activeParticipant.lastName}
+                  value={activeParticipant.lastName ?? ''}
                   color={
                     props.errors.some((error) => (
                       error.id.step === FormStep.Participant && 
@@ -218,7 +226,8 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                 <Label className="ms-2 font-normal text-lg">Middle Name:</Label>
                 <TextInput 
                   theme={textInputTheme} 
-                  sizing='lg' placeholder="Participant Middle Name" 
+                  sizing='lg' 
+                  placeholder="Participant Middle Name" 
                   type="text"
                   onChange={(event) => {
                     props.parentUpdateUserProfile({
@@ -235,7 +244,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                     })
                     setActiveParticipant({
                       ...activeParticipant,
-                      lastName: event.target.value
+                      middleName: event.target.value
                     })
                   }}
                   value={activeParticipant.middleName ?? ''}
@@ -295,7 +304,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   email: event.target.value
                 })
               }}
-              value={activeParticipant.email}
+              value={activeParticipant.email ?? ''}
               onFocus={() => setEmailUnfocused(false)}
               onBlur={() => setEmailUnfocused(true)}
               color={
@@ -479,7 +488,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
       </div>
       {props.token && (
         <p className="italic text-xs">
-          <p>Note: If you are not seeing your participant's tag please reach out.</p>
+          <span>Note: If you are not seeing your participant's tag please reach out.</span>
         </p>
       )}
     </>
