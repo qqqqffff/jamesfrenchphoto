@@ -1,64 +1,55 @@
-import { Dispatch, SetStateAction, useRef, useState } from "react"
+import { useState } from "react"
 import { UserTag } from "../../../types"
-import { TextInput } from "flowbite-react"
+import { Checkbox, TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
-import { HiOutlinePencil, HiOutlinePlusCircle, HiOutlineXMark } from "react-icons/hi2"
-import { CreateTagModal } from "../../modals"
+import { HiOutlineXMark } from "react-icons/hi2"
 
 interface TagPickerProps {
   tags: UserTag[],
-  parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
   parentPickTag: (tag: UserTag) => void
-  pickedTag?: UserTag,
+  pickedTag?: UserTag[],
   placeholder?: string
+  className?: string,
+  allowMultiple?: boolean
 }
 
 export const TagPicker = (props: TagPickerProps) => {
   const [search, setSearch] = useState<string>('')
-  const [focused, setFocused] = useState<boolean>(false)
-  const [createTagVisible, setCreateTagVisible] = useState(false)
-  const edittingTagRef = useRef<UserTag | null>(null)
+  const [focused, setFocused] = useState(false)
 
   return (
     <>
-      <CreateTagModal
-        onSubmit={(tag) => {
-          const newTags = [...props.tags].map((pTag) => (pTag.id === tag.id ? tag : pTag))
-
-          props.parentUpdateTags(newTags)
-        }}
-        existingTag={edittingTagRef.current ?? undefined}
-        open={createTagVisible}
-        onClose={() => {
-          setCreateTagVisible(false)
-          edittingTagRef.current = null
-        }}
-        //TODO: fix me please
-        timeslots={[]}
-        collections={[]}
-        parentUpdateActiveDate={() => {}}
-      />
       <div className="relative">
-        <TextInput
-          theme={textInputTheme}
-          placeholder={props.placeholder ?? 'Pick User Tag...'}
-          color={props.pickedTag?.color ?? 'gray'}
-          className={`
-            max-w-[400px] min-w-[400px] placeholder:italic 
-          `}
-          value={props.pickedTag?.name ?? ''}
-          onFocus={() => setFocused(true)}
-          readOnly
-        />
+        {props.className ? (
+          <input 
+            placeholder={props.placeholder ?? 'Pick User Tag...'}
+            className={props.className + ` text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color}`}
+            value={!props.pickedTag || props.pickedTag.length === 0 ? '' : 
+              props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
+            onFocus={() => setFocused(true)}
+            readOnly
+          />
+        ) : (
+          <TextInput
+            theme={textInputTheme}
+            placeholder={props.placeholder ?? 'Pick User Tag...'}
+            className={`
+              max-w-[400px] min-w-[400px] placeholder:italic
+            `}
+            color={!props.pickedTag || props.pickedTag.length === 0 ? 'gray' : props.pickedTag[0].color}
+            value={!props.pickedTag || props.pickedTag.length === 0 ? '' : 
+              props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
+            onFocus={() => setFocused(true)}
+            readOnly
+          />
+        )}
         {focused && (
           <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
             <div className="w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between">
               <span>Pick Tag</span>
               <button 
                 className=""
-                onClick={() => {
-                  setFocused(false)
-                }}
+                onClick={() => setFocused(false)}
               >
                 <HiOutlineXMark size={16} className="text-gray-400 hover:text-gray-800"/>
               </button>
@@ -70,38 +61,33 @@ export const TagPicker = (props: TagPickerProps) => {
                 onChange={(event) => setSearch(event.target.value)}
                 value={search}
               />
-              <button
-                onClick={() => setCreateTagVisible(true)}
-              >
-                <HiOutlinePlusCircle size={20} className="text-gray-400 hover:text-gray-800" />
-              </button>
             </div>
             <div className="max-h-60 overflow-y-auto py-1 min-w-max">
               {props.tags.filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase())).length > 0 ? (
                 props.tags
                   .filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase()))
                   .map((tag, index) => {
+                    const selected = props.pickedTag?.some((pTag) => pTag.id === tag.id)
                     return (
                       <div 
-                        className="flex flex-row justify-between items-center pe-2" 
+                        className="flex flex-row justify-start items-center pe-2" 
                         key={index}
                       >
                         <button 
                           className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
-                          onClick={() => {
-                            setFocused(false)
+                          onClick={(event) => {
+                            event.stopPropagation()
                             props.parentPickTag(tag)
                           }}
                         >
+                          {props.allowMultiple && (
+                            <Checkbox 
+                              readOnly
+                              checked={selected}
+                              onClick={() => props.parentPickTag(tag)}
+                            />
+                            )}
                           <span className={`text-${tag.color ?? 'black'} truncate max-w-[500px]`}>{tag.name}</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            edittingTagRef.current = tag
-                            setCreateTagVisible(true)
-                          }}
-                        >
-                          <HiOutlinePencil size={16} className="text-gray-400 hover:text-gray-800"/>
                         </button>
                       </div>
                     )

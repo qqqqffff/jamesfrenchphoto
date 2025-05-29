@@ -12,6 +12,7 @@ import { addPublicPhoto } from '../functions/add-public-photo/resource';
 import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
 import { shareUserInvite } from '../functions/share-user-invite/resource';
 import { repairPaths } from '../functions/repair-paths/resource';
+import { registerUser } from '../functions/register-user/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -110,7 +111,7 @@ const schema = a.schema({
       childTags: a.hasMany('PackageParentTag', 'tagId')
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get', 'list'])]),
   CollectionTag: a
     .model({
       id: a.id().required(),
@@ -249,6 +250,7 @@ const schema = a.schema({
   Timeslot: a
     .model({
       id: a.id().required(),
+      description: a.string(),
       register: a.string().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]),
       user: a.belongsTo('UserProfile', 'register'),
       start: a.datetime().required(),
@@ -257,6 +259,7 @@ const schema = a.schema({
       participant: a.belongsTo('Participant', 'participantId'),
       participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]), 
     })
+    .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
     .model({
@@ -298,7 +301,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('userEmail')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update', 'list']), allow.guest().to(['create'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update', 'list']), allow.guest().to(['create', 'get', 'list'])]),
   ParticipantUserTag: a.
     model({
       id: a.id().required(),
@@ -309,7 +312,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId'), index('participantId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list']), allow.guest().to(['list', 'get'])]),
   ParticipantCollections: a.
     model({
       id: a.id().required(),
@@ -391,6 +394,16 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(addCreateUserQueue))
     .returns(a.json()),
+  RegisterUser: a
+    .mutation()
+    .arguments({
+      userProfile: a.string().required(), //json object with the user profile
+      token: a.string(),
+    })
+    .authorization((allow) => [allow.group('ADMINS'), allow.guest()])
+    .handler(a.handler.function(registerUser))
+    .returns(a.string()),
+    // TODO: add a consumed field for more verbose error handling
   TemporaryCreateUsersTokens: a
     .model({
       id: a.string().required(),
@@ -516,7 +529,8 @@ const schema = a.schema({
   allow.resource(postConfirmation),
   allow.resource(addCreateUserQueue),
   allow.resource(shareUserInvite),
-  allow.resource(repairPaths)
+  allow.resource(repairPaths),
+  allow.resource(registerUser)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

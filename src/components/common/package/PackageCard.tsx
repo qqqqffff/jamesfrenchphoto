@@ -10,6 +10,8 @@ import { priceFormatter } from "../../../functions/packageFunctions"
 interface PackageCardProps {
   package: Package
   collectionList: PhotoCollection[]
+  actionButton?: JSX.Element,
+  displayDependent?: boolean
 }
 
 export const PackageCard = (props: PackageCardProps) => {
@@ -22,13 +24,15 @@ export const PackageCard = (props: PackageCardProps) => {
       </div>
       <div className="border"/>
       {props.package.description && (
-        <div className=" border-b pb-2 flex flex-row justify-center mx-8">
+        <div className="border-b pb-2 flex flex-row justify-center mx-8">
           <span className="text-sm font-thin text-wrap">{props.package.description}</span>
         </div>
       )}
       <div className="flex flex-col gap-1.5">
-        {props.package.items.map((item, index) => {
-          if(item.max !== undefined && item.hardCap !== undefined) {
+        {props.package.items
+        .sort((a, b) => a.order - b.order)
+        .map((item, index) => {
+          if(item.max !== undefined) {
             return (
               <PricedItem 
                 key={index}
@@ -59,7 +63,7 @@ export const PackageCard = (props: PackageCardProps) => {
               />
             )
           }
-          if(item.dependent !== undefined) {
+          if(item.dependent !== undefined && props.displayDependent) {
             return (
               <DependentItem 
                 key={index}
@@ -75,7 +79,8 @@ export const PackageCard = (props: PackageCardProps) => {
       {props.package.price && props.package.price !== '0' && (
         <div className="border-t pt-2 flex flex-row justify-center text-xl mx-8 italic">Base Cost: {priceFormatter.format(parseFloat(props.package.price))}</div>
       )}
-      <div className="w-full flex flex-row-reverse pb-3 pe-2 sticky">
+      <div className="w-full flex flex-row-reverse pb-3 pe-2 sticky gap-4">
+        {props.actionButton}
         <Button size="sm" color="gray" onClick={() => setAllExpanded(!allExpanded)}>{allExpanded ? 'Hide All' : 'Show All'} Details</Button>
       </div>
     </div>

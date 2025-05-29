@@ -108,5 +108,11 @@ export const evaluatePackageDif = (oldPackage: Package, newPackage: Package): bo
     }
   }
 
-  return false
+  return (
+    oldPackage.name !== newPackage.name ||
+    oldPackage.description !== newPackage.description ||
+    oldPackage.tagId !== newPackage.tagId ||
+    oldPackage.pdfPath !== newPackage.pdfPath ||
+    oldPackage.price !== newPackage.price
+  )
 }

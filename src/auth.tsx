@@ -150,8 +150,6 @@ export function AuthProvider({ children } : { children: ReactNode }) {
     }, [])
 
     useEffect(() => {
-        //TODO: implement me
-        // const collectionTagSubscriptions = createUserTagSubscription()
         setUser(getStoredUser())
         return () => {
 

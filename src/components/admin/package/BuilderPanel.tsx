@@ -5,6 +5,7 @@ import { v4 } from 'uuid'
 import { BuilderForm } from "./BuilderForm"
 import { UseInfiniteQueryResult, InfiniteData, UseQueryResult } from "@tanstack/react-query"
 import { GetInfinitePackageItemsData } from "../../../services/packageService"
+import Loading from "../../common/Loading"
 
 interface BuilderPanelProps {
   packages: Package[]
@@ -18,7 +19,7 @@ interface BuilderPanelProps {
 }
 
 export const BuilderPanel = (props: BuilderPanelProps) => {
-  const [selectedPackage, setSelectedPackage] = useState<Package | undefined>()
+  const [selectedPackage, setSelectedPackage] = useState<Package>()
 
   return (
     <div className="flex flex-row mx-4 my-4 gap-4 min-h-[96vh] max-h-[96vh] ">
@@ -27,7 +28,7 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
           <span className="text-2xl text-start">Packages</span>
           <button 
             className="flex flex-row items-center gap-2 enabled:hover:text-gray-500 enabled:hover:bg-gray-100 px-3 py-1 border rounded-xl disabled:text-gray-400"
-            disabled={props.packages.some((pack) => pack.name === 'Unnamed Package')}
+            disabled={props.packages.some((pack) => pack.temporary)}
             onClick={() => {
               const temp = [
                 ...props.packages
@@ -53,32 +54,38 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
           </button>
         </div>
         <div className="flex flex-col w-full">
-          {props.packages.map((pack, index) => {
-            const selected = pack.id === selectedPackage?.id
-
-            return (
-              <div className="flex flex-col" key={index}>
-                <div className="flex flex-row items-center w-full px-4">
-                  <span className="text-2xl">&bull;</span>
-                  <button
-                    className={`
-                      flex flex-row gap-2 items-center w-full mx-1 ps-2 pe-1 justify-between 
-                      border border-transparent rounded-lg hover:text-gray-500 hover:bg-gray-100
-                      ${!selected ? 'hover:border-gray-200' : 'bg-gray-200 border-gray-500 hover:border-gray-900'}
-                    `}
-                    onClick={() => {
-                      setSelectedPackage((prev) => {
-                        if(prev?.id !== pack.id) return pack
-                        else return undefined
-                      })
-                    }}
-                  >
-                    <span className="w-full truncate text-left">{pack.name}</span>
-                  </button>
+          {props.packagesQuery.isLoading ? (
+            <span className="flex flex-row text-start gap-1 italic font-light ms-4">
+              <span>Loading</span>
+              <Loading />
+            </span>
+          ) : (
+            props.packages.map((pack, index) => {
+              const selected = pack.id === selectedPackage?.id
+              return (
+                <div className="flex flex-col" key={index}>
+                  <div className="flex flex-row items-center w-full px-4">
+                    <span className="text-2xl">&bull;</span>
+                    <button
+                      className={`
+                        flex flex-row gap-2 items-center w-full mx-1 ps-2 pe-1 justify-between 
+                        border border-transparent rounded-lg hover:text-gray-500 hover:bg-gray-100
+                        ${!selected ? 'hover:border-gray-200' : 'bg-gray-200 border-gray-500 hover:border-gray-900'}
+                      `}
+                      onClick={() => {
+                        setSelectedPackage((prev) => {
+                          if(prev?.id !== pack.id) return pack
+                          else return undefined
+                        })
+                      }}
+                    >
+                      <span className="w-full truncate text-left">{pack.name}</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            }))
+          }
         </div>
       </div>
       <div className="w-full border border-gray-400 flex flex-col rounded-2xl">

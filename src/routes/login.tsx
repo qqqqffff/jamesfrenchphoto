@@ -264,7 +264,11 @@ function RouteComponent() {
         handlesubmit(event)
         setSubmitting(true)
       }}>
-        <div className={`flex flex-col items-center justify-center ${width > 500 ? 'w-[50%]' : 'w-full px-6'} max-w-[48rem] border-4 border-gray-500 rounded-lg`}>
+        <div className={`
+          flex flex-col items-center justify-center 
+          ${width > 800 ? 'w-[60%] border-4 border-gray-500 rounded-lg max-w-[48rem]' : 'w-full px-6 border-y-4 border-y-gray-500'}
+        `}
+        >
           <p className="font-bold text-4xl mb-8 mt-2 text-center">Welcome Back</p>
           <div className={`flex flex-col gap-3 ${width > 500 ? 'w-[60%]' : 'w-full px-6'}  max-w-[32rem]`}>
             <Label className="ms-2 font-semibold text-xl" htmlFor="email">Email:</Label>

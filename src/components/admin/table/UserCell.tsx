@@ -1,17 +1,20 @@
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
-import { ComponentProps, useEffect, useRef, useState } from "react";
+import { useMutation, UseQueryResult } from "@tanstack/react-query";
+import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import Loading from "../../common/Loading";
-import { Participant, Table, UserData, UserProfile } from "../../../types";
+import { Participant, Table, UserData, UserProfile, UserTag } from "../../../types";
 import { Tooltip } from "flowbite-react";
 import { HiOutlineXMark } from 'react-icons/hi2'
 import validator from 'validator'
 import { InviteUserWindow } from "./InviteUserWindow";
-import { getAllTemporaryUsersQueryOptions } from "../../../services/userService";
-
+import { revokeUserInviteMutation, RevokeUserInviteMutationParams } from "../../../services/userService";
 interface UserCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void
   userData: UseQueryResult<UserData[] | undefined, Error>,
+  tagsData: UseQueryResult<UserTag[] | undefined, Error>,
+  tempUsers: UserProfile[],
+  parentUpdateTempUsers: Dispatch<SetStateAction<UserProfile[]>>
+  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>,
   table: Table,
   rowIndex: number,
   columnId: string,
@@ -30,9 +33,12 @@ export const UserCell = (props: UserCellProps) => {
     }
   }, [props.value])
 
-  const tempUsersQuery = useQuery(getAllTemporaryUsersQueryOptions())
+  const revokeUserInvite = useMutation({
+    mutationFn: (params: RevokeUserInviteMutationParams) => revokeUserInviteMutation(params),
+    onSuccess: () => props.tempUsersQuery.refetch()
+  })
 
-  const tempUsers: [string, 'tempUser'][] = (tempUsersQuery.data ?? [])
+  const tempUsers: [string, 'tempUser'][] = props.tempUsers
     .map((data) => ([data.email, 'tempUser']))
 
   if(tempProfile){
@@ -73,16 +79,6 @@ export const UserCell = (props: UserCellProps) => {
   const displayNoResults = foundUser === undefined && props.value !== value && !validator.isEmail(value) && filteredItems && filteredItems.length === 0 && isFocused
   const displayInvite = foundUser === undefined && props.value === value && isFocused && validator.isEmail(props.value) && isFocused
   const displaySearchResults = isFocused && ((props.value !== value || foundUser === undefined) && !validator.isEmail(value)) && filteredItems && filteredItems.length > 0
-  const duplicateEmails = foundUser !== undefined && foundUser === 'participant' && 
-    !Object.entries(participants)
-      .filter((participant) => participant[0] !== props.value)
-      .reduce((prev, cur) => {
-        if(!prev) return prev
-        if(cur[1].email === participants[props.value].email) {
-          return false
-        }
-        return prev
-      }, true)
 
   function userPanel(type: 'user' | 'participant' | 'tempUser', value: string): JSX.Element | undefined {
     let profile: UserData | undefined
@@ -96,7 +92,7 @@ export const UserCell = (props: UserCellProps) => {
       if(!participant) return
     }
     else if(type === 'tempUser') {
-      let userProfile = tempUsersQuery.data?.find((data) => data.email === value)
+      let userProfile = props.tempUsers.find((data) => data.email === value)
 
       if(!userProfile && tempProfile) {
         userProfile = tempProfile
@@ -160,10 +156,35 @@ export const UserCell = (props: UserCellProps) => {
                   <span className="italic">{participant.email}</span>
                 </div>
               )}
+              {participant.userTags.length > 0 && (
+                <div className="flex flex-row gap-1 items-center text-nowrap">
+                  <span className="me-1">Tags:</span>
+                  {participant.userTags.map((tag, index, arr) => {
+                    return (
+                      <span className={`italic text-${tag.color ?? 'black'} truncate`}>{tag.name}{arr.length > 1 && index !== arr.length - 1 ? ',' : ''}</span>
+                    )
+                  })}
+                </div>
+              )}
               <div className="border-gray-300 border mb-1"/>
             </div>
           )
         })}
+        {type === 'tempUser' && (
+          <button 
+            className="self-end px-4 py-1 border rounded-lg mb-2 hover:bg-gray-100"
+            onClick={() => {
+              props.parentUpdateTempUsers((prev) => prev.filter((user) => user.email !== profile.email))
+              revokeUserInvite.mutate({
+                userEmail: profile.email,
+                options: {
+                  logging: true,
+                  metric: true
+                }
+              })
+            }}
+          >Revoke Invite</button>
+        )}
       </div>
     ) : (
       type === 'participant' && participant ? (
@@ -217,9 +238,7 @@ export const UserCell = (props: UserCellProps) => {
           setValue(event.target.value)
         }}
         value={foundUser === 'participant' ? (
-          !participants[value]?.email || duplicateEmails ? (
-            `${participants[value].firstName}, ${participants[value].lastName}`
-          ) : participants[value].email
+          `${participants[value]?.firstName}, ${participants[value]?.lastName}`
         ) : value}
         onKeyDown={async (event) => {
           if(inputRef.current){
@@ -255,19 +274,8 @@ export const UserCell = (props: UserCellProps) => {
           <ul className="max-h-60 overflow-y-auto py-1 min-w-max">
             {filteredItems.map((item, index) => {
               let participant: Participant | undefined
-              let duplicateEmails: boolean = false
               if(item[1] === 'participant') {
                 participant = participants[item[0]]
-                const email = participant.email
-                duplicateEmails = !Object.entries(participants)
-                  .filter((participant) => participant[0] !== item[0])
-                  .reduce((prev, cur) => {
-                    if(!prev) return prev
-                    if(cur[1].email === email) {
-                      return false
-                    }
-                    return prev
-                  }, true)
 
                 if(!participant) return
               }
@@ -295,7 +303,7 @@ export const UserCell = (props: UserCellProps) => {
                     }}
                   >
                     {item[1] === 'participant' ? (
-                      duplicateEmails || !participant?.email ? `${participants[item[0]].firstName}, ${participants[item[0]].lastName}` : participant.email 
+                      `${participants[item[0]].firstName}, ${participants[item[0]].lastName}`
                     ) : (
                       item[0]
                     )}
@@ -362,6 +370,7 @@ export const UserCell = (props: UserCellProps) => {
             }}
             rowIndex={props.rowIndex}
             submit={setTempProfile}
+            tagsQuery={props.tagsData}
           />
         </div>
       )}

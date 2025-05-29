@@ -6,6 +6,52 @@ import { Timeslot, UserTag } from "../types";
 
 const client = generateClient<Schema>()
 
+//TODO: add metricing
+interface MapTimeslotOptions {
+    siTag?: {
+        memo: UserTag[]
+    } //only allow shallow mapping
+}
+async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], options?: MapTimeslotOptions): Promise<Timeslot> {
+    let mappedTag: UserTag | undefined
+
+    if(options?.siTag !== undefined) {
+        const taggingResponse = await timeslotResponse.timeslotTag()
+        if(taggingResponse.data !== null) {
+            const foundTag = options.siTag.memo.find((tag) => tag.id === taggingResponse.data?.tagId)
+            if(foundTag) {
+                mappedTag = foundTag
+            }
+            else {
+                const tagResponse = await taggingResponse.data.tag()
+                if(tagResponse.data) {
+                    mappedTag = {
+                        ...tagResponse.data,
+                        color: tagResponse.data?.color ?? undefined,
+                        //shallow only
+                        children: [],
+                        notifications: [],
+                        participants: []
+                    }
+                    options.siTag.memo.push(mappedTag)
+                }
+            }
+        }
+    }
+    
+    const mappedTimeslot: Timeslot = {
+        ...timeslotResponse,
+        description: timeslotResponse.description ?? undefined,
+        register: timeslotResponse.register ?? undefined,
+        start: new Date(timeslotResponse.start),
+        end: new Date(timeslotResponse.end),
+        participantId: timeslotResponse.participantId ?? undefined,
+        tag: mappedTag
+    }
+
+    return mappedTimeslot
+}
+
 async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
     console.log('api call')
     const timeslots: Timeslot[] = (await Promise.all((await client.models.Timeslot.list({ filter: {
@@ -26,7 +72,8 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
                     color: tagResponse.data.color ?? undefined,
                     notifications: undefined,
                     //TODO: implement children
-                    children: []
+                    children: [],
+                    participants: []
                 }
             }
         }
@@ -46,13 +93,13 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
     return timeslots
 }
 
-export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag: UserTag) {
-    console.log('api call')
-    let timeslotTagsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: userTag.id })
+export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, tagId?: string) {
+    if(!tagId) return []
+    let timeslotTagsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: tagId })
     let timeslotTagsData = timeslotTagsResponse.data
 
     while(timeslotTagsResponse.nextToken) {
-        timeslotTagsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: userTag.id }, { nextToken: timeslotTagsResponse.nextToken })
+        timeslotTagsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: tagId }, { nextToken: timeslotTagsResponse.nextToken })
         timeslotTagsData.push(...timeslotTagsResponse.data)
     }
 
@@ -60,13 +107,21 @@ export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag
         .map(async (timeslotTag) => {
             const timeslot = await timeslotTag.timeslot()
             if(!timeslot || !timeslot.data) return
+            //TODO: use timeslot mapping function
             const mappedTimeslot: Timeslot = {
                 ...timeslot.data,
+                description: timeslot.data.description ?? undefined,
                 start: new Date(timeslot.data.start),
                 end: new Date(timeslot.data.end),
                 register: timeslot.data.register ?? undefined,
                 participantId: timeslot.data.participantId ?? undefined,
-                tag: userTag
+                tag: {
+                    id: tagId,
+                    participants: [],
+                    children: [],
+                    name: '',
+                    createdAt: new Date().toISOString()
+                }
             }
             return mappedTimeslot
         })
@@ -74,9 +129,9 @@ export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, userTag
     return mappedTimeslots
 }
 
-async function getAllTimeslotsByUserTagList(client: V6Client<Schema>, userTags: UserTag[]){
-    const timeslots = (await Promise.all(userTags.map(async (tag) => {
-        const returnedTimeslots = await getAllTimeslotsByUserTag(client, tag)
+async function getAllTimeslotsByUserTagList(client: V6Client<Schema>, userTagIds: string[]){
+    const timeslots = (await Promise.all(userTagIds.map(async (tagId) => {
+        const returnedTimeslots = await getAllTimeslotsByUserTag(client, tagId)
         return returnedTimeslots
     }))).reduce((prev, cur) => {
         prev.push(...cur)
@@ -84,6 +139,38 @@ async function getAllTimeslotsByUserTagList(client: V6Client<Schema>, userTags: 
     }, [])
 
     return timeslots
+}
+
+interface GetAllUntaggedTimeslotsOptions { 
+    logging?: boolean
+    metric?: boolean
+}
+async function getAllUntaggedTimeslots(client: V6Client<Schema>, options?: GetAllUntaggedTimeslotsOptions): Promise<Timeslot[]> {
+    const start = new Date()
+
+    let timeslotsResponse = await client.models.Timeslot.list()
+    const timeslotsData = timeslotsResponse.data
+
+    while(timeslotsResponse.nextToken) {
+        timeslotsResponse = await client.models.Timeslot.list({ nextToken: timeslotsResponse.nextToken })
+        timeslotsData.push(...timeslotsResponse.data)
+    }
+
+    if(options?.logging) console.log(timeslotsData)
+
+    const filteredTimeslots = await Promise.all(
+        (await Promise.all(timeslotsData.filter(async (timeslot) => {
+            const taggingResponse = (await timeslot.timeslotTag()).data
+            if(options?.logging) console.log(taggingResponse)
+            return taggingResponse === null
+        }))).map(async (timeslot) => mapTimeslot(timeslot, { siTag: undefined }))
+    )
+
+    if(options?.logging) console.log(filteredTimeslots)
+
+    if(options?.metric) console.log(`GETALLUNTAGGEDTIMESLOTS:${new Date().getTime() - start.getTime()}ms`)
+    //no register / participant without a tag
+    return filteredTimeslots
 }
 
 export async function updateTimeslotMutation(timeslot: Timeslot){
@@ -118,12 +205,17 @@ export const getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({
     queryFn: () => getAllTimeslotsByDate(client, date)
 })
 
-export const getAllTimeslotsByUserTagQueryOptions = (userTag: UserTag) => queryOptions({
-    queryKey: ['tag-timeslot', client, userTag],
-    queryFn: () => getAllTimeslotsByUserTag(client, userTag)
+export const getAllTimeslotsByUserTagQueryOptions = (tagId?: string) => queryOptions({
+    queryKey: ['tag-timeslot', client, tagId],
+    queryFn: () => getAllTimeslotsByUserTag(client, tagId)
 })
 
-export const getAllTimeslotsByUserTagListQueryOptions = (userTags: UserTag[]) => queryOptions({
-    queryKey: ['timeslot', client, userTags],
-    queryFn: () => getAllTimeslotsByUserTagList(client, userTags)
+export const getAllTimeslotsByUserTagListQueryOptions = (userTagIds: string[]) => queryOptions({
+    queryKey: ['timeslot', client, userTagIds],
+    queryFn: () => getAllTimeslotsByUserTagList(client, userTagIds)
+})
+
+export const getAllUntaggedTimeslotsQueryOptions = (options?: GetAllUntaggedTimeslotsOptions) => queryOptions({
+    queryKey: ['untaggedTimeslots', client, options],
+    queryFn: () => getAllUntaggedTimeslots(client, options)
 })

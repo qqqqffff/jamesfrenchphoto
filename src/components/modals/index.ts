@@ -1,7 +1,6 @@
 import { UploadImagesModal as uploadImages } from './UploadImages/UploadImages'
 import { CreateUserModal as createUser } from './CreateUser';
 import { ConfirmationModal as confirmation } from './Confirmation'
-import { CreateTagModal as createTag } from './CreateTag'
 import { CreateTimeslotModal as createTimeslot } from './CreateTimeslot';
 import { TermsAndConditionsModal as termsAndConditions } from './TermsAndConditions';
 import { CreateCollectionModal as createCollection } from './CreateCollection';
@@ -18,7 +17,6 @@ export type ModalProps = {
 export const UploadImagesModal = uploadImages;
 export const CreateUserModal = createUser
 export const ConfirmationModal = confirmation
-export const CreateTagModal = createTag
 export const CreateTimeslotModal = createTimeslot
 export const TermsAndConditionsModal = termsAndConditions
 export const CreateCollectionModal = createCollection

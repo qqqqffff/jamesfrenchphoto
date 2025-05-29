@@ -38,7 +38,8 @@ export interface UserProfile {
     participant: Participant[],
     activeParticipant?: Participant,
     firstName?: string,
-    lastName?: string
+    lastName?: string,
+    temporary?: string
 }
 
 export interface Participant {
@@ -153,6 +154,7 @@ export type Timeslot = {
     start: Date;
     end: Date;
     participantId?: string,
+    description?: string,
 }
 
 export type UserTag = {
@@ -164,6 +166,9 @@ export type UserTag = {
     package?: Package,
     notifications?: Notification[],
     children: UserTag[],
+    temporary?: boolean,
+    participants: Participant[],
+    createdAt: string,
 }
 
 export type Package = {
@@ -194,6 +199,7 @@ export type PackageItem = {
     dependent?: string,
     statements?: string[]
     unique?: boolean
+    createdAt: string,
 }
 
 export type PackageDiscount = {
@@ -206,14 +212,19 @@ export type PackageDiscount = {
 export interface TableGroup {
     id: string,
     name: string,
-    tables: Table[]
+    tables: Table[],
+    temporary?: boolean,
+    editting?: boolean,
+    createdAt: string,
 }
 
 export interface Table {
     id: string,
     name: string,
     columns: TableColumn[],
-    tableGroupId: string
+    tableGroupId: string,
+    temporary?: boolean,
+    createdAt: string,
 }
 
 export interface TableColumn {

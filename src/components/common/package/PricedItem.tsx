@@ -11,6 +11,7 @@ interface PricedItemProps {
 
 export const PricedItem = (props: PricedItemProps) => {
   const [expand, setExpand] = useState(props.expand ?? false)
+  console.log(props.item)
   
   useEffect(() => {
     if(props.expand !== undefined) {
@@ -24,22 +25,25 @@ export const PricedItem = (props: PricedItemProps) => {
       <span>&bull;</span>
       <div className="flex flex-col">
         <span className="text-wrap font-light">{props.item.name}{expand ? extendedDetails : ''}</span>
-        {expand && props.item.collectionIds.length > 0 && (
+        {expand && props.item.collectionIds
+              .filter((id) => props.collectionList.some((collection) => collection.id === id)).length > 0 && (
           <div className="flex flex-row items-center gap-1">
             <span className="text-sm font-light">This is a selectable item:</span>
-            <Dropdown
+            {<Dropdown
               size="xs"
               inline
               arrowIcon={false}
               trigger="hover"
               label={(<span className="text-sm font-light hover:text-black text-gray-500">Available Collections</span>)}
             >
-              {props.item.collectionIds.map((id, index) => {
+              {props.item.collectionIds
+              .filter((id) => props.collectionList.some((collection) => collection.id === id))
+              .map((id, index) => {
                 return (
                   <Dropdown.Item key={index}>{props.collectionList.find((collection) => collection.id === id)?.name}</Dropdown.Item>
                 )
               })}
-            </Dropdown>
+            </Dropdown>}
           </div>
         )}
         {expand && (<span className="text-wrap font-light text-sm italic">{props.item.description}</span>)}

@@ -69,7 +69,8 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
                     color: tagResponse.data.color ?? undefined,
                     notifications: undefined,
                     //TODO: implement children
-                    children: []
+                    children: [],
+                    participants: []
                 }
                 return mappedTag
             }))).filter((tag) => tag !== undefined) : [],
@@ -134,6 +135,7 @@ export async function deleteTableGroupMutation(params: DeleteTableGroupParams) {
 }
 
 export interface CreateTableParams {
+    id: string,
     name: string,
     tableGroupId: string,
     options?: {
@@ -142,6 +144,7 @@ export interface CreateTableParams {
 }
 export async function createTableMutation(params: CreateTableParams): Promise<string | undefined> {
     const response = await client.models.Table.create({
+        id: params.id,
         name: params.name,
         tableGroupId: params.tableGroupId,
     })

@@ -15,6 +15,9 @@ interface DetailsPanelProps {
 }
 
 export const DetailsPanel = (props: DetailsPanelProps) => {
+  const foundTag = props.tags.find((tag) => tag.id === props.selectedPackage.tagId)
+  const foundParentTag = props.tags.find((tag) => tag.id === props.selectedPackage.parentTagId)
+
   return (
     <div className="grid grid-cols-2 px-10 place-items-center gap-x-10">
       <div className="flex flex-col gap-1 border rounded-lg p-4 w-full h-full">
@@ -106,8 +109,7 @@ export const DetailsPanel = (props: DetailsPanelProps) => {
               pack.id === tempPackage.id ? tempPackage : pack
             )))
           }}
-          pickedTag={props.tags.find((tag) => tag.id === props.selectedPackage.tagId)}
-          parentUpdateTags={props.parentUpdateTags}      
+          pickedTag={foundTag ? [foundTag] : []}
         />
         <span className="text-xl font-light ms-2 flex flex-row mt-4">
           <span>Package Parent Tag:</span>
@@ -129,8 +131,7 @@ export const DetailsPanel = (props: DetailsPanelProps) => {
               pack.id === tempPackage.id ? tempPackage : pack
             )))
           }}
-          pickedTag={props.tags.find((tag) => tag.id === props.selectedPackage.parentTagId)}
-          parentUpdateTags={props.parentUpdateTags}      
+          pickedTag={foundParentTag ? [foundParentTag] : []}
         />
         <button 
           className="self-start flex flex-row items-center gap-2 mt-2"

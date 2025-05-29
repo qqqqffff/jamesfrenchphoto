@@ -16,7 +16,7 @@ interface PricedItemProps {
 }
 
 export const PricedItem = (props: PricedItemProps) => {
-  if(props.item.max === undefined || props.item.hardCap === undefined) return (<></>)
+  if(props.item.max === undefined) return (<></>)
 
   return (
     <div className="flex flex-row items-start gap-4">
@@ -112,7 +112,7 @@ export const PricedItem = (props: PricedItemProps) => {
                 p-1 border rounded-lg aspect-square flex justify-center items-center 
                 disabled:opacity-60 enabled:hover:bg-gray-100 disabled:hover:cursor-not-allowed
               "
-              disabled={props.item.max >= props.item.hardCap || props.item.hardCap === 1 || props.item.price === '0'}
+              disabled={props.item.max >= (props.item?.hardCap ?? 0) || props.item.hardCap === 1 || props.item.price === '0'}
               onClick={() => {
                 const tempPackage: Package = {
                   ...props.selectedPackage,
