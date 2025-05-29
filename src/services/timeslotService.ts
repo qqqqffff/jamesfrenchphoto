@@ -41,6 +41,7 @@ async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], options
     
     const mappedTimeslot: Timeslot = {
         ...timeslotResponse,
+        description: timeslotResponse.description ?? undefined,
         register: timeslotResponse.register ?? undefined,
         start: new Date(timeslotResponse.start),
         end: new Date(timeslotResponse.end),
@@ -106,8 +107,10 @@ export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, tagId?:
         .map(async (timeslotTag) => {
             const timeslot = await timeslotTag.timeslot()
             if(!timeslot || !timeslot.data) return
+            //TODO: use timeslot mapping function
             const mappedTimeslot: Timeslot = {
                 ...timeslot.data,
+                description: timeslot.data.description ?? undefined,
                 start: new Date(timeslot.data.start),
                 end: new Date(timeslot.data.end),
                 register: timeslot.data.register ?? undefined,

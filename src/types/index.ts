@@ -154,6 +154,7 @@ export type Timeslot = {
     start: Date;
     end: Date;
     participantId?: string,
+    description?: string,
 }
 
 export type UserTag = {

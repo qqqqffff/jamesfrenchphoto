@@ -505,11 +505,11 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
         userTags.push(...(
             (await Promise.all(
                 ((await participantResponse.tags({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data ?? []).map(async (tag) => {
-                    console.log(tag)
                     let mappedTag: UserTag | undefined = options.memos?.tagsMemo?.find((mTag) => tag.tagId === mTag.id)
                     if(mappedTag) {
                         return mappedTag
                     }
+                    if(!tag) return
                     const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
                     if(tagResponse.data) {
                         const children: UserTag[] = []
@@ -522,17 +522,29 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                             //assume that a parent's children are unique and will not show up in a different tag therefore memoization will make no difference
                             children.push(...(
                                 await Promise.all((await tagResponse.data.childTags()).data.map(async (child) => {
-                                    const foundTag = options.memos?.tagsMemo?.find((tag) => tag.id === child.tagId)
+                                    const packageResponse = (await child.package()).data
+                                    if(!packageResponse) return
+                                    const foundTag = options.memos?.tagsMemo?.find((tag) => tag.id === packageResponse.tagId)
                                     if(foundTag) {
                                         return foundTag
                                     }
-                                    const tagResponse = await child.tag()
-                                    if(tagResponse.data) {
+                                    const childResponse = (await packageResponse.tag()).data
+                                    //package required for si inside of dashboard
+                                    const pack: Package = {
+                                        ...packageResponse,
+                                        parentTagId: tag.id,
+                                        items: [],
+                                        pdfPath: packageResponse.pdfPath ?? undefined,
+                                        description: packageResponse.description ?? undefined,
+                                        price: packageResponse.price ?? undefined
+                                    }
+                                    if(childResponse) {
                                         //only shallow depth required for children since they will not be included in the tag memo
                                         const mappedTag: UserTag = {
-                                            ...tagResponse.data,
-                                            color: tagResponse.data.color ?? undefined,
+                                            ...childResponse,
+                                            color: childResponse.color ?? undefined,
                                             notifications: [],
+                                            package: pack,
                                             children: [],
                                             participants: []
                                         }
@@ -603,8 +615,10 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                                 await Promise.all((await tagResponse.data.timeslotTags()).data.map(async (timeslot) => {
                                     const timeslotResponse = await timeslot.timeslot()
                                     if(timeslotResponse.data) {
+                                        //TODO: use timeslot mapping function
                                         const mappedTimeslot: Timeslot = {
                                             ...timeslotResponse.data,
+                                            description: timeslotResponse.data.description ?? undefined,
                                             register: timeslotResponse.data.register ?? undefined,
                                             start: new Date(timeslotResponse.data.start),
                                             end: new Date(timeslotResponse.data.end),
@@ -714,9 +728,11 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
 
     if(options?.siTimeslot) {
         timeslots.push(...(
+            //TODO: use timeslot mapping function
             await Promise.all((await participantResponse.timeslot()).data.map(async (timeslot) => {
                 const mappedTimeslot: Timeslot = {
                     ...timeslot,
+                    description: timeslot.description ?? undefined,
                     register: timeslot.register ?? undefined,
                     start: new Date(timeslot.start),
                     end: new Date(timeslot.end),
@@ -1109,6 +1125,7 @@ export async function inviteUserMutation(params: InviteUserParams) {
         (Schema['ParticipantUserTag']['type'] | null)[]
     ][] = await Promise.all(params.participants.map(async (participant) => {
         const response = await client.models.Participant.create({
+            id: participant.id,
             userEmail: params.email,
             firstName: participant.firstName,
             preferredName: participant.preferredName,

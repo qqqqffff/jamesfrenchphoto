@@ -250,6 +250,7 @@ const schema = a.schema({
   Timeslot: a
     .model({
       id: a.id().required(),
+      description: a.string(),
       register: a.string().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]),
       user: a.belongsTo('UserProfile', 'register'),
       start: a.datetime().required(),
@@ -311,7 +312,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('tagId'), index('participantId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list']), allow.guest().to(['create', 'list', 'get'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list']), allow.guest().to(['list', 'get'])]),
   ParticipantCollections: a.
     model({
       id: a.id().required(),

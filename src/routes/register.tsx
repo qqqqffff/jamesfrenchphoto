@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getTemporaryUserQueryOptions } from '../services/userService'
 import { RegisterForm } from '../components/register/RegisterForm';
-import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 interface RegisterParams {
   token?: string,
@@ -24,30 +24,35 @@ export const Route = createFileRoute('/register')({
       profile.temporary = context.token
     }
 
-    return profile
+    return {
+      profile: profile,
+      auth: context.auth,
+      token: context.token,
+    }
   }
 })
 
 
 
 export function RouteComponent(){
-    const profile = Route.useLoaderData()
-    const navigate = Route.useNavigate()
+  const { auth, token } = Route.useLoaderData()
 
-    useEffect(() => {
-      if(!profile) navigate({ to: '.' })
-    })
+  const profile = useQuery(
+    getTemporaryUserQueryOptions(token, { logging: true })
+  )
 
-    return (
-      <>
-        <RegisterForm 
-            temporaryProfile={profile ? {
-                ...profile,
-                password: '',
-                confirm: '',
-                terms: false,
-            } : undefined}
-        />
-      </>
-    )
+  return (
+    <>
+      <RegisterForm 
+        logout={auth.logout}
+        temporaryProfile={profile.data ? {
+            ...profile.data,
+            password: '',
+            confirm: '',
+            terms: false,
+        } : undefined}
+        profileQuery={profile}
+      />
+    </>
+  )
 }

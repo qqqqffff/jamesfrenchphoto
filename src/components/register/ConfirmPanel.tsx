@@ -4,6 +4,7 @@ import { Dispatch, SetStateAction, useState } from "react"
 import { textInputTheme } from "../../utils"
 import { RegistrationProfile } from "./RegisterForm"
 import { ParticipantPanel } from "../common/ParticipantPanel"
+import { HiOutlineEye, HiOutlineEyeSlash } from "react-icons/hi2"
 
 interface ConfirmPanelProps {
   userProfile: RegistrationProfile
@@ -12,7 +13,7 @@ interface ConfirmPanelProps {
 }
 export const ConfirmPanel = (props: ConfirmPanelProps) => {
   const [termsAndConditionsVisible, setTermsAndConditionsVisible] = useState(false)
-  
+  const [passwordVisible, setPasswordVisible] = useState(false)
 
   return (
     <>
@@ -54,7 +55,7 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
               return (
                 <ParticipantPanel 
                   participant={participant}
-                  hiddenOptions={{ tags: true }}
+                  hiddenOptions={{ tags: participant.userTags.length <= 0  }}
                 />
               )
             })}
@@ -72,35 +73,50 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
           </Tooltip>
           <span>:</span>
         </Label>
-        <TextInput 
-          theme={textInputTheme} 
-          sizing='lg' 
-          className="" 
-          placeholder="Password" type="password" 
-          onChange={(event) => {
-            props.parentUpdateUserProfile({
-              ...props.userProfile,
-              password: event.target.value
-            })
-          }}
-          helperText={(
-            <span className="-mt-2 mb-4 ms-2 text-sm">
-              <span>
-                <span>Your password must</span>
-                <span className={`${props.userProfile.password === props.userProfile.confirm && props.userProfile.password ? 'text-green-500' : 'text-red-600'}`}> match </span> 
-                <span>and include: a</span>
-                <span className={`${/^.*\d+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> number</span>, 
-                <span className={`${/^.*[!@#$%^&*(),.?":{}|<>]+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> special character</span>, 
-                <span className={`${/^.*[A-Z]+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> upper</span> 
-                <span> and </span>
-                <span className={`${/^.*[a-z]+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> lower</span> 
-                <span> case characters, and </span>
-                <span className={`${props.userProfile.password.length >= 8 ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>
-                <span>.</span>
+        <div
+          className="w-full relative h-auto items-center"
+        >
+          <TextInput 
+            theme={textInputTheme} 
+            sizing='lg' 
+            className="" 
+            placeholder="Password"
+            type={passwordVisible ? 'text' : 'password'}
+            onChange={(event) => {
+              props.parentUpdateUserProfile({
+                ...props.userProfile,
+                password: event.target.value
+              })
+            }}
+            helperText={(
+              <span className="-mt-2 mb-4 ms-2 text-sm">
+                <span>
+                  <span>Your password must</span>
+                  <span className={`${props.userProfile.password === props.userProfile.confirm && props.userProfile.password ? 'text-green-500' : 'text-red-600'}`}> match </span> 
+                  <span>and include: a</span>
+                  <span className={`${/^.*\d+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> number</span>, 
+                  <span className={`${/^.*[!@#$%^&*(),.?":{}|<>]+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> special character</span>, 
+                  <span className={`${/^.*[A-Z]+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> upper</span> 
+                  <span> and </span>
+                  <span className={`${/^.*[a-z]+.*$/g.test(props.userProfile.password) ? 'text-green-500' : 'text-red-600'}`}> lower</span> 
+                  <span> case characters, and </span>
+                  <span className={`${props.userProfile.password.length >= 8 ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>
+                  <span>.</span>
+                </span>
               </span>
-            </span>
-          )}
-        />
+            )}
+          />
+          <button 
+            onClick={() => setPasswordVisible(!passwordVisible)}
+            className='absolute top-0 right-3 mt-2'
+          >
+            {passwordVisible ? (
+              <HiOutlineEyeSlash size={24} className='fill-white'/>
+            ) : (
+              <HiOutlineEye size={24} className='fill-white'/>
+            )}
+          </button>
+        </div>
         <Label 
           className="ms-2 font-medium text-lg flex flex-row"
         >
@@ -197,7 +213,7 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
             return (
               <ParticipantPanel 
                 participant={participant}
-                hiddenOptions={{ tags: true }}
+                hiddenOptions={{ tags: participant.userTags.length <= 0 }}
               />
             )
           })}

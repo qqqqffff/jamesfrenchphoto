@@ -312,6 +312,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
             <PackageCard 
               package={props.selectedPackage}
               collectionList={props.collectionListQuery.data ?? []}
+              displayDependent={true}
             />
             <div className="border rounded-lg flex flex-col gap-2 px-4 py-2">
               <span className="pb-1 border-b font-semibold">Package Details</span>

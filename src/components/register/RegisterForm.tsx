@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { UserProfile } from "../../types"
 import validator from "validator"
 import { Alert, Button, Label, Modal, TextInput } from "flowbite-react"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import useWindowDimensions from "../../hooks/windowDimensions"
 import { RegisterUserMutationParams, registerUserMutation } from "../../services/userService"
 import { UserPanel } from "./UserPanel"
@@ -20,7 +20,9 @@ export interface RegistrationProfile extends UserProfile {
 }
 
 interface RegisterFormProps {
+  profileQuery: UseQueryResult<UserProfile | null, Error>,
   temporaryProfile?: RegistrationProfile
+  logout: () => Promise<void>
 }
 
 export interface FormError {
@@ -35,7 +37,8 @@ export interface FormError {
       step: FormStep.Confirm,
       location: 'password' | 'confirm' | 'terms'
     } | {
-      step: 'global'
+      step: 'global',
+      action?: JSX.Element
     }
     message: string
 }
@@ -232,7 +235,26 @@ export const RegisterForm = (props: RegisterFormProps) => {
     ) {
       errors.push({
         id: {
-          step: 'global'
+          step: 'global',
+          action: (
+            <button onClick={() => {
+              props
+                .logout()
+                .finally(() => {
+                  props.profileQuery.refetch()
+                  setFormErrors(
+                    formErrors.filter((error) => (
+                      error.id.step !== 'global' && 
+                      error.message !== 'Signed in user detected, signout to create an account!'
+                    ))
+                  )
+                })
+
+              
+            }}>
+              <span className="hover:underline underline-offset-2">Click here to signout</span>
+            </button>
+          )
         },
         message: 'Signed in user detected, signout to create an account!'
       })
@@ -242,9 +264,6 @@ export const RegisterForm = (props: RegisterFormProps) => {
       setFormErrors(errors)
     }
   }, [userProfile])
-
-
-  
 
   const handlePrevious = () => {
     switch(formStep) {
@@ -434,7 +453,10 @@ export const RegisterForm = (props: RegisterFormProps) => {
                   className="text-lg w-[90%]" 
                   onDismiss={() => setFormErrors(formErrors.filter((pError) => error.message !== pError.message))}
                 >
-                  <span className="max-w-400 text-wrap">{error.message}</span>
+                  <div className="w-full flex flex-row gap-1">
+                    <span className="max-w-400 text-wrap">{error.message}</span>
+                    {error.id.step === 'global' && error.id.action}
+                  </div>
                 </Alert>
               )}
             )}

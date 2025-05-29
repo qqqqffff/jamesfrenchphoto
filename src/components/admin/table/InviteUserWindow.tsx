@@ -62,9 +62,9 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
               const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'sitting')
 
               setSelectedColumns(temp)
-              setSittingNumber(String(numValue));
+              setSittingNumber(String(isNaN(numValue) ? 0 : numValue));
             }}
-            value={sittingNumber}
+            value={sittingNumber ?? ''}
           />
           <Dropdown
             inline

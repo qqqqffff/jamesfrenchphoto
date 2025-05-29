@@ -16,6 +16,7 @@ function RouteComponent() {
   const auth = useAuth()
   const dimensions = useWindowDimensions()
   const navigate = useNavigate()
+  const { width } = useWindowDimensions()
 
   const participantCollections = useQuery(
     getParticipantCollectionsQueryOptions(
@@ -61,8 +62,11 @@ function RouteComponent() {
 
   return (
     <>
-      <div className="grid grid-cols-6 mt-8 font-main">
-        <div className="flex flex-col items-center justify-center col-start-2 col-span-4 gap-4 border-black border rounded-xl mb-4 overflow-auto">
+      <div className='flex flex-col w-full items-center justify-center mt-4'>
+        <div className={`
+          flex flex-col items-center justify-center gap-4 mb-4 overflow-auto 
+          ${width > 800 ? 'border-black border rounded-xl w-[60%] max-w-[64rem]' : 'border-y border-y-black w-full'}
+        `}>
           <div className="flex flex-col items-center justify-center w-full">
             {(auth.user?.profile.activeParticipant?.notifications ?? [])
               .filter((notification) => 
@@ -112,44 +116,8 @@ function RouteComponent() {
               <span>You will receive a notification when your collection is ready!</span>
             </div>
           )}
-          
-
-          {/* <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package{packages.length > 1 ? 's' : ''}</span>
-          <div className="flex flex-col items-center border border-gray-300 rounded-lg p-4 mb-4">
-              {packages.length > 0 ? (
-                  packages.map((pack, index) => {
-                      const packageClass = `flex flex-row items-center justify-between hover:bg-gray-100 rounded-lg py-2 px-4 border-black border ${activePackage?.id == pack.id ? 'bg-gray-200' : ''} text-${pack.tag.color ?? 'black'}`
-                      return (
-                          <button className={packageClass} key={index}
-                              onClick={async () => {
-                                  if(activePackage?.id !== pack.id){
-                                      const result = await downloadData({
-                                          path: pack.pdfPath,
-                                      }).result
-                                      const file = new File([await result.body.blob()], pack.pdfPath.substring(pack.pdfPath.indexOf('_') + 1), { type: result.contentType })
-                                      
-                                      setActivePackage(pack)
-                                      setActivePackagePDF(file)
-                                      setPackagePDFModalVisible(true)
-                                  }
-                                  else if(activePackage?.id === pack.id){
-                                      setActivePackage(undefined)
-                                      setActivePackagePDF(undefined)
-                                  }
-                              }}
-                          >
-                              <span>{pack.name}</span>
-                          </button>
-                      )
-                  })
-              ) : (
-                  <div className="text-xl text-gray-400 italic flex flex-col text-center">
-                      <span>Sorry, there are no viewable packages for you right now.</span>
-                  </div>
-              )}
-          </div> */}
         </div>
-    </div>
+      </div>
     </>
   )
 }
