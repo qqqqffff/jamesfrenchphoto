@@ -265,19 +265,20 @@ export const RegisterForm = (props: RegisterFormProps) => {
     }
   }, [userProfile])
 
-  const handlePrevious = () => {
-    switch(formStep) {
-      case FormStep.User:
-        setFormStep(FormStep.Confirm)
-        return
-      case FormStep.Participant:
-        setFormStep(FormStep.User)
-        return
-      case FormStep.Confirm:
-        setFormStep(FormStep.Participant)
-        return
-    }
-  }
+  //TODO: reenable me please
+  // const handlePrevious = () => {
+  //   switch(formStep) {
+  //     case FormStep.User:
+  //       setFormStep(FormStep.Confirm)
+  //       return
+  //     case FormStep.Participant:
+  //       setFormStep(FormStep.User)
+  //       return
+  //     case FormStep.Confirm:
+  //       setFormStep(FormStep.Participant)
+  //       return
+  //   }
+  // }
 
   const currentStepIndex = (step: FormStep) => {
     switch(step) {
@@ -556,13 +557,13 @@ export const RegisterForm = (props: RegisterFormProps) => {
               </Link>
             )}
             <div className="flex flex-row gap-4">
-              {formStep !== FormStep.User && (
+              {/* {formStep !== FormStep.User && (
                 <Button 
                   color="light"
                   className="text-xl max-w-[8rem]"
                   onClick={handlePrevious} 
                 >Previous</Button>
-              )}
+              )} */}
               <Button 
                 className="text-xl max-w-[8rem]" 
                 disabled={evaluateAllowedNext(formStep) || registerUser.isPending} 
