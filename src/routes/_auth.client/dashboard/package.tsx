@@ -3,7 +3,7 @@ import { Package, PackageItem, PhotoCollection } from '../../../types'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useEffect, useState } from 'react'
 import { HiOutlineArrowLeftCircle, HiOutlineArrowRightCircle } from 'react-icons/hi2'
-import { Badge, Button } from 'flowbite-react'
+import { Badge } from 'flowbite-react'
 import { badgeColorThemeMap } from '../../../utils'
 import { PackageCard } from '../../../components/common/package/PackageCard'
 import { useQuery, UseQueryResult } from '@tanstack/react-query'
@@ -140,16 +140,16 @@ function RouteComponent() {
               }}
               //TODO: implement me
               collectionList={collectionList}
-              actionButton={(
-                <Button 
-                  onClick={() => {
-                    //navigate to checkout with package as the search id
-                  }}
-                  size='sm'
-                >
-                  Purchase
-                </Button>
-              )}
+              // actionButton={(
+              //   <Button 
+              //     onClick={() => {
+              //       //navigate to checkout with package as the search id
+              //     }}
+              //     size='sm'
+              //   >
+              //     Purchase
+              //   </Button>
+              // )}
             />
           )
         })}
