@@ -47,10 +47,12 @@ export const BuilderForm = (props: BuilderFormProps) => {
       props.parentUpdateTagList((prev) => prev.map((tag) => (
         tag.id === props.selectedTag.id ? props.selectedTag : tag
       )))
-      activeTimeout = setTimeout(() => {
-        setNotification(undefined)
-        activeTimeout = undefined
-      }, 5000)
+      props.tagsQuery.refetch().finally(() => {
+        activeTimeout = setTimeout(() => {
+          setNotification(undefined)
+          activeTimeout = undefined
+        }, 5000)
+      })
     },
     onError: () => {
       clearTimeout(activeTimeout)
@@ -148,10 +150,9 @@ export const BuilderForm = (props: BuilderFormProps) => {
     }
   }, [tagParticipantsQuery.data])
 
-  //TODO: reenable me -> temporary disable
-  // useEffect(() => {
-  //   setFormStep(FormStep.Details)
-  // }, [props.queriedTag])
+  useEffect(() => {
+    setFormStep(FormStep.Details)
+  }, [props.queriedTag])
 
   const handleNext = () => {
     switch(formStep) {
@@ -325,16 +326,19 @@ export const BuilderForm = (props: BuilderFormProps) => {
           {formStep === FormStep.Review && (
             <Button
               disabled={
-                !props.queriedTag || 
-                evaluateTagDif(
-                  {
-                    ...props.queriedTag,
-                    collections: tagCollectionsQuery.data,
-                    timeslots: tagTimeslotsQuery.data,
-                    participants: tagParticipantsQuery.data ?? []
-                  },
-                  props.selectedTag
+                evaluateAllowedNext(FormStep.Review) || (
+                  props.queriedTag &&
+                  !evaluateTagDif(
+                    {
+                      ...props.queriedTag,
+                      collections: tagCollectionsQuery.data,
+                      timeslots: tagTimeslotsQuery.data,
+                      participants: tagParticipantsQuery.data ?? []
+                    },
+                    props.selectedTag
+                  )
                 )
+                
               }
               isProcessing={createTag.isPending || updateTag.isPending}
               onClick={() => {

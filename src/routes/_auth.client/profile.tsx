@@ -115,6 +115,8 @@ function RouteComponent() {
         <span>Failed to recieve user data</span>
     )
   }
+
+  
   return (
     <>
       <div className="flex justify-center items-center font-main mb-4 mt-2">
@@ -134,11 +136,12 @@ function RouteComponent() {
               {`Parent: ${userStorage?.attributes.given_name}, ${userStorage?.attributes.family_name}`}
             </Dropdown.Item>
             {user?.participant.map((participant, index) => {
+              const participantFirstName = participant.preferredName !== undefined && participant.preferredName !== '' ? participant.preferredName : participant.firstName
               return (
                 <Dropdown.Item  key={index} onClick={() => {
                   setActiveParticipant(participant)
                   setCreateParticipantFormVisible(false)
-                }}>{`Participant: ${participant.preferredName ?? participant.firstName}, ${participant.lastName}`}</Dropdown.Item>
+                }}>{`Participant: ${participantFirstName}, ${participant.lastName}`}</Dropdown.Item>
               )
             })}
             <Dropdown.Item className="border-t" 

@@ -9,6 +9,7 @@ export const ParticipantItem = (props: {
   selectedTag: UserTag,
   parentUpdateTag?: Dispatch<SetStateAction<UserTag | undefined>>
 }) => {
+  const participantFirstName = props.participant.preferredName !== undefined && props.participant.preferredName !== '' ? props.participant.preferredName : props.participant.firstName
   return (
     <div className="w-full">
       <Tooltip
@@ -58,7 +59,7 @@ export const ParticipantItem = (props: {
             }
           }}
         >
-          <span>{props.participant.preferredName ?? props.participant.firstName}, {props.participant.lastName}</span>
+          <span>{participantFirstName}, {props.participant.lastName}</span>
         </button>
       </Tooltip>
     </div>

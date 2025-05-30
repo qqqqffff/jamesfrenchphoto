@@ -20,11 +20,11 @@ export const evaluateTagDif = (oldTag: UserTag, newTag: UserTag): boolean => {
     .filter((participant) => !newTag.participants.some((pParticipant) => pParticipant.id === participant.id))
 
   if(
-    newCollections.length > 0 &&
-    removedCollections.length > 0 &&
-    newTimeslots.length > 0 &&
-    removedTimeslots.length > 0 &&
-    newParticipants.length > 0 &&
+    newCollections.length > 0 ||
+    removedCollections.length > 0 ||
+    newTimeslots.length > 0 ||
+    removedTimeslots.length > 0 ||
+    newParticipants.length > 0 ||
     removedParticipants.length > 0
   ) {
     return true
