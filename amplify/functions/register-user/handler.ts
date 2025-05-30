@@ -16,6 +16,8 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
   const token = event.arguments.token
 
   const returnObject: {
+    readUser: UserProfile,
+    readToken?: string,
     deleteResponse?: Schema['TemporaryCreateUsersTokens']['type'] | null
     deleteUserResponse?: Schema['UserProfile']['type'] | null
     userResponse?: Schema['UserProfile']['type'] | null
@@ -23,7 +25,10 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
       Schema['Participant']['type'] | null, 
       'create' | 'update' | 'delete'
     ][]
-  } = { }
+  } = { 
+    readUser: userProfile,
+    readToken: token ?? undefined
+  }
 
   //if token exists that means profile, participants and tagging already exist -> 
   // just need to delete token and validate changes for participants/create new
@@ -31,11 +36,12 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
     const deleteResponse = await client.models.TemporaryCreateUsersTokens.delete({
       id: token
     })
+    console.log(deleteResponse)
     returnObject.deleteResponse = deleteResponse.data
 
     //soft check if the email was changed
     const profileResponse = await client.models.UserProfile.get({ email: userProfile.email })
-
+    console.log(profileResponse)
     //if null need to create and delete old profile
     if(!profileResponse.data) {
       const oldProfileResponse = (await deleteResponse.data?.userProfile())?.data ?? null
@@ -43,6 +49,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
       //cleaning up old profile if exists
       if(oldProfileResponse) {
         const deleteProfileResponse = await client.models.UserProfile.delete({ email: oldProfileResponse.email })
+        console.log(deleteProfileResponse)
         returnObject.deleteUserResponse = deleteProfileResponse.data
       }
 
@@ -52,6 +59,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
         lastName: userProfile.lastName,
         preferredContact: userProfile.preferredContact,
       })
+      console.log(createProfileResponse)
       returnObject.userResponse = createProfileResponse.data
       //need to recreate participants if they exist
 
@@ -62,7 +70,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
           const foundParticipant = userProfile.participant.find((pParticipant) => pParticipant.id === participant.id)
           if(!foundParticipant) {
             const response = await client.models.Participant.delete({ id: participant.id })
-
+            console.log(response)
             returnObject.participantResponses = [
               ...(returnObject.participantResponses ?? []), 
               [response.data, 'delete']
@@ -75,6 +83,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
               ...foundParticipant,
               userEmail: userProfile.email,
             })
+            console.log(response)
 
             returnObject.participantResponses = [
               ...(returnObject.participantResponses ?? []),
@@ -97,6 +106,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
             ...participant,
             userEmail: userProfile.email
           })
+          console.log(createResponse)
           returnObject.participantResponses = [
             ...(returnObject.participantResponses ?? []), [
               createResponse.data,
@@ -119,6 +129,57 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
         preferredContact: userProfile.preferredContact,
       })
       returnObject.userResponse = updateProfileResponse.data
+
+      const participantsResponse = (await profileResponse.data.participant()).data
+
+      await Promise.all(userProfile.participant.map(async (participant) => {
+        const found = participantsResponse.find((rParticipant) => participant.id === rParticipant.id)
+        //soft comparison check
+        if(
+          found &&
+          (
+            found.firstName !== participant.firstName ||
+            found.lastName !== participant.lastName ||
+            found.middleName !== participant.middleName ||
+            found.preferredName !== participant.preferredName ||
+            found.email !== participant.email ||
+            found.contact !== participant.contact
+          )
+        ) {
+          const response = await client.models.Participant.update({
+            id: participant.id,
+            firstName: participant.firstName,
+            lastName: participant.lastName,
+            middleName: participant.middleName ?? null,
+            preferredName: participant.preferredName ?? null,
+            email: participant.email ?? null,
+          })
+
+          returnObject.participantResponses = [
+            ...(returnObject.participantResponses ?? []), [
+              response.data,
+              'update'
+            ]
+          ]
+        } else {
+          const response = await client.models.Participant.create({
+            id: participant.id,
+            firstName: participant.firstName,
+            lastName: participant.lastName,
+            middleName: participant.middleName,
+            preferredName: participant.preferredName,
+            email: participant.email,
+            userEmail: userProfile.email
+          })
+
+          returnObject.participantResponses = [
+            ...(returnObject.participantResponses ?? []), [
+              response.data,
+              'create'
+            ]
+          ]
+        }
+      }))
     }
   }
   else {

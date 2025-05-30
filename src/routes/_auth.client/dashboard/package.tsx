@@ -80,7 +80,7 @@ function RouteComponent() {
         ${width > 800 ? 'border-black border rounded-xl w-[90%] min-w-[48rem] px-12' : 'border-y border-y-black w-full'}
       `}
     >
-      <span className='text-lg italic font-light mb-2'>Package{advertiseList[selectedParent ?? ''].length > 1 ? 's' : ''} For</span>
+      <span className='text-lg italic font-light mb-2'>Package{(advertiseList[selectedParent ?? ''] ?? []).length > 1 ? 's' : ''} For</span>
       <div className='flex flex-row items-center justify-center w-full gap-4 mb-8'>
         {Object.keys(advertiseList).length > 1 && (
           <button

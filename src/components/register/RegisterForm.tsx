@@ -11,6 +11,7 @@ import { ConfirmPanel } from "./ConfirmPanel"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { resendSignUpCode } from "aws-amplify/auth"
 import { textInputTheme } from "../../utils"
+import Loading from "../common/Loading"
 
 export interface RegistrationProfile extends UserProfile { 
   password: string, 
@@ -238,16 +239,38 @@ export const RegisterForm = (props: RegisterFormProps) => {
           step: 'global',
           action: (
             <button onClick={() => {
+              const newFormError: FormError = {
+                id: {
+                  step: 'global',
+                  action: (
+                    <span className="flex flex-row text-start gap-1 italic font-light">
+                      <span>Signing out</span>
+                      <Loading />
+                    </span>
+                  )
+                },
+                message: 'Signed in user detected, signout to create an account!'
+              }
+              const newFormErrors = [
+                ...formErrors.filter((error) => (
+                  error.id.step !== 'global' && 
+                  error.message !== 'Signed in user detected, signout to create an account!'
+                )),
+                newFormError
+              ]
+              setFormErrors(newFormErrors)
+
               props
                 .logout()
                 .finally(() => {
-                  props.profileQuery.refetch()
-                  setFormErrors(
-                    formErrors.filter((error) => (
-                      error.id.step !== 'global' && 
-                      error.message !== 'Signed in user detected, signout to create an account!'
-                    ))
-                  )
+                  props.profileQuery.refetch().finally(() => {
+                    setFormErrors(
+                      formErrors.filter((error) => (
+                        error.id.step !== 'global' && 
+                        error.message !== 'Signed in user detected, signout to create an account!'
+                      ))
+                    )
+                  })
                 })
 
               
@@ -571,10 +594,6 @@ export const RegisterForm = (props: RegisterFormProps) => {
                     registerUser.mutate({
                       token: userProfile.temporary,
                       userProfile: userProfile,
-                      options: {
-                        logging: true,
-                        metric: true
-                      }
                     })
                   }
                   else {

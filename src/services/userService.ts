@@ -894,7 +894,6 @@ async function getAllParticipantsByUserTag(client: V6Client<Schema>, tagId?: str
     return participants
 }
 
-//TODO: implement me please :)
 export interface RegisterUserMutationParams {
     userProfile: RegistrationProfile,
     token?: string,
@@ -904,7 +903,6 @@ export interface RegisterUserMutationParams {
     }
 }
 export async function registerUserMutation(params: RegisterUserMutationParams) {
-    console.log(params, `+1${params.userProfile.phone?.replace(/\D/g, '')}`)
     const start = new Date()
     const response = await client.mutations.RegisterUser({
         userProfile: JSON.stringify(params.userProfile),

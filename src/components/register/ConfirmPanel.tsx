@@ -51,9 +51,10 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
               </div>
             </div>
             <div className="border mt-2"/>
-            {props.userProfile.participant.map((participant) => {
+            {props.userProfile.participant.map((participant, index) => {
               return (
                 <ParticipantPanel 
+                  key={index}
                   participant={participant}
                   hiddenOptions={{ tags: participant.userTags.length <= 0  }}
                 />
@@ -105,6 +106,7 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
                 </span>
               </span>
             )}
+            value={props.userProfile.password ?? ''}
           />
           <button 
             onClick={() => setPasswordVisible(!passwordVisible)}
@@ -140,6 +142,7 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
               confirm: event.target.value
             })
           }}
+          value={props.userProfile.confirm ?? ''}
         />
         <div className="flex flex-row text-left items-center gap-2 mt-2">
           <button 
@@ -209,9 +212,10 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
             </div>
           </div>
           <div className="border mt-2"/>
-          {props.userProfile.participant.map((participant) => {
+          {props.userProfile.participant.map((participant, index) => {
             return (
               <ParticipantPanel 
+                key={index}
                 participant={participant}
                 hiddenOptions={{ tags: participant.userTags.length <= 0 }}
               />
