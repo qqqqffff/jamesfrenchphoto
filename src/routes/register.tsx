@@ -50,6 +50,7 @@ export function RouteComponent(){
             password: '',
             confirm: '',
             terms: false,
+            temporary: token
         } : undefined}
         profileQuery={profile}
       />

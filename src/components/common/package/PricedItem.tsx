@@ -11,7 +11,6 @@ interface PricedItemProps {
 
 export const PricedItem = (props: PricedItemProps) => {
   const [expand, setExpand] = useState(props.expand ?? false)
-  console.log(props.item)
   
   useEffect(() => {
     if(props.expand !== undefined) {

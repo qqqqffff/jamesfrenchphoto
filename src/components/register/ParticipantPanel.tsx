@@ -81,9 +81,10 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
           <div className="flex flex-col gap-1 border rounded-lg w-full px-8 py-2 mt-4">
             <span className="text-lg font-medium underline underline-offset-2">Participant Details</span>
             <div className="flex flex-row items-center justify-center gap-4">
-              {activeParticipant.userTags.map((tag) => {
+              {activeParticipant.userTags.map((tag, index) => {
                 return (
                   <Badge 
+                    key={index}
                     theme={badgeColorThemeMap} 
                     color={tag.color} 
                     size="xs"

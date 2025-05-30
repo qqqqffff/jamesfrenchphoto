@@ -161,7 +161,7 @@ export const UserCell = (props: UserCellProps) => {
                   <span className="me-1">Tags:</span>
                   {participant.userTags.map((tag, index, arr) => {
                     return (
-                      <span className={`italic text-${tag.color ?? 'black'} truncate`}>{tag.name}{arr.length > 1 && index !== arr.length - 1 ? ',' : ''}</span>
+                      <span className={`italic text-${tag.color ?? 'black'} truncate`} key={index}>{tag.name}{arr.length > 1 && index !== arr.length - 1 ? ',' : ''}</span>
                     )
                   })}
                 </div>
