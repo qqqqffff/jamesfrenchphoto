@@ -64,10 +64,11 @@ export const UsersPanel = (props: UsersPanelProps) => {
               </div>
             )
           ) : (
-            participantColumns[0].map((participant) => {
+            participantColumns[0].map((participant, index) => {
               const selected = props.selectedTag.participants?.some((pParticipant) => pParticipant.id === participant.id)
               return (
                 <ParticipantItem 
+                  key={index}
                   participant={participant}
                   selected={selected ?? false}
                   selectedTag={props.selectedTag}
@@ -78,10 +79,11 @@ export const UsersPanel = (props: UsersPanelProps) => {
           ))}
         </div>
         <div className="flex flex-col gap-4 border rounded-lg p-4 w-full h-full">
-          {participantColumns[1].map((participant) => {
+          {participantColumns[1].map((participant, index) => {
             const selected = props.selectedTag.participants?.some((pParticipant) => participant.id === pParticipant.id)
             return (
               <ParticipantItem 
+              key={index}
                 participant={participant}
                 selected={selected ?? false}
                 selectedTag={props.selectedTag}
@@ -91,10 +93,11 @@ export const UsersPanel = (props: UsersPanelProps) => {
           })}
         </div>
         <div className="flex flex-col gap-4 border rounded-lg p-4 w-full h-full">
-          {participantColumns[2].map((participant) => {
+          {participantColumns[2].map((participant, index) => {
             const selected = props.selectedTag.participants?.some((pParticipant) => participant.id === pParticipant.id)
             return (
-              <ParticipantItem 
+              <ParticipantItem
+                key={index} 
                 participant={participant}
                 selected={selected ?? false}
                 selectedTag={props.selectedTag}

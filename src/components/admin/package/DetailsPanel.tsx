@@ -96,7 +96,8 @@ export const DetailsPanel = (props: DetailsPanelProps) => {
         <TagPicker 
           tags={props.tags.filter((tag) => (
             tag.id !== props.selectedPackage.parentTagId && 
-            tag.id !== props.selectedPackage.tagId
+            tag.id !== props.selectedPackage.tagId &&
+            tag.package === undefined
           ))}
           placeholder='Pick Package Tag...'
           parentPickTag={(value) => {

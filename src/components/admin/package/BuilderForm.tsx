@@ -114,6 +114,10 @@ export const BuilderForm = (props: BuilderFormProps) => {
     }
   }, [packageItemsQuery.data])
 
+  useEffect(() => {
+    setFormStep(FormStep.Details)
+  }, [props.queriedPackage])
+
   const handleNext = () => {
     switch(formStep) {
       case FormStep.Details:

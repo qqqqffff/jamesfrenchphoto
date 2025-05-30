@@ -33,10 +33,11 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
               ]
               const tempTag: UserTag = {
                 id: v4(),
-                name: 'Unnamed Package',
+                name: 'Unnamed Tag',
                 participants: [],
                 children: [],
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                temporary: true
               }
               temp.push(tempTag)
 
@@ -77,7 +78,7 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
                           })
                         }}
                       >
-                        <span className={`w-full truncate text-left text-${tag.color ?? 'black'}`}>{tag.name}</span>
+                        <span className={`w-full truncate text-left text-${(selected ? selectedTag.color : tag.color) ?? 'black'}`}>{selected ? selectedTag.name : tag.name}</span>
                       </button>
                     </div>
                   </div>

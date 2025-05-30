@@ -85,6 +85,8 @@ export const UsersPanel = (props: UsersPanelProps) => {
     }
   })
 
+  
+
   return (
     <div className="flex flex-col max-h-[90vh] min-h-[90vh] py-2 px-12 w-full overflow-auto">
       <div className="flex flex-row relative justify-center items-center mb-4 gap-4">
@@ -199,6 +201,8 @@ export const UsersPanel = (props: UsersPanelProps) => {
           ))
           .sort((a, b) => a.lastName.localeCompare(b.lastName))
           .map((participant, index) => {
+            //TODO: convert me to a function
+            const participantFirstName = participant.preferredName !== undefined && participant.preferredName !== '' ? participant.preferredName : participant.firstName
             const selected = collectionParticipants.some((selectedParticipant) => selectedParticipant.id === participant.id)
             const tagSelected = participant.userTags.some((tag) => props.collection.tags.some((colTag) => colTag.id === tag.id))
             
@@ -237,8 +241,9 @@ export const UsersPanel = (props: UsersPanelProps) => {
                 }}
               >
                 <div className="flex flex-row gap-2 items-center text-nowrap">
-                  <span className="italic">{`${participant.lastName}, `}</span>
-                  <span className="italic">{participant.preferredName ?? participant.firstName}</span>
+                  <span className="italic">{`${participantFirstName}, `}</span>
+                  <span className="italic">{participant.lastName}</span>
+                  
                 </div>
               </button>
             ))

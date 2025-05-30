@@ -40,7 +40,7 @@ export const CollectionsPanel = (props: CollectionPanelProps) => {
         onChange={(event) => setSearch(event.target.value)}
         value={search}
       />
-      <div className="grid grid-cols-3 px-10 place-items-center gap-x-6 w-full">
+      <div className="grid grid-cols-3 px-10 place-items-center gap-x-6 w-full overflow-y-auto">
         <div className="flex flex-col gap-4 border rounded-lg p-4 w-full h-full">
           {props.collectionsQuery.isLoading ? (
             <span className="flex flex-row text-start gap-1 italic font-light">
