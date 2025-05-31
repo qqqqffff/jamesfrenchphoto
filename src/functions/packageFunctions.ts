@@ -1,4 +1,4 @@
-import { Package, PackageItem } from "../types"
+import { Package, PackageItem, UserTag } from "../types"
 
 export function evaluateBooleanOperator(operator?: string, quantity?: string): string {
   if(!operator || !quantity) return ''
@@ -115,4 +115,39 @@ export const evaluatePackageDif = (oldPackage: Package, newPackage: Package): bo
     oldPackage.pdfPath !== newPackage.pdfPath ||
     oldPackage.price !== newPackage.price
   )
+}
+
+export const getClientAdvertiseList = (tags?: UserTag[], appendParentPackages?: boolean): Record<string, Package[]> => {
+  const advertiseList =  Object.fromEntries((tags ?? [])
+    .map((tag) => ({
+      parentId: tag.id, 
+      children: tag.children.filter((cTag) => cTag.package?.advertise)
+    }))
+    .filter((tag) => {
+      //filter out the parents with a selection
+      return (
+        !tags?.some((pTag) => tag.children.some((cTag) => cTag.id === pTag.id))
+      )
+    })
+    .map((tag) => {
+      return [
+        tag.parentId,
+        tag.children
+          .map((child) => child.package)
+          .filter((pack) => pack !== undefined)
+      ]
+    })
+  ) 
+
+  if(appendParentPackages) {
+    const keyList = Object.keys(advertiseList)
+    for(let i = 0; i < keyList.length; i++) {
+      const foundTag = tags?.find((tag) => keyList[i] === tag.id)
+      if(foundTag && foundTag.package !== undefined) {
+        advertiseList[keyList[i]].push(foundTag.package)
+      }
+    }
+  }
+
+  return advertiseList
 }

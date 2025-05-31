@@ -1,5 +1,5 @@
 import { QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
-import { createRootRouteWithContext, Link, Outlet, useNavigate } from '@tanstack/react-router'
+import { createRootRouteWithContext, Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router'
 import { HiOutlineCheckCircle } from "react-icons/hi2";
 import { AuthContext, useAuth } from '../auth'
 import { Dropdown } from 'flowbite-react'
@@ -88,6 +88,7 @@ const RootComponent = () => {
     const { width } = useWindowDimensions()
     const queryClient = useQueryClient()
     const navigate = useNavigate()
+    const location = useLocation()
 
     if(data) return (<Outlet />)
 
@@ -124,16 +125,19 @@ const RootComponent = () => {
         )
     }
 
+    
     return (
-        <>
-            <div className='flex flex-row px-8 py-4 font-main border-b-2 border-gray-300'>
-                <div className='flex justify-center items-center'>
-                    <a href="/">
-                        <img className='ml-3 mt-3' src={bannerIcon} alt='James French Photography Banner' width={150} height={100} />
-                    </a>
-                </div>
-                <div className='flex flex-row items-center lg:px-12 text-2xl w-full justify-end gap-10'>
-                    <UserComponent />
+        <> 
+            <div className={location.href.includes('advertise') ? ' blur-sm' : ''}>
+                <div className='flex flex-row px-8 py-4 font-main border-b-2 border-gray-300'>
+                    <div className='flex justify-center items-center'>
+                        <a href="/">
+                            <img className='ml-3 mt-3' src={bannerIcon} alt='James French Photography Banner' width={150} height={100} />
+                        </a>
+                    </div>
+                    <div className='flex flex-row items-center lg:px-12 text-2xl w-full justify-end gap-10'>
+                        <UserComponent />
+                    </div>
                 </div>
             </div>
             <Outlet />

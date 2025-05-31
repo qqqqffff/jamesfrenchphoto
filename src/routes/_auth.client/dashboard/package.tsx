@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Package, PackageItem, PhotoCollection } from '../../../types'
+import { PackageItem } from '../../../types'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useEffect, useState } from 'react'
 import { HiOutlineArrowLeftCircle, HiOutlineArrowRightCircle } from 'react-icons/hi2'
@@ -9,6 +9,8 @@ import { PackageCard } from '../../../components/common/package/PackageCard'
 import { useQuery, UseQueryResult } from '@tanstack/react-query'
 import { getAllPackageItemsQueryOptions } from '../../../services/packageService'
 import Loading from '../../../components/common/Loading'
+import { getUserCollectionList } from '../../../functions/clientFunctions'
+import { getClientAdvertiseList } from '../../../functions/packageFunctions'
 
 export const Route = createFileRoute('/_auth/client/dashboard/package')({
   component: RouteComponent,
@@ -24,26 +26,7 @@ function RouteComponent() {
   const [selectedParent, setSelectedParent] = useState<string | undefined>()
 
   const userTags = data.user?.profile.activeParticipant?.userTags ?? []
-
-  const advertiseList: Record<string, Package[]> = Object.fromEntries((data.user?.profile.activeParticipant?.userTags ?? [])
-    .map((tag) => ({
-      parentId: tag.id, 
-      children: tag.children.filter((cTag) => cTag.package?.advertise)
-    }))
-    .filter((tag) => {
-      //filter out the parents with a selection
-      return (
-        !userTags.some((pTag) => tag.children.some((cTag) => cTag.id === pTag.id))
-      )
-    })
-    .map((tag) => {
-      return [
-        tag.parentId,
-        tag.children
-          .map((child) => child.package)
-          .filter((pack) => pack !== undefined)
-      ]
-    }))
+  const advertiseList = getClientAdvertiseList(userTags)
 
   useEffect(() => {
     if(selectedParent === undefined) {
@@ -62,15 +45,10 @@ function RouteComponent() {
       ])
   )
 
-  const collectionList = [
-    ...(data.user?.profile.activeParticipant?.collections ?? []),
-    ...(data.user?.profile.activeParticipant?.userTags.flatMap((tag) => tag.collections ?? []) ?? [])
-  ].reduce((prev, cur) => {
-    if(!prev.some((col) => col.id === cur.id)) {
-      prev.push(cur)
-    }
-    return prev
-  }, [] as PhotoCollection[])
+  const collectionList = getUserCollectionList(
+    data.user?.profile.activeParticipant?.collections,
+    userTags,
+  )
 
   return (
     <div className='flex flex-col items-center justify-center w-full'>

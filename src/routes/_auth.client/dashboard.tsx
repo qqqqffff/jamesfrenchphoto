@@ -71,7 +71,8 @@ function RouteComponent() {
   })
   return (
     <>
-      <div className="flex flex-col items-center justify-center font-main">
+      <div className={location.href.includes('advertise') ? 'blur-sm' : ''}>
+        <div className="flex flex-col items-center justify-center font-main">
           <p className="font-semibold text-3xl mb-4 text-center">Welcome {structureFullname(auth.user.profile)}</p>
           <div className="flex flex-row gap-2 items-center mb-4">
               {
@@ -108,6 +109,7 @@ function RouteComponent() {
                 </Button>
               )}
           </Button.Group>
+        </div>
       </div>
       <Outlet />
     </>
