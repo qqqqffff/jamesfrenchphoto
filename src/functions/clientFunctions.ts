@@ -10,4 +10,5 @@ export const getUserCollectionList = (collections?: PhotoCollection[], tags?: Us
     }
     return prev
   }, [] as PhotoCollection[])
+  .filter((collection) => collection.published)
 }

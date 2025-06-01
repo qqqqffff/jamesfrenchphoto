@@ -127,10 +127,10 @@ function RouteComponent() {
           <div className='flex flex-col items-center w-full h-full border rounded-lg min-h-[500px] mb-24'>
             <Carousel
               slide={false} 
-              leftControl={data.advertiseList[selectedParent].length > 0 && (
+              leftControl={data.advertiseList[selectedParent].length > 1 && (
                 <HiOutlineArrowLeftCircle size={32} className='hover:fill-gray-100 hover:text-gray-500'/>
               )}
-              rightControl={data.advertiseList[selectedParent].length > 0 && (
+              rightControl={data.advertiseList[selectedParent].length > 1 && (
                 <HiOutlineArrowRightCircle size={32} className='hover:fill-gray-100 hover:text-gray-500'/>
               )}
             >

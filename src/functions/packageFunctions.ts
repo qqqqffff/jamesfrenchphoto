@@ -151,3 +151,16 @@ export const getClientAdvertiseList = (tags?: UserTag[], appendParentPackages?: 
 
   return advertiseList
 }
+
+export const getClientPackages = (tags?: UserTag[]): Record<string, Package | undefined> => {
+  return Object.fromEntries((tags ?? [])
+    .filter((tag) => tag.children.length !== 0) //filtering out the non-parent tags
+    .map((tag) => {
+      return [
+        tag.id,
+        tag.children.find((cTag) => tags?.some((pTag) => pTag.id === cTag.id))?.package ?? //attempt to find a tag in the parent tags that matches to the children
+        tag.package //otherwise return its own package if exists
+      ]
+    })
+  )
+}
