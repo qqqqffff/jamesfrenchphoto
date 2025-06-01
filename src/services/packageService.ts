@@ -301,6 +301,7 @@ interface GetAllPackageItemsOptions {
     siCollectionItems?: boolean
 }
 async function getAllPackageItems(client: V6Client<Schema>, packageId?: string, options?: GetAllPackageItemsOptions): Promise<PackageItem[]> {
+    console.log('api call')
     const packageItems: PackageItem[] = []
 
     if(!packageId) return packageItems
