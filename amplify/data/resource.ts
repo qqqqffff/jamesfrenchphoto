@@ -178,11 +178,13 @@ const schema = a.schema({
       price: a.string(),
       order: a.integer().required(),
       unique: a.boolean(),
+      aLaCarte: a.boolean(),
       itemCollections: a.hasMany('PackageItemCollection', 'packageItemId'),
       //grouped for tiered
       statements: a.string().array(),
       //grouped for dependent
       dependent: a.string(),
+      display: a.boolean().default(true),
       flag: a.string().default('true'),
       createdAt: a.datetime().required(),
     })

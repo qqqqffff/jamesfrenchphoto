@@ -39,6 +39,7 @@ export const PackageCard = (props: PackageCardProps) => {
           </span>
         ) : (
           props.package.items
+          .filter((item) => item.display || item.display === undefined)
           .sort((a, b) => a.order - b.order)
           .map((item, index) => {
             if(item.max !== undefined) {

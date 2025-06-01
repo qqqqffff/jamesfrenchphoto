@@ -1,7 +1,7 @@
 import { Dispatch, SetStateAction, useState } from "react"
 import { Package, PackageItem } from "../../../types"
 import { HiOutlineMinus, HiOutlinePlus, HiOutlineXMark } from "react-icons/hi2"
-import { TextInput } from "flowbite-react"
+import { Checkbox, TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
 import { PriceInput } from "../../common/PriceInput"
 import { splitStatement } from "../../../functions/packageFunctions"
@@ -209,6 +209,41 @@ export const DependentItem = (props: DependentItemProps) => {
             />
           </>
         )}
+        <button
+          className="flex flex-row items-center gap-2 disabled:opacity-65 disabled:hover:cursor-not-allowed"
+          onClick={(event) => {
+            event.stopPropagation()
+            const tempPackage: Package = {
+              ...props.selectedPackage,
+              items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                ...props.item,
+                display: !props.item.display
+              }) : item))
+            }
+      
+            props.parentUpdatePackage(tempPackage)
+            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+          }}
+        >
+          <Checkbox 
+            className='disabled:hover:cursor-not-allowed enabled:hover:cursor-pointer' 
+            onClick={() => {
+              const tempPackage: Package = {
+                ...props.selectedPackage,
+                items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                  ...props.item,
+                  display: !props.item.display
+                }) : item))
+              }
+        
+              props.parentUpdatePackage(tempPackage)
+              props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+            }}
+            checked={props.item.display ?? true}
+            readOnly 
+          />
+          <span className="italic font-light">Display</span>
+        </button>
       </div>
     </div>
   )

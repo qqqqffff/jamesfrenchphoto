@@ -198,7 +198,9 @@ export type PackageItem = {
     order: number,
     dependent?: string,
     statements?: string[]
-    unique?: boolean
+    unique?: boolean,
+    aLaCarte?: boolean,
+    display?: boolean,
     createdAt: string,
 }
 
