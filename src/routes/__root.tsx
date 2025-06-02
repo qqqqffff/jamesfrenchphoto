@@ -1,19 +1,33 @@
-import { QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, useMutation, UseMutationResult, useQueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router'
 import { HiOutlineCheckCircle } from "react-icons/hi2";
 import { AuthContext, useAuth } from '../auth'
 import { Dropdown } from 'flowbite-react'
-import { FC, ReactNode } from 'react'
+import { Dispatch, FC, ReactNode, SetStateAction, useState } from 'react'
 import bannerIcon from '../assets/headerPhoto.png'
 import useWindowDimensions from '../hooks/windowDimensions';
 import { HiOutlineMenu } from 'react-icons/hi';
+import { CgSpinner } from 'react-icons/cg';
 
 const LoginComponent = () => (<Link to='/login'>Login</Link>)
 
 const UserProfileComponent: FC<{
+  width: number,
   admin: boolean | null, 
   logout: () => Promise<void>
-}> = ({ admin, logout }) => {
+  selectedParticipant: string | undefined
+  setSelectedParticipant: Dispatch<SetStateAction<string | undefined>>
+  auth: AuthContext,
+  participantMutation: UseMutationResult<void, Error, string, unknown>
+}> = ({ 
+  width,
+  admin, 
+  logout, 
+  selectedParticipant, 
+  setSelectedParticipant, 
+  auth, 
+  participantMutation 
+}) => {
   const navigate = useNavigate()
   let dashboardUrl = '/' +  (admin !== null && admin ? 'admin' : 'client') + '/dashboard'
 
@@ -21,7 +35,7 @@ const UserProfileComponent: FC<{
     return (
       <>
         <Dropdown.Item href={dashboardUrl}>Dashboard</Dropdown.Item>
-        {/* <Dropdown.Item onClick={() => navigate({to: '/register', search: { token: 'abc'}})}>Test</Dropdown.Item> */}
+        
         {children}
         <Dropdown.Item onClick={async () => {
           await logout()
@@ -34,6 +48,41 @@ const UserProfileComponent: FC<{
   function UserDropdown() {
     return (
       <UserDropdownSkeleton>
+        {width <=  800 && (
+          <Dropdown
+          arrowIcon={false}
+          inline
+          label={<Dropdown.Item as='div'>{`Participant${(auth.user?.profile.participant ?? []).length > 1 ? 's' : ''}`}</Dropdown.Item>}
+          trigger='click'
+          placement='left'
+          dismissOnClick={false}
+        >
+          {auth.user?.profile.participant.map((participant, index) => {
+            return (
+              <Dropdown.Item 
+                className='whitespace-nowrap flex flex-row gap-1 items-center'
+                key={index} 
+                onClick={async () => {
+                  if(auth.user?.profile.activeParticipant?.id !== participant.id){
+                    setSelectedParticipant(participant.id)
+                    participantMutation.mutate(participant.id)
+                  }
+                }}
+              >
+                {participant.id === selectedParticipant && (
+                  participantMutation.isPending ? (
+                    <CgSpinner size={20} className="animate-spin text-gray-600"/>
+                  ) : (
+                    <HiOutlineCheckCircle size={20} />
+                  )
+                )}
+                {`${participant.preferredName && participant.preferredName !== '' ? 
+                  participant.preferredName : participant.firstName} ${participant.lastName}`}
+              </Dropdown.Item>
+            )
+          })}
+          </Dropdown>
+        )}
         <Dropdown.Item onClick={() => navigate({ to: '/client/profile' })}>My Profile</Dropdown.Item>
       </UserDropdownSkeleton>
     )
@@ -43,9 +92,10 @@ const UserProfileComponent: FC<{
   return (<UserDropdownSkeleton />)
 }
 
-//TODO: responsive loading for participant changes
 const RootComponent = () => {
   const data = Route.useLoaderData()
+  const auth = useAuth()
+  const [selectedParticipant, setSelectedParticipant] = useState(auth.user?.profile.activeParticipant?.id)
 
   const changeParticipant = async (participantId: string) => {
     await auth.changeParticipant(participantId)
@@ -59,7 +109,7 @@ const RootComponent = () => {
     mutationFn: (participantId: string) => changeParticipant(participantId)
   })
 
-  const auth = useAuth()
+  
   const { width } = useWindowDimensions()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -83,8 +133,13 @@ const RootComponent = () => {
           dismissOnClick={false}
         >
           <UserProfileComponent 
+            width={width}
             admin={auth.admin} 
             logout={auth.logout}
+            selectedParticipant={selectedParticipant}
+            setSelectedParticipant={setSelectedParticipant}
+            auth={auth}
+            participantMutation={participantMutation}
           />
         </Dropdown>
       )
@@ -108,6 +163,7 @@ const RootComponent = () => {
                 label={`Participant${(auth.user?.profile.participant ?? []).length > 1 ? 's' : ''}`}
                 trigger='hover'
                 placement='bottom'
+                dismissOnClick={false}
               >
                 {auth.user?.profile.participant.map((participant, index) => {
                   return (
@@ -116,12 +172,17 @@ const RootComponent = () => {
                       key={index} 
                       onClick={async () => {
                         if(auth.user?.profile.activeParticipant?.id !== participant.id){
-                          await participantMutation.mutateAsync(participant.id)
+                          setSelectedParticipant(participant.id)
+                          participantMutation.mutate(participant.id)
                         }
                       }}
                     >
-                      {participant.id === auth.user?.profile.activeParticipant?.id && (
-                        <HiOutlineCheckCircle size={20}/>
+                      {participant.id === selectedParticipant && (
+                        participantMutation.isPending ? (
+                          <CgSpinner size={20} className="animate-spin text-gray-600"/>
+                        ) : (
+                          <HiOutlineCheckCircle size={20} />
+                        )
                       )}
                       {`${participant.preferredName && participant.preferredName !== '' ? 
                         participant.preferredName : participant.firstName} ${participant.lastName}`}

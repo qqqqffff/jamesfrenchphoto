@@ -86,7 +86,7 @@ function RouteComponent() {
               })
             }
           </div>
-          <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections:</span>
+          <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections</span>
           {collections.filter((collection) => collection.published).length > 0 ? (
             <div className={`grid grid-cols-${dimensions.width > 700 && collections.length !== 1 ? '2' : '1'} gap-x-10 gap-y-6 mb-4 overflow-y-auto max-h-[60vh]`}>
               {collections
@@ -120,7 +120,7 @@ function RouteComponent() {
           )}
           {Object.keys(packageList).length > 0 && (
             <>
-              <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package For:</span>
+              <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package For</span>
               <div className='flex flex-row items-center justify-center w-full gap-4'>
                 {Object.keys(packageList).length > 1 && (
                   <button
