@@ -67,10 +67,14 @@ function RouteComponent() {
 
   return (
     <>
-      <div className='flex flex-col w-full items-center justify-center mt-4'>
+      <div className='flex flex-col w-full items-center justify-center mt-4 relative'>
         <div className={`
           flex flex-col items-center justify-center gap-4 mb-4 overflow-auto 
-          ${width > 800 ? 'border-black border rounded-xl w-[60%] max-w-[64rem]' : 'border-y border-y-black w-full'}
+          ${width > 800 ? (
+            `border-black border rounded-xl ${ width > 1600 ? 'w-[60%]' : width > 1400 ? 'w-[70%]' : width > 1200 ? 'w-[80%]' : 'w-[90%]' } max-w-[64rem]`
+          ) : (
+            'border-y border-y-black w-full'
+          )}
         `}>
           <div className="flex flex-col items-center justify-center w-full">
             {(auth.user?.profile.activeParticipant?.notifications ?? [])
@@ -88,7 +92,7 @@ function RouteComponent() {
           </div>
           <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections</span>
           {collections.filter((collection) => collection.published).length > 0 ? (
-            <div className={`grid grid-cols-${dimensions.width > 700 && collections.length !== 1 ? '2' : '1'} gap-x-10 gap-y-6 mb-4 overflow-y-auto max-h-[60vh]`}>
+            <div className={`grid grid-cols-${dimensions.width > 900 && collections.length !== 1 ? '2' : '1'} gap-x-10 gap-y-6 mb-4`}>
               {collections
                 .filter((collection) => collection.published)
                 .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

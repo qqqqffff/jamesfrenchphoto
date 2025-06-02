@@ -52,9 +52,10 @@ function RouteComponent() {
   const [watermarks, setWatermarks] = useState<Watermark[]>([])
   const [shareTemplates, setShareTemplates] = useState<ShareTemplate[]>([])
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
-  const [filteredItems, setFilteredItems] = useState<PhotoCollection[]>()
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | undefined>()
   const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>()
+  const [search, setSearch] = useState<string>('')
+  const [expandedTitle, setExpandedTitle] = useState<string>()
 
   const tagsPromise = useSuspenseQuery(getAllUserTagsQueryOptions({ siCollections: false }))
   const watermarkQuery = useQuery(getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
@@ -109,31 +110,20 @@ function RouteComponent() {
     }
   }, [collectionQuery.data])
 
-  function filterItems(term: string): undefined | void {
-    if (!term) {
-      setFilteredItems(undefined)
-      return
-    }
-
-    const normalSearchTerm = term.trim().toLocaleLowerCase()
-
-    const data: PhotoCollection[] = photoCollections
-      .filter((item) => {
-        let filterResult = false
-        try {
-          filterResult = item.name
-            .trim()
-            .toLocaleLowerCase()
-            .includes(normalSearchTerm)
-        } catch (err) {
-          return false
-        }
-        return filterResult
-      })
-      .filter((item) => item !== undefined)
-
-    setFilteredItems(data)
-  }
+  const filteredItems = photoCollections
+    .filter((item) => {
+      let filterResult = false
+      try {
+        filterResult = item.name
+          .trim()
+          .toLocaleLowerCase()
+          .includes(search)
+      } catch (err) {
+        return false
+      }
+      return filterResult
+    })
+    .filter((item) => item !== undefined)
 
   const coverPaths: Record<string, UseQueryResult<[string | undefined, string] | undefined, Error>> = 
     Object.fromEntries(
@@ -248,7 +238,8 @@ function RouteComponent() {
                   theme={textInputTheme}
                   sizing='lg'
                   placeholder="Search"
-                  onChange={(event) => filterItems(event.target.value)}
+                  onChange={(event) => setSearch(event.target.value)}
+                  value={search}
                 />
                 <button
                   className="flex flex-row gap-4 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-2 me-4"
@@ -258,45 +249,14 @@ function RouteComponent() {
                   <HiOutlinePlusCircle className="text-2xl text-gray-600 me-2" />
                 </button>
               </div>
-              <div className='grid grid-cols-3 border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
+              <div className='grid grid-cols-3 border border-gray-400 rounded-2xl py-8 mt-4 justify-items-center gap-y-10 max-h-[90vh] overflow-y-auto'>
                 {photoCollections && photoCollections.length > 0 ? (
-                  filteredItems ? (
-                    filteredItems.length > 0 ? (
-                      filteredItems
-                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                        .map((collection, index) => {
-                          const path = coverPaths[collection.id]
-                          return (
-                            <CollectionThumbnail 
-                              collectionId={collection.id}
-                              cover={path}
-                              onClick={() => {
-                                navigate({to: '.', search: { collection: collection.id }})
-                                setSelectedCollection(collection)
-                                setSelectedCollectionId(collection.id)
-                              }}
-                              key={index}
-                              contentChildren={(
-                                <div className="flex flex-row gap-1 font-thin opacity-90 items-center justify-start">
-                                  <Tooltip content={(<p>Collection Has {collection.published ? 'Been Published' : 'Not Been Published'}</p>)}>
-                                    <p className={`${collection.published ? 'text-green-400' : 'text-gray-600 italic'}`}>{collection.name}</p>
-                                  </Tooltip>
-                                  <p>&bull;</p>
-                                  <p>Items: {collection.items}</p>
-                                  <p>&bull;</p>
-                                  <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
-                                </div>
-                              )}
-                            />
-                          )
-                        })
-                    ) : (
-                      <div className="self-center col-start-2 flex flex-row items-center justify-center">
-                        <span>No results!</span>
-                      </div>
-                    )
+                  search && filteredItems.length === 0 ? (
+                    <div className="self-center col-start-2 flex flex-row items-center justify-center">
+                      <span className='italic text-xl font-light'>No Collections Found</span>
+                    </div>
                   ) : (
-                    photoCollections
+                    filteredItems
                       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                       .map((collection, index) => {
                         const path = coverPaths[collection.id]
@@ -311,9 +271,22 @@ function RouteComponent() {
                             }}
                             key={index}
                             contentChildren={(
-                              <div className="flex flex-row gap-1 font-thin opacity-90 items-center justify-start">
-                                <Tooltip content={(<p>Collection Has {collection.published ? 'Been Published' : 'Not Been Published'}</p>)}>
-                                  <p className={`${collection.published ? 'text-green-400' : 'text-gray-600 italic'}`}>{collection.name}</p>
+                              <div className="flex flex-row gap-1 font-thin opacity-90 justify-start">
+                                <Tooltip
+                                  theme={{ target: undefined }} 
+                                  style='light' 
+                                  placement='bottom' 
+                                  content={(<p>Collection Is {collection.published ? '' : 'Not '}Published</p>)}
+                                >
+                                  <p 
+                                    onMouseEnter={() => setExpandedTitle(collection.id)}
+                                    onMouseLeave={() => setExpandedTitle(undefined)}
+                                    className={`
+                                      max-w-[200px] hover:cursor-pointer
+                                      ${expandedTitle === collection.id ? '' : 'truncate'}
+                                      ${collection.published ? 'text-green-400' : 'text-gray-600 italic'} 
+                                    `}
+                                  >{collection.name}</p>
                                 </Tooltip>
                                 <p>&bull;</p>
                                 <p>Items: {collection.items}</p>
@@ -324,12 +297,13 @@ function RouteComponent() {
                           />
                         )
                       })
+                    ) 
+                  ) : (
+                    <div className="self-center col-start-2 flex flex-row items-center justify-center">
+                      <span >No collections yet!</span>
+                    </div>
                   )
-                ) : (
-                  <div className="self-center col-start-2 flex flex-row items-center justify-center">
-                    <span >No collections yet!</span>
-                  </div>
-                )}
+                }
               </div>
             </div>
           </div>

@@ -88,7 +88,7 @@ function RouteComponent() {
                 })
               }
           </div>
-          <p className="font-medium text-xl mb-1">Quick Actions:</p>
+          <p className="font-medium text-xl mb-1">Consoles:</p>
           <Button.Group>
               <Button color='gray' onClick={() => navigate({ to : '/client/dashboard' })} className={activeConsoleClassName('dashboard')}>
                 <HiOutlineHome className="mt-1 me-1"/>Home
