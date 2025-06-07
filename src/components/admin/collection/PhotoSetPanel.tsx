@@ -724,7 +724,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           <Alert color={notification.color} className="text-lg w-[90%] absolute mt-16" onDismiss={() => setNotification(undefined)}>{notification.text}</Alert>
         )}
       </div>
-      <div className="w-full p-1 relative" {...getRootProps()}>
+      <div className={`w-full p-1 relative ${isDragActive ? 'animate-pulse' : ''}`} {...getRootProps()}>
         {isDragActive && (
           <div 
             className="absolute w-full h-full items-center justify-center flex flex-col opacity-50 z-10 bg-gray-200 border-2 border-gray-400 border-dashed rounded-lg"

@@ -180,8 +180,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
           props.selectedPackage.items.length == 0 ||
           props.selectedPackage.name === '' || 
           props.selectedPackage.tagId === '' || 
-          props.selectedPackage.name === 'Unnamed Package' || 
-          props.selectedPackage.parentTagId === ''
+          props.selectedPackage.name === 'Unnamed Package'
         )
       case FormStep.Review:
         return false

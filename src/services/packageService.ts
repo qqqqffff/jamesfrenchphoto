@@ -55,10 +55,12 @@ async function getPackagesByUserTags(client: V6Client<Schema>, tags: UserTag[], 
                         max: item.max ?? undefined,
                         price: item.price ?? undefined,
                         quantities: item.quantity ?? undefined,
-                        hardCap: item.hardCap ?? undefined,
+                        hardCap: item.hardCap ? item.hardCap === -1 ? Infinity : item.hardCap : undefined,
                         dependent: item.dependent ?? undefined,
                         unique: item.unique ?? undefined,
                         collectionIds: collectionIds,
+                        display: item.display ?? true,
+                        aLaCarte: item.aLaCarte ?? undefined,
                         statements: item.statements?.filter((item) => item !== null)
                     }
                     return mappedItem
@@ -145,10 +147,12 @@ async function getInfinitePackages(client: V6Client<Schema>, initial: GetInfinit
                         max: item.max ?? undefined,
                         price: item.price ?? undefined,
                         quantities: item.quantity ?? undefined,
-                        hardCap: item.hardCap ?? undefined,
+                        hardCap: item.hardCap ? item.hardCap === -1 ? Infinity : item.hardCap : undefined,
                         collectionIds: collectionIds,
                         dependent: item.dependent ?? undefined,
                         unique: item.unique ?? undefined,
+                        display: item.display ?? true,
+                        aLaCarte: item.aLaCarte ?? undefined,
                         statements: item.statements?.filter((item) => item !== null)
                     }
                     return mappedItem
@@ -276,10 +280,12 @@ async function getInfinitePackageItems(client: V6Client<Schema>, initial: GetInf
             max: item.max ?? undefined,
             price: item.price ?? undefined,
             quantities: item.quantity ?? undefined,
-            hardCap: item.hardCap ?? undefined,
+            hardCap: item.hardCap ? item.hardCap === -1 ? Infinity : item.hardCap : undefined,
             collectionIds: collectionIds,
             dependent: item.dependent ?? undefined,
             unique: item.unique ?? undefined,
+            display: item.display ?? true,
+            aLaCarte: item.aLaCarte ?? undefined,
             statements: item.statements?.filter((item) => item !== null)
         }
 
@@ -301,6 +307,7 @@ interface GetAllPackageItemsOptions {
     siCollectionItems?: boolean
 }
 async function getAllPackageItems(client: V6Client<Schema>, packageId?: string, options?: GetAllPackageItemsOptions): Promise<PackageItem[]> {
+    console.log('api call')
     const packageItems: PackageItem[] = []
 
     if(!packageId) return packageItems
@@ -334,10 +341,12 @@ async function getAllPackageItems(client: V6Client<Schema>, packageId?: string, 
                 max: item.max ?? undefined,
                 price: item.price ?? undefined,
                 quantities: item.quantity ?? undefined,
-                hardCap: item.hardCap ?? undefined,
+                hardCap: item.hardCap ? item.hardCap === -1 ? Infinity : item.hardCap : undefined,
                 collectionIds: collectionIds,
                 dependent: item.dependent ?? undefined,
                 unique: item.unique ?? undefined,
+                display: item.display ?? true,
+                aLaCarte: item.aLaCarte ?? undefined,
                 statements: item.statements?.filter((item) => item !== null)
             }
 
@@ -408,11 +417,13 @@ export async function createPackageMutation(params: CreatePackageParams) {
                 description: item.description,
                 quantity: item.quantities,
                 max: item.max,
-                hardCap: item.hardCap,
+                hardCap: item.hardCap === Infinity ? -1 : item.hardCap,
                 price: item.price,
                 unique: item.unique,
                 dependent: item.dependent,
                 statements: item.statements,
+                display: item.display ?? true,
+                aLaCarte: item.aLaCarte,
                 createdAt: new Date().toISOString()
             })
         ]
@@ -492,11 +503,13 @@ export async function updatePackageMutation(params: UpdatePackageParams) {
                     description: item.description,
                     quantity: item.quantities,
                     max: item.max,
-                    hardCap: item.hardCap,
+                    hardCap: item.hardCap === Infinity ? -1 : item.hardCap,
                     price: item.price,
                     unique: item.unique,
                     dependent: item.dependent,
                     statements: item.statements,
+                    display: item.display ?? true,
+                    aLaCarte: item.aLaCarte,
                     createdAt: new Date().toISOString()
                 })
             ]
@@ -549,11 +562,13 @@ export async function updatePackageMutation(params: UpdatePackageParams) {
                     description: item.description,
                     quantity: item.quantities,
                     max: item.max,
-                    hardCap: item.hardCap,
+                    hardCap: item.hardCap === Infinity ? -1 : item.hardCap,
                     price: item.price,
                     unique: item.unique,
                     dependent: item.dependent,
                     statements: item.statements,
+                    display: item.display ?? true,
+                    aLaCarte: item.aLaCarte,
                     createdAt: new Date().toISOString()
                 })
             ]

@@ -1,12 +1,18 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { PhotoCollection, UserTag } from '../../../types'
-import { Alert } from 'flowbite-react'
+import { Alert, Badge } from 'flowbite-react'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { getParticipantCollectionsQueryOptions, getPathQueryOptions } from '../../../services/collectionService'
-import { currentDate } from '../../../utils'
+import { badgeColorThemeMap, currentDate } from '../../../utils'
+import { getUserCollectionList } from '../../../functions/clientFunctions'
+import { getClientPackages } from '../../../functions/packageFunctions'
+import { useState } from 'react'
+import { HiOutlineArrowLeftCircle, HiOutlineArrowRightCircle } from 'react-icons/hi2'
+import { PackageCard } from '../../../components/common/package/PackageCard'
+import { getAllPackageItemsQueryOptions } from '../../../services/packageService'
 
 export const Route = createFileRoute('/_auth/client/dashboard/')({
   component: RouteComponent,
@@ -14,9 +20,14 @@ export const Route = createFileRoute('/_auth/client/dashboard/')({
 
 function RouteComponent() {
   const auth = useAuth()
+  const tags: UserTag[] = auth.user?.profile.activeParticipant?.userTags ?? []
+  const packageList = getClientPackages(tags)
+  
   const dimensions = useWindowDimensions()
   const navigate = useNavigate()
   const { width } = useWindowDimensions()
+
+  const [selectedParentTagId, setSelectedParentTagId] = useState<string | undefined>(Object.keys(packageList)[0])
 
   const participantCollections = useQuery(
     getParticipantCollectionsQueryOptions(
@@ -25,18 +36,10 @@ function RouteComponent() {
     )
   )
 
-  const tags: UserTag[] = auth.user?.profile.activeParticipant?.userTags ?? []
-
-  const collections = tags
-    .flatMap((tag) => tag.collections)
-    .filter((collection) => collection?.published)
-    .filter((collection) => collection !== undefined)
-    .reduce((prev, cur) => {
-      if(!prev.some((collection) => collection.id === cur.id)){
-        prev.push(cur)
-      }
-      return prev
-    }, [] as PhotoCollection[])
+  const collections = getUserCollectionList(
+    auth.user?.profile.activeParticipant?.collections,
+    tags
+  )
 
   if(participantCollections.data) {
     collections.push(...participantCollections.data
@@ -49,23 +52,32 @@ function RouteComponent() {
     )
   }
 
-  const collectionCovers = useQueries({
-    queries: collections.map((collection) => {
-      return getPathQueryOptions(collection.coverPath, collection.id)
-    })
-  }).map((query, index) => {
-    return ({
-      id: collections[index].id,
-      query: query
-    })
+  const collectionCoverQueries = useQueries({
+    queries: collections.map((collection) => getPathQueryOptions(collection.coverPath, collection.id))
+  })
+
+  const collectionCovers = Object.fromEntries(
+    collections.map((collection, index) => [
+      collection.id,
+      collectionCoverQueries[index]
+    ])
+  )
+
+  const packageItems = useQuery({
+    ...getAllPackageItemsQueryOptions(packageList[selectedParentTagId ?? '']?.id),
+    enabled: selectedParentTagId !== undefined
   })
 
   return (
     <>
-      <div className='flex flex-col w-full items-center justify-center mt-4'>
+      <div className='flex flex-col w-full items-center justify-center mt-4 relative'>
         <div className={`
           flex flex-col items-center justify-center gap-4 mb-4 overflow-auto 
-          ${width > 800 ? 'border-black border rounded-xl w-[60%] max-w-[64rem]' : 'border-y border-y-black w-full'}
+          ${width > 800 ? (
+            `border-black border rounded-xl ${ width > 1600 ? 'w-[60%]' : width > 1400 ? 'w-[70%]' : width > 1200 ? 'w-[80%]' : 'w-[90%]' } max-w-[64rem]`
+          ) : (
+            'border-y border-y-black w-full'
+          )}
         `}>
           <div className="flex flex-col items-center justify-center w-full">
             {(auth.user?.profile.activeParticipant?.notifications ?? [])
@@ -80,22 +92,19 @@ function RouteComponent() {
                 )
               })
             }
-            {/* notifications will display here */}
           </div>
-          
-          <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections:</span>
-          
+          <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections</span>
           {collections.filter((collection) => collection.published).length > 0 ? (
-            <div className={`grid grid-cols-${dimensions.width > 700 && collections.length !== 1 ? '2' : '1'} gap-10 mb-4`}>
+            <div className={`grid grid-cols-${dimensions.width > 900 && collections.length !== 1 ? '2' : '1'} gap-x-10 gap-y-6 mb-4`}>
               {collections
                 .filter((collection) => collection.published)
                 .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                 .map((collection, index) => {
-                  const coverPath = collectionCovers.find((col) => col.id === collection.id)
+                  const coverPath = collectionCovers[collection.id]
                   return (
                     <CollectionThumbnail 
                       collectionId={collection.id} 
-                      cover={coverPath?.query}
+                      cover={coverPath}
                       key={index} 
                       onClick={() => {
                         navigate({ to: `/photo-collection/${collection.id}`})
@@ -115,6 +124,60 @@ function RouteComponent() {
               <span>Sorry, there are no viewable collections for you right now.</span>
               <span>You will receive a notification when your collection is ready!</span>
             </div>
+          )}
+          {Object.keys(packageList).length > 0 && (
+            <>
+              <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package For</span>
+              <div className='flex flex-row items-center justify-center w-full gap-4'>
+                {Object.keys(packageList).length > 1 && (
+                  <button
+                    onClick={() => {
+                      //find current index go to index - 1  with list wrapping
+                      const keySet = Object.keys(packageList)
+                      const currentIndex = keySet.findIndex((id) => id === selectedParentTagId)
+                      const newIndex = currentIndex - 1 < 0 ? keySet.length - 1 : currentIndex - 1
+                      setSelectedParentTagId(keySet[newIndex])
+                    }}
+                  >
+                    <HiOutlineArrowLeftCircle size={32} className='hover:fill-gray-100 hover:text-gray-500'/>
+                  </button>
+                )}
+                <Badge 
+                  theme={badgeColorThemeMap}
+                  color={tags.find((tag) => tag.id === selectedParentTagId)?.color}
+                  size='lg'
+                >
+                  {tags.find((tag) => tag.id === selectedParentTagId)?.name}
+                </Badge>
+                {Object.keys(packageList).length > 1 && (
+                  <button
+                    onClick={() => {
+                      //find current index go to index + 1  with list wrapping
+                      const keySet = Object.keys(packageList)
+                      const currentIndex = keySet.findIndex((id) => id === selectedParentTagId)
+                      const newIndex = currentIndex + 1 >= keySet.length ? 0 : currentIndex + 1
+                      setSelectedParentTagId(keySet[newIndex])
+                    }}
+                  >
+                    <HiOutlineArrowRightCircle size={32} className='hover:fill-gray-100 hover:text-gray-500'/>
+                  </button>
+                )}
+              </div>
+              {selectedParentTagId && packageList[selectedParentTagId] !== undefined ? (
+                <PackageCard 
+                  package={{
+                    ...packageList[selectedParentTagId],
+                    items: packageItems.data ?? []
+                  }}
+                  itemsLoading={packageItems.isLoading}
+                  collectionList={collections}
+                />
+              ) : (
+                <div className='flex flex-col h-full w-full items-center py-4'>
+                  <span className='font-semibold'>No Selected Package</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

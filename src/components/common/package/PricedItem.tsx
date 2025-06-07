@@ -18,33 +18,47 @@ export const PricedItem = (props: PricedItemProps) => {
     }
   }, [props.expand])
 
-  const extendedDetails = `. ${props.item.max === 0 ? '' : `${props.item.max} included in the package.`} ${props.item.price === '0' ? '' : `$${props.item.price} per item ${props.item?.hardCap === Infinity ? '' : ` with a limit of ${props.item.hardCap} items.`}`}`
+  const extendedDetails = `. ${props.item.max === 0 ? '' : `${props.item.max} included in the package.`} ${props.item.aLaCarte ? '' : `${props.item.price === '0' ? '' : `$${props.item.price} per item`} ${props.item?.hardCap === Infinity ? '' : ` with a limit of ${props.item.hardCap} items.`}`}`
+  const aLaCartDetails = `A La Carte Pricing: $${props.item.price} per item`
+
   return (
     <div className="w-full flex flex-row gap-2 px-2">
       <span>&bull;</span>
       <div className="flex flex-col">
-        <span className="text-wrap font-light">{props.item.name}{expand ? extendedDetails : ''}</span>
-        {expand && props.item.collectionIds
-              .filter((id) => props.collectionList.some((collection) => collection.id === id)).length > 0 && (
-          <div className="flex flex-row items-center gap-1">
-            <span className="text-sm font-light">This is a selectable item:</span>
-            {<Dropdown
-              size="xs"
-              inline
-              arrowIcon={false}
-              trigger="hover"
-              label={(<span className="text-sm font-light hover:text-black text-gray-500">Available Collections</span>)}
+        <div className="flex flex-row gap-2">
+          <span className="text-wrap font-light">{props.item.name}{expand ? extendedDetails : ''}</span>
+          {!expand && (
+            <button 
+              className="hover:text-black text-gray-500 text-sm font-light italic hover:underline"
+              onClick={() => setExpand(true)}
             >
-              {props.item.collectionIds
-              .filter((id) => props.collectionList.some((collection) => collection.id === id))
-              .map((id, index) => {
-                return (
-                  <Dropdown.Item key={index}>{props.collectionList.find((collection) => collection.id === id)?.name}</Dropdown.Item>
-                )
-              })}
-            </Dropdown>}
-          </div>
-        )}
+              <span>Show More</span>
+            </button>
+          )}
+        </div>
+        {props.item.aLaCarte && (<span className="text-wrap font-light text-sm ms-2">{aLaCartDetails}</span>)}
+        {expand && props.item.collectionIds
+          .filter((id) => props.collectionList.some((collection) => collection.id === id)).length > 0 && (
+            <div className="flex flex-row items-center gap-1">
+              <span className="text-sm font-light">This is a selectable item:</span>
+              {<Dropdown
+                size="xs"
+                inline
+                arrowIcon={false}
+                trigger="hover"
+                label={(<span className="text-sm font-light hover:text-black text-gray-500">Available Collections</span>)}
+              >
+                {props.item.collectionIds
+                .filter((id) => props.collectionList.some((collection) => collection.id === id))
+                .map((id, index) => {
+                  return (
+                    <Dropdown.Item key={index}>{props.collectionList.find((collection) => collection.id === id)?.name}</Dropdown.Item>
+                  )
+                })}
+              </Dropdown>}
+            </div>
+          )
+        }
         {expand && (<span className="text-wrap font-light text-sm italic">{props.item.description}</span>)}
         {expand && (
           <button 
@@ -55,14 +69,7 @@ export const PricedItem = (props: PricedItemProps) => {
           </button>
         )}
       </div>
-      {!expand && (
-        <button 
-          className="hover:text-black text-gray-500 text-sm font-light italic hover:underline"
-          onClick={() => setExpand(true)}
-        >
-          <span>Show More</span>
-        </button>
-      )}
+      
     </div>
   )
 }

@@ -25,6 +25,7 @@ import { Route as AuthClientDashboardIndexImport } from './routes/_auth.client/d
 import { Route as AuthAdminDashboardIndexImport } from './routes/_auth.admin/dashboard/index'
 import { Route as AuthClientDashboardSchedulerImport } from './routes/_auth.client/dashboard/scheduler'
 import { Route as AuthClientDashboardPackageImport } from './routes/_auth.client/dashboard/package'
+import { Route as AuthClientDashboardAdvertiseImport } from './routes/_auth.client/dashboard/advertise'
 import { Route as AuthAdminDashboardTaggingImport } from './routes/_auth.admin/dashboard/tagging'
 import { Route as AuthAdminDashboardTableImport } from './routes/_auth.admin/dashboard/table'
 import { Route as AuthAdminDashboardSchedulerImport } from './routes/_auth.admin/dashboard/scheduler'
@@ -119,6 +120,13 @@ const AuthClientDashboardPackageRoute = AuthClientDashboardPackageImport.update(
     getParentRoute: () => AuthClientDashboardRoute,
   } as any,
 )
+
+const AuthClientDashboardAdvertiseRoute =
+  AuthClientDashboardAdvertiseImport.update({
+    id: '/advertise',
+    path: '/advertise',
+    getParentRoute: () => AuthClientDashboardRoute,
+  } as any)
 
 const AuthAdminDashboardTaggingRoute = AuthAdminDashboardTaggingImport.update({
   id: '/tagging',
@@ -275,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminDashboardTaggingImport
       parentRoute: typeof AuthAdminDashboardImport
     }
+    '/_auth/client/dashboard/advertise': {
+      id: '/_auth/client/dashboard/advertise'
+      path: '/advertise'
+      fullPath: '/client/dashboard/advertise'
+      preLoaderRoute: typeof AuthClientDashboardAdvertiseImport
+      parentRoute: typeof AuthClientDashboardImport
+    }
     '/_auth/client/dashboard/package': {
       id: '/_auth/client/dashboard/package'
       path: '/package'
@@ -332,12 +347,14 @@ const AuthAdminDashboardRouteWithChildren =
   AuthAdminDashboardRoute._addFileChildren(AuthAdminDashboardRouteChildren)
 
 interface AuthClientDashboardRouteChildren {
+  AuthClientDashboardAdvertiseRoute: typeof AuthClientDashboardAdvertiseRoute
   AuthClientDashboardPackageRoute: typeof AuthClientDashboardPackageRoute
   AuthClientDashboardSchedulerRoute: typeof AuthClientDashboardSchedulerRoute
   AuthClientDashboardIndexRoute: typeof AuthClientDashboardIndexRoute
 }
 
 const AuthClientDashboardRouteChildren: AuthClientDashboardRouteChildren = {
+  AuthClientDashboardAdvertiseRoute: AuthClientDashboardAdvertiseRoute,
   AuthClientDashboardPackageRoute: AuthClientDashboardPackageRoute,
   AuthClientDashboardSchedulerRoute: AuthClientDashboardSchedulerRoute,
   AuthClientDashboardIndexRoute: AuthClientDashboardIndexRoute,
@@ -383,6 +400,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
   '/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
   '/admin/dashboard/tagging': typeof AuthAdminDashboardTaggingRoute
+  '/client/dashboard/advertise': typeof AuthClientDashboardAdvertiseRoute
   '/client/dashboard/package': typeof AuthClientDashboardPackageRoute
   '/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
   '/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
@@ -404,6 +422,7 @@ export interface FileRoutesByTo {
   '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
   '/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
   '/admin/dashboard/tagging': typeof AuthAdminDashboardTaggingRoute
+  '/client/dashboard/advertise': typeof AuthClientDashboardAdvertiseRoute
   '/client/dashboard/package': typeof AuthClientDashboardPackageRoute
   '/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
   '/admin/dashboard': typeof AuthAdminDashboardIndexRoute
@@ -428,6 +447,7 @@ export interface FileRoutesById {
   '/_auth/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
   '/_auth/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
   '/_auth/admin/dashboard/tagging': typeof AuthAdminDashboardTaggingRoute
+  '/_auth/client/dashboard/advertise': typeof AuthClientDashboardAdvertiseRoute
   '/_auth/client/dashboard/package': typeof AuthClientDashboardPackageRoute
   '/_auth/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
   '/_auth/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
@@ -453,6 +473,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard/scheduler'
     | '/admin/dashboard/table'
     | '/admin/dashboard/tagging'
+    | '/client/dashboard/advertise'
     | '/client/dashboard/package'
     | '/client/dashboard/scheduler'
     | '/admin/dashboard/'
@@ -473,6 +494,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard/scheduler'
     | '/admin/dashboard/table'
     | '/admin/dashboard/tagging'
+    | '/client/dashboard/advertise'
     | '/client/dashboard/package'
     | '/client/dashboard/scheduler'
     | '/admin/dashboard'
@@ -495,6 +517,7 @@ export interface FileRouteTypes {
     | '/_auth/admin/dashboard/scheduler'
     | '/_auth/admin/dashboard/table'
     | '/_auth/admin/dashboard/tagging'
+    | '/_auth/client/dashboard/advertise'
     | '/_auth/client/dashboard/package'
     | '/_auth/client/dashboard/scheduler'
     | '/_auth/admin/dashboard/'
@@ -577,6 +600,7 @@ export const routeTree = rootRoute
       "filePath": "_auth.client/dashboard.tsx",
       "parent": "/_auth",
       "children": [
+        "/_auth/client/dashboard/advertise",
         "/_auth/client/dashboard/package",
         "/_auth/client/dashboard/scheduler",
         "/_auth/client/dashboard/"
@@ -613,6 +637,10 @@ export const routeTree = rootRoute
     "/_auth/admin/dashboard/tagging": {
       "filePath": "_auth.admin/dashboard/tagging.tsx",
       "parent": "/_auth/admin/dashboard"
+    },
+    "/_auth/client/dashboard/advertise": {
+      "filePath": "_auth.client/dashboard/advertise.tsx",
+      "parent": "/_auth/client/dashboard"
     },
     "/_auth/client/dashboard/package": {
       "filePath": "_auth.client/dashboard/package.tsx",

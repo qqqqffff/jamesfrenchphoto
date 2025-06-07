@@ -226,43 +226,6 @@ export const PricedItem = (props: PricedItemProps) => {
               props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
             }}
           />
-          <button
-            className="flex flex-row items-center gap-2 disabled:opacity-65 disabled:hover:cursor-not-allowed"
-            onClick={(event) => {
-              event.stopPropagation()
-              const tempPackage: Package = {
-                ...props.selectedPackage,
-                items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
-                  ...props.item,
-                  unique: !props.item.unique
-                }) : item))
-              }
-        
-              props.parentUpdatePackage(tempPackage)
-              props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
-            }}
-            disabled={props.item.collectionIds.length == 0}
-          >
-            <Checkbox 
-              className='disabled:hover:cursor-not-allowed' 
-              disabled={props.item.collectionIds.length == 0} 
-              onClick={() => {
-                const tempPackage: Package = {
-                  ...props.selectedPackage,
-                  items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
-                    ...props.item,
-                    unique: !props.item.unique
-                  }) : item))
-                }
-          
-                props.parentUpdatePackage(tempPackage)
-                props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
-              }}
-              checked={props.item.unique && props.item.collectionIds.length !== 0}
-              readOnly 
-            />
-            <span className="italic font-light">Unique</span>
-          </button>
         </div>
       </div>
       <div className="flex flex-col gap-2">
@@ -306,6 +269,115 @@ export const PricedItem = (props: PricedItemProps) => {
             ?.filter((collection) => props.item.collectionIds.some((id) => id === collection.id)) ?? []
           }
         />
+        <button
+          className="flex flex-row items-center gap-2 disabled:opacity-65 disabled:hover:cursor-not-allowed"
+          onClick={(event) => {
+            event.stopPropagation()
+            const tempPackage: Package = {
+              ...props.selectedPackage,
+              items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                ...props.item,
+                unique: !props.item.unique
+              }) : item))
+            }
+      
+            props.parentUpdatePackage(tempPackage)
+            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+          }}
+          disabled={props.item.collectionIds.length == 0}
+        >
+          <Checkbox 
+            className='disabled:hover:cursor-not-allowed' 
+            disabled={props.item.collectionIds.length == 0} 
+            onClick={() => {
+              const tempPackage: Package = {
+                ...props.selectedPackage,
+                items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                  ...props.item,
+                  unique: !props.item.unique
+                }) : item))
+              }
+        
+              props.parentUpdatePackage(tempPackage)
+              props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+            }}
+            checked={props.item.unique && props.item.collectionIds.length !== 0}
+            readOnly 
+          />
+          <span className="italic font-light">Unique</span>
+        </button>
+        <button
+          className="flex flex-row items-center gap-2 disabled:opacity-65 disabled:hover:cursor-not-allowed"
+          onClick={(event) => {
+            event.stopPropagation()
+            const tempPackage: Package = {
+              ...props.selectedPackage,
+              items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                ...props.item,
+                display: !props.item.display
+              }) : item))
+            }
+      
+            props.parentUpdatePackage(tempPackage)
+            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+          }}
+        >
+          <Checkbox 
+            className='disabled:hover:cursor-not-allowed' 
+            onClick={() => {
+              const tempPackage: Package = {
+                ...props.selectedPackage,
+                items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                  ...props.item,
+                  display: !props.item.display
+                }) : item))
+              }
+        
+              props.parentUpdatePackage(tempPackage)
+              props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+            }}
+            checked={props.item.display ?? true}
+            readOnly 
+          />
+          <span className="italic font-light">Display</span>
+        </button>
+        <button
+          className="flex flex-row items-center gap-2 disabled:opacity-65 disabled:hover:cursor-not-allowed"
+          disabled={props.item.price === undefined || props.item.price === '0'}
+          onClick={(event) => {
+            event.stopPropagation()
+            const tempPackage: Package = {
+              ...props.selectedPackage,
+              items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                ...props.item,
+                aLaCarte: !props.item.aLaCarte
+              }) : item))
+            }
+      
+            props.parentUpdatePackage(tempPackage)
+            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+          }}
+        >
+          <Checkbox 
+            className='disabled:hover:cursor-not-allowed enabled:hover:cursor-pointer' 
+            disabled={props.item.price === undefined || props.item.price === '0'}
+            onClick={() => {
+              const tempPackage: Package = {
+                ...props.selectedPackage,
+                items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                  ...props.item,
+                  aLaCarte: !props.item.aLaCarte
+                }) : item))
+              }
+        
+              props.parentUpdatePackage(tempPackage)
+              props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+            }}
+            checked={props.item.aLaCarte ?? false}
+            readOnly 
+          />
+          <span className="italic font-light">A La Carte</span>
+        </button>
       </div>
     </div>
   )

@@ -172,7 +172,7 @@ function RouteComponent() {
           navigate({ to: '/admin/dashboard'})
         }
         else if(response === 'client'){
-          navigate({ to: '/client/dashboard'})
+          navigate({ to: '/client/dashboard/advertise' })
         }
         setSubmitting(false)
       } catch(err){

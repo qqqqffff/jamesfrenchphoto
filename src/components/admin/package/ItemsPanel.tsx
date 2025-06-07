@@ -1,5 +1,5 @@
 import { Button, Dropdown, Radio, TextInput, Tooltip } from "flowbite-react"
-import { HiBars3, HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineMinus, HiOutlinePlus, HiOutlinePlusCircle, HiOutlineXMark } from 'react-icons/hi2'
+import { HiBars3, HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlinePlusCircle, HiOutlineXMark } from 'react-icons/hi2'
 import { Package, PackageItem, PhotoCollection } from "../../../types"
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react"
 import { v4 } from 'uuid'
@@ -12,6 +12,7 @@ import { GetInfinitePackageItemsData } from "../../../services/packageService"
 import { PricedItem } from "./PricedItem"
 import { TieredItem } from "./TieredItem"
 import { DependentItem } from "./DependentItem"
+import { DefaultItem } from "./DefaultItem"
 
 interface ItemsPanelProps {
   selectedPackage: Package,
@@ -52,6 +53,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
         updatePackageItems={(items) => {
           const tempItems: PackageItem[] = [...props.selectedPackage.items]
 
+          let offset = 0;
           for(let i = 0; i < items.length; i++){
             for(let j = 0; j < items[i].quantity; j++){
               //new id, createdAt timestamp, order, and packageId required
@@ -59,10 +61,13 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                 ...items[i].item,
                 id: v4(),
                 createdAt: new Date().toISOString(),
-                order: tempItems.length,
-                packageId: props.selectedPackage.id
+                order: tempItems.length + offset,
+                packageId: props.selectedPackage.id,
+                display: true
               })
+              offset++
             }
+            offset++
           }
 
           const tempPackage: Package = {
@@ -90,7 +95,8 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                 packageId: props.selectedPackage.id,
                 order: props.selectedPackage.items.length,
                 collectionIds: [],
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                display: true
               }]
             }
 
@@ -402,86 +408,12 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
                         />
                       )}
                       {item.quantities !== undefined && item.dependent === undefined && (
-                        <div className="flex flex-row items-start gap-4">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex flex-row items-center gap-2">
-                              <span className="text-lg font-light italic">Quantity:</span>
-                              <div className="flex flex-row items-center gap-2">
-                                <button
-                                  className="p-1 border rounded-lg aspect-square flex justify-center items-center disabled:opacity-60 enabled:hover:bg-gray-100"
-                                  disabled={item.quantities === 1}
-                                  onClick={() => {
-                                    const tempPackage: Package = {
-                                      ...props.selectedPackage,
-                                      items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
-                                        ...item,
-                                        quantities: (item.quantities ?? 1) - 1
-                                      }) : pItem))
-                                    }
-                          
-                                    props.parentUpdatePackage(tempPackage)
-                                    props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                                      pack.id === tempPackage.id ? tempPackage : pack
-                                    )))
-                                  }}
-                                >
-                                  <HiOutlineMinus size={20} />
-                                </button>
-                                <TextInput 
-                                  theme={textInputTheme}
-                                  sizing="sm"
-                                  className="min-w-[42px] max-w-[42px]" 
-                                  value={item.quantities}
-                                  onChange={(event) => {
-                                    const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
-
-                                    if(!/^\d*$/g.test(input)) {
-                                      return
-                                    }
-
-                                    const numValue = parseInt(input)
-
-                                    if(numValue < 0) {
-                                      return
-                                    }
-
-                                    const tempPackage: Package = {
-                                      ...props.selectedPackage,
-                                      items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
-                                        ...item,
-                                        quantities: isNaN(numValue) ? item.quantities === 0 ? Infinity : 0 : numValue
-                                      }) : pItem))
-                                    }
-                          
-                                    props.parentUpdatePackage(tempPackage)
-                                    props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                                      pack.id === tempPackage.id ? tempPackage : pack
-                                    )))
-                                  }}
-                                />
-                                <button
-                                  className="p-1 border rounded-lg aspect-square flex justify-center items-center hover:bg-gray-100"
-                                  onClick={() => {
-                                    const tempPackage: Package = {
-                                      ...props.selectedPackage,
-                                      items: props.selectedPackage.items.map((pItem) => (pItem.id === item.id ? ({
-                                        ...item,
-                                        quantities: (item.quantities ?? 1) + 1
-                                      }) : pItem))
-                                    }
-                          
-                                    props.parentUpdatePackage(tempPackage)
-                                    props.parentUpdatePackageList((prev) => prev.map((pack) => (
-                                      pack.id === tempPackage.id ? tempPackage : pack
-                                    )))
-                                  }}
-                                >
-                                  <HiOutlinePlus size={20} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        <DefaultItem 
+                          item={item}
+                          selectedPackage={props.selectedPackage}
+                          parentUpdatePackage={props.parentUpdatePackage}
+                          parentUpdatePackageList={props.parentUpdatePackageList}
+                        />
                       )}
                       {item.statements !== undefined && (
                         <TieredItem 

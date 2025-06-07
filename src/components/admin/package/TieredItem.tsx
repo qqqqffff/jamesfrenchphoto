@@ -1,7 +1,7 @@
 import { Dispatch, SetStateAction } from "react"
 import { Package, PackageItem } from "../../../types"
 import { PriceInput } from "../../common/PriceInput"
-import { TextInput, Tooltip } from "flowbite-react"
+import { Checkbox, TextInput, Tooltip } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
 import { HiOutlineArrowUp, HiOutlineArrowDown, HiOutlineX } from 'react-icons/hi'
 import { evaluateBooleanOperator, splitStatement } from "../../../functions/packageFunctions"
@@ -17,7 +17,7 @@ export const TieredItem = (props: TieredItemProps) => {
   if(props.item.statements === undefined) return (<></>)
 
   return (
-    <div className="flex flex-col items-start gap-2 overflow-x-auto max-w-[60%]">
+    <div className="flex flex-col items-start gap-2 overflow-x-auto max-w-[60%] overflow-y-auto max-h-[200px]">
       {props.item.statements.map((statement, index, array) => {
         const { 
           parts,
@@ -382,6 +382,78 @@ export const TieredItem = (props: TieredItemProps) => {
           </div>
         )
       })}
+      <div className="flex flex-row items-center justify-start gap-8">
+        <button
+          className="flex flex-row items-center gap-2 disabled:opacity-65 disabled:hover:cursor-not-allowed"
+          onClick={(event) => {
+            event.stopPropagation()
+            const tempPackage: Package = {
+              ...props.selectedPackage,
+              items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                ...props.item,
+                display: !props.item.display
+              }) : item))
+            }
+      
+            props.parentUpdatePackage(tempPackage)
+            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+          }}
+        >
+          <Checkbox 
+            className='disabled:hover:cursor-not-allowed enabled:hover:cursor-pointer' 
+            onClick={() => {
+              const tempPackage: Package = {
+                ...props.selectedPackage,
+                items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                  ...props.item,
+                  display: !props.item.display
+                }) : item))
+              }
+        
+              props.parentUpdatePackage(tempPackage)
+              props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+            }}
+            checked={props.item.display ?? true}
+            readOnly 
+          />
+          <span className="italic font-light">Display</span>
+        </button>
+        <button
+          className="flex flex-row items-center gap-2 disabled:opacity-65 disabled:hover:cursor-not-allowed"
+          onClick={(event) => {
+            event.stopPropagation()
+            const tempPackage: Package = {
+              ...props.selectedPackage,
+              items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                ...props.item,
+                aLaCarte: !props.item.aLaCarte
+              }) : item))
+            }
+      
+            props.parentUpdatePackage(tempPackage)
+            props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+          }}
+        >
+          <Checkbox 
+            className='disabled:hover:cursor-not-allowed enabled:hover:cursor-pointer' 
+            onClick={() => {
+              const tempPackage: Package = {
+                ...props.selectedPackage,
+                items: props.selectedPackage.items.map((item) => (item.id === props.item.id ? ({
+                  ...props.item,
+                  aLaCarte: !props.item.aLaCarte
+                }) : item))
+              }
+        
+              props.parentUpdatePackage(tempPackage)
+              props.parentUpdatePackageList((prev) => prev.map((pack) => pack.id === tempPackage.id ? tempPackage : pack))
+            }}
+            checked={props.item.aLaCarte ?? false}
+            readOnly 
+          />
+          <span className="italic font-light">A La Carte</span>
+        </button>
+      </div>
     </div>
   )
 }

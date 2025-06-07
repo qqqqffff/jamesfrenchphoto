@@ -178,11 +178,13 @@ const schema = a.schema({
       price: a.string(),
       order: a.integer().required(),
       unique: a.boolean(),
+      aLaCarte: a.boolean(),
       itemCollections: a.hasMany('PackageItemCollection', 'packageItemId'),
       //grouped for tiered
       statements: a.string().array(),
       //grouped for dependent
       dependent: a.string(),
+      display: a.boolean().default(true),
       flag: a.string().default('true'),
       createdAt: a.datetime().required(),
     })
@@ -225,7 +227,7 @@ const schema = a.schema({
       header: a.string().required(),
       values: a.string().array(),
       choices: a.string().array(),
-      type: a.enum(['value', 'user', 'date', 'choice', 'tag', 'file']),
+      type: a.enum(['value', 'user', 'participant', 'date', 'choice', 'tag', 'file']),
       color: a.hasMany('ColumnColorMapping', 'columnId'),
       tag: a.string().array(),
       tableId: a.id().required(),

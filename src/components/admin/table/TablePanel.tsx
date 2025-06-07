@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useState } from "react"
+import { Dispatch, SetStateAction, useEffect, useState } from "react"
 import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from "../../../types"
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { deleteTableMutation, DeleteTableParams, getTableQueryOptions, updateTableMutation, UpdateTableParams } from "../../../services/tableService"
@@ -22,10 +22,16 @@ interface TablePanelProps {
 //TODO: fix row deletion
 export const TablePanel = (props: TablePanelProps) => {
   const [searchText, setSearchText] = useState('')
-  const [deletedColumns, setDeletedColumns] = useState<TableColumn[]>([])
+  const [tableColumns, setTableColumns] = useState<TableColumn[]>([])
 
   const table = useQuery(getTableQueryOptions(props.selectedTable.id, { siUserTags: true, logging: true }))
 
+  console.log(table.data?.columns)
+  useEffect(() => {
+    if(table.data?.columns) {
+      setTableColumns(table.data.columns)
+    }
+  }, [table.data])
   const updateTable = useMutation({
       mutationFn: (params: UpdateTableParams) => updateTableMutation(params)
     })
@@ -142,28 +148,12 @@ export const TablePanel = (props: TablePanelProps) => {
                 <TableComponent 
                   table={{
                     ...props.selectedTable,
-                    columns: [
-                      ...table.data.columns.map((dataColumn) => {
-                        const foundEditColumn = props.selectedTable.columns.find((column) => column.id.replace('edit', '') === dataColumn.id)
-                        if(foundEditColumn){
-                          return foundEditColumn
-                        }
-                        const foundEditedColumn = props.selectedTable.columns.find((column) => column.id.replace('edited', '') === dataColumn.id)
-                        if(foundEditedColumn){
-                          return {
-                            ...foundEditedColumn,
-                            id: foundEditedColumn.id.replace('edited', '')
-                          }
-                        }
-                        return dataColumn
-                      }), 
-                      ...props.selectedTable.columns.filter((column) => !table.data?.columns.some((dataCol) => dataCol.id === column.id || column.id.includes('edit')))
-                    ].filter((column) => !deletedColumns.some((deletedCols) => deletedCols.id.includes(column.id))),
+                    columns: tableColumns,
                   }}
                   parentUpdateTable={props.parentUpdateSelectedTable}
                   parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
                   parentUpdateTableGroups={props.parentUpdateTableGroups}
-                  parentDeleteColumns={setDeletedColumns}
+                  parentUpdateTableColumns={setTableColumns}
                   userData={props.usersQuery}
                   tagData={props.tagsQuery}
                   tempUsersData={props.tempUsersQuery}
