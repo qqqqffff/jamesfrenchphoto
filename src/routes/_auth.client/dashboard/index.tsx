@@ -4,7 +4,7 @@ import { Alert, Badge } from 'flowbite-react'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
-import { useQuery, UseQueryResult } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { getParticipantCollectionsQueryOptions, getPathQueryOptions } from '../../../services/collectionService'
 import { badgeColorThemeMap, currentDate } from '../../../utils'
 import { getUserCollectionList } from '../../../functions/clientFunctions'
@@ -52,18 +52,21 @@ function RouteComponent() {
     )
   }
 
-  const collectionCovers: Record<string, UseQueryResult<[string | undefined, string] | undefined, Error>> = Object.fromEntries(collections
-    .map((collection) => {
-      return [
-        collection.id,
-        useQuery(getPathQueryOptions(collection.coverPath, collection.id))
-      ]
-    })
+  const collectionCoverQueries = useQueries({
+    queries: collections.map((collection) => getPathQueryOptions(collection.coverPath, collection.id))
+  })
+
+  const collectionCovers = Object.fromEntries(
+    collections.map((collection, index) => [
+      collection.id,
+      collectionCoverQueries[index]
+    ])
   )
 
-  const packageItems = useQuery(
-    getAllPackageItemsQueryOptions(packageList[selectedParentTagId ?? '']?.id)
-  )
+  const packageItems = useQuery({
+    ...getAllPackageItemsQueryOptions(packageList[selectedParentTagId ?? '']?.id),
+    enabled: selectedParentTagId !== undefined
+  })
 
   return (
     <>

@@ -1,16 +1,19 @@
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
 import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import Loading from "../../common/Loading";
-import { Participant, Table, UserData, UserProfile, UserTag } from "../../../types";
+import { Table, UserData, UserProfile, UserTag } from "../../../types";
 import { Tooltip } from "flowbite-react";
 import { HiOutlineXMark } from 'react-icons/hi2'
 import validator from 'validator'
 import { InviteUserWindow } from "./InviteUserWindow";
 import { revokeUserInviteMutation, RevokeUserInviteMutationParams } from "../../../services/userService";
+import { UserProfileWindow } from "../../common/UserProfileWindow";
+
 interface UserCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void
-  userData: UseQueryResult<UserData[] | undefined, Error>,
+  userData: UserData[]
+  userDataQuery: UseQueryResult<UserData[] | undefined, Error>,
   tagsData: UseQueryResult<UserTag[] | undefined, Error>,
   tempUsers: UserProfile[],
   parentUpdateTempUsers: Dispatch<SetStateAction<UserProfile[]>>
@@ -20,7 +23,6 @@ interface UserCellProps extends ComponentProps<'td'> {
   columnId: string,
 }
 
-//TODO: fix users with same email
 export const UserCell = (props: UserCellProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [value, setValue] = useState('')
@@ -45,51 +47,28 @@ export const UserCell = (props: UserCellProps) => {
     tempUsers.push([tempProfile.email, 'tempUser'])
   }
 
-  const users: [string, 'user'][] = (props.userData.data ?? [])
+  const users: [string, 'user'][] = (props.userData)
     .map((data) => ([data.email, 'user']))
 
-  const participants: Record<string, Participant> = Object.fromEntries((props.userData.data ?? [])
-    .map((data) => {
-      if(!data.profile) return
-      if(data.profile.participant && data.profile.participant.length > 0) {
-        return data.profile.participant
-      }
-      return
-    })
-    .filter((data) => data !== undefined)
-    .reduce((prev, cur) => {
-      const temp = cur.filter((part) => !prev.some((p) => p.id === part.id))
-      prev.push(...temp)
-      return prev
-    }, [] )
-    .map((data) => ([data.id, data])))
-
-  const participantResults: [string, 'participant'][] = Object.entries(participants).map((participant) => ([participant[0], 'participant']))
-
-  const mergedResults: Record<string, 'user' | 'participant' | 'tempUser'> = Object.fromEntries([...users, ...participantResults, ...tempUsers])
+  const mergedResults: Record<string, 'user' | 'tempUser'> = Object.fromEntries([...users, ...tempUsers])
 
   const filteredItems = Object.entries(mergedResults)
     .filter((data) => (
       (data[0] ?? '').toLowerCase().trim().includes((value ?? '').toLowerCase())
     ))
 
-  const foundUser: 'user' | 'participant' | 'tempUser' | undefined = mergedResults[props.value]
+  const foundUser: 'user' | 'tempUser' | undefined = mergedResults[props.value]
 
   const displayUserPanel = foundUser !== undefined && props.value === value && isFocused
   const displayNoResults = foundUser === undefined && props.value !== value && !validator.isEmail(value) && filteredItems && filteredItems.length === 0 && isFocused
-  const displayInvite = foundUser === undefined && props.value === value && isFocused && validator.isEmail(props.value) && isFocused
+  const displayInvite = foundUser === undefined && props.value === value && isFocused && validator.isEmail(props.value)
   const displaySearchResults = isFocused && ((props.value !== value || foundUser === undefined) && !validator.isEmail(value)) && filteredItems && filteredItems.length > 0
 
-  function userPanel(type: 'user' | 'participant' | 'tempUser', value: string): JSX.Element | undefined {
+  function userPanel(type: 'user' | 'tempUser', value: string): JSX.Element | undefined {
     let profile: UserData | undefined
-    let participant: Participant | undefined
     if(type === 'user'){
-      profile = props.userData.data?.find((data) => data.email === value)
+      profile = props.userData.find((data) => data.email === value)
       if(!profile) return
-    }
-    else if(type === 'participant'){
-      participant = participants[value]
-      if(!participant) return
     }
     else if(type === 'tempUser') {
       let userProfile = props.tempUsers.find((data) => data.email === value)
@@ -110,67 +89,9 @@ export const UserCell = (props: UserCellProps) => {
       }
     }
     return (type === 'user' || type === 'tempUser') && profile ? (
-      <div className="flex flex-col px-2 text-xs">
-        <div className="flex flex-row gap-2 items-center text-nowrap">
-          <span>First Name:</span>
-          <span className="italic">{profile.first}</span>
-        </div>
-        <div className="flex flex-row gap-2 items-center text-nowrap">
-          <span>Last Name:</span>
-          <span className="italic">{profile.last}</span>
-        </div>
-        {profile.created && (
-          <div className="flex flex-row gap-2 items-center text-nowrap">
-            <span>Created:</span>
-            <span className="italic">
-            {
-              profile.created.toLocaleString('en-US', { timeZone: 'America/Chicago' })
-              .replace('T', ' ')
-              .replace(/[.].*/g, '')
-            }
-            </span>
-          </div>
-        )}
-        <div className="border-gray-300 border mb-1"/>
-        {profile.profile?.participant.map((participant, index) => {
-          return (
-            <div className="flex flex-col" key={index}>
-              <span className="underline">Participant:</span>
-              <div className="flex flex-row gap-2 items-center text-nowrap">
-                <span>First Name:</span>
-                <span className="italic">{participant.firstName}</span>
-              </div>
-              {participant.preferredName && (
-                <div className="flex flex-row gap-2 items-center text-nowrap">
-                  <span>Preferred Name:</span>
-                  <span className="italic">{participant.preferredName}</span>
-                </div>
-              )}
-              <div className="flex flex-row gap-2 items-center text-nowrap">
-                <span>Last Name:</span>
-                <span className="italic">{participant.lastName}</span>
-              </div>
-              {participant.email && (
-                <div className="flex flex-row gap-2 items-center text-nowrap">
-                  <span>Email:</span>
-                  <span className="italic">{participant.email}</span>
-                </div>
-              )}
-              {participant.userTags.length > 0 && (
-                <div className="flex flex-row gap-1 items-center text-nowrap">
-                  <span className="me-1">Tags:</span>
-                  {participant.userTags.map((tag, index, arr) => {
-                    return (
-                      <span className={`italic text-${tag.color ?? 'black'} truncate`} key={index}>{tag.name}{arr.length > 1 && index !== arr.length - 1 ? ',' : ''}</span>
-                    )
-                  })}
-                </div>
-              )}
-              <div className="border-gray-300 border mb-1"/>
-            </div>
-          )
-        })}
-        {type === 'tempUser' && (
+      <UserProfileWindow 
+        profile={profile}
+        children={type === 'tempUser' ? (
           <button 
             className="self-end px-4 py-1 border rounded-lg mb-2 hover:bg-gray-100"
             onClick={() => {
@@ -184,38 +105,9 @@ export const UserCell = (props: UserCellProps) => {
               })
             }}
           >Revoke Invite</button>
-        )}
-      </div>
-    ) : (
-      type === 'participant' && participant ? (
-        <div className="flex flex-col text-xs px-2 pb-1">
-          <div className="flex flex-row gap-2 items-center max-w-[200px] overflow-hidden whitespace-nowrap text-ellipsis">
-            <span>First Name:</span>
-            <span className="italic">{participant.id}</span>
-          </div>
-          <div className="flex flex-row gap-2 items-center text-nowrap">
-            <span>First Name:</span>
-            <span className="italic">{participant.firstName}</span>
-          </div>
-          {participant.preferredName && (
-            <div className="flex flex-row gap-2 items-center text-nowrap">
-              <span>Preferred Name:</span>
-              <span className="italic">{participant.preferredName}</span>
-            </div>
-          )}
-          <div className="flex flex-row gap-2 items-center text-nowrap">
-            <span>Last Name:</span>
-            <span className="italic">{participant.lastName}</span>
-          </div>
-          {participant.userEmail && (
-            <div className="flex flex-row gap-2 items-center text-nowrap">
-              <span>User Email:</span>
-              <span className="italic">{participant.userEmail}</span>
-            </div>
-          )}
-        </div>
-      ) : undefined
-    )
+        ) : undefined}
+      />
+    ) : undefined
   }
 
   return (
@@ -228,7 +120,6 @@ export const UserCell = (props: UserCellProps) => {
           border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
           ${!isFocused ? (
             mergedResults[value] !== undefined ? (
-              mergedResults[value] === 'participant' ? 'text-purple-400' : 
               mergedResults[value] === 'tempUser' ? 'text-orange-400' : 'text-blue-400'
             ) : 'text-red-500'
           ) : ''}
@@ -237,9 +128,7 @@ export const UserCell = (props: UserCellProps) => {
         onChange={(event) => {
           setValue(event.target.value)
         }}
-        value={foundUser === 'participant' ? (
-          `${participants[value]?.firstName}, ${participants[value]?.lastName}`
-        ) : value}
+        value={value}
         onKeyDown={async (event) => {
           if(inputRef.current){
             if(event.key === 'Enter'){
@@ -273,20 +162,13 @@ export const UserCell = (props: UserCellProps) => {
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
           <ul className="max-h-60 overflow-y-auto py-1 min-w-max">
             {filteredItems.map((item, index) => {
-              let participant: Participant | undefined
-              if(item[1] === 'participant') {
-                participant = participants[item[0]]
-
-                if(!participant) return
-              }
-              
               return (
                 <Tooltip 
                   key={index}
                   content={(
                     <div className="flex flex-col">
-                      <span className={`${item[1] === 'participant' ? 'text-purple-400' : item[1] === 'tempUser' ? 'text-orange-400' : 'text-blue-400'}`}>
-                        {item[1] === 'participant' ? 'Participant' : 'User'}
+                      <span className={`${item[1] === 'tempUser' ? 'text-orange-400' : 'text-blue-400'}`}>
+                        {item[1] === 'tempUser' ? 'Pending User' : 'User'}
                       </span>
                       {userPanel(item[1], item[0])}
                     </div>
@@ -295,18 +177,14 @@ export const UserCell = (props: UserCellProps) => {
                   placement="bottom"
                 >
                   <li
-                    className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${item[1] === 'participant' ? 'text-purple-400' : item[1] === 'tempUser' ? 'text-orange-400' : 'text-blue-400'}`}
+                    className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${item[1] === 'tempUser' ? 'text-orange-400' : 'text-blue-400'}`}
                     onClick={() => {
                       setValue(item[0])
                       props.updateValue(item[0])
                       setIsFocused(false)
                     }}
                   >
-                    {item[1] === 'participant' ? (
-                      `${participants[item[0]].firstName}, ${participants[item[0]].lastName}`
-                    ) : (
-                      item[0]
-                    )}
+                    {item[0]}
                   </li>
                 </Tooltip>
               )
@@ -315,7 +193,7 @@ export const UserCell = (props: UserCellProps) => {
         </div>
       )}
 
-      {props.userData.isLoading && isFocused && (
+      {props.userDataQuery.isLoading && isFocused && (
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
           <p className="px-4 py-2 text-gray-500 flex flex-row">
             Loading
@@ -333,8 +211,8 @@ export const UserCell = (props: UserCellProps) => {
       {displayUserPanel && (
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col gap-2 ">
           <div className="flex flex-row p-1 justify-between w-full border-b">
-            <span className={`${foundUser === 'participant' ? 'text-purple-400' : foundUser === 'tempUser' ? 'text-orange-400' : 'text-blue-400'} ms-2`}>
-              {foundUser === 'participant' ? 'Participant' : foundUser === 'tempUser' ? 'Pending User' : 'User'}
+            <span className={`${foundUser === 'tempUser' ? 'text-orange-400' : 'text-blue-400'} ms-2`}>
+              {foundUser === 'tempUser' ? 'Pending User' : 'User'}
             </span>
             <button 
               className=""

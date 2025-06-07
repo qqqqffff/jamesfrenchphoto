@@ -227,7 +227,7 @@ const schema = a.schema({
       header: a.string().required(),
       values: a.string().array(),
       choices: a.string().array(),
-      type: a.enum(['value', 'user', 'date', 'choice', 'tag', 'file']),
+      type: a.enum(['value', 'user', 'participant', 'date', 'choice', 'tag', 'file']),
       color: a.hasMany('ColumnColorMapping', 'columnId'),
       tag: a.string().array(),
       tableId: a.id().required(),
