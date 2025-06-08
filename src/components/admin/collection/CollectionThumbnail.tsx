@@ -1,4 +1,4 @@
-import { ComponentProps, Dispatch, SetStateAction, useCallback, useRef, useState } from "react"
+import { ComponentProps, Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react"
 import { useDropzone } from "react-dropzone"
 import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { deleteCoverMutation, DeleteCoverParams, PublishCollectionParams, uploadCoverMutation, UploadCoverParams } from "../../../services/collectionService"
@@ -27,6 +27,14 @@ export const CollectionThumbnail= ({
   const [hovering, setHovering] = useState(false)
   const fileUpload = useRef<File | null>(null)
   const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const coverRef = useRef<HTMLImageElement | null>(null)
+  const [roundImage, setRoundImage] = useState(false)
+
+  useEffect(() => {
+    if(coverRef.current) {
+      setRoundImage(coverRef.current.clientWidth >= 350)
+    }
+  }, [coverRef.current])
   
   const uploadCover = useMutation({
     mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
@@ -138,13 +146,18 @@ export const CollectionThumbnail= ({
         ) : (
           !dropzone ? (
             <button 
-              className={`flex flex-row relative justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] ${onClick !== undefined ? 'hover:bg-gray-300 hover:text-gray-500' : 'pointer-events-none cursor-default'}`}
+              className={`
+                flex flex-row relative justify-center items-center rounded-lg bg-gray-200 bg-opacity-60 border 
+                border-black w-[360px] h-[240px] 
+                ${onClick !== undefined ? 'hover:bg-gray-300 hover:text-gray-500' : 'pointer-events-none cursor-default'}
+              `}
               onClick={() => {if(onClick !== undefined) onClick()}}
               onMouseEnter={() => setHovering(true)}
               onMouseLeave={() => setHovering(false)}
             >
+              {/* TODO: add a ref to chect if the image is at max with and  */}
               {(cover && cover.data && cover.data[1] !== '') ? (
-                <img src={cover.data[1]} className="h-[238px] max-w-[358px] rounded-lg"/>
+                <img ref={coverRef} src={cover.data[1]} className={`h-[238px] max-w-[358px] ${roundImage ? 'rounded-lg' : ''}`}/>
               ) : (
                 <div className="absolute flex flex-col inset-0 place-self-center text-center items-center justify-center">
                   <p className={`font-thin opacity-90 text-2xl`}>No Cover</p>
@@ -154,14 +167,18 @@ export const CollectionThumbnail= ({
           ) : (
             <label 
               htmlFor="dropzone-collection-thumbnail"
-              className={`flex flex-row relative justify-center items-center rounded-lg bg-gray-200 border border-black w-[360px] h-[240px] ${onClick !== undefined ? 'hover:bg-gray-300 hover:text-gray-500' : 'pointer-events-none cursor-default'}`}
+              className={`flex flex-row relative justify-center items-center rounded-lg bg-gray-200 bg-opacity-60 border 
+                 w-[360px] h-[240px] 
+                ${dropzone.isDragActive ? 'animate-pulse border-dashed border-2 border-gray-500' : 'border-black'}
+                ${onClick !== undefined ? 'hover:bg-gray-300 hover:text-gray-500' : 'pointer-events-none cursor-default'}
+              `}
               {...dropzone?.getRootProps()}
               onMouseEnter={() => setHovering(true)}
               onMouseLeave={() => setHovering(false)}
             >
-              {cover && cover.data ? (
+              {cover?.data?.[1] && cover?.data?.[1] !== '' ? (
                 <>
-                  <img src={cover.data[1]} className="h-[238px] max-w-[358px] rounded-lg"/>
+                  <img ref={coverRef} src={cover.data[1]} className={`h-[238px] max-w-[358px] ${roundImage ? 'rounded-lg' : ''}`}/>
                   {hovering && (
                     <span className="absolute place-self-center">Click to upload</span>
                   )}

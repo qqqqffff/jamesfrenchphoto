@@ -6,19 +6,22 @@ import { PricedItem } from "./PricedItem"
 import { TieredItem } from "./TieredItem"
 import { useState } from "react"
 import { priceFormatter } from "../../../functions/packageFunctions"
+import Loading from "../Loading"
 
 interface PackageCardProps {
   package: Package
-  collectionList: PhotoCollection[]
+  collectionList: PhotoCollection[],
+  itemsLoading?: boolean,
   actionButton?: JSX.Element,
-  displayDependent?: boolean
+  displayDependent?: boolean,
+  maxHeight?: string
 }
 
 export const PackageCard = (props: PackageCardProps) => {
   const [allExpanded, setAllExpanded] = useState(false)
 
   return (
-    <div className="max-h-[75vh] overflow-y-auto border rounded-lg px-2 py-1 min-w-[500px] max-w-[500px] flex flex-col gap-2">
+    <div className={`overflow-y-auto border rounded-lg px-2 py-1 min-w-[500px] max-w-[500px] flex flex-col gap-2`}>
       <div className="flex flex-row items-center justify-center">
         <span className="font-bodoni text-xl">{props.package.name}</span>
       </div>
@@ -28,53 +31,61 @@ export const PackageCard = (props: PackageCardProps) => {
           <span className="text-sm font-thin text-wrap">{props.package.description}</span>
         </div>
       )}
-      <div className="flex flex-col gap-1.5">
-        {props.package.items
-        .sort((a, b) => a.order - b.order)
-        .map((item, index) => {
-          if(item.max !== undefined) {
-            return (
-              <PricedItem 
-                key={index}
-                display='list'
-                item={item}
-                collectionList={props.collectionList}
-                expand={allExpanded}
-              />
-            )
-          }
-          if(item.quantities !== undefined && item.dependent === undefined) {
-            return (
-              <DefaultItem
-                key={index}
-                display='list'
-                item={item}
-                expand={allExpanded}
-              />
-            )
-          }
-          if(item.statements !== undefined) {
-            return (
-              <TieredItem 
-                key={index}
-                display="list"
-                item={item}
-                expand={allExpanded}
-              />
-            )
-          }
-          if(item.dependent !== undefined && props.displayDependent) {
-            return (
-              <DependentItem 
-                key={index}
-                item={item}
-                display="list"
-                packageItems={props.package.items}
-                expand={allExpanded}
-              />
-            )
-          }
-        })}
+      <div className={`flex flex-col gap-1.5 ${props.maxHeight ? props.maxHeight : 'max-h-[50vh]'} overflow-y-auto`}>
+        {props.itemsLoading ? (
+          <span className="flex flex-row text-start gap-1 italic font-light ms-8">
+            <span>Loading Items</span>
+            <Loading />
+          </span>
+        ) : (
+          props.package.items
+          .filter((item) => item.display || item.display === undefined)
+          .sort((a, b) => a.order - b.order)
+          .map((item, index) => {
+            if(item.max !== undefined) {
+              return (
+                <PricedItem 
+                  key={index}
+                  display='list'
+                  item={item}
+                  collectionList={props.collectionList}
+                  expand={allExpanded}
+                />
+              )
+            }
+            if(item.quantities !== undefined && item.dependent === undefined) {
+              return (
+                <DefaultItem
+                  key={index}
+                  display='list'
+                  item={item}
+                  expand={allExpanded}
+                />
+              )
+            }
+            if(item.statements !== undefined) {
+              return (
+                <TieredItem 
+                  key={index}
+                  display="list"
+                  item={item}
+                  expand={allExpanded}
+                />
+              )
+            }
+            if(item.dependent !== undefined && props.displayDependent) {
+              return (
+                <DependentItem 
+                  key={index}
+                  item={item}
+                  display="list"
+                  packageItems={props.package.items}
+                  expand={allExpanded}
+                />
+              )
+            }
+          })
+        )}
       </div>
       {props.package.price && props.package.price !== '0' && (
         <div className="border-t pt-2 flex flex-row justify-center text-xl mx-8 italic">Base Cost: {priceFormatter.format(parseFloat(props.package.price))}</div>

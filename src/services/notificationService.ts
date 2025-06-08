@@ -161,37 +161,34 @@ export async function getAllNotificationsFromUserTag(client: V6Client<Schema>, m
 }
 
 export interface CreateNotificationParams {
-  content: string,
-  location: 'dashboard',
-  participantIds?: string[],
-  tagIds?: string[],
-  expiration?: string,
+  notification: Notification,
   options?: {
     logging?: boolean
   }
 }
 export async function createNotificationMutation(params: CreateNotificationParams): Promise<string | undefined> {
   const response = await client.models.Notifications.create({
-    content: params.content,
-    location: params.location,
-    expiration: params.expiration,
+    id: params.notification.id,
+    content: params.notification.content,
+    location: params.notification.location,
+    expiration: params.notification.expiration,
   })
 
   if(params.options?.logging) console.log(response)
 
   if(response.data) {
-    const userTagResponse = await Promise.all((params.tagIds ?? []).map((tag) => {
+    const userTagResponse = await Promise.all((params.notification.tags ?? []).map((tag) => {
       return client.models.NotificationUserTags.create({
-        tagId: tag,
+        tagId: tag.id,
         notificationId: response.data!.id
       })
     }))
 
     if(params.options?.logging) console.log(userTagResponse)
 
-    const participantResponse = await Promise.all((params.participantIds ?? []).map((participant) => {
+    const participantResponse = await Promise.all((params.notification.participants ?? []).map((participant) => {
       return client.models.NotificationParticipants.create({
-        participantId: participant,
+        participantId: participant.id,
         notificationId: response.data!.id
       })
     }))
@@ -202,8 +199,14 @@ export async function createNotificationMutation(params: CreateNotificationParam
   }
 }
 
+//TODO: validate and update me please
 export interface UpdateNotificationParams extends Partial<CreateNotificationParams> {
-  notification: Notification
+  notification: Notification,
+  content: string,
+  location: Notification["location"],
+  expiration?: string,
+  participantIds: string[],
+  tagIds: string[],
 }
 export async function updateNotificationMutation(params: UpdateNotificationParams) {
   if(params.participantIds?.some((cPid) => !params.notification.participants.some((participant) => cPid === participant.id))) {

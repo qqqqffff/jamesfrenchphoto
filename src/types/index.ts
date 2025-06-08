@@ -57,6 +57,14 @@ export interface Participant {
     collections: PhotoCollection[]
 }
 
+export interface ParticipantFields {
+    type: 'first' | 'preferred' | 'middle' | 'last' | 'email'
+}
+
+export interface UserFields {
+    type: 'first' | 'last' | 'email' | 'sitting'
+}
+
 export type Notification = {
     id: string,
     content: string,
@@ -66,6 +74,7 @@ export type Notification = {
     expiration?: string,
     createdAt: string,
     updatedAt: string,
+    temporary?: boolean,
 }
 
 export type User = {
@@ -198,7 +207,9 @@ export type PackageItem = {
     order: number,
     dependent?: string,
     statements?: string[]
-    unique?: boolean
+    unique?: boolean,
+    aLaCarte?: boolean,
+    display?: boolean,
     createdAt: string,
 }
 
@@ -224,6 +235,7 @@ export interface Table {
     columns: TableColumn[],
     tableGroupId: string,
     temporary?: boolean,
+    edit?: boolean,
     createdAt: string,
 }
 
@@ -231,7 +243,7 @@ export interface TableColumn {
     id: string,
     header: string,
     values: string[],
-    type: 'value' | 'user' | 'date' | 'choice'  | 'tag' | 'file',
+    type: 'value' | 'user' | 'participant' | 'date' | 'choice'  | 'tag' | 'file',
     choices?: string[],
     color?: ColumnColor[],
     display: boolean,
@@ -239,6 +251,8 @@ export interface TableColumn {
     sort?: 'ASC' | 'DSC',
     tableId: string,
     order: number,
+    temporary?: boolean,
+    edit?: boolean
 }
 
 export type ColumnColor = {
@@ -246,7 +260,8 @@ export type ColumnColor = {
     value: string
     bgColor?: string
     textColor?: string
-    columnId: string
+    columnId: string,
+    temporary?: boolean
 }
 
 export interface TemporaryAccessToken {

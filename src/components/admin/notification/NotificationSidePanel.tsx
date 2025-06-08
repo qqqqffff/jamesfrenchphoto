@@ -1,25 +1,35 @@
-import { Dispatch, SetStateAction, useState } from "react"
+import { Dispatch, SetStateAction, useEffect, useState } from "react"
 import { Notification, UserTag } from "../../../types"
 import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineClock } from "react-icons/hi2"
 import { currentDate, DAY_OFFSET, formatTime, textInputTheme } from "../../../utils"
 import { TextInput, Tooltip } from "flowbite-react"
 import { FcClock, FcExpired } from "react-icons/fc";
+import Loading from "../../common/Loading"
+import { useNavigate } from "@tanstack/react-router"
 
 interface NotificationSidePanelProps {
+  tagsLoading: boolean,
   notifications: Notification[],
   userTags: UserTag[],
   selectedNotification?: Notification
   parentUpdateSelectedNotification: Dispatch<SetStateAction<Notification | undefined>>
-  parentUpdateCreatingNotification: Dispatch<SetStateAction<boolean>>
 }
 
 export const NotificationSidePanel = (props: NotificationSidePanelProps) => {
   const [filter, setFilter] = useState('')
   const [openedTags, setOpenedTags] = useState<UserTag[]>([])
+  const navigate = useNavigate()
 
   const notificationMap: Record<string, Notification> = Object.fromEntries(
     props.notifications.map((notification) => [notification.id, notification])
   )
+
+  useEffect(() => {
+    const foundNotification = props.userTags.find((tag) => tag.notifications?.some((notification) => notification.id === props.selectedNotification?.id))
+    if(!openedTags.some((tag) => tag.notifications?.some((notification) => notification.id === props.selectedNotification?.id)) && foundNotification) {
+      setOpenedTags([...openedTags, foundNotification])
+    }
+  }, [props.selectedNotification])
 
   return (
     <>
@@ -33,11 +43,17 @@ export const NotificationSidePanel = (props: NotificationSidePanelProps) => {
         }}
         value={filter}
       />
-      {props.userTags
-        .filter((tag) => (
+      {props.tagsLoading ? (
+        <span className="flex flex-row text-start gap-1 italic font-light ms-4 w-full">
+          <span>Loading</span>
+          <Loading />
+        </span>
+      ) : (
+      props.userTags
+        .filter((tag) => ((
           tag.name.toLowerCase().trim().includes(filter.toLowerCase().trim()) ||
           tag.notifications?.some((notification) => notification.content.toLowerCase().trim().includes(filter.toLowerCase().trim()))
-        ))
+        ) && (tag.notifications ?? []).length > 0))
         .map((tag, i) => {
           const selected = openedTags.some((sTag) => sTag.id === tag.id) || filter !== ''
           return (
@@ -104,7 +120,12 @@ export const NotificationSidePanel = (props: NotificationSidePanelProps) => {
                         `}
                         onClick={() => {
                           props.parentUpdateSelectedNotification(notificationSelected ? undefined : notification)
-                          props.parentUpdateCreatingNotification(false)
+                          if(!notificationSelected) {
+                            navigate({ to: '.', search: { notificationId: notification.id }})
+                          }
+                          else {
+                            navigate({ to: '.', search: { notificationId: '' }})
+                          }
                         }}
                       >
                         <span className='max-w-[60%] overflow-hidden whitespace-nowrap text-ellipsis'>{notification.content}</span>
@@ -146,7 +167,7 @@ export const NotificationSidePanel = (props: NotificationSidePanelProps) => {
             </div>
           )
         })
-      }
+      )}
     </>
   )
 }

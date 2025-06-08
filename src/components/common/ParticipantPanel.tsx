@@ -11,7 +11,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
   return (
     <div className="flex flex-col">
       <span className='text-purple-400'>Participant</span>
-      <div className="flex flex-col text-xs px-2 pb-1">
+      <div className="flex flex-col text-xs px-2 pb-1 max-h-60 overflow-y-auto">
         <div className="flex flex-row gap-2 items-center text-nowrap">
             <span>First Name:</span>
             <span className="italic">{props.participant.firstName}</span>
@@ -32,17 +32,18 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
             <span className="italic">{props.participant.userEmail}</span>
           </div>
         )}
+        {/* TODO: better conditional rendering for no tags */}
         {!props.hiddenOptions?.tags && (
-          <div className="flex flex-row gap-2 items-center text-nowrap">
-            <span>Tags:</span>
-            <span className="italic flex flex-row gap-1">
+          <div className="flex flex-row gap-2 justify-start text-nowrap pt-2">
+            <span className="pt-1">Tags:</span>
+            <span className="italic flex flex-col gap-1">
               {props.participant.userTags.length > 0 ? (
                 props.participant.userTags.map((tag, index) => {
                   return (
-                    <span className={`text-${tag.color ?? 'black'}`} key={index}>{tag.name}</span>
+                    <span className={`text-${tag.color ?? 'black'} border rounded-full px-2 py-1`} key={index}>{tag.name}</span>
                   )
                 })
-              ) : 'No Tags'}
+              ) : <span className="pt-1">No Tags</span>}
             </span>
           </div>
         )}

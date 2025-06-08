@@ -197,36 +197,39 @@ export async function deleteTableMutation(params: DeleteTableParams) {
     if(params.options?.logging) console.log(columnsResponse)
 }
 
+//TODO: update me please
 export interface CreateTableColumnParams {
-    header: string,
-    type: 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file',
-    choices?: string[],
-    tags?: string[],
-    tableId: string,
-    values?: string[],
-    order: number,
+    column: TableColumn,
     options?: {
         logging?: boolean
     }
 }
-export async function createTableColumnMutation(params: CreateTableColumnParams): Promise<string | undefined> {
+export async function createTableColumnMutation(params: CreateTableColumnParams) {
     const response = await client.models.TableColumn.create({
-        header: params.header,
-        type: params.type,
-        choices: params.choices,
-        tag: params.tags,
-        tableId: params.tableId,
-        order: params.order
+        id: params.column.id,
+        header: params.column.header,
+        type: params.column.type,
+        choices: params.column.choices,
+        tag: params.column.tags.map((tag) => tag.id),
+        tableId: params.column.tableId,
+        order: params.column.order,
+        values: params.column.values,
     })
     if(params.options?.logging) console.log(response)
-    if(response && response.data) {
-        return response.data.id
-    }
 }
 
-export interface UpdateTableColumnParams  extends Partial<CreateTableColumnParams> {
+export interface UpdateTableColumnParams {
     column: TableColumn,
-    values: string[]
+    header?: string,
+    type?: TableColumn['type'],
+    choices?: string[] | null,
+    tags?: string[],
+    tableId?: string,
+    order?: number,
+    values: string[],
+    options?: {
+        logging?: boolean
+    }
 }
 export async function updateTableColumnsMutation(params: UpdateTableColumnParams) {
     const valuesCheck = (params.values && params.values.length > 0) ? params.values.reduce((prev, cur, index) => {
@@ -256,9 +259,7 @@ export async function updateTableColumnsMutation(params: UpdateTableColumnParams
             id: params.column.id,
             header: params.header ?? params.column.header,
             values: params.values,
-            choices: params.column.type === 'choice' || params.type === 'choice' ? ( 
-                params.choices ?? params.column.choices
-            ): undefined,
+            choices: params.choices === null || (params.choices ?? []).length > 0 ? params.choices : params.column.choices ?? undefined,
             type: params.type ?? params.column.type,
             tag: params.tags ?? params.column.tags.map((tag) => tag.id),
             order: params.order ?? params.column.order

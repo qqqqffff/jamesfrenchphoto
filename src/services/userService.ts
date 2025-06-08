@@ -12,6 +12,7 @@ import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/m
 import { getAllTimeslotsByUserTag } from "./timeslotService";
 import { getAllNotificationsFromUserTag } from "./notificationService";
 import { RegistrationProfile } from "../components/register/RegisterForm";
+import { v4 } from 'uuid'
 
 const client = generateClient<Schema>()
 
@@ -89,6 +90,8 @@ async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapU
                             dependent: itemResponse.dependent ?? undefined,
                             unique: itemResponse.unique ?? undefined,
                             statements: itemResponse.statements?.filter((item) => item !== null),
+                            aLaCarte: itemResponse.aLaCarte ?? undefined,
+                            display: itemResponse.display ?? true,
                             collectionIds: collections
                         }
                         return mappedItem
@@ -301,32 +304,38 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
         profileResponse.data.participantFirstName && 
         profileResponse.data.participantLastName){
         try {
-            mappedParticipants.push(await createParticipantMutation({
-                participant: {
-                    firstName: profileResponse.data.participantFirstName,
-                    lastName: profileResponse.data.participantLastName,
-                    middleName: profileResponse.data.participantMiddleName ?? undefined,
-                    preferredName: profileResponse.data.participantPreferredName ?? undefined,
-                    contact: profileResponse.data.participantContact ?? false,
-                    email: profileResponse.data.participantEmail ?? undefined,
-                    userTags: (await Promise.all((profileResponse.data.userTags ?? []).map(async (tagString) => {
-                        if(!tagString) return
-                        const mappedTag: UserTag = {
-                            id: tagString,
-                            name: '',
-                            children: [],
-                            participants: [],
-                            createdAt: new Date().toISOString()
-                        }
-                        return mappedTag
-                    }))).filter((tag) => tag !== undefined),
-                    userEmail: email,
-                    collections: []
-                },
+            const participant: Participant = {
+                id: v4(),
+                firstName: profileResponse.data.participantFirstName,
+                lastName: profileResponse.data.participantLastName,
+                middleName: profileResponse.data.participantMiddleName ?? undefined,
+                preferredName: profileResponse.data.participantPreferredName ?? undefined,
+                contact: profileResponse.data.participantContact ?? false,
+                email: profileResponse.data.participantEmail ?? undefined,
+                userTags: (await Promise.all((profileResponse.data.userTags ?? []).map(async (tagString) => {
+                    if(!tagString) return
+                    const mappedTag: UserTag = {
+                        id: tagString,
+                        name: '',
+                        children: [],
+                        participants: [],
+                        createdAt: new Date().toISOString()
+                    }
+                    return mappedTag
+                }))).filter((tag) => tag !== undefined),
+                userEmail: email,
+                collections: [],
+                notifications: []
+            }
+
+            await createParticipantMutation({
+                participant: participant,
                 authMode: options?.unauthenticated ? 'identityPool' : 'userPool',
-            }))
+            })
+
+            mappedParticipants.push(participant)
         } catch(err) {
-            
+            //TODO: do something with the error
         }
     }
 
@@ -949,14 +958,15 @@ export async function createAccessTokenMutation(params: CreateAccessTokenMutatio
 }
 
 export interface CreateParticipantParams {
-    participant: Omit<Participant, 'id' | 'notifications'>,
+    participant: Omit<Participant, 'notifications'>,
     authMode: 'identityPool' | 'userPool',
     options?: {
         logging: boolean
     }
 }
-export async function createParticipantMutation(params: CreateParticipantParams): Promise<Participant> {
+export async function createParticipantMutation(params: CreateParticipantParams) {
     const createResponse = await client.models.Participant.create({
+        id: params.participant.id,
         firstName: params.participant.firstName,
         lastName: params.participant.lastName,
         middleName: params.participant.middleName,
@@ -989,13 +999,6 @@ export async function createParticipantMutation(params: CreateParticipantParams)
     }))
 
     if(params.options?.logging) console.log(timeslotsUpdateResponse)
-
-    return {
-        id: createResponse.data.id,
-        ...params.participant,
-        //TODO: create tag mapping response
-        notifications: []
-    }
 }
 
 export interface UpdateUserAttributesMutationParams{

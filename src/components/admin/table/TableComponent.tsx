@@ -1,6 +1,7 @@
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
-import { ColumnColor, Participant, Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from "../../../types"
+import { ColumnColor, Participant, ParticipantFields, Table, TableColumn, TableGroup, UserData, UserFields, UserProfile, UserTag } from "../../../types"
 import { 
+  HiMiniIdentification,
   HiOutlineCalendar, 
   HiOutlineDocumentText, 
   HiOutlineListBullet, 
@@ -38,13 +39,18 @@ import { FileCell } from "./FileCell"
 import { invariant } from "@tanstack/react-router"
 import { AggregateCell } from "./AggregateCell"
 import { ColorComponent } from "../../common/ColorComponent"
+import { v4 } from 'uuid'
+import { ParticipantCell } from "./ParticipantCell"
+import { ParticipantSyncItem } from "./ParticipantSyncItem"
+import { ValueSyncItem } from "./ValueSyncItem"
+
 
 interface TableComponentProps {
   table: Table,
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
-  parentDeleteColumns: Dispatch<SetStateAction<TableColumn[]>>
+  parentUpdateTableColumns: Dispatch<SetStateAction<TableColumn[]>>
   userData: UseQueryResult<UserData[] | undefined, Error>
   tagData: UseQueryResult<UserTag[] | undefined, Error>
   tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
@@ -53,15 +59,16 @@ interface TableComponentProps {
 export const TableComponent = (props: TableComponentProps) => {
   const [deleteColumnConfirmation, setDeleteColumnConfirmation] = useState(false)
   const [tempUsers, setTempUsers] = useState<UserProfile[]>([])
+  const [users, setUsers] = useState<UserData[]>([])
+  const [headerDropdownHovering, setHeaderDropdownHovering] = useState(false)
 
-  const columnType = useRef<'value' | 'user' | 'date' | 'choice' | 'tag' | 'file' | null>(null)
   const refColumn = useRef<TableColumn | null>()
 
-  const tableRows: [string, 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file', string][][] = []
+  const tableRows: [string, TableColumn['type'], string][][] = []
 
   if(props.table.columns.length > 0) { 
     for(let i = 0; i < props.table.columns[0].values.length; i++){
-      const row: [string, 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file', string][] = []
+      const row: [string, TableColumn['type'], string][] = []
       for(let j = 0; j < props.table.columns.length; j++){
         row.push([props.table.columns[j].values[i], props.table.columns[j].type, props.table.columns[j].id])
       }
@@ -71,57 +78,6 @@ export const TableComponent = (props: TableComponentProps) => {
 
   const createColumn = useMutation({
     mutationFn: (params: CreateTableColumnParams) => createTableColumnMutation(params),
-    onSuccess: (data) => {
-      if(data){
-        const temp: Table = {
-          ...props.table,
-          columns: props.table.columns.map((column) => {
-            if(column.id === 'temp'){
-              return {
-                ...column,
-                id: data
-              }
-            }
-            return column
-          })
-        }
-        
-        const updateGroups = (prev: TableGroup[]) => {
-          const temp = [...prev]
-            .map((group) => {
-              if(group.id === props.table.tableGroupId){
-                return {
-                  ...group,
-                  tables: group.tables.map((table) => {
-                    if(table.id === props.table.id){
-                      return {
-                        ...table,
-                        columns: table.columns.map((column) => {
-                          if(column.id === 'temp'){
-                            return {
-                              ...column,
-                              id: data
-                            }
-                          }
-                          return column
-                        })
-                      }
-                    }
-                    return table
-                  })
-                }
-              }
-              return group
-            })
-
-          return temp
-        }
-
-        props.parentUpdateSelectedTableGroups((prev) => updateGroups(prev))
-        props.parentUpdateTableGroups((prev) => updateGroups(prev))
-        props.parentUpdateTable(temp)
-      }
-    }
   })
 
   const updateColumn = useMutation({
@@ -185,6 +141,7 @@ export const TableComponent = (props: TableComponentProps) => {
     }
   })
 
+  //TODO: deprecate me please
   useEffect(() => {
     if(props.table.columns.length > 0) {
       let max = 0
@@ -247,32 +204,84 @@ export const TableComponent = (props: TableComponentProps) => {
     }
   }, [props.tempUsersData.data])
 
-  const pushColumn = (type: 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file') => {
+  useEffect(() => {
+    if(props.userData.data) {
+      setUsers(props.userData.data)
+    }
+  }, [props.userData.data])
+
+  const pushColumn = (type: TableColumn['type']) => {
     const temp: TableColumn = {
-      id: 'temp',
+      id: v4(),
       values: [],
       display: true,
       header: '',
       type: type,
       tags: [],
       order: props.table.columns.length,
-      tableId: props.table.id
+      tableId: props.table.id,
+      temporary: true
     }
-
-    columnType.current = type
 
     const table: Table = {
       ...props.table,
       columns: [...props.table.columns, temp]
     }
 
+    const updateGroup = (prev: TableGroup[]) => {
+      const pTemp = [...prev]
+        .map((group) => {
+          if(group.id === table.tableGroupId){
+            return {
+              ...group,
+              tables: group.tables.map((pTable) => (pTable.id === table.id ? table : pTable))
+            }
+          }
+          return group
+        })
+
+      return pTemp
+    }
+
+    props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+    props.parentUpdateTableGroups((prev) => updateGroup(prev))
     props.parentUpdateTable(table)
+    props.parentUpdateTableColumns(table.columns)
   }
 
   const updateValue = (id: string, text: string, i: number) => {
     const column = props.table.columns.find((column) => column.id === id)
 
     invariant(column !== undefined)
+
+    const updatedColumns: TableColumn[] = []
+    //user dependent columns
+    if(column.type === 'user'){
+      const dependentColumns = props.table.columns.filter((col) => col.choices?.[0] === column.id)
+
+      for(let j = 0; j < dependentColumns.length; j++) {
+        //participant column
+        if(dependentColumns[j].type === 'participant') {
+          const foundParticipant = users.find((user) => user.email === text)?.profile?.participant[0].id
+          if(foundParticipant) {
+            const tempValues = dependentColumns[j].values.map((value, k) => (k === i ? foundParticipant : value))
+            updateColumn.mutate({
+              column: dependentColumns[j],
+              values: tempValues,
+              options: {
+                logging: true
+              }
+            })
+            updatedColumns.push({
+              ...dependentColumns[j],
+              values: tempValues
+            })
+          }
+        }
+      }
+    }
+
+    console.log(updatedColumns)
 
     updateColumn.mutate({
       column: column,
@@ -288,7 +297,9 @@ export const TableComponent = (props: TableComponentProps) => {
     const temp: Table = {
       ...props.table,
       columns: props.table.columns.map((column) => {
-        if(column.id === id){
+        const updatedColumn = updatedColumns.find((col) => col.id === column.id)
+        if(updatedColumn) return updatedColumn
+        else if(column.id === id){
           const values = [...column.values]
           values[i] = text
           return {
@@ -323,6 +334,7 @@ export const TableComponent = (props: TableComponentProps) => {
     props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
     props.parentUpdateTableGroups((prev) => updateGroup(prev))
     props.parentUpdateTable(temp)
+    props.parentUpdateTableColumns(temp.columns)
   }
 
   const updateChoices = (id: string, data: {choice: string, color: string}, mode: 'create' | 'delete') => {
@@ -340,11 +352,12 @@ export const TableComponent = (props: TableComponentProps) => {
       })
 
       const tempColor: ColumnColor = {
-        id: 'temp',
+        id: v4(),
         textColor: defaultColumnColors[data.color].text,
         bgColor: defaultColumnColors[data.color].bg,
         value: data.choice,
-        columnId: column.id
+        columnId: column.id,
+        temporary: true
       }
 
       const temp: Table = {
@@ -382,7 +395,103 @@ export const TableComponent = (props: TableComponentProps) => {
       props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
       props.parentUpdateTableGroups((prev) => updateGroup(prev))
       props.parentUpdateTable(temp)
+      props.parentUpdateTableColumns(temp.columns)
     }
+  }
+
+  //TODO: move me to a functions file
+  const syncParticipantColumn = (id: string, choice: string | null, updatedValues: string[]) => {
+    const column = props.table.columns.find((column) => column.id === id)
+
+    invariant(column !== undefined)
+
+    updateColumn.mutate({
+      column: column,
+      choices: choice !== null ? [choice] : null,
+      values: updatedValues,
+      options: {
+        logging: true
+      }
+    })
+
+    const temp: Table = {
+      ...props.table,
+      columns: props.table.columns.map((column) => (column.id === id ? {
+          ...column,
+          choices: choice !== null ? [choice] : undefined,
+          values: updatedValues
+        } : 
+          column 
+        )
+      )
+    }
+
+    const updateGroup = (prev: TableGroup[]) => {
+      const pTemp = [...prev]
+        .map((group) => (group.id === temp.tableGroupId ? {
+            ...group,
+            tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
+          } : 
+            group
+          )
+        )
+
+      return pTemp
+    }
+
+    props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+    props.parentUpdateTableGroups((prev) => updateGroup(prev))
+    props.parentUpdateTable(temp)
+    props.parentUpdateTableColumns(temp.columns)
+  }
+
+  const syncValueColumn = (
+    id: string, 
+    choice: [string, ParticipantFields['type'] | UserFields['type']] | null, 
+    updatedValues: string[]
+  ) => {
+    const column = props.table.columns.find((column) => column.id === id)
+
+    invariant(column !== undefined)
+
+    updateColumn.mutate({
+      column: column,
+      choices: choice !== null ? [choice[0], choice[1] as string] : null,
+      values: updatedValues,
+      options: {
+        logging: true
+      }
+    })
+
+    const temp: Table = {
+      ...props.table,
+      columns: props.table.columns.map((column) => (column.id === id ? {
+          ...column,
+          choices: choice !== null ? [choice[0], choice[1] as string] : undefined,
+          values: updatedValues
+        } : 
+          column 
+        )
+      )
+    }
+
+    const updateGroup = (prev: TableGroup[]) => {
+      const pTemp = [...prev]
+        .map((group) => (group.id === temp.tableGroupId ? {
+            ...group,
+            tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
+          } : 
+            group
+          )
+        )
+
+      return pTemp
+    }
+
+    props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+    props.parentUpdateTableGroups((prev) => updateGroup(prev))
+    props.parentUpdateTable(temp)
+    props.parentUpdateTableColumns(temp.columns)
   }
 
   return (
@@ -432,12 +541,7 @@ export const TableComponent = (props: TableComponentProps) => {
             props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
             props.parentUpdateTableGroups((prev) => updateGroup(prev))
             props.parentUpdateTable(temp)
-            props.parentDeleteColumns((prev) => {
-              const col = [...prev]
-              col.push(column)
-
-              return col
-            })
+            props.parentUpdateTableColumns(temp.columns)
           }
         }}
         onClose={() => setDeleteColumnConfirmation(false)}
@@ -459,21 +563,27 @@ export const TableComponent = (props: TableComponentProps) => {
                       items-center
                     "
                   >
-                    {column.id === 'temp' || column.id.includes('edit') ? (
+                    {column.temporary || column.edit ? (
                       <div className="w-full pe-10">
                         <EditableTextField 
                           className="text-xs border-b-black focus:ring-0 focus:border-transparent focus:border-b-black min-w-full bg-transparent"
                           text={column.header ?? ''}
                           placeholder="Enter Column Name..."
                           onSubmitText={(text) => {
-                            if(columnType.current !== null){
-                              createColumn.mutate({
+                            if(column.temporary && text !== ''){
+                              const tempColumn: TableColumn = {
+                                id: column.id,
+                                display: true,
+                                tags: [],
                                 header: text,
                                 tableId: props.table.id,
-                                type: columnType.current,
+                                type: column.type,
                                 values: props.table.columns.length > 0 && props.table.columns[0].values.length > 0 ?
-                                  props.table.columns[0].values.fill('') : undefined,
+                                  props.table.columns[0].values.fill('') : [],
                                 order: props.table.columns.length,
+                              }
+                              createColumn.mutate({
+                                column: tempColumn,
                                 options: {
                                   logging: true
                                 }
@@ -481,15 +591,7 @@ export const TableComponent = (props: TableComponentProps) => {
                               const temp: Table = {
                                 ...props.table,
                                 columns: props.table.columns
-                                  .map((column) => {
-                                    if(column.id === 'temp') {
-                                      return {
-                                        ...column,
-                                        header: text
-                                      }
-                                    }
-                                    return column
-                                  })
+                                  .map((pColumn) => (pColumn.id === tempColumn.id ? tempColumn : pColumn))
                               }
 
                               const updateGroup = (prev: TableGroup[]) => {
@@ -515,13 +617,11 @@ export const TableComponent = (props: TableComponentProps) => {
                               props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
                               props.parentUpdateTableGroups((prev) => updateGroup(prev))
                               props.parentUpdateTable(temp)
+                              props.parentUpdateTableColumns(temp.columns)
                             }
-                            else if(column.id.includes('edit') && text !== column.header) {
+                            else if(column.edit && text !== column.header) {
                               updateColumn.mutate({
-                                column: {
-                                  ...column,
-                                  id: column.id.replace('edit', '')
-                                },
+                                column: column,
                                 values: column.values,
                                 header: text,
                                 options: {
@@ -534,7 +634,6 @@ export const TableComponent = (props: TableComponentProps) => {
                                 columns: props.table.columns
                                   .map((parentColumn) => ({
                                     ...parentColumn, 
-                                    id: parentColumn.id === column.id ? column.id.replace('edit', 'edited') : parentColumn.id.replace('edit', ''),
                                     header: parentColumn.id === column.id ? text : parentColumn.header,
                                   }))
                               }
@@ -562,14 +661,17 @@ export const TableComponent = (props: TableComponentProps) => {
                               props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
                               props.parentUpdateTableGroups((prev) => updateGroup(prev))
                               props.parentUpdateTable(temp)
+                              props.parentUpdateTableColumns(temp.columns)
                             }
                           }}
                           onCancel={() => {
                             const temp: Table = {
                               ...props.table,
-                              columns: props.table.columns
-                                .filter((column) => column.id !== 'temp')
-                                .map((column) => ({...column, id: column.id.replace('edit', '')}))
+                              columns: props.table.columns.map((col) => (col.id === column.id ? ({
+                                ...col,
+                                edit: false,
+                                temporary: false
+                              }) : col))
                             }
 
                             const updateGroup = (prev: TableGroup[]) => {
@@ -595,24 +697,44 @@ export const TableComponent = (props: TableComponentProps) => {
                             props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
                             props.parentUpdateTableGroups((prev) => updateGroup(prev))
                             props.parentUpdateTable(temp)
+                            props.parentUpdateTableColumns(temp.columns)
                           }}
                         />
                       </div>
                     ) : (
                       <Dropdown 
-                        className="max-w-[140px]"
+                        className="min-w-max"
                         label={(<span className="hover:underline underline-offset-2">{column.header}</span>)}
                         arrowIcon={false}
+                        placement="bottom"
                         inline
+                        dismissOnClick={!headerDropdownHovering}
                       >
                         <div className="w-max flex flex-col">
-                          <span className="whitespace-nowrap px-4 border-b pb-0.5 font-semibold text-base">
+                          <span className="whitespace-nowrap px-4 border-b pb-0.5 font-semibold text-base text-center w-full">
                             <span>Type:</span>
                             <ColorComponent 
                               customText={' ' + column.type[0].toUpperCase() + column.type.substring(1)} 
                               activeColor={getColumnTypeColor(column.type)}
                             />
                           </span>
+                          {column.type === 'participant' && (
+                            <ParticipantSyncItem 
+                              table={props.table}
+                              column={column}
+                              users={users}
+                              syncColumn={syncParticipantColumn}
+                            />
+                          )}
+                          {column.type === 'value' && (
+                            <ValueSyncItem 
+                              table={props.table}
+                              column={column}
+                              users={users}
+                              syncColumn={syncValueColumn}
+                              setHovering={setHeaderDropdownHovering}
+                            />
+                          )}
                           <Dropdown.Item 
                             className="justify-center"
                             onClick={() => {
@@ -622,7 +744,7 @@ export const TableComponent = (props: TableComponentProps) => {
                                   if(parentColumn.id === column.id){
                                     return {
                                       ...parentColumn,
-                                      id: 'edit' + column.id
+                                      edit: true
                                     }
                                   }
                                   return parentColumn
@@ -652,6 +774,7 @@ export const TableComponent = (props: TableComponentProps) => {
                               props.parentUpdateTable(temp)
                               props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
                               props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                              props.parentUpdateTableColumns(temp.columns)
                             }}
                           >Rename</Dropdown.Item>
                           <Dropdown.Item 
@@ -702,6 +825,17 @@ export const TableComponent = (props: TableComponentProps) => {
                         <div className="flex flex-col">
                           <span className="whitespace-nowrap">User Column</span>
                           <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column syncs with user's emails.</span>
+                        </div>
+                      </Dropdown.Item>
+                      <Dropdown.Item 
+                        as='button'
+                        className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
+                        onClick={() => pushColumn('participant')}
+                      >
+                        <HiMiniIdentification size={32} className="bg-pink-400 border-4 border-pink-400 rounded-lg"/>
+                        <div className="flex flex-col">
+                          <span className="whitespace-nowrap">Participant Column</span>
+                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column syncs with a user's participant.</span>
                         </div>
                       </Dropdown.Item>
                       <Dropdown.Item  
@@ -755,11 +889,10 @@ export const TableComponent = (props: TableComponentProps) => {
             </tr>
           </thead>
           <tbody>
-            {tableRows.length > 0 && tableRows.map((row: [string, "value" | "user" | "date" | "choice" | "tag" | "file", string][], i: number) => {
+            {tableRows.length > 0 && tableRows.map((row: [string, TableColumn['type'], string][], i: number) => {
                 return (
                   <tr key={i} className="bg-white border-b">
                     {row.map(([v, t, id], j) => {
-                      //TODO: continue implementation 'file'
                       switch(t){
                         case 'user': {
                           return (
@@ -767,7 +900,8 @@ export const TableComponent = (props: TableComponentProps) => {
                               key={j}
                               value={v ?? ''}
                               updateValue={(text) => updateValue(id, text, i)}
-                              userData={props.userData}
+                              userData={users}
+                              userDataQuery={props.userData}
                               table={props.table}
                               rowIndex={i}
                               columnId={id}
@@ -778,14 +912,31 @@ export const TableComponent = (props: TableComponentProps) => {
                             />
                           )
                         }
+                        case 'participant': {
+                          return (
+                            <ParticipantCell 
+                              key={j}
+                              table={props.table}
+                              userData={users}
+                              userDataQuery={props.userData}
+                              value={v ?? ''}
+                              updateValue={(text) => updateValue(id, text, i)}
+                              updateUserProfiles={setUsers}
+                              rowIndex={i}
+                              tagsQuery={props.tagData}
+                              choiceColumn={props.table.columns.find((col) => col.id === props.table.columns.find((pCol) => pCol.id === id)?.choices?.[0])}
+                            />
+                          )
+                        }
                         case 'date': {
+                          // TODO: add a query field for async fetch loading
                           return (
                             <DateCell
                               key={j}
                               value={v}
                               updateValue={(text) => updateValue(id, text, i)}
                               table={props.table}
-                              participants={props.userData.data
+                              participants={users
                                 ?.map((data) => {
                                   if(data.profile?.participant) return data.profile.participant
                                   return [] as Participant[]
@@ -813,6 +964,7 @@ export const TableComponent = (props: TableComponentProps) => {
                           )
                         }
                         case 'tag': {
+                          // TODO: add a query field for async fetch loading
                           return (
                             <TagCell
                               key={j}
@@ -823,7 +975,7 @@ export const TableComponent = (props: TableComponentProps) => {
                               table={props.table}
                               columnId={id}
                               rowIndex={i}
-                              participants={props.userData.data
+                              participants={users
                                 ?.map((data) => {
                                   if(data.profile?.participant) return data.profile.participant
                                   return [] as Participant[]
@@ -880,6 +1032,7 @@ export const TableComponent = (props: TableComponentProps) => {
                                 props.parentUpdateTable(tempTable)
                                 props.parentUpdateTableGroups((prev) => updateGroup(prev))
                                 props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                                props.parentUpdateTableColumns(tempTable.columns)
                               }}
                               column={props.table.columns.find((column) => column.id === id)!}
                               rowIndex={i}
@@ -947,6 +1100,7 @@ export const TableComponent = (props: TableComponentProps) => {
                           props.parentUpdateTable(temp)
                           props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
                           props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                          props.parentUpdateTableColumns(temp.columns)
                         }}
                       >
                         <HiOutlineXCircle className="text-gray-600 hover:fill-gray-200 hover:text-gray-900" size={26} />

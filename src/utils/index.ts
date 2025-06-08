@@ -1,4 +1,5 @@
 import { CustomFlowbiteTheme } from "flowbite-react"
+import { TableColumn } from "../types"
 
 export function formatTime(time: Date | string | undefined, params?: {timeString: boolean}): string {
     if(!time) return 'N/A'
@@ -126,11 +127,14 @@ export const defaultColors = [
     'amber-600',
 ]
 
-export const getColumnTypeColor = (value?: 'value' | 'user' | 'date' | 'choice' | 'tag' | 'file') => {
+export const getColumnTypeColor = (value?: TableColumn['type']) => {
     if(!value) return 'black'
     switch(value) {
         case 'user': {
             return 'red-500'
+        }
+        case 'participant': {
+            return 'pink-400'
         }
         case 'date': {
             return 'cyan-400'

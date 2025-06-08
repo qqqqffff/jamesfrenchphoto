@@ -6,6 +6,7 @@ import { Schema } from "../../../amplify/data/resource"
 import { Participant, UserTag } from "../../types"
 import { useMutation, useQueries } from "@tanstack/react-query"
 import { createParticipantMutation, CreateParticipantParams, getUserTagByIdQueryOptions } from "../../services/userService"
+import { v4 } from 'uuid'
 
 const client = generateClient<Schema>()
 
@@ -96,21 +97,23 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                 formErrors.push({type: 'tagcode'})
             }
             if(firstName && lastName && validateTags && userEmail){
-                const response = await createParticipantMut.mutateAsync({
-                    participant: {
-                        userEmail: userEmail,
-                        userTags: tags,
-                        email: email,
-                        firstName: firstName,
-                        lastName: lastName,
-                        preferredName: preferredName,
-                        middleName: middleName,
-                        contact: contact,
-                        collections: []
-                    },
+                participant = {
+                    id: v4(),
+                    userEmail: userEmail,
+                    userTags: tags,
+                    email: email,
+                    firstName: firstName,
+                    lastName: lastName,
+                    preferredName: preferredName,
+                    middleName: middleName,
+                    contact: contact,
+                    collections: [],
+                    notifications: []
+                }
+                await createParticipantMut.mutateAsync({
+                    participant: participant,
                     authMode: 'userPool'
                 })
-                participant = response
             }
         } catch(err){
             setSubmitting(false)
