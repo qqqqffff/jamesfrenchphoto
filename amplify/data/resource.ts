@@ -13,6 +13,7 @@ import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
 import { shareUserInvite } from '../functions/share-user-invite/resource';
 import { repairPaths } from '../functions/repair-paths/resource';
 import { registerUser } from '../functions/register-user/resource';
+import { adminUpdateUserAttributes } from '../auth/admin-update-user-attributes/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -370,13 +371,24 @@ const schema = a.schema({
     .handler(a.handler.function(getAuthUsers))
     .returns(a.json()),
   UpdateUserPhoneNumber: a
-    .query()
+    .mutation()
     .arguments({
       phoneNumber: a.string().required(),
       accessToken: a.string().required(),
     })
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(updateUserAttribute))
+    .returns(a.json()),
+  AdminUpdateUserAttributes: a
+    .mutation()
+    .arguments({
+      userId: a.string().required(),
+      last: a.string().required(),
+      first: a.string().required(),
+      phone: a.string(),
+    })
+    .authorization((allow) => [allow.group('ADMINS')])
+    .handler(a.handler.function(adminUpdateUserAttributes))
     .returns(a.json()),
   VerifyContactChallenge: a
     .query()

@@ -38,7 +38,7 @@ function RouteComponent() {
   
   const tagsQuery = useQuery(getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: true }))
 
-  const tempUsersQuery = useQuery(getAllTemporaryUsersQueryOptions())
+  const tempUsersQuery = useQuery(getAllTemporaryUsersQueryOptions({ siTags: true }))
 
   useEffect(() => {
     if(tableGroupsQuery.data && tableGroupsQuery.data.length > 0) {
