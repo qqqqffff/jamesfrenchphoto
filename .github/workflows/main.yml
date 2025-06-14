@@ -24,9 +24,16 @@ jobs:
           role-session-name: Github_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
           # TODO: figure out how to import amplify app id
-      - name: Generate Outputs
+      - name: Get Amplify App ID by Repository
         run: |
-          npx ampx sandbox --identifier apollo --once
+          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+          echo "Repository URL: $REPO_URL"
+          APP_ID=$(aws amplify list-apps --query "apps[?repository=='$REPO_URL'].appId" --output text)
+          echo "APP_ID=$APP_ID" >> $GITHUB_ENV
+          echo "Amplify App ID: $APP_ID"
+      # - name: Generate Outputs
+      #   run: |
+      #     npx ampx sandbox --identifier apollo --once
       - name: Run Build
         run: npm run build
     
