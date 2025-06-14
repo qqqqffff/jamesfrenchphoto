@@ -1,4 +1,6 @@
-on: [pull_request]
+on: [pull_request, workflow_dispatch]
+
+name: Validate Branch
 
 env:
   AWS_REGION: 'us-east-1'
@@ -23,10 +25,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE }}
           role-session-name: Github_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
-          # TODO: figure out how to import amplify app id
       - name: Generate Outputs
         run: |
-          npx ampx sandbox --identifier apollo --once
+          npx ampx generate outputs --stack ${{ secrets.SANDBOX_STACK }}
       - name: Run Build
         run: npm run build
     
