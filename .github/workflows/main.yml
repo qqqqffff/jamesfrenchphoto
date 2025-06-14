@@ -1,5 +1,7 @@
 on: [pull_request, workflow_dispatch]
 
+name: Validate Branch
+
 env:
   AWS_REGION: 'us-east-1'
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
@@ -34,6 +36,9 @@ jobs:
       # - name: Generate Outputs
       #   run: |
       #     npx ampx sandbox --identifier apollo --once
+      - name: Generate Outputs
+        run: |
+          npx ampx generate outputs --branch ${{ env.BRANCH_NAME }} --app-id ${{ env.APP_ID }}
       - name: Run Build
         run: npm run build
     
