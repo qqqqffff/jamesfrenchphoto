@@ -230,7 +230,10 @@ interface GetUserProfileByEmailOptions {
     siSets?: boolean,
     siTemporaryToken?: boolean,
     siNotifications?: boolean
-    unauthenticated?: boolean
+    unauthenticated?: boolean,
+    memo?: {
+        tags?: UserTag[]
+    }
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
@@ -240,7 +243,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
 
     const notificationMemo: Notification[] = []
     const collectionsMemo: PhotoCollection[] = []
-    const tagsMemo: UserTag[] = []
+    const tagsMemo: UserTag[] = options?.memo?.tags ?? []
 
     const mappedParticipants: Participant[] = await Promise.all(participantResponse.data.map(async (participant) => {
         const newParticipant = await mapParticipant(participant, {
@@ -432,15 +435,29 @@ export async function getAuthUsers(client: V6Client<Schema>, filter?: string | n
 }
 
 interface GetAllTemporaryUsersOptions {
-    logging?: boolean
+    logging?: boolean,
+    siTags?: boolean
 }
 async function getAllTemporaryUsers(client: V6Client<Schema>, options?: GetAllTemporaryUsersOptions): Promise<UserProfile[] | undefined> {
     const response = await client.models.TemporaryCreateUsersTokens.list()
 
     if(options?.logging) console.log(response)
 
+    const tagsMemo: UserTag[] = []
     const mappedResponse: UserProfile[] = (await Promise.all(response.data.map(async (token) => {
-        return getUserProfileByEmail(client, token.userEmail)
+        const userProfile = await getUserProfileByEmail(client, token.userEmail, { siTags: options?.siTags })
+        if(userProfile) {
+            tagsMemo.push(...userProfile.participant
+                .flatMap((participant) => participant.userTags)
+                .reduce((prev, cur) => {
+                    if(!prev.some((tag) => tag.id === cur.id)) {
+                        prev.push(cur)
+                    }
+                    return prev
+                }, [] as UserTag[])
+            )
+        }
+        return userProfile
     }))).filter((data) => data !== undefined)
 
     if(options?.logging) console.log(mappedResponse)
@@ -1007,35 +1024,79 @@ export interface UpdateUserAttributesMutationParams{
     firstName?: string,
     phoneNumber?: string,
     accessToken?: string,
-    preferredContact?: 'EMAIL' | 'PHONE'
+    preferredContact?: 'EMAIL' | 'PHONE',
+    admin?: string,
+    options?: {
+        logging?: boolean
+    }
 }
 export async function updateUserAttributeMutation(params: UpdateUserAttributesMutationParams){
     let updated = false
     if(params.firstName && params.lastName){
-        await updateUserAttributes({
-            userAttributes: {
-                email: params.email,
-                family_name: params.lastName,
-                given_name: params.firstName,
-            }
-        })
+        if(!params.admin) {
+            const response = await updateUserAttributes({
+                userAttributes: {
+                    email: params.email,
+                    family_name: params.lastName,
+                    given_name: params.firstName,
+                }
+            })
+            if(params.options?.logging) console.log(response)
+        }
+        else {
+            const response = await client.mutations.AdminUpdateUserAttributes({
+                userId: params.admin,
+                last: params.lastName,
+                first: params.firstName,
+                phone: params.phoneNumber ? `+1${params.phoneNumber.replace(/\D/g, "")}` : undefined,
+            })
+            if(params.options?.logging) console.log(response)
+        }
         updated = true
     }
     if(params.phoneNumber && params.accessToken){
-        await client.queries.UpdateUserPhoneNumber({
+        const response = await client.mutations.UpdateUserPhoneNumber({
             phoneNumber: `+1${params.phoneNumber.replace(/\D/g, "")}`,
             accessToken: params.accessToken
         })
+        if(params.options?.logging) console.log(response)
         updated = true
     }
     if(params.preferredContact !== undefined){
-        await client.models.UserProfile.update({
+        const response = await client.models.UserProfile.update({
             email: params.email,
             preferredContact: params.preferredContact ? "PHONE" : 'EMAIL',
         })
+        if(params.options?.logging) console.log(response)
         updated = true
     }
     return updated
+}
+
+export interface UpdateUserProfileParams {
+    profile: UserProfile,
+    sitting?: number,
+    first?: string,
+    last?: string,
+    options?: {
+        logging?: boolean
+    }
+}
+export async function updateUserProfileMutation(params: UpdateUserProfileParams) {
+    if(
+        (params.profile.firstName !== params.first && params.first !== undefined && params.first !== '') || 
+        (params.profile.lastName !== params.last && params.last !== undefined && params.last !== '') || 
+        (params.profile.sittingNumber !== params.sitting && params.sitting !== undefined && !isNaN(params.sitting)) 
+    ) {
+        const response = await client.models.UserProfile.update({
+            email: params.profile.email,
+            firstName: params.first ?? params.profile.firstName,
+            lastName: params.last ?? params.profile.lastName,
+            sittingNumber: params.sitting ?? params.profile.sittingNumber,
+        })
+
+        if(params.options?.logging) console.log(response)
+    }
 }
 
 //TODO: improve me
@@ -1048,12 +1109,15 @@ export interface UpdateParticipantMutationParams {
     email?: string,
     participant: Participant,
     userTags: UserTag[],
+    options?: {
+        logging?: boolean
+    }
 }
 export async function updateParticipantMutation(params: UpdateParticipantMutationParams){
     const addedTags = params.userTags.filter((tag) => !params.participant.userTags.some((pTag) => pTag.id === tag.id))
-    const removedTags = params.userTags.filter((pTag) => !params.userTags.some((tag) => tag.id === pTag.id))
+    const removedTags = params.participant.userTags.filter((pTag) => !params.userTags.some((tag) => tag.id === pTag.id))
 
-    await Promise.all((await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: params.participant.id }))
+    const removedTagsResponse = await Promise.all((await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: params.participant.id }))
         .data.map((tag) => {
             if(removedTags.some((rTag) => rTag.id === tag.tagId)) {
                 return client.models.ParticipantUserTag.delete({ id: tag.id })
@@ -1061,22 +1125,36 @@ export async function updateParticipantMutation(params: UpdateParticipantMutatio
         })
     )
 
-    await Promise.all(addedTags.map(async (tag) => {
+    if(params.options?.logging) console.log(removedTagsResponse)
+
+    const addedTagsResponse = await Promise.all(addedTags.map(async (tag) => {
         return client.models.ParticipantUserTag.create({
             tagId: tag.id,
             participantId: params.participant.id
         })
     }))
 
-    return client.models.Participant.update({
-        id: params.participant.id,
-        email: params.email,
-        firstName: params.firstName,
-        lastName: params.lastName,
-        preferredName: params.preferredName,
-        middleName: params.middleName,
-        contact: params.contact
-    })
+    if(params.options?.logging) console.log(addedTagsResponse)
+
+    if(
+        params.email !== params.participant.email || 
+        params.firstName !== params.participant.firstName || 
+        params.lastName !== params.participant.lastName || 
+        params.preferredName !== params.participant.preferredName || 
+        params.middleName !== params.participant.middleName || 
+        params.contact !== params.participant.contact
+    ) {
+        const response = await client.models.Participant.update({
+            id: params.participant.id,
+            email: params.email,
+            firstName: params.firstName,
+            lastName: params.lastName,
+            preferredName: params.preferredName,
+            middleName: params.middleName,
+            contact: params.contact
+        })
+        return response
+    }
 }
 
 export interface CreateTempUserProfileParams {

@@ -1,4 +1,4 @@
-import { PhotoCollection, UserTag } from "../types";
+import { Participant, PhotoCollection, UserTag } from "../types";
 
 export const getUserCollectionList = (collections?: PhotoCollection[], tags?: UserTag[]) => {
   return [
@@ -11,4 +11,9 @@ export const getUserCollectionList = (collections?: PhotoCollection[], tags?: Us
     return prev
   }, [] as PhotoCollection[])
   .filter((collection) => collection.published)
+}
+
+export const formatParticipantName = (participant: Participant): string => {
+  return `${participant.preferredName !== undefined && participant.preferredName !== '' ? 
+    participant.preferredName : participant.firstName}, ${participant.lastName}`
 }

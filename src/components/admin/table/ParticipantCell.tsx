@@ -7,6 +7,7 @@ import Loading from "../../common/Loading"
 import { HiOutlinePlusCircle, HiOutlineXMark } from "react-icons/hi2"
 import { CreateParticipantWindow } from "./CreateParticipantWindow"
 import { createParticipantMutation, CreateParticipantParams } from "../../../services/userService"
+import { formatParticipantName } from "../../../functions/clientFunctions"
 
 interface ParticipantCellProps {
   userData: UserData[]
@@ -87,8 +88,7 @@ export const ParticipantCell = (props: ParticipantCellProps) => {
         value={createParticipant.isPending ? (
           'Creating...'
         ) : (
-          participants[value] !== undefined ? `${participants[props.value].preferredName !== undefined && participants[props.value].preferredName !== '' ? 
-            participants[props.value].preferredName : participants[props.value].firstName}, ${participants[value].lastName}`
+          participants[value] !== undefined ? formatParticipantName(participants[value])
           : value
         )}
         onKeyDown={async (event) => {

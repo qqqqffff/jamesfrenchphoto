@@ -1,13 +1,19 @@
 import { ComponentProps, useEffect, useState } from "react";
-import { Participant, Table, UserTag } from "../../../types";
-import { Checkbox, Dropdown, ToggleSwitch, Tooltip } from "flowbite-react";
-import { HiMinus, HiOutlineExclamationTriangle, HiOutlineXMark } from "react-icons/hi2";
-import { useMutation } from "@tanstack/react-query";
+import { Participant, Table, UserData, UserProfile, UserTag } from "../../../types";
+import { Checkbox, Dropdown, Tooltip } from "flowbite-react";
+import { HiMinus, HiOutlineXMark } from "react-icons/hi2";
+import { useMutation, UseQueryResult } from "@tanstack/react-query";
 import { updateParticipantMutation, UpdateParticipantMutationParams } from "../../../services/userService";
+import { invariant } from "@tanstack/react-router";
+import { ParticipantPanel } from "../../common/ParticipantPanel";
+import { formatParticipantName } from "../../../functions/clientFunctions";
 
 interface TagCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void,
+  updateParticipant: (participant: Participant) => void,
+  userQuery: UseQueryResult<UserData[] | undefined, Error>,
+  tempUserQuery: UseQueryResult<UserProfile[] | undefined, Error>,
   tags: UserTag[],
   refetchTags: () => void,
   participants: Participant[],
@@ -23,20 +29,39 @@ export const TagCell = (props: TagCellProps) => {
   const [search, setSearch] = useState<string>('')
   const [foundParticipant, setFoundParticipant] = useState<Participant | undefined>();
   const [tags, setTags] = useState<UserTag[]>(props.tags)
-  const [mode, setMode] = useState<'column' | 'participant'>('column')
-  const [source, setSource] = useState<{id: string, header: string}>()
+  const [source, setSource] = useState<string | undefined>()
   
   useEffect(() => {
     if(props.value !== value){
       setValue(props.value)
+      setFoundParticipant((prev) => {
+        const participant = props.participants.find((participant) => participant.id === props.value)
+        if(
+          (prev !== undefined && participant === undefined) || 
+          (participant?.id !== prev?.id)
+        ) {
+          return participant
+        }
+        return prev
+      });
     }
-    if(props.value !== '') {
-      setFoundParticipant(props.participants.find((participant) => participant.id === props.value));
-    }
+  }, [props.value])
+
+  useEffect(() => {
     if(props.tags.some((tag) => !tags.some((parentTag) => parentTag.id === tag.id))) {
       setTags(props.tags)
     }
-  }, [props.value, props.tags, props.participants])
+  }, [props.tags])
+
+  useEffect(() => {
+    if(props.value !== '' && value === props.value) {
+      setFoundParticipant(props.participants.find((participant) => participant.id === props.value));
+    }
+  }, [props.participants])
+
+  const column = props.table.columns.find((col) => col.id === props.columnId)
+  invariant(column !== undefined)
+  const hasDependency = props.table.columns.some((col) => col.id === column.choices?.[0])
 
   const updateParticipant = useMutation({
     mutationFn: (params: UpdateParticipantMutationParams) => updateParticipantMutation(params)
@@ -45,26 +70,24 @@ export const TagCell = (props: TagCellProps) => {
   const foundTag = (foundParticipant?.userTags ?? []).length === 1 ? foundParticipant?.userTags[0] : undefined
 
   const tempSource = props.participants
-    .find((participant) => {
-      if(mode === 'column' && source) {
-        const columnSource = props.table.columns.find((column) => column.id === source.id)
-        if(!columnSource || !participant.id) return
-        return participant.id === columnSource.values[props.rowIndex]
-      }
-      else if(source) {
-        return participant.id === source.id
-      }
-    })
+    .find((participant) => participant.id === source)
 
   const tagValue = (() => {
-    if((foundParticipant?.userTags ?? []).length <= 0) {
-      return ''
-    }
+    if((props.userQuery.isLoading || props.tempUserQuery.isLoading) && foundParticipant === undefined) return 'Loading...'
+    else if(foundParticipant === undefined && value === '' && hasDependency) return 'No Participant'
+    else if(foundParticipant === undefined && value === '') return ''
+    else if(foundParticipant === undefined && value !== '' && !hasDependency) return 'Invalid Source'
     else if(foundTag !== undefined) {
       return foundTag.name
     }
     else if((foundParticipant?.userTags ?? []).length > 1){
       return 'Multiple Tags'
+    }
+    else if(foundParticipant && (foundParticipant?.userTags ?? []).length === 0){
+      return 'No Tags'
+    }
+    else {
+      return 'Broken Source'
     }
   })()
 
@@ -77,6 +100,7 @@ export const TagCell = (props: TagCellProps) => {
             font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
             border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
             hover:cursor-pointer ${foundTag ? `text-${foundTag.color ?? 'black'}` : ''}
+            ${tagValue === 'Invalid Source' || tagValue === 'Broken Source' ? 'text-red-500' : ''}
           `}
           value={tagValue}
           onFocus={() => setIsFocused(true)}
@@ -85,24 +109,25 @@ export const TagCell = (props: TagCellProps) => {
         {isFocused && foundParticipant && (
           <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
             <div className="w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between">
-              <span>Pick Tags</span>
+              <span>{formatParticipantName(foundParticipant)}</span>
               <div className="flex flex-row gap-1 items-center">
-                <Tooltip
-                  style="light"
-                  content='Update Source'
-                >
-                  <button 
-                    className=""
-                    onClick={() => {
-                      setFoundParticipant(undefined)
-                      props.updateValue('')
-                      setMode('column')
-                      setSource(undefined)
-                    }}
+                {!hasDependency && (
+                  <Tooltip
+                    style="light"
+                    content='Update Source'
                   >
-                    <HiMinus size={16} className="text-gray-400 hover:text-gray-800"/>
-                  </button>
-                </Tooltip>
+                    <button 
+                      className=""
+                      onClick={() => {
+                        setFoundParticipant(undefined)
+                        setValue('')
+                        setSource(undefined)
+                      }}
+                    >
+                      <HiMinus size={16} className="text-gray-400 hover:text-gray-800"/>
+                    </button>
+                  </Tooltip>
+                )}
                 
                 <button 
                   className=""
@@ -143,14 +168,14 @@ export const TagCell = (props: TagCellProps) => {
                     >
                       <button 
                         disabled={updateParticipant.isPending}
-                        className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
+                        className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 enabled:hover:bg-gray-100 enabled:cursor-pointer disabled:hover:cursor-wait" 
                         onClick={() => {
                           if(!foundParticipant.userTags.some((participantTag) => participantTag.id === tag.id)){
                             const tempParticipant: Participant = {
                               ...foundParticipant,
                               userTags: [...foundParticipant.userTags, tag]
                             }
-                            setFoundParticipant(tempParticipant)
+                            
                             updateParticipant.mutate({
                               firstName: foundParticipant.firstName,
                               lastName: foundParticipant.lastName,
@@ -159,8 +184,14 @@ export const TagCell = (props: TagCellProps) => {
                               contact: foundParticipant.contact,
                               email: foundParticipant.email,
                               participant: foundParticipant,
-                              userTags: tempParticipant.userTags
+                              userTags: tempParticipant.userTags,
+                              options: {
+                                logging: true
+                              }
                             })
+
+                            setFoundParticipant(tempParticipant)
+                            props.updateParticipant(tempParticipant)
                           }
                           else {
                             const tempParticipant: Participant = {
@@ -168,7 +199,6 @@ export const TagCell = (props: TagCellProps) => {
                               userTags: foundParticipant.userTags.filter((participantTags) => participantTags.id !== tag.id)
                             }
 
-                            setFoundParticipant(tempParticipant)
                             updateParticipant.mutate({
                               firstName: foundParticipant.firstName,
                               lastName: foundParticipant.lastName,
@@ -177,8 +207,14 @@ export const TagCell = (props: TagCellProps) => {
                               contact: foundParticipant.contact,
                               email: foundParticipant.email,
                               participant: foundParticipant,
-                              userTags: tempParticipant.userTags
+                              userTags: tempParticipant.userTags,
+                              options: {
+                                logging: true
+                              }
                             })
+
+                            setFoundParticipant(tempParticipant)
+                            props.updateParticipant(tempParticipant)
                           }
                         }}
                       >
@@ -194,7 +230,7 @@ export const TagCell = (props: TagCellProps) => {
             </div>
           </div>
         )}
-        {isFocused && !foundParticipant && (
+        {isFocused && !foundParticipant && tagValue !== 'No Participant' && (
           <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
             <div className="w-full whitespace-nowrap border-b p-1 text-base self-center flex flex-row justify-between">
               <span className="font-light ms-2 text-sm">Select Source</span>
@@ -208,103 +244,35 @@ export const TagCell = (props: TagCellProps) => {
               </button>
             </div>
             <div className="flex flex-col px-2 py-2 gap-2">
-              <div className="flex flex-row items-center self-center gap-2 border-b pb-2">
-                <span className="font-light text-sm">Column</span>
-                <ToggleSwitch 
-                  checked={mode === 'participant'} 
-                  onChange={() => {
-                    setMode(mode === 'participant' ? 'column' : 'participant')
-                    setSource(undefined)
-                  }}              
-                />
-                <span className="font-light text-sm">Participant</span>
-              </div>
-              
-              {mode === 'column' ? (
-                <div className="flex flex-row gap-2 items-center text-nowrap">
-                  <span>Column:</span>
-                  <Dropdown
-                    inline
-                    label={source?.header ?? 'Column'}
-                  >
-                    {props.table.columns
-                      .filter((column) => column.id !== props.columnId && column.type === 'user')
-                      .map((column, index) => {
-                        return (
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Participant:</span>
+                <Dropdown
+                  inline
+                  label={tempSource ? formatParticipantName(tempSource) : 'Pick Participant'}
+                >
+                  {props.participants
+                    .filter((participant) => participant.id !== source)
+                    .map((participant, index) => {
+                      return (
+                        <Tooltip 
+                          key={index}
+                          theme={{ content: undefined }}
+                          style="light"
+                          content={(
+                            <ParticipantPanel participant={participant}/>
+                          )}                        
+                        >
                           <Dropdown.Item
-                            key={index}
-                            onClick={() => setSource({id: column.id, header: column.header})}
+                          onClick={() => setSource(participant.id)}
                           >
-                            {column.header}
+                            {formatParticipantName(participant)}
                           </Dropdown.Item>
-                        )
-                      })
-  
-                    }
-                  </Dropdown>
-                </div>
-              ) : (
-                <div className="flex flex-row gap-2 items-center text-nowrap">
-                  <span>Participant:</span>
-                  <Dropdown
-                    inline
-                    label={source?.header ?? 'Participant'}
-                  >
-                    {props.participants
-                      .filter((participant) => participant.id !== source?.id && participant.email)
-                      .map((participant, index) => {
-                        return (
-                          <Tooltip 
-                            style="light"
-                            content={(
-                              <div className="flex flex-col" key={index}>
-                                <span className="underline text-sm">Participant:</span>
-                                <div className="flex flex-row gap-2 items-center text-nowrap text-sm">
-                                  <span>First Name:</span>
-                                  <span className="italic">{participant.firstName}</span>
-                                </div>
-                                {participant.preferredName && (
-                                  <div className="flex flex-row gap-2 items-center text-nowrap">
-                                    <span>Preferred Name:</span>
-                                    <span className="italic">{participant.preferredName}</span>
-                                  </div>
-                                )}
-                                <div className="flex flex-row gap-2 items-center text-nowrap">
-                                  <span>Last Name:</span>
-                                  <span className="italic">{participant.lastName}</span>
-                                </div>
-                                {participant.email && (
-                                  <div className="flex flex-row gap-2 items-center text-nowrap">
-                                    <span>Email:</span>
-                                    <span className="italic">{participant.email}</span>
-                                  </div>
-                                )}
-                                <div className="border-gray-300 border mb-1"/>
-                              </div>
-                            )}                        
-                          >
-                            <Dropdown.Item
-                            onClick={() => setSource({id: participant.id, header: participant.email! })}
-                            >
-                              {participant.email}
-                            </Dropdown.Item>
-                          </Tooltip> 
-                        )
-                      })
-                    }
-                  </Dropdown>
-                </div>
-              )}
-              {tempSource && mode === 'column' && tempSource.email ? (
-                <span className="italic underline underline-offset-2">{tempSource.firstName}, {tempSource.lastName}</span>
-              ) : (
-                !tempSource && source && (
-                  <div className="flex flex-row items-center gap-1">
-                    <HiOutlineExclamationTriangle size={20} className="text-red-400"/>
-                    <span className="italic text-red-400">Invalid Participant</span>
-                  </div>
-                )
-              )}
+                        </Tooltip> 
+                      )
+                    })
+                  }
+                </Dropdown>
+              </div>
               {source && (
                 tempSource && (tempSource.userTags ?? []).length > 0 ? (
                   <div className="flex flex-col gap-2 px-2 border rounded-lg py-2">
@@ -334,7 +302,6 @@ export const TagCell = (props: TagCellProps) => {
                   <button
                     className="border rounded-lg px-3 py-0.5 enabled:hover:bg-gray-100 enabled:hover:border-gray-300"
                     onClick={() => {
-                      setMode('column')
                       setSource(undefined)
                       setValue(props.value)
                     }}
@@ -347,7 +314,6 @@ export const TagCell = (props: TagCellProps) => {
                   disabled={!tempSource}
                   onClick={() => {
                     if(tempSource) {
-                      setMode('column')
                       setSource(undefined)
                       setValue(tempSource.id)
                       props.updateValue(tempSource.id)
