@@ -1,14 +1,14 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { PhotoCollection, UserTag } from '../../../types'
+import { UserTag } from '../../../types'
 import { Alert, Badge } from 'flowbite-react'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { getParticipantCollectionsQueryOptions, getPathQueryOptions } from '../../../services/collectionService'
+import { getPathQueryOptions } from '../../../services/collectionService'
 import { badgeColorThemeMap, currentDate } from '../../../utils'
 import { getUserCollectionList } from '../../../functions/clientFunctions'
-import { getClientPackages } from '../../../functions/packageFunctions'
+import { getClientAdvertiseList, getClientPackages } from '../../../functions/packageFunctions'
 import { useState } from 'react'
 import { HiOutlineArrowLeftCircle, HiOutlineArrowRightCircle } from 'react-icons/hi2'
 import { PackageCard } from '../../../components/common/package/PackageCard'
@@ -22,6 +22,7 @@ function RouteComponent() {
   const auth = useAuth()
   const tags: UserTag[] = auth.user?.profile.activeParticipant?.userTags ?? []
   const packageList = getClientPackages(tags)
+  const advertiseList = getClientAdvertiseList(tags)
   
   const dimensions = useWindowDimensions()
   const navigate = useNavigate()
@@ -29,28 +30,10 @@ function RouteComponent() {
 
   const [selectedParentTagId, setSelectedParentTagId] = useState<string | undefined>(Object.keys(packageList)[0])
 
-  const participantCollections = useQuery(
-    getParticipantCollectionsQueryOptions(
-      auth.user?.profile.activeParticipant?.id, 
-      { siPaths: false, siSets: false, siTags: false }
-    )
-  )
-
   const collections = getUserCollectionList(
     auth.user?.profile.activeParticipant?.collections,
     tags
   )
-
-  if(participantCollections.data) {
-    collections.push(...participantCollections.data
-      .reduce((prev, cur) => {
-        if(!prev.some((collection) => collection.id === cur.id)) {
-          prev.push(cur)
-        }
-        return prev
-      }, [] as PhotoCollection[])
-    )
-  }
 
   const collectionCoverQueries = useQueries({
     queries: collections.map((collection) => getPathQueryOptions(collection.coverPath, collection.id))
@@ -128,6 +111,15 @@ function RouteComponent() {
           {Object.keys(packageList).length > 0 && (
             <>
               <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package For</span>
+              {selectedParentTagId && advertiseList[selectedParentTagId] !== undefined && (
+                <button>
+                  <Badge 
+                    color='gray' 
+                    className='hover:bg-gray-300 animate-pulse' 
+                    onClick={() => navigate({ to: '/client/dashboard/package', search: { id: selectedParentTagId } })}
+                  >Upgrade</Badge>
+                </button>
+              )}
               <div className='flex flex-row items-center justify-center w-full gap-4'>
                 {Object.keys(packageList).length > 1 && (
                   <button
