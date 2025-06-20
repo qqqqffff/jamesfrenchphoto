@@ -1,14 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getAllTimeslotsByDateQueryOptions } from '../../../services/timeslotService'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { currentDate, DAY_OFFSET } from '../../../utils'
-import { Timeslot } from '../../../types'
-import { Datepicker, Label, Progress } from 'flowbite-react'
+import { Timeslot, UserTag } from '../../../types'
+import { Label, Progress } from 'flowbite-react'
 import { ControlComponent } from '../../../components/admin/ControlPanel'
-import { HiOutlinePlusCircle } from 'react-icons/hi2'
+import { HiOutlinePencil, HiOutlinePlusCircle } from 'react-icons/hi2'
 import { SlotComponent } from '../../../components/timeslot/Slot'
 import { CreateTimeslotModal, EditTimeslotModal } from '../../../components/modals'
+import { CustomDatePicker } from '../../../components/common/CustomDatePicker'
+import { getAllUserTagsQueryOptions } from '../../../services/userService'
+import { TagNavigator } from '../../../components/timeslot/TagNavigator'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
   component: RouteComponent,
@@ -16,50 +19,100 @@ export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
 
 //TODO: refetch on update
 function RouteComponent() {
-  const [activeDate, setActiveDate] = useState<Date>(currentDate)
-  const timeslots = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
+  const [activeDate, setActiveDate] = useState<Date>(new Date(currentDate.getTime() + DAY_OFFSET))
+  const [activeTag, setActiveTag] = useState<UserTag>()
+  const [timeslots, setTimeslots] = useState<Timeslot[]>([])
+  const timeslotQuery = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
+  const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
+    siCollections: false,
+    siNotifications: false,
+    siPackages: undefined,
+    siParticipants: false,
+    siTimeslots: true
+  }))
+
   const [createTimeslotVisible, setCreateTimeslotVisible] = useState(false)
   const [editTimeslotVisible, setEditTimeslotVisible] = useState<Timeslot>()
 
+  useEffect(() => {
+    if(timeslotQuery.data) {
+      const tempTimeslots = [...timeslots]
+      for(let i = 0; i < timeslotQuery.data.length; i++) {
+        if(!tempTimeslots.some((timeslot) => timeslot.id === timeslotQuery.data[i].id)) {
+          tempTimeslots.push(timeslotQuery.data[i])
+        }
+      }
+      setTimeslots(tempTimeslots)
+    }
+  }, [timeslotQuery.data])
+
+  
+
   return (
     <>
-      <CreateTimeslotModal open={createTimeslotVisible} onClose={() => {
-        setActiveDate(new Date(activeDate))
-        setCreateTimeslotVisible(false)
-      }} day={activeDate} update={(timeslots.data ?? []).length > 0} />
-      <EditTimeslotModal open={editTimeslotVisible !== undefined} onClose={() => {
-        setActiveDate(new Date(activeDate))
-        setEditTimeslotVisible(undefined)
-      }} timeslot={editTimeslotVisible} />
+      <CreateTimeslotModal 
+        open={createTimeslotVisible} 
+        onClose={() => {
+          setActiveDate(new Date(activeDate))
+          setCreateTimeslotVisible(false)
+        }} 
+        day={activeDate} 
+        update={timeslots.length > 0} 
+      />
+      <EditTimeslotModal 
+        open={editTimeslotVisible !== undefined} 
+        onClose={() => {
+          setActiveDate(new Date(activeDate))
+          setEditTimeslotVisible(undefined)
+        }} 
+        timeslot={editTimeslotVisible} 
+      />
       <div className="grid grid-cols-6 gap-4 font-main mt-6">
         <div className="flex flex-col ms-4 border border-gray-400 rounded-lg px-6 py-2 gap-2">
           <div className="flex flex-row gap-1 w-full justify-between">
-            <span className="text-2xl underline underline-offset-4">Timeslot Date</span>
+            <span className="text-2xl underline underline-offset-4 mb-2">Timeslot Date</span>
           </div>
-          { timeslots.isLoading &&
+          { timeslotQuery.isLoading &&
             (
               <Progress progress={100} textLabel="Loading..." textLabelPosition='inside' labelText size="lg"/>
             )
           }
-          <Datepicker className='mt-2' onChange={async (date) => {
-            if(date) {
-              setActiveDate(date)
-            }
-          }}/>
-          <ControlComponent className="" name={
-            <>
-              <HiOutlinePlusCircle size={20} className="mt-0.5 me-1"/>
-              {(timeslots.data ?? []).length > 0 ? 'Update Timeslot(s)' : 'Add Timeslot(s)'}
-            </>} fn={() => {
-            setCreateTimeslotVisible(true)
-          }} type={true} 
-            disabled={activeDate.getTime() < currentDate.getTime() + DAY_OFFSET}
+          <CustomDatePicker 
+            selectDate={(date) => {
+              if(date) {
+                setActiveDate(date)
+              }
+            }}
+            selectedDate={activeDate}
+            tags={tagsQuery.data ?? []}
+          />
+          <TagNavigator 
+            setActiveTag={setActiveTag}
+            activeTag={activeTag}
+          />
+          <ControlComponent 
+            className="mt-2" 
+            name={
+              <div className='flex flex-row gap-3'>
+                {timeslots.length > 0 ? `Update Timeslot${timeslots.length > 1 ? 's' : ''}` : `Create Timeslot(s)`}
+                {timeslots.length <= 0 ? (
+                  <HiOutlinePlusCircle size={20} className="mt-0.5 me-1"/>
+                ) : (
+                  <HiOutlinePencil size={16} className="mt-0.5 me-1" />
+                )}
+              </div>
+            } 
+            fn={() => {
+              setCreateTimeslotVisible(true)
+            }} 
+            type={true} 
+            disabled={activeDate.getTime() < currentDate.getTime()}
           />
         </div>
         <div className="col-span-4 border border-gray-400 rounded-lg py-4 px-2 h-[500px] overflow-auto">
           <div className="grid gap-2 grid-cols-3">
-            {timeslots.data && timeslots.data.length > 0 ?
-              (timeslots.data.map((timeslot, index) => {
+            {timeslots.length > 0 ?
+              (timeslots.map((timeslot, index) => {
                 return (
                   <button 
                     onClick={() => {

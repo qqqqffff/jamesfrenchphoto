@@ -16,8 +16,6 @@ export function formatTime(time: Date | string | undefined, params?: {timeString
 
 export const DAY_OFFSET = 24 * 3600 * 1000;
 
-export const currentDate = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
-
 export const normalizeDate = (date: Date): Date => {
     return new Date(
         date.getFullYear(),
@@ -67,6 +65,7 @@ export function parsePathName(path: string): string {
 }
 
 export const TZ_OFFSET = (day: Date) => (new Date(day.toLocaleString('en-US', { timeZone: 'America/Chicago' })).getTime() - new Date(day.toLocaleString()).getTime())
+export const currentDate = new Date(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime() - TZ_OFFSET(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())))
 
 export const getTimes = (day: Date) => [
     new Date(day.getTime() + DAY_OFFSET * (16/48) - TZ_OFFSET(day)),
@@ -154,21 +153,21 @@ export const getColumnTypeColor = (value?: TableColumn['type']) => {
     }
 }
 
-export const defaultColumnColors: Record<string, {text: string, bg: string}> = {
-    'pink-400': {text: 'pink-600', bg: 'pink-200'},
-    'rose-500': {text: 'rose-600', bg: 'rose-200'},
-    'red-600': {text: 'red-600', bg: 'red-200'},
-    'fuchsia-600': {text: 'fuchsia-600', bg: 'fuchsia-200'},
-    'purple-600': {text: 'purple-600', bg: 'purple-200'},
-    'blue-500': {text: 'blue-600', bg: 'blue-200'},
-    'sky-400': {text: 'sky-600', bg: 'sky-200'},
-    'cyan-400': {text: 'cyan-600', bg: 'cyan-200'},
-    'emerald-500': {text: 'emerald-600', bg: 'emerald-200'},
-    'green-500': {text: 'green-600', bg: 'green-200'},
-    'lime-400': {text: 'lime-700', bg: 'lime-200'},
-    'yellow-300': {text: 'yellow-600', bg: 'yellow-200'},
-    'orange-400': {text: 'orange-600', bg: 'orange-200'},
-    'amber-600': {text: 'amber-700', bg: 'amber-200'},
+export const defaultColumnColors: Record<string, {text: string, bg: string, hover: string}> = {
+    'pink-400': {text: 'pink-600', bg: 'pink-200', hover: 'hover:bg-pink-300'},
+    'rose-500': {text: 'rose-600', bg: 'rose-200', hover: 'hover:bg-rose-300'},
+    'red-600': {text: 'red-600', bg: 'red-200', hover: 'hover:bg-red-300 '},
+    'fuchsia-600': {text: 'fuchsia-600', bg: 'fuchsia-200', hover: 'hover:bg-fuchsia-300'},
+    'purple-600': {text: 'purple-600', bg: 'purple-200', hover: 'hover:bg-purple-300'},
+    'blue-500': {text: 'blue-600', bg: 'blue-200', hover: 'hover:bg-blue-300'},
+    'sky-400': {text: 'sky-600', bg: 'sky-200', hover: 'hover:bg-sky-300'},
+    'cyan-400': {text: 'cyan-600', bg: 'cyan-200', hover: 'hover:bg-cyan-300'},
+    'emerald-500': {text: 'emerald-600', bg: 'emerald-200', hover: 'hover:bg-emerald-300'},
+    'green-500': {text: 'green-600', bg: 'green-200', hover: 'hover:bg-green-300'},
+    'lime-400': {text: 'lime-700', bg: 'lime-200', hover: 'hover:bg-lime-300'},
+    'yellow-300': {text: 'yellow-600', bg: 'yellow-200', hover: 'hover:bg-yellow-300'},
+    'orange-400': {text: 'orange-600', bg: 'orange-200', hover: 'hover:bg-orange-300'},
+    'amber-600': {text: 'amber-700', bg: 'amber-200', hover: 'hover:bg-amber-300'},
 }
 
 export const badgeColorThemeMap_hoverable: CustomFlowbiteTheme['badge'] = {
