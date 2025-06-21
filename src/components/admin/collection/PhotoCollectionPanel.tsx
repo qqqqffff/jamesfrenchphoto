@@ -1,4 +1,4 @@
-import { Dispatch, FC, SetStateAction, useEffect, useRef, useState } from "react"
+import { Dispatch, FC, SetStateAction, useRef, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet, ShareTemplate } from "../../../types"
 import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
@@ -46,6 +46,7 @@ import { getAllParticipantsQueryOptions } from "../../../services/userService"
 import { CoverPanel } from "./CoverPanel"
 import { CoverSidePanel } from "./CoverSidePanel"
 import { CollectionSidePanelButton } from "./CollectionSidePanelButton"
+import { v4 } from 'uuid'
 
 interface PhotoCollectionPanelProps {
   watermarkObjects: Watermark[],
@@ -73,10 +74,8 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
   updateShareTemplates, coverPath, updateParentCollections
 }) => {
-  const [createSet, setCreateSet] = useState(false)
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
   const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
-  const [setList, setSetList] = useState<PhotoSet[]>(collection.sets)
   const [updateCollectionVisible, setUpdateCollectionVisible] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<ShareTemplate>()
   const [deleteCollectionVisible, setDeleteCollectionVisible] = useState(false)
@@ -95,10 +94,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   const updateCollection = useMutation({
     mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params)
   })
-
-  useEffect(() => {
-    setSetList(collection.sets)
-  }, [collection.sets])
   
   //TODO: parent state management
 
@@ -220,7 +215,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     }
     publishable = collection.coverPath === undefined ? updatePublishable(publishable, undefined, 'Collection has No Cover Photo'): publishable
 
-    const tempSetList = setList.sort((a, b) => b.order - a.order)
+    const tempSetList = collection.sets.sort((a, b) => b.order - a.order)
     for(let i = 0; i < tempSetList.length; i++) {
       publishable = tempSetList[i].items > 0 ? (
         tempSetList[i].items < 20 ? (
@@ -245,7 +240,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   return (
     <>
       <CreateCollectionModal
-        collection={collection}
+        parentCollection={collection}
         onSubmit={(collection) => {
           if(collection){
             updateParentCollection(collection)
@@ -539,7 +534,21 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                 <button
                   className="flex flex-row gap-2 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-1 px-2 me-2"
                   onClick={() => {
-                    setCreateSet(true)
+                    const tempSet: PhotoSet = {
+                      id: v4(),
+                      name: '',
+                      creating: true,
+                      paths: [],
+                      order: collection.sets.length,
+                      collectionId: collection.id,
+                      items: 0
+                    }
+                    const tempCollection: PhotoCollection = {
+                      ...collection,
+                      sets: [...collection.sets, tempSet]
+                    }
+                    updateParentCollection(tempCollection)
+                    updateParentCollections((prev) => prev.map((collection) => collection.id === tempCollection.id ? tempCollection : collection))
                   }}
                 >
                   <span className="">Create New Set</span>
@@ -549,7 +558,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
               <div className="border w-full"></div>
               <div className="w-full">
                 <SetList 
-                  setList={setList}
+                  setList={collection.sets}
                   selectedSet={selectedSet}
                   setSelectedSet={(set: PhotoSet | undefined) => {
                     navigate({
@@ -563,31 +572,26 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                     setSelectedSet(set)
                   }}
                   collection={collection}
-                  updateSetList={setSetList}
-                  creatingSet={createSet}
-                  doneCreatingSet={(set) => {
-                    if(set !== undefined && collection.published){
-                      const updatedCollection: PhotoCollection = {
-                        ...collection,
-                        published: false
-                      }
-                      updateCollection.mutate({
-                        collection: collection,
-                        published: false
-                      })
-
-                      updateParentCollection(updatedCollection)
-                      updateParentCollections((prev) => {
-                        const temp = [...prev]
-            
-                        return temp.map((col) => {
-                          if(col.id === updatedCollection.id) return updatedCollection
-                          return col
-                        })
-                      })
-                      setCreateSet(false)
+                  updateSet={(set, remove) => {
+                    const tempCollection: PhotoCollection = {
+                      ...collection,
+                      sets: remove ? (
+                        collection.sets.filter((cSet) => cSet.id !== set.id) 
+                      ) : (
+                        collection.sets.map((cSet) => set.id === cSet.id ? set : cSet)
+                      )
                     }
-                    setCreateSet(false)
+                    console.log(tempCollection)
+                    updateParentCollection(tempCollection)
+                    updateParentCollections((prev) => prev.map((collection) => collection.id === tempCollection.id ? tempCollection : collection))
+                  }}
+                  reorderSets={(sets) => {
+                    const tempCollection: PhotoCollection = {
+                      ...collection,
+                      sets: sets
+                    }
+                    updateParentCollection(tempCollection)
+                    updateParentCollections((prev) => prev.map((collection) => collection.id === tempCollection.id ? tempCollection : collection))
                   }}
                 />
               </div>
@@ -736,13 +740,20 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                 photoCollection={collection} 
                 photoSet={selectedSet} 
                 deleteParentSet={(setId) => {
-                  const updatedSetList = setList
+                  const updatedSetList = collection.sets
                       .filter((set) => set.id !== setId)
                       .sort((a, b) => a.order - b.order)
                       .map((set, index) => ({ ...set, order: index}))
                   
-                  setSetList(updatedSetList)
+                  
+                  const tempCollection: PhotoCollection = {
+                    ...collection,
+                    sets: updatedSetList
+                  }
+
                   setSelectedSet(undefined)
+                  updateParentCollection(tempCollection)
+                  updateParentCollections((prev) => prev.map((collection) => collection.id === tempCollection.id ? tempCollection : collection))
                 }}
                 parentUpdateSet={setSelectedSet}
                 parentUpdateCollection={updateParentCollection}

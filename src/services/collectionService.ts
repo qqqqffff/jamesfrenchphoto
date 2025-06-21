@@ -356,71 +356,32 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
 }
 
 export interface CreateCollectionParams {
-    name: string,
-    tags?:  UserTag[],
-    cover?: string,
-    downloadable: boolean,
-    options?: {
-        logging: boolean
-    },
+  collection: PhotoCollection
+  options?: {
+      logging: boolean
+  },
 }
 export async function createCollectionMutation(params: CreateCollectionParams) {
-    console.log('api call')
-    const collectionResponse = await client.models.PhotoCollection.create({
-        name: params.name,
-        downloadable: params.downloadable,
-        items: 0
-    })
-    if(params.options?.logging) console.log(collectionResponse)
-
-    if(!collectionResponse || !collectionResponse.data) return null
-
-    const taggingResponse = await Promise.all((params.tags ?? []).map(async (tag) => {
-        const taggingResponse = await client.models.CollectionTag.create({
-            collectionId: collectionResponse.data!.id,
-            tagId: tag.id
-        })
-        return taggingResponse
-    }))
-
-    if(params.options?.logging) console.log(taggingResponse)
-
-    let coverPath: string | undefined
-
-    const returnedCollection: PhotoCollection = {
-      ...collectionResponse.data,
-      coverPath: coverPath,
-      publicCoverPath: coverPath,
-      coverType: {
-        textColor: collectionResponse.data.coverType?.textColor ?? undefined,
-        bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
-        placement: collectionResponse.data.coverType?.placement ?? undefined,
-        textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
-        date: collectionResponse.data.coverType?.date ?? undefined
-      },
-      tags: params.tags ?? [],
-      downloadable: params.downloadable,
-      watermarkPath: undefined,
-      sets: [],
-      items: collectionResponse.data.items ?? 0,
-      published: collectionResponse.data.published ?? false
-    }
-
-    return returnedCollection
+  const collectionResponse = await client.models.PhotoCollection.create({
+    id: params.collection.id,
+    name: params.collection.name,
+    downloadable: params.collection.downloadable,
+    items: 0
+  })
+  if(params.options?.logging) console.log(collectionResponse)
 }
 
-export interface UpdateCollectionParams extends Partial<CreateCollectionParams> {
-    collection: PhotoCollection,
+export interface UpdateCollectionParams extends CreateCollectionParams {
+    tags?: UserTag[],
+    name: string,
+    downloadable: boolean
+    cover?: string
     published: boolean,
     watermark?: Watermark | null,
     items?: number,
     coverType?: CoverType
 }
-export async function updateCollectionMutation(params: UpdateCollectionParams): Promise<PhotoCollection> {
-  let updatedCollection = {
-    ...params.collection
-  }
-
+export async function updateCollectionMutation(params: UpdateCollectionParams) {
   const newTags = (params.tags ?? []).filter((tag) => 
     !params.collection.tags.some((colTag) => colTag.id === tag.id))
 
@@ -428,10 +389,6 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
     !(params.tags ?? []).some((tag) => tag.id === colTag.id))
 
   if(params.options?.logging) console.log(newTags, removedTags)
-
-  updatedCollection.tags.push(...newTags)
-  updatedCollection.tags = updatedCollection.tags
-    .filter((tag) => removedTags.find((removedTag) => removedTag.id === tag.id) === undefined)
 
   const createTagResponse = await Promise.all(newTags.map(async (tag) => {
     const response = await client.models.CollectionTag.create({
@@ -494,17 +451,7 @@ export async function updateCollectionMutation(params: UpdateCollectionParams): 
       }
     })
     if(params.options?.logging) console.log(response)
-
-    updatedCollection.name = params.name ?? params.collection.name
-    updatedCollection.downloadable = params.downloadable ?? params.collection.downloadable
-    updatedCollection.coverPath = params.cover ? parsePathName(params.cover) : params.collection.coverPath
-    updatedCollection.published = params.published ?? params.collection.published
-    updatedCollection.watermarkPath = params.watermark?.path ?? params.collection.watermarkPath
   }
-
-  if(params.options?.logging) console.log(updatedCollection)
-
-  return updatedCollection
 }
 
 export interface PublishCollectionParams {

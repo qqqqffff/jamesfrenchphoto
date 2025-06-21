@@ -16,7 +16,7 @@ import {
 import { getSetData, isSetData } from './SetData';
 import { DropIndicator } from '../../common/DropIndicator';
 import { HiOutlineMenu } from 'react-icons/hi';
-import { PhotoCollection, PhotoSet } from '../../../types';
+import { PhotoSet } from '../../../types';
 import { useMutation } from '@tanstack/react-query';
 import { createSetMutation, CreateSetParams } from '../../../services/photoSetService';
 import { HiOutlineCheckCircle, HiOutlineXCircle } from 'react-icons/hi2';
@@ -46,20 +46,21 @@ const idle: SetState = { type: 'idle' };
 interface SetProps {
   set: PhotoSet, 
   onClick: () => void, 
-  collection?: PhotoCollection,
   selectedSet: boolean
   onSubmit: (set: PhotoSet) => void,
   onCancel: () => void,
-  updateParent: (name: string) => void
 }
 
-export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSubmit, onCancel, updateParent }) => {
+export const Set: FC<SetProps> = ({ set, onClick, selectedSet, onSubmit, onCancel }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<SetState>(idle);
   const [allowDragging, setAllowDragging] = useState(false)
   const [name, setName] = useState(set.name)
 
   useEffect(() => {
+    if(name !== set.name) {
+      setName(set.name)
+    }
     const element = ref.current;
     invariant(element);
     return combine(
@@ -138,24 +139,26 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSub
 
   const createSet = useMutation({
     mutationFn: (params: CreateSetParams) => createSetMutation(params),
-    onSettled: (set) => {
-      if(set){
-        onSubmit({
-          ...set,
-          name: name
-        })
-      }
-    }
+    onSettled: () => onSubmit({...set, name: name, creating: false})
   })
+
+  const rejectSubmit = name === ''
 
   return (
     <>
-      <div className="relative">
+      <div className='relative'>
         <div
           data-set-id={set.id}
           ref={ref}
-          className={`flex text-sm ${selectedSet ? 'bg-gray-200' : 'bg-white'} flex-row items-center border border-gray-300 border-solid rounded p-2 pl-0 ${collection === undefined ? 'hover:bg-gray-100' : ''} ${stateStyles[state.type] ?? ''}`}
-          onClick={onClick}
+          className={`
+            flex text-sm flex-row items-center border border-gray-300 border-solid rounded p-2 pl-0 
+            ${!set.creating ? 'hover:bg-gray-100' : ''} 
+            ${stateStyles[state.type] ?? ''}
+            ${selectedSet ? 'bg-gray-200' : 'bg-white'}
+          `}
+          onClick={() => {
+            if(!set.creating) onClick()
+          }}
         >
           <button className="w-6 flex justify-center hover:cursor-grab" 
             onMouseEnter={() => setAllowDragging(true) }
@@ -163,7 +166,7 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSub
           >
             <HiOutlineMenu size={14} />
           </button>
-          {collection === undefined ? (
+          {!set.creating ? (
             <div className='flex w-full justify-between items-center ms-1'>
               <span className="truncate flex-grow flex-shrink w-full text-start h-full hover:cursor-pointer">{set.name}</span>
               <span className='opacity-50 me-1 italic text-xs' title='Number of Items'>({set.items})</span>
@@ -176,13 +179,17 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSub
                 value={name}
                 onChange={(event) => {
                   setName(event.target.value)
-                  updateParent(event.target.value)
                 }}
                 onKeyDown={(event) => {
-                  if(event.key === 'Enter'){
+                  if(event.key === 'Enter' && name !== ''){
                     createSet.mutate({
-                      name: name,
-                      collection: collection
+                      photoSet: {
+                        ...set,
+                        name: name
+                      },
+                      options: {
+                        logging: true
+                      }
                     })
                   }
                   else if(event.key === 'Escape'){
@@ -194,14 +201,24 @@ export const Set: FC<SetProps> = ({ set, onClick, collection, selectedSet, onSub
                 <button 
                   onClick={() => {
                     createSet.mutate({
-                      collection: collection,
-                      name: name,
+                      photoSet: {
+                        ...set,
+                        name: name
+                      },
                       options: {
                         logging: true
                       }
                     }
-                    )}}>
-                  <HiOutlineCheckCircle className="text-3xl text-green-400 hover:text-green-600"/>
+                    )}
+                  }
+                  disabled={rejectSubmit}
+                >
+                  <HiOutlineCheckCircle 
+                    className={`
+                      text-3xl text-green-400 
+                      ${rejectSubmit ? 'opacity-60 disabled:hover:cursor-not-allowed' : 'hover:text-green-600'}
+                    `}
+                  />
                 </button>
                 <button onClick={() => onCancel()}>
                   <HiOutlineXCircle className="text-3xl text-red-500 hover:text-red-700" />

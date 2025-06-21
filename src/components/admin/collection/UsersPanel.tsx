@@ -12,7 +12,7 @@ interface UsersPanelProps {
   participants: Participant[]
   collectionParticipants: UseQueryResult<Participant[] | undefined, Error>,
   userTags: UserTag[]
-  updateCollectionMutation: UseMutationResult<PhotoCollection, Error, UpdateCollectionParams, unknown>
+  updateCollectionMutation: UseMutationResult<void, Error, UpdateCollectionParams, unknown>
 }
 
 export const UsersPanel = (props: UsersPanelProps) => {
@@ -130,6 +130,8 @@ export const UsersPanel = (props: UsersPanelProps) => {
 
                         props.updateCollectionMutation.mutate({
                           collection: props.collection,
+                          name: props.collection.name,
+                          downloadable: props.collection.downloadable,
                           tags: props.collection.tags.filter((cTag) => cTag.id !== tag.id),
                           published: props.collection.published,
                         })
@@ -165,6 +167,8 @@ export const UsersPanel = (props: UsersPanelProps) => {
                           collection: props.collection,
                           tags: [...props.collection.tags, tag],
                           published: props.collection.published,
+                          name: props.collection.name,
+                          downloadable: props.collection.downloadable,
                         })
 
                         props.parentUpdateCollection(tempCollection)

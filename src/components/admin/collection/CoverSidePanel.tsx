@@ -13,7 +13,7 @@ interface CoverSidePanel {
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   updateParentCollections: Dispatch<SetStateAction<PhotoCollection[]>>
   collection: PhotoCollection
-  updateCollectionMutation: UseMutationResult<PhotoCollection, Error, UpdateCollectionParams, unknown>
+  updateCollectionMutation: UseMutationResult<void, Error, UpdateCollectionParams, unknown>
 }
 
 export const CoverSidePanel = (props: CoverSidePanel) => {
@@ -604,6 +604,8 @@ export const CoverSidePanel = (props: CoverSidePanel) => {
               ...props.collection,
               coverType: undefined
             },
+            name: props.collection.name,
+            downloadable: props.collection.downloadable,
             published: props.collection.published,
             coverType: props.collection.coverType,
             options: {

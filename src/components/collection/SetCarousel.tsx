@@ -34,7 +34,9 @@ export const SetCarousel = (props: SetCarouselProps) => {
             transform: `translateX(calc(50% - ${offset}px))`
           }}
         >
-          {props.setList.map((set, index) => {
+          {props.setList
+          .sort((a, b) => a.order - b.order)
+          .map((set, index) => {
             const selected = props.currentIndex === index
             return (
               <button 
@@ -44,7 +46,7 @@ export const SetCarousel = (props: SetCarouselProps) => {
                 className={`
                   hover:border-gray-300 border-2 whitespace-nowrap text-xl
                   hover:opacity-100 opacity-90 rounded-xl px-2 py-1 scale-75 duration-500
-                  ease-in-out h-auto overflow-clip ${selected ? 'border-gray-200' : 'border-transparent'}
+                  ease-in-out h-auto min-w-min ${selected ? 'border-gray-200' : 'border-transparent'}
                 `}
                 onClick={() => {
                   props.setSelectedSet(set)
