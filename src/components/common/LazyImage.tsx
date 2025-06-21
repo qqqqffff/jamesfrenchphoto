@@ -1,33 +1,55 @@
 import { UseQueryResult } from "@tanstack/react-query"
 import { 
   ComponentProps, 
+  MutableRefObject, 
   useEffect, 
   useRef, 
   useState, 
 } from "react"
+import { CgSpinner } from 'react-icons/cg'
 
-interface LazyImageProps extends Omit<ComponentProps<'img'>, 'src'> {
+interface LazyImageProps extends Omit<ComponentProps<'img'>, 'src' | 'ref'> {
   watermarkPath?: UseQueryResult<[string | undefined, string] | undefined, Error>,
   src?: UseQueryResult<[string | undefined, string] | undefined, Error>
+  overrideSrc?: string,
+  ref?: MutableRefObject<HTMLImageElement | null>
 }
 
 export const LazyImage = (props: LazyImageProps) => {
-  const imgRef = useRef<HTMLDivElement | null>(null)
+  const imgRef = useRef<HTMLImageElement | null>(null)
+  const watermarkRef = useRef<HTMLImageElement | null>(null)
   const [placeholderDimensions, setPlaceholderDimensions] = useState<{width: number, hieght: number}>()
 
   useEffect(() => {
     if(imgRef.current) {
       setPlaceholderDimensions({
-        width: 0, //not used yet
+        width: Math.max(placeholderDimensions?.width ?? 0, imgRef.current.clientWidth),
         hieght: Math.max(placeholderDimensions?.hieght ?? 0, imgRef.current.clientHeight)
       })
     }
   }, [imgRef.current])
 
-  if(!props.src || 
-    props.src.isPending || 
-    !props.src.data?.[1] || 
-    props.watermarkPath?.isPending
+  useEffect(() => {
+    if(
+      props.watermarkPath !== undefined && 
+      (
+        (watermarkRef.current?.naturalWidth ?? 0) < 0 || 
+        !watermarkRef.current?.complete
+      )
+    ) {
+      props.watermarkPath.refetch()
+    }
+  }, [watermarkRef.current])
+
+  if(
+    (
+      !props.src || 
+      props.src.isPending || 
+      !props.src.data?.[1] || 
+      props.watermarkPath?.isPending
+    ) 
+    && 
+    !props.overrideSrc
   ) {
     return (
       <div 
@@ -46,6 +68,18 @@ export const LazyImage = (props: LazyImageProps) => {
 
   const imageProps = {...props}
   delete(imageProps.watermarkPath)
+  delete(imageProps.overrideSrc)
+
+  const numbs = []
+  if(placeholderDimensions) {
+    numbs.push(placeholderDimensions.width)
+    numbs.push(placeholderDimensions.hieght)
+  }
+  else {
+    numbs.push(85)
+  }
+
+  const watersize = Math.min(...numbs) * ( 3/4 )
 
   return (
     <div
@@ -59,13 +93,26 @@ export const LazyImage = (props: LazyImageProps) => {
     >
         <img 
           {...imageProps}
-          ref={undefined}
-          src={props.src.data[1]}
+          ref={imgRef}
+          src={props.overrideSrc ? props.overrideSrc : props.src?.data?.[1]}
         />
-        {props.watermarkPath?.data?.[1] && (
+        {props.watermarkPath?.isLoading || 
+        (props.watermarkPath?.data?.[1] === undefined && props.watermarkPath !== undefined) ? (
+          <CgSpinner 
+            className='absolute text-white opacity-80 animate-spin z-10' 
+            size={watersize} 
+            style={{
+              top: `calc(50% - ${watersize/2}px)`,
+              left: `calc(50% - ${watersize/2}px)`
+            }}
+          />
+        ) :
+        props.watermarkPath?.data?.[1] && (
           <img 
+            ref={watermarkRef}
             src={props.watermarkPath.data[1]}
-            className="absolute inset-0 max-w-full h-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
+            className="absolute inset-0 w-full h-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
+            style={{ maxWidth: `${(imgRef.current?.clientHeight ?? 0)}px` }}
             alt="James French Photography Watermark"
           />
         )}

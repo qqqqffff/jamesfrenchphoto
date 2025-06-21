@@ -57,7 +57,7 @@ export function formatFileSize(bytes: number, decimals = 2) {
     const i = Math.floor(Math.log(bytes) / Math.log(k)); // Determine the unit index
     const size = parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)); // Convert size
 
-    return `${size} ${sizes[i]}`;
+    return `${size}${sizes[i]}`;
 }
 
 export function parsePathName(path: string): string {

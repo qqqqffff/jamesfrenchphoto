@@ -72,7 +72,7 @@ export const SetList = (props: SetListProps) => {
             ...sets.slice(indexOfTarget)
           )
         }
-        else {
+        else if(closestEdgeOfTarget === 'bottom') {
           updatedSets.push(
             ...sets.slice(0, indexOfTarget + 1)
           )
@@ -84,6 +84,7 @@ export const SetList = (props: SetListProps) => {
 
         flushSync(() => {
           const newSets = updatedSets.filter((set) => set.order !== indexOfSource).map((set, index) => ({ ...set, order: index }))
+          console.log(newSets)
           setSets(newSets);
           props.reorderSets(newSets)
           reorderSets.mutate({
@@ -136,7 +137,34 @@ export const SetList = (props: SetListProps) => {
                 }}
                 onCancel={() => {
                   if(set.creating){
-                    setSets(sets.filter((cSet) => cSet.id !== set.id))
+                    let fixedSets = sets.filter((cSet) => cSet.id !== set.id)
+                    //if reordered with the temporary set
+                    if(
+                      fixedSets.reduce((prev, cur, index) => {
+                        if(prev || cur.order !== index) {
+                          return true
+                        }
+                        return prev
+                      }, false)
+                    ) {
+                      fixedSets = fixedSets
+                        .sort((a, b) => a.order - b.order)
+                        .map((set, index) => ({...set, order: index}))
+
+                      reorderSets.mutate({
+                        collectionId: props.collection.id,
+                        sets: fixedSets,
+                        options: {
+                          logging: true
+                        }
+                      })
+
+                      props.reorderSets(fixedSets)
+                      setSets(fixedSets)
+                      return
+                    }
+                    
+                    setSets(fixedSets)
                     props.updateSet(set, true)
                   }
                 }}

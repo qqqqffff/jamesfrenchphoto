@@ -581,7 +581,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                         collection.sets.map((cSet) => set.id === cSet.id ? set : cSet)
                       )
                     }
-                    console.log(tempCollection)
                     updateParentCollection(tempCollection)
                     updateParentCollections((prev) => prev.map((collection) => collection.id === tempCollection.id ? tempCollection : collection))
                   }}
@@ -626,12 +625,17 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                   </label>
                 </div>
                 <div className="border w-full"></div>
-                {watermarkPaths.map((path) => {
+                {watermarkPaths
+                .sort((a, b) => parsePathName(a.data?.[1] ?? '').localeCompare(parsePathName(b.data?.[1] ?? '')))
+                .map((path, index) => {
                   const foundWatermark = watermarkObjects.find((watermarks) => watermarks.id === path.data?.[0])
                   if(path.data && !foundWatermark) return
                   return (
                     <div 
-                      className={`border border-gray-300 px-3 py-1 flex flex-row justify-between items-center w-full rounded-lg hover:bg-gray-100 
+                      key={index}
+                      className={`
+                        border border-gray-300 px-3 py-1 flex flex-row justify-between items-center w-full 
+                        rounded-lg hover:bg-gray-100 hover:cursor-pointer 
                         ${(selectedWatermark === foundWatermark && foundWatermark !== undefined) ? 'bg-gray-200' : ''}`}
                       onClick={() => {
                         if(foundWatermark && selectedWatermark !== foundWatermark){

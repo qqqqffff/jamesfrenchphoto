@@ -349,7 +349,7 @@ export const PictureList = (props: PictureListProps) => {
 
   return (
     <div className="pt-6 my-0 mx-auto h-[90vh] px-4">
-      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2 px-2 overflow-y-scroll" ref={listRef}>
+      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2 px-2 overflow-y-scroll max-h-[88vh]" ref={listRef}>
         {pictures.map((item, index) => {
           return (
             <div 

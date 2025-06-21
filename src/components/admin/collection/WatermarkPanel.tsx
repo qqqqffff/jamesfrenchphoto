@@ -1,10 +1,11 @@
-import { Dispatch, SetStateAction, useRef, useState } from "react"
+import { Dispatch, SetStateAction, useState } from "react"
 import { PhotoCollection, Watermark } from "../../../types"
 import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import tempImage from '../../../assets/home-carousel/carousel-7.jpg'
 import { Button, Checkbox } from "flowbite-react"
 import { parsePathName } from "../../../utils"
 import { applyWatermarkMutation, ApplyWatermarkParams } from "../../../services/watermarkService"
+import { LazyImage } from "../../common/LazyImage"
 
 interface WatermarkPanelProps {
   collection: PhotoCollection
@@ -16,9 +17,7 @@ interface WatermarkPanelProps {
   setSelectedWatermark: Dispatch<SetStateAction<Watermark | undefined>>
 }
 
-//TODO: state updating
 export const WatermarkPanel = (props: WatermarkPanelProps) => {
-  const previewRef = useRef<HTMLImageElement | null>(null)
   const [collectionWatermark, setCollectionWatermark] = useState(props.collection.watermarkPath)
   const [setWatermarks, setSetWatermarks] = useState<Record<string, string | undefined>>(
     Object.fromEntries(props.collection.sets.map((set) => [set.id, set.watermarkPath]))
@@ -38,6 +37,8 @@ export const WatermarkPanel = (props: WatermarkPanelProps) => {
     mutationFn: (params: ApplyWatermarkParams) => applyWatermarkMutation(params),
     onSettled: () => setLoading(false)
   })
+
+
   
   return (
     <>
@@ -45,18 +46,11 @@ export const WatermarkPanel = (props: WatermarkPanelProps) => {
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-2 w-[270px] items-center">
             <span className="text-xl">Preview</span>
-            <div className="relative">
-              <img 
-                ref={previewRef}
-                src={tempImage} className="rounded-lg border-2 max-w-full" 
-              />
-              <img
-                className="absolute inset-0 opacity-80 max-w-[270px] top-1/2 -translate-y-1/2 object-cover"
-                src={
-                  props.watermarkPaths.find((path) => path.data?.[0] === props.selectedWatermark?.id)?.data?.[1]
-                }
-              />
-            </div>
+            <LazyImage 
+              overrideSrc={tempImage}
+              className="rounded-lg border-2 max-w-full"
+              watermarkPath={props.watermarkPaths.find((path) => path.data?.[0] === props.selectedWatermark?.id)}
+            />
           </div>
         </div>
         <div className="flex flex-col items-center gap-2">
