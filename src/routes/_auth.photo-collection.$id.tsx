@@ -368,23 +368,27 @@ function RouteComponent() {
           collectionRef={collectionRef}
           coverRef={coverPhotoRef}
         />
-        <div className='grid grid-cols-3 items-center px-8 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
-          <div className='flex flex-col items-start font-bodoni'>
-            <span className='font-bold text-lg'>James French Photograpahy</span>
-            <span className='italic flex flex-row gap-1'>
-              <span>{collection.name}</span>
-              <span className='font-light'>&bull;</span>
-              <span>{set.name}</span>
-            </span>
-          </div>
-          <div className='flex flex-row w-full justify-between col-span-2 me-10'>
-            <button className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
+        <div className='flex flex-row items-center px-8 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
+          {dimensions.width > 800 && (
+            <div className='flex flex-col items-start font-bodoni max-w-[250px]'>
+              <span className='font-bold text-lg whitespace-nowrap'>James French Photograpahy</span>
+              <span className='italic flex flex-row gap-1 whitespace-nowrap overflow-x-hidden '>
+                <span className=''>{collection.name}</span>
+                <span className='font-light'>&bull;</span>
+                <span className=''>{set.name}</span>
+              </span>
+            </div>
+          )}
+          <div 
+            className='flex flex-row w-full justify-between col-span-2 me-10'
+            style={{ maxWidth: dimensions.width - 300 }}
+          >
+            <button 
+              className='text-gray-700 rounded-lg p-1 z-50 hover:text-gray-500 bg-white'
               onClick={() => {
                 const nextIndex = currentIndex - 1 < 0 ? collection.sets.length - 1 : currentIndex - 1
                 const set = collection.sets[nextIndex]
-                const refObject = picturesRef.current.get(pictures[0].id)
-                
-                if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
                 navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
 
                 setSet({...collection.sets[nextIndex]})
@@ -409,9 +413,7 @@ function RouteComponent() {
               onClick={() => {
                 const nextIndex = currentIndex + 1 >= collection.sets.length ? 0 : currentIndex + 1
                 const set = collection.sets[nextIndex]
-                const refObject = picturesRef.current.get(pictures[0].id)
-                
-                if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
                 navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
 
                 setSet(set)
