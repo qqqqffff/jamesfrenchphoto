@@ -1,117 +1,135 @@
-import { Button, Label, Modal, TextInput, ToggleSwitch } from "flowbite-react"
-import { FC, FormEvent, useState } from "react"
+import { Button, Modal, TextInput, ToggleSwitch } from "flowbite-react"
+import { FC, useEffect, useState } from "react"
 import { ModalProps } from "."
-import { PhotoCollection } from "../../types";
+import { PhotoCollection, PhotoSet, UserTag } from "../../types";
 import { textInputTheme } from "../../utils";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { createCollectionMutation, CreateCollectionParams, updateCollectionMutation, UpdateCollectionParams } from "../../services/collectionService";
+import { v4 } from 'uuid'
 
 interface CreateCollectionProps extends ModalProps {
   onSubmit: (collection: PhotoCollection) => void;
-  collection?: PhotoCollection
+  parentCollection?: PhotoCollection
 }
 
-export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose, onSubmit, collection }) => {
-    const [name, setName] = useState('')
-    const [downloadable, setDownloadable] = useState(collection?.downloadable ?? false)
+export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose, onSubmit, parentCollection }) => {
+    const [collection, setCollection] = useState<PhotoCollection>(parentCollection ? parentCollection : ({
+      id: v4(),
+      name: '',
+      published: false,
+      downloadable: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      sets: [] as PhotoSet[],
+      tags: [] as UserTag[],
+      items: 0
+    }))
 
-    const [submitting, setSubmitting] = useState(false)
-    const [loaded, setLoaded] = useState(false)
-    const queryClient = useQueryClient()
-
-    if(!loaded && collection){
-      setName(collection.name)
-      setDownloadable(collection.downloadable)
-      setLoaded(true)
-    }
+    useEffect(() => {
+      if(collection) {
+        setCollection(collection)
+      }
+    }, [collection])
 
     const createCollection = useMutation({
       mutationFn: (params: CreateCollectionParams) => createCollectionMutation(params),
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['photoPaths']})
-        queryClient.invalidateQueries({ queryKey: ['photoCollection']})
-      },
-      onSettled: (data) => {
-        //TODO: error handling
-        if(data) {
-          onSubmit(data)
-          clearState()
-        }
-      }
+      onSuccess: () => onSubmit(collection),
+      onSettled: () => clearState()
     })
+
     const updateCollection = useMutation({
       mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params),
-      onSettled: (data) => {
-        if(data){
-          onSubmit(data)
-          clearState()
-        }
-      }
+      onSuccess: () => onSubmit(collection),
+      onSettled: () => clearState()
     })
 
-    async function handleUploadPhotos(event: FormEvent){
-      event.preventDefault()
-      setSubmitting(true)
-
-      if(!name){
-        //TODO: throw error
-        return
-      }
-
-      const createCollectionParams: CreateCollectionParams = {
-        name,
-        downloadable: downloadable,
-      }
-
-      if(collection) {
-        const updateCollectionParams: UpdateCollectionParams = {
-          ...createCollectionParams,
-          collection: collection,
-          published: collection.published,
-          downloadable: downloadable,
-          options: {
-            logging: true
-          }
-        }
-        await updateCollection.mutateAsync(updateCollectionParams)
-      }
-      else{
-        await createCollection.mutateAsync(createCollectionParams)
-      }
-    }
-
     function clearState(){
-      setName('')
-      setSubmitting(false)
-      setLoaded(false)
+      setCollection({
+        id: v4(),
+        name: '',
+        published: false,
+        downloadable: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        sets: [] as PhotoSet[],
+        tags: [] as UserTag[],
+        items: 0
+      })
       onClose()
     }
+
+    const rejectSubmit = (
+      collection.name === '' || 
+      (parentCollection !== undefined && parentCollection.name !== collection.name) ||
+      (parentCollection !== undefined && parentCollection.downloadable !== collection.downloadable)
+    )
 
     return (
         <Modal 
           show={open} 
           size="2xl"
-          className='font-main' 
           onClose={() => {
             clearState()
           }}
         >
           <Modal.Header>{collection ? 'Update' : 'Create'} Collection</Modal.Header>
           <Modal.Body>
-            <form onSubmit={handleUploadPhotos}>
-              <div className="flex flex-col">
-                <div className="flex flex-row gap-4 items-center">
-                  <div className="flex flex-col gap-2 mb-4 w-[60%]">
-                      <Label className="ms-2 font-medium text-lg" htmlFor="name">Photo Collection Name:</Label>
-                      <TextInput sizing='md' theme={textInputTheme} placeholder="Event Name" type="name" id="name" name="name" onChange={(event) => setName(event.target.value)} value={name}/>
-                  </div>
+            <div className="flex flex-col">
+              <div className="flex flex-row gap-4 items-center">
+                <div className="flex flex-col gap-2 mb-4 w-[60%]">
+                    <span className="ms-2 font-medium text-lg" >Photo Collection Name:</span>
+                    <TextInput 
+                      sizing='md' 
+                      theme={textInputTheme} 
+                      placeholder="Collection Name" 
+                      onChange={(event) => setCollection({
+                        ...collection,
+                        name: event.target.value
+                      })} 
+                      value={collection.name}
+                    />
                 </div>
-              </div> 
-              <div className="flex flex-row justify-end border-t gap-10 mt-4 items-center">
-                <ToggleSwitch checked={downloadable} onChange={setDownloadable} label="Downloadable" className="mt-3"/>
-                <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" isProcessing={submitting}>{collection ? 'Update' : 'Create'}</Button>
               </div>
-            </form>
+            </div> 
+            <div className="flex flex-row justify-end border-t gap-10 mt-4 items-center">
+              <ToggleSwitch 
+                checked={collection.downloadable} 
+                onChange={(checked) => setCollection({...collection, downloadable: checked})} 
+                label="Downloadable" 
+                className="mt-3"
+              />
+              <Button 
+                className="text-xl w-[40%] max-w-[6rem] mt-4"
+                isProcessing={updateCollection.isPending || createCollection.isPending}
+                disabled={rejectSubmit}
+                onClick={() => {
+                  if(!rejectSubmit) {
+                    console.log('b')
+                    if(parentCollection !== undefined) {
+                      updateCollection.mutate({
+                        collection: parentCollection,
+                        name: collection.name,
+                        downloadable: collection.downloadable,
+                        published: false, //updates in any way -> unpublish a collection
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+                    else {
+                      createCollection.mutate({
+                        collection: collection,
+                        options: {
+                          logging: true
+                        }
+                      })
+                    }
+                  }
+                }}
+              >
+                {parentCollection !== undefined ? 'Update' : 'Create'}
+              </Button>
+            </div>
           </Modal.Body>
         </Modal>
     )

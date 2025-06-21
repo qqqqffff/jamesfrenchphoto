@@ -171,29 +171,19 @@ async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collect
 
 
 export interface CreateSetParams {
-    collection: PhotoCollection,
-    name: string,
+    photoSet: PhotoSet
     options?: {
         logging: boolean
     }
 }
 export async function createSetMutation(params: CreateSetParams) {
     const response = await client.models.PhotoSet.create({
-        collectionId: params.collection.id,
-        name: params.name,
-        order: params.collection.sets.length,
+        id: params.photoSet.id,
+        collectionId: params.photoSet.collectionId,
+        name: params.photoSet.name,
+        order: params.photoSet.order,
     })
     if(params.options?.logging) console.log(response)
-    if(!response || !response.data) return
-    const mappedSet: PhotoSet = {
-        id: response.data.id,
-        paths: [],
-        order: params.collection.sets.length,
-        name: params.collection.name,
-        collectionId: params.collection.id,
-        items: 0
-    }
-    return mappedSet
 }
 
 export interface UpdateSetParams {

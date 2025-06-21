@@ -167,7 +167,6 @@ function RouteComponent() {
               setSelectedCollection(collection)
               navigate({ to: '.', search: { collection: collection.id }})
             }
-            //TODO: error handle
           }}
         />
       </Suspense>

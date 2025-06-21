@@ -11,26 +11,46 @@ import { getAllPackageItemsQueryOptions } from '../../../services/packageService
 import { getUserCollectionList } from '../../../functions/clientFunctions'
 import { getClientAdvertiseList } from '../../../functions/packageFunctions'
 
+interface PackageParams {
+  id?: string
+}
+
 export const Route = createFileRoute('/_auth/client/dashboard/package')({
+  validateSearch: (search: Record<string, unknown>): PackageParams => ({
+    id: (search.id as string) || undefined
+  }),
+  beforeLoad: ({ search }) => search,
   component: RouteComponent,
   loader: ({ context }) => {
-    return context.auth
+    return {
+      auth: context.auth,
+      packageId: context.id,
+    }
   }
 })
 
 function RouteComponent() {
-  const data = Route.useLoaderData()
+  const {
+    auth,
+    packageId
+  } = Route.useLoaderData()
   const { width } = useWindowDimensions()
   const [selectedParent, setSelectedParent] = useState<string | undefined>()
+  const navigate = Route.useNavigate()
 
-  const userTags = data.user?.profile.activeParticipant?.userTags ?? []
+  const userTags = auth.user?.profile.activeParticipant?.userTags ?? []
   const advertiseList = getClientAdvertiseList(userTags)
 
   useEffect(() => {
     if(selectedParent === undefined) {
-      setSelectedParent(Object.keys(advertiseList)[0])
+      if(!packageId) {
+        setSelectedParent(Object.keys(advertiseList)[0])
+      }
+      else if(Object.keys(advertiseList).some((pack) => pack === packageId)){
+        setSelectedParent(packageId)
+      }
     }
-  }, [advertiseList])
+  }, [advertiseList, packageId])
 
   const packageQueries: Record<string, UseQueryResult<PackageItem[] | undefined, Error>> = Object.fromEntries(
     Object.values(advertiseList)
@@ -44,7 +64,7 @@ function RouteComponent() {
   )
 
   const collectionList = getUserCollectionList(
-    data.user?.profile.activeParticipant?.collections,
+    auth.user?.profile.activeParticipant?.collections,
     userTags,
   )
 
@@ -66,6 +86,7 @@ function RouteComponent() {
                 const currentIndex = keySet.findIndex((id) => id === selectedParent)
                 const newIndex = currentIndex - 1 < 0 ? keySet.length - 1 : currentIndex - 1
                 setSelectedParent(keySet[newIndex])
+                navigate({ to: '.', search: { id: keySet[newIndex] }})
               }}
             >
               <HiOutlineArrowLeftCircle size={32} className='hover:fill-gray-100 hover:text-gray-500'/>
@@ -86,6 +107,7 @@ function RouteComponent() {
                 const currentIndex = keySet.findIndex((id) => id === selectedParent)
                 const newIndex = currentIndex + 1 >= keySet.length ? 0 : currentIndex + 1
                 setSelectedParent(keySet[newIndex])
+                navigate({ to: '.', search: { id: keySet[newIndex] }})
               }}
             >
               <HiOutlineArrowRightCircle size={32} className='hover:fill-gray-100 hover:text-gray-500'/>

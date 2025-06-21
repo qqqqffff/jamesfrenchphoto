@@ -1,7 +1,6 @@
 import { ComponentProps, useEffect, useState } from 'react';
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
-import { reorderWithEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge';
 import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
 import { flushSync } from 'react-dom';
 import { isSetData } from './SetData';
@@ -15,40 +14,27 @@ interface SetListProps extends ComponentProps<'div'> {
   selectedSet: PhotoSet | undefined
   setSelectedSet: (set?: PhotoSet) => void
   collection: PhotoCollection,
-  updateSetList: (set: PhotoSet[]) => void,
-  creatingSet: boolean,
-  doneCreatingSet: (set?: PhotoSet) => void,
+  updateSet: (set: PhotoSet, remove: boolean) => void,
+  reorderSets: (sets: PhotoSet[]) => void
 }
 
 export const SetList = (props: SetListProps) => {
   const [sets, setSets] = useState<PhotoSet[]>(props.setList);
-
-  if(props.creatingSet && sets.find((set) => set.id === 'creating') === undefined){
-    setSets([...sets, {
-      id: 'creating',
-      name: '',
-      paths: [],
-      order: props.setList.length,
-      collectionId: props.collection.id,
-      items: 0
-    }])
-  }
-  else if(!props.creatingSet && sets.find((set) => set.id === 'creating') !== undefined){
-    setSets(sets.filter((set) => set.id !== 'creating'))
-  }
 
   const reorderSets = useMutation({
     mutationFn: (params: ReorderSetsParams) => reorderSetsMutation(params)
   })
 
   useEffect(() => {
-    if(!props.setList.reduce((prev, cur, index) => {
-      if(prev === false) return false
-      if(sets[index] !== cur) return false
-      return prev
-    }, true) && !props.creatingSet){
+    if(props.setList.reduce((prev, cur, index) => {
+      if(sets[index]?.id !== cur.id || prev) {
+        return true
+      }
+      return false
+    }, false)) {
       setSets(props.setList)
     }
+    
     return monitorForElements({
       canMonitor({ source }) {
         return isSetData(source.data);
@@ -73,36 +59,41 @@ export const SetList = (props: SetListProps) => {
           return;
         }
 
-        const updatedSets = sets.map((set) => {
-          if(set.id === sourceData.setId){
-            set.order = indexOfTarget
-          }
-          else if(set.id === targetData.setId){
-            set.order = indexOfSource
-          }
-          return set
-        })
-
-        reorderSets.mutate({
-          collectionId: props.collection.id,
-          sets: updatedSets,
-          options: {
-            logging: true
-          }
-        })
-
         const closestEdgeOfTarget = extractClosestEdge(targetData);
 
+        const updatedSets: PhotoSet[] = []
+
+        if(closestEdgeOfTarget === 'top') {
+          updatedSets.push(
+            ...sets.slice(0, indexOfTarget)
+          )
+          updatedSets.push({...sets[indexOfSource], order: indexOfTarget})
+          updatedSets.push(
+            ...sets.slice(indexOfTarget)
+          )
+        }
+        else if(closestEdgeOfTarget === 'bottom') {
+          updatedSets.push(
+            ...sets.slice(0, indexOfTarget + 1)
+          )
+          updatedSets.push({...sets[indexOfSource], order: indexOfTarget})
+          updatedSets.push(
+            ...sets.slice(indexOfTarget + 1)
+          )
+        }
+
         flushSync(() => {
-          const newSets = reorderWithEdge({
-            list: updatedSets,
-            startIndex: indexOfSource,
-            indexOfTarget,
-            closestEdgeOfTarget,
-            axis: 'vertical',
-          })
+          const newSets = updatedSets.filter((set) => set.order !== indexOfSource).map((set, index) => ({ ...set, order: index }))
+          console.log(newSets)
           setSets(newSets);
-          props.updateSetList(newSets)
+          props.reorderSets(newSets)
+          reorderSets.mutate({
+            collectionId: props.collection.id,
+            sets: newSets,
+            options: {
+              logging: true
+            }
+          })
         });
 
         const element = document.querySelector(`[data-set-id="${sourceData.setId}"]`);
@@ -111,66 +102,75 @@ export const SetList = (props: SetListProps) => {
         }
       },
     });
-  }, [sets, props.setList]);
+  }, [props.setList]);
+
+
 
   return (
-    <div className="pt-6 my-0 mx-auto">
+    <div className="pt-2 my-0 mx-auto">
       <div className="flex flex-col gap-2 border border-solid rounded p-2">
-        {sets
+        {sets.length === 0 ? (
+          <div
+            className={`flex text-sm bg-white flex-row items-center border-solid rounded p-2 pl-0`}
+          >
+            <span className="w-full text-start h-full italic ps-4 font-light">Create A Set to See Here</span>
+          </div>
+        ) : (
+          sets
           .sort((a, b) => a.order - b.order)
-          .map((set) => {
+          .map((set, index) => {
             return (
               <Set 
-                key={set.id} 
+                key={index} 
                 set={set} 
-                onClick={() => {
-                  if(set.id !== 'creating'){
-                    if(props.selectedSet?.id === set.id) {
-                      props.setSelectedSet(undefined)
-                    }
-                    else {
-                      props.setSelectedSet(set)
-                    }
-                  }
-                }} 
-                collection={set.id === 'creating' ? props.collection : undefined}
+                onClick={() => props.setSelectedSet(set)}
                 selectedSet={props.selectedSet?.id === set.id}
                 onSubmit={(submittedSet) => {
-                  if(set.id === 'creating'){
-                    const updatedSets = sets.map((set) => {
-                      if(set.id === 'creating'){
-                        return submittedSet
-                      }
-                      return set
-                    })
+                  //submitted set will not have creating tag
+                  if(set.creating){
+                    const updatedSets = sets.map((pSet) => set.id === submittedSet.id ? submittedSet : pSet)
 
                     props.setSelectedSet(submittedSet)
-                    props.doneCreatingSet(submittedSet)
+                    props.updateSet(submittedSet, false)
                     setSets(updatedSets)
-                    props.updateSetList(updatedSets)
                   }
                 }}
                 onCancel={() => {
-                  if(set.id === 'creating'){
-                    setSets(sets.filter((set) => set.id !== 'creating'))
-                    props.doneCreatingSet()
-                  }
-                }}
-                updateParent={(name) => {
-                  const updatedSets = sets.map((set) => {
-                    if(set.id === 'creating'){
-                      return {
-                        ...set,
-                        name: name,
-                      }
+                  if(set.creating){
+                    let fixedSets = sets.filter((cSet) => cSet.id !== set.id)
+                    //if reordered with the temporary set
+                    if(
+                      fixedSets.reduce((prev, cur, index) => {
+                        if(prev || cur.order !== index) {
+                          return true
+                        }
+                        return prev
+                      }, false)
+                    ) {
+                      fixedSets = fixedSets
+                        .sort((a, b) => a.order - b.order)
+                        .map((set, index) => ({...set, order: index}))
+
+                      reorderSets.mutate({
+                        collectionId: props.collection.id,
+                        sets: fixedSets,
+                        options: {
+                          logging: true
+                        }
+                      })
+
+                      props.reorderSets(fixedSets)
+                      setSets(fixedSets)
+                      return
                     }
-                    return set
-                  })
-                  setSets(updatedSets)
+                    
+                    setSets(fixedSets)
+                    props.updateSet(set, true)
+                  }
                 }}
               />
             )
-          }
+          })
         )}
       </div>
     </div>

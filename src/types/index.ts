@@ -154,6 +154,7 @@ export type PhotoSet = {
     order: number,
     collectionId: string;
     items: number;
+    creating?: boolean
 }
 
 export type Timeslot = {

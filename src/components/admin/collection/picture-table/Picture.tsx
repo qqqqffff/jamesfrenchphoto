@@ -19,7 +19,7 @@ import { LazyImage } from "../../../common/LazyImage";
 import { deleteImagesMutation, DeleteImagesMutationParams, favoriteImageMutation, FavoriteImageMutationParams, ReorderPathsParams, unfavoriteImageMutation, UnfavoriteImageMutationParams } from "../../../../services/photoSetService";
 import { HiOutlineDownload, HiOutlineHeart } from 'react-icons/hi'
 import { downloadImageMutation, DownloadImageMutationParams } from "../../../../services/photoPathService";
-import { CgArrowsExpandRight } from "react-icons/cg";
+import { CgArrowsExpandRight, CgSpinner } from "react-icons/cg";
 import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash, HiOutlineXCircle } from "react-icons/hi2";
 
 type PictureState = 
@@ -80,6 +80,7 @@ export const Picture = (props: PictureProps) => {
   const [closing, setClosing] = useState(false)
   const expandedRef = useRef<HTMLDivElement | null>(null)
   const expandedImageRef = useRef<HTMLImageElement | null>(null)
+  const expandedWatermarkRef = useRef<HTMLImageElement | null>(null)
   const [dimensions, setDimensions] = useState({
     startX: 0,
     startY: 0,
@@ -253,6 +254,18 @@ export const Picture = (props: PictureProps) => {
     )
   }, [props.picture, props.selectedPhotos, props.parentIsDragging ])
 
+  useEffect(() => {
+    if(
+      props.watermark && 
+      (
+        !expandedWatermarkRef.current?.complete || 
+        expandedWatermarkRef.current.naturalWidth < 0
+      )
+     ) {
+      props.watermark.refetch()
+    }
+  }, [expandedWatermarkRef.current])
+
   const deletePath = useMutation({
     mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
   })
@@ -296,6 +309,15 @@ export const Picture = (props: PictureProps) => {
     }
   })
 
+  const numbs = []
+  if(expandedImageRef.current) {
+    numbs.push(expandedImageRef.current.clientWidth)
+    numbs.push(expandedImageRef.current.clientHeight)
+  }
+  else {
+    numbs.push(85)
+  }
+  const watersize = Math.min(...numbs) * ( 3/4 )
 
   return (
     <>
@@ -406,9 +428,20 @@ export const Picture = (props: PictureProps) => {
                 src={props.url?.data?.[1]}
                 className="w-full max-h-screen object-contain rounded shadow-xl"
               />
-              {props.watermark?.data?.[1] && (
+              {props.watermark && props.watermark.isLoading ? (
+                <CgSpinner 
+                  className='absolute text-white opacity-80 animate-spin z-10' 
+                  size={watersize} 
+                  style={{
+                    top: `calc(50% - ${watersize/2}px)`,
+                    left: `calc(50% - ${watersize/2}px)`
+                  }}
+                />
+              ) : props.watermark?.data?.[1] && (
                 <img 
+                  ref={expandedWatermarkRef}
                   src={props.watermark.data[1]}
+                  style={{ maxWidth: `${(expandedImageRef.current?.clientHeight ?? 0)}px` }}
                   className="absolute inset-0 w-full max-h-screen top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
                 />
               )}

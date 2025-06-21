@@ -13,6 +13,9 @@ import { IssueNotifications, UploadIssue } from "./IssueNotifications";
 import { GoTriangleDown, GoTriangleUp } from "react-icons/go";
 import { UploadData } from "./UploadToast";
 import { v4 } from 'uuid'
+import useWindowDimensions from "../../../hooks/windowDimensions";
+import { useQuery } from "@tanstack/react-query";
+import { getPathQueryOptions } from "../../../services/collectionService";
 
 interface UploadImagesProps extends ModalProps {
   collection: PhotoCollection,
@@ -145,7 +148,9 @@ async function validateFiles(
     const previews = new Map<string, File>(filesPreviews)
     const uploads = new Map<string, File>(filesUpload)
 
-    previewsMap.forEach((preview) => {
+    previewsMap
+    .sort((a, b) => a.file.name.localeCompare(b.file.name))
+    .forEach((preview) => {
       previews.set(preview.url, preview.file)
       uploads.set(preview.file.name, preview.file)
     })
@@ -160,7 +165,9 @@ async function validateFiles(
   } else {
     const previews = new Map<string, File>()
 
-    previewsMap.forEach((preview) => {
+    previewsMap
+    .sort((a, b) => a.file.name.localeCompare(b.file.name))
+    .forEach((preview) => {
       previews.set(preview.url, preview.file)
     })
 
@@ -179,6 +186,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
   parentUpdateSet, parentUpdateCollection,
   parentUpdateCollections
 }) => {
+  const { height } = useWindowDimensions()
   const [filesUpload, setFilesUpload] = useState<Map<string, File>>(files)
   const [filesPreview, setFilesPreview] = useState<Map<string, File>>()
   const [totalUpload, setTotalUpload] = useState<number>(
@@ -195,6 +203,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
     visible: boolean,
     order?: 'ASC' | 'DSC', 
   }>()
+
+  const watermarkQuery = useQuery({
+    ...getPathQueryOptions(collection.watermarkPath ?? set.watermarkPath),
+    enabled: collection.watermarkPath !== undefined || set.watermarkPath !== undefined
+  })
   
   useEffect(() => {
     if(open){
@@ -309,9 +322,9 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
         </div>
         <form onSubmit={handleUploadPhotos}>
           <div className="flex flex-col">
-            <div className="grid grid-cols-3 mb-1">
+            <div className="flex flex-row w-full mb-1 items-center justify-between">
               <div 
-                className="flex flex-row items-center justify-start"
+                className="flex flex-row items-center justify-start w-[25%]"
                 onMouseEnter={() => setSort((prev) => {
                   if(prev?.type == 'size'){
                     return {
@@ -324,7 +337,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 })}
                 onMouseLeave={() => setSort({...sort, type: 'name', visible: false})}
               >
-                <Label className="font-semibold text-xl" htmlFor="name">Files:</Label>
+                <Label className="text-xl" htmlFor="name">
+                  <span className="font-semibold mr-1">Files</span>
+                  <span>({filesUpload.size})</span>
+                  <span>:</span>
+                </Label>
                 <div className="mt-1">
                   {(sort?.visible && sort.type === 'name') ? (
                     (sort.order === 'ASC' || sort.order === undefined) ? (
@@ -362,7 +379,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
               <TextInput 
                 theme={textInputTheme} 
                 sizing="sm" 
-                className="mt-1 text-opacity-90" 
+                className="mt-1 text-opacity-90 max-w-[30%] min-w-max" 
                 placeholder="Search Files..."
                 onChange={(event) => {
                   setFilterText(event.target.value)
@@ -371,7 +388,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 value={filterText}
               />
               <div 
-                className="flex flex-row gap-2 items-center text-xl justify-end"
+                className="flex flex-row gap-1 items-center text-xl justify-end max-w-[35%]"
                 onMouseEnter={() => setSort((prev) => {
                   if(prev?.type == 'name'){
                     return {
@@ -387,8 +404,8 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 {filesUpload && filesUpload.size > 0 && (
                   <>
                     <span className="font-semibold">Total:</span>
-                    <span>{formatFileSize(totalUpload, 2)}</span>
-                    <div className="-ml-2">
+                    <span className="">{formatFileSize(totalUpload, 2)}</span>
+                    <div className="-ml-1">
                       {(sort?.visible && sort.type === 'size') ? (
                         (sort.order === 'ASC' || sort.order === undefined) ? (
                           <button 
@@ -427,7 +444,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
             </div>
             {filesPreview && filesPreview.size > 0 ? (
               <div className="h-full">
-                <AutoSizer className="min-h-[340px] z-0">
+                <AutoSizer className="z-0" style={{ minHeight: `${height - 350}px`}}>
                   {({ height, width }: { height: number; width: number }) => (
                     <FixedSizeList
                       height={height}
@@ -435,7 +452,9 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                       itemSize={35}
                       width={width}
                       itemData={{
-                        data: filteredPreviews ?? [...filesPreview.entries()].map(([url, file]) => ({url: url, file: file})),
+                        data: filteredPreviews ?? [...filesPreview.entries()]
+                          .map(([url, file]) => ({url: url, file: file}))
+                          .sort((a, b) => a.file.name.localeCompare(b.file.name)),
                         onDelete: (key, fileName) => {
                           const previews = new Map<string, File>([...filesPreview.entries()].filter((entry) => entry[0] !== fileName))
                           const files = new Map<string, File>([...filesUpload.entries()].filter((entry) => entry[0] !== key))
@@ -451,6 +470,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                         },
                         issues: uploadIssues,
                         updateIssues: setUploadIssues,
+                        watermarkQuery: watermarkQuery
                       }}
                     >
                       {ImagesRow}

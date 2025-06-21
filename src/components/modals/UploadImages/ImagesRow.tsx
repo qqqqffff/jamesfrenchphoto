@@ -6,13 +6,16 @@ import { HiOutlineExclamationTriangle, HiOutlineTrash, HiOutlineXMark } from "re
 import { invariant } from "@tanstack/react-router"
 import { HiOutlineRefresh } from "react-icons/hi"
 import { formatFileSize } from "../../../utils"
+import { UseQueryResult } from "@tanstack/react-query"
+import { LazyImage } from "../../common/LazyImage"
 
 interface ImagesRowProps extends ListChildComponentProps {
   data: {
     data: { url: string, file: File}[],
     onDelete: (key: string, fileName: string) => void
     issues: UploadIssue[],
-    updateIssues: Dispatch<SetStateAction<UploadIssue[]>>
+    updateIssues: Dispatch<SetStateAction<UploadIssue[]>>,
+    watermarkQuery: UseQueryResult<[string | undefined, string], Error>
   }
 }
 
@@ -101,12 +104,16 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
           placement='bottom-start'
           arrow={false}
           content={(
-            <img src={data.data[index].url} loading='lazy' className="h-[240px] object-cover rounded-lg"/>
+            <LazyImage 
+              overrideSrc={data.data[index].url}
+              watermarkPath={data.watermarkQuery}
+              className="max-w-[300px]"
+            />
           )}
         >
           <span 
             className={`
-              inline-block truncate 
+              inline-block truncate max-w-[200px]
               ${duplicate ? 'text-red-500' : smallUpload ? 'text-yellow-300' : ''}
             `}
           >

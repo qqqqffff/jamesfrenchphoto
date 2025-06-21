@@ -126,7 +126,8 @@ export const getClientAdvertiseList = (tags?: UserTag[], appendParentPackages?: 
     .filter((tag) => {
       //filter out the parents with a selection
       return (
-        !tags?.some((pTag) => tag.children.some((cTag) => cTag.id === pTag.id))
+        !tags?.some((pTag) => tag.children.some((cTag) => cTag.id === pTag.id)) &&
+        tag.children.length > 0
       )
     })
     .map((tag) => {
