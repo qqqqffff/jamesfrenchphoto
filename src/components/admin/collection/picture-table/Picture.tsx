@@ -117,10 +117,11 @@ export const Picture = (props: PictureProps) => {
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>, selectedPhotos: PicturePath[]) => {
-    if(selectedPhotos[selectedPhotos.length - 1].id === props.picture.id &&
-      event.key === ' '
-    ) {
-      handleExpand()
+    if(selectedPhotos[selectedPhotos.length - 1].id === props.picture.id) {
+      if(event.key === ' ') handleExpand()
+      if(event.ctrlKey && event.key.toLowerCase() == 'a') {
+        props.setSelectedPhotos(props.set.paths)
+      }
     }
   }
 

@@ -399,33 +399,32 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
             
             if(!mappedPath) return false
 
-            const tempSet: PhotoSet = {
-                ...params.set,
-                paths: [...params.set.paths, mappedPath],
-                items: params.set.items + 1
-            }
-            const tempCollection: PhotoCollection = { 
-                ...params.collection,
-                sets: params.collection.sets.map((set) => {
-                    if(set.id === tempSet.id){
-                        return tempSet
-                    }
-                    return set
-                })
-            }
             params.updatePaths((prev) => {
                 return [...prev, mappedPath]
             })
-            params.parentUpdateSet(tempSet)
-            params.parentUpdateCollection(tempCollection)
-            params.parentUpdateCollections((prev) => {
-                const temp = [...prev]
-
-                return temp.map((col) => {
-                    if(col.id === tempCollection.id) return tempCollection
-                    return col
-                })
-            })
+            params.parentUpdateSet((prev) => prev?.id === params.set.id ? ({
+                ...prev,
+                paths: [...prev.paths, mappedPath],
+                items: prev.items + 1,
+            }) : prev)
+            params.parentUpdateCollection((prev) => prev?.id === params.collection.id ? ({
+                ...prev,
+                sets: prev.sets.map((set) => set.id === params.set.id ? ({
+                    ...set,
+                    paths: [...set.paths, mappedPath],
+                    items: set.items + 1,
+                }) : set),
+                items: prev.items + 1
+            }) : prev)
+            params.parentUpdateCollections((prev) => prev.map((collection) => collection.id === params.collection.id ? ({
+                ...collection,
+                sets: collection.sets.map((set) => set.id === params.set.id ? ({
+                    ...set,
+                    paths: [...set.paths, mappedPath],
+                    items: set.items + 1,
+                }) : set),
+                items: collection.items + 1
+            }) : collection))
             params.updateUpload((prev) => {
                 return prev.map((upload) => {
                     if(upload.id === params.uploadId){
@@ -448,6 +447,11 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
         }
     }
 
+    const updateSetItemsResponse = await client.models.PhotoSet.update({
+        id: params.set.id,
+        items: params.set.items + successfulItems
+    })
+    
     const updateCollectionItemsResponse = await client.models.PhotoCollection.update({
         id: params.collection.id,
         items: successfulItems + params.collection.items
@@ -466,6 +470,7 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
     })
 
     if(params.options?.logging) console.log(updateCollectionItemsResponse)
+    if(params.options?.logging) console.log(updateSetItemsResponse)
 }
 
 export interface DeleteImagesMutationParams {

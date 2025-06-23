@@ -92,6 +92,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           return prev
         }, [] as PicturePath[])
     )
+    setSelectedPhotos([])
   }, [photoSet])
 
   const updateSet = useMutation({

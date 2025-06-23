@@ -19,7 +19,6 @@ interface PhotoCollectionParams {
   set?: string,
 }
 
-//TODO: fix updating set
 export const Route = createFileRoute('/_auth/photo-collection/$id')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): PhotoCollectionParams => ({
@@ -370,7 +369,7 @@ function RouteComponent() {
         />
         <div className='flex flex-row items-center px-8 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
           {dimensions.width > 800 && (
-            <div className='flex flex-col items-start font-bodoni max-w-[250px]'>
+            <div className='flex flex-col items-start font-bodoni'>
               <span className='font-bold text-lg whitespace-nowrap'>James French Photograpahy</span>
               <span className='italic flex flex-row gap-1 whitespace-nowrap overflow-x-hidden '>
                 <span className=''>{collection.name}</span>
@@ -399,9 +398,13 @@ function RouteComponent() {
             <SetCarousel 
               setList={collection.sets}
               setSelectedSet={(set) => {
-                const refObject = picturesRef.current.get(pictures[0].id)
+                const refObject = coverPhotoRef.current
+                const secondRef = collectionRef.current
                 
-                if(refObject) refObject.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                if(refObject && secondRef) {
+                  refObject.scrollIntoView()
+                  secondRef.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
                 navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
 
                 setSet(set)
@@ -448,24 +451,6 @@ function RouteComponent() {
                           src={url}
                           watermarkPath={watermarkPath}
                         />
-                        {/* { url?.isLoading ? (
-                          <div className="flex items-center justify-center h-[100px] bg-gray-300 rounded-lg">
-                            <svg className="w-10 h-10 text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
-                              <path d="M18 0H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2Zm-5.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm4.376 10.481A1 1 0 0 1 16 15H4a1 1 0 0 1-.895-1.447l3.5-7A1 1 0 0 1 7.468 6a.965.965 0 0 1 .9.5l2.775 4.757 1.546-1.887a1 1 0 0 1 1.618.1l2.541 4a1 1 0 0 1 .028 1.011Z"/>
-                            </svg>
-                          </div>
-                        ) : (
-                          <>
-                            <img 
-                              className={`h-auto max-w-full rounded-lg border-2 ${currentControlDisplay === picture.id ? 'border-gray-300' : 'border-transparent'}`} src={url?.data?.[1]} alt="" 
-                            />
-                            <img 
-                              src={watermarkPath.data?.[1]}
-                              className="absolute inset-0 max-w-full h-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
-                              alt="James French Photography Watermark"
-                            />
-                          </>
-                        )} */}
                         <div className={`absolute bottom-2 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
                           <button
                             title={`${picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`}
@@ -511,7 +496,7 @@ function RouteComponent() {
                               }
                             }}
                           >
-                            <HiOutlineHeart size={20} className={`${picture.favorite !== undefined ? 'fill-red-400' : ''}`}/>
+                            <HiOutlineHeart size={24} className={`${picture.favorite !== undefined ? 'fill-red-400' : ''} text-white`}/>
                           </button>
                           {collection.downloadable && (
                             <button 
@@ -525,7 +510,7 @@ function RouteComponent() {
                                 }
                               }}
                             >
-                              <HiOutlineDownload size={20} />
+                              <HiOutlineDownload size={24} className='text-white'/>
                             </button>
                           )}
                           <button
@@ -541,7 +526,7 @@ function RouteComponent() {
                               })
                             }}
                           >
-                            <CgArrowsExpandRight size={20} />
+                            <CgArrowsExpandRight size={24} className='text-white' />
                           </button>
                         </div>
                       </div>

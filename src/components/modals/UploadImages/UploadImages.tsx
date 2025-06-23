@@ -196,7 +196,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
   const [uploadIssues, setUploadIssues] = useState<UploadIssue[]>([])
   const [loadingPreviews, setLoadingPreviews] = useState(false)
 
-  const [filteredPreviews, setFilteredPreviews] = useState<{url: string, file: File}[]>()
   const [filterText, setFilterText] = useState<string>('')
   const [sort, setSort] = useState<{
     type: 'name' | 'size',
@@ -255,26 +254,21 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
     }
   }
 
-  function sortPreviews(text?: string){
-    const tempPreviews = new Map<string, File>(filesPreview)
-    const tempFilter: {url: string, file: File}[] = []
+  const filteredPreviews =  (() => {
+    const tempPreviews = new Map<string, File>()
     
-    if(filterText || text){
-      const trimmedText = (text ?? filterText).trim().toLocaleLowerCase()
+    if(filterText !== ''){
+      const trimmedText = filterText.trim().toLocaleLowerCase()
 
-      Array.from(tempPreviews.entries()).forEach((entry) => {
+      Array.from(filesUpload.entries()).forEach((entry) => {
         try{
-          const filtered = entry[1]
-            .name
+          const filtered = entry[0]
             .trim()
             .toLowerCase()
             .includes(trimmedText)
           
           if(filtered){
-            tempFilter.push({
-              url: entry[0],
-              file: entry[1]
-            })
+            tempPreviews.set(entry[0], entry[1])
           }
         } catch(err) {
           
@@ -282,26 +276,44 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
       })
     }
     else {
-      Array.from(tempPreviews.entries()).forEach((entry) => tempFilter.push({ url: entry[0], file: entry[1] }))
+      Array.from(filesUpload.entries()).forEach((entry) => tempPreviews.set(entry[0], entry[1]))
     }
+
 
     if(sort && sort.order){
       if(sort.type === 'name'){
-        tempFilter.sort((a, b) => {
-          if(sort.order === 'DSC') return b.file.name.localeCompare(a.file.name)
-          return a.file.name.localeCompare(b.file.name)
+        const sortedPreviews = new Map<string, File>()
+        const sortedUploads = new Map<string, File>()
+        Array.from(filesUpload.entries()).sort((a, b) => {
+          if(sort.order === 'DSC') return b[0].localeCompare(a[0])
+          return a[0].localeCompare(b[0])
         })
+        .forEach((entry) => {
+          sortedUploads.set(entry[0], entry[1])
+          if(tempPreviews.has(entry[0])) sortedPreviews.set(entry[0], entry[1])
+        })
+
+        setFilesUpload(sortedUploads)
+        return sortedPreviews
       }
       else {
-        tempFilter.sort((a, b) => {
-          if(sort.order === 'DSC') return b.file.size - a.file.size
-          return a.file.size - b.file.size
+        const sortedPreviews = new Map<string, File>()
+        const sortedUploads = new Map<string, File>()
+        Array.from(filesUpload.entries()).sort((a, b) => {
+          if(sort.order === 'DSC') return b[1].size - a[1].size
+          return a[1].size - b[1].size
+        }).forEach((entry) => {
+          sortedUploads.set(entry[0], entry[1])
+          if(tempPreviews.has(entry[0])) sortedPreviews.set(entry[0], entry[1])
         })
+
+        setFilesUpload(sortedUploads)
+        return sortedPreviews
       }
     }
 
-    setFilteredPreviews(tempFilter)
-  }
+    return tempPreviews
+  })()
 
   return (
     <Modal 
@@ -352,7 +364,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                             ...sort,
                             order: 'DSC'
                           })
-                          sortPreviews()
                         }}
                       >
                         <GoTriangleDown size={16}/>
@@ -365,7 +376,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                             ...sort,
                             order: 'ASC'
                           })
-                          sortPreviews()
                         }}
                       >
                         <GoTriangleUp size={16}/>
@@ -383,7 +393,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 placeholder="Search Files..."
                 onChange={(event) => {
                   setFilterText(event.target.value)
-                  sortPreviews(event.target.value)
                 }}
                 value={filterText}
               />
@@ -415,7 +424,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                                 ...sort,
                                 order: 'DSC'
                               })
-                              sortPreviews()
                             }}
                           >
                             <GoTriangleDown size={16}/>
@@ -428,7 +436,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                                 ...sort,
                                 order: 'ASC'
                               })
-                              sortPreviews()
                             }}
                           >
                             <GoTriangleUp size={16}/>
@@ -442,31 +449,46 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 )}
               </div>
             </div>
-            {filesPreview && filesPreview.size > 0 ? (
+            {filesUpload.size > 0 ? (
               <div className="h-full">
                 <AutoSizer className="z-0" style={{ minHeight: `${height - 350}px`}}>
                   {({ height, width }: { height: number; width: number }) => (
                     <FixedSizeList
                       height={height}
-                      itemCount={filteredPreviews?.length ?? filesPreview?.size ?? 0}
+                      itemCount={filteredPreviews.size}
                       itemSize={35}
                       width={width}
                       itemData={{
-                        data: filteredPreviews ?? [...filesPreview.entries()]
-                          .map(([url, file]) => ({url: url, file: file}))
-                          .sort((a, b) => a.file.name.localeCompare(b.file.name)),
-                        onDelete: (key, fileName) => {
-                          const previews = new Map<string, File>([...filesPreview.entries()].filter((entry) => entry[0] !== fileName))
-                          const files = new Map<string, File>([...filesUpload.entries()].filter((entry) => entry[0] !== key))
+                        data: Array.from(filteredPreviews.entries()),
+                        previews: Object.fromEntries(
+                          Array.from(filesPreview?.entries() ?? []).map((entry) => [entry[1].name, entry[0]])
+                        ),
+                        loadingPreviews: loadingPreviews,
+                        onDelete: (fileName) => {
+                          const files = new Map<string, File>(
+                            Array.from(filesUpload.entries()).filter((entry) => entry[0] !== fileName)
+                          )
                           
-                          previews.delete(key)
                           files.delete(fileName)
 
                           const totalUpload = [...files.values()].reduce((prev, cur) => prev += cur.size, 0)
 
-                          setFilesUpload(files)
-                          setFilesPreview(previews)
+                          validateFiles(
+                            [...files.values()],
+                            files,
+                            uploadIssues,
+                            set,
+                            setFilesPreview,
+                            setFilesUpload,
+                            setUploadIssues,
+                            setTotalUpload,
+                            setLoadingPreviews,
+                            true,
+                            undefined
+                          )
+
                           setTotalUpload(totalUpload)
+                          setFilesUpload(files)
                         },
                         issues: uploadIssues,
                         updateIssues: setUploadIssues,
