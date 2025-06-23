@@ -87,7 +87,7 @@ export const LazyImage = (props: LazyImageProps) => {
       id='lazy-image-container'
       className="relative"
       style={{
-        minHeight: placeholderDimensions?.hieght,
+        // minHeight: placeholderDimensions?.hieght,
         minWidth: placeholderDimensions?.width
       }}
     >
