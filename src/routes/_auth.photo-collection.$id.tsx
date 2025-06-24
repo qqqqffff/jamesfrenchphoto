@@ -447,7 +447,10 @@ function RouteComponent() {
                         onClick={() => setCurrentControlDisplay(picture.id)}
                       >
                         <LazyImage 
-                          className={`h-auto max-w-full rounded-lg border-2 ${currentControlDisplay === picture.id ? 'border-gray-300' : 'border-transparent'}`}
+                          className={`
+                            h-auto max-w-full rounded-lg border-2 
+                            ${currentControlDisplay === picture.id ? 'border-gray-300' : 'border-transparent'}
+                          `}
                           src={url}
                           watermarkPath={watermarkPath}
                         />
@@ -496,7 +499,7 @@ function RouteComponent() {
                               }
                             }}
                           >
-                            <HiOutlineHeart size={24} className={`${picture.favorite !== undefined ? 'fill-red-400' : ''} text-white`}/>
+                            <HiOutlineHeart size={24} className={`${picture.favorite !==  undefined ? 'fill-red-400' : ''} text-white`}/>
                           </button>
                           {collection.downloadable && (
                             <button 
