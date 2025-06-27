@@ -281,7 +281,7 @@ function RouteComponent() {
                                     onMouseEnter={() => setExpandedTitle(collection.id)}
                                     onMouseLeave={() => setExpandedTitle(undefined)}
                                     className={`
-                                      max-w-[200px] hover:cursor-pointer
+                                      max-w-[180px] hover:cursor-pointer
                                       ${expandedTitle === collection.id ? '' : 'truncate'}
                                       ${collection.published ? 'text-green-400' : 'text-gray-600 italic'} 
                                     `}

@@ -272,7 +272,7 @@ async function getPathsDataMapFromPaths(paths: PicturePath[]): Promise<Map<strin
 }
 
 async function getPath(path?: string, id?: string): Promise<[string | undefined, string]> {
-  console.log('api call')
+  // console.log('api call', path)
   if(!path) return [id, '']
   return [id, (await getUrl({
     path: path

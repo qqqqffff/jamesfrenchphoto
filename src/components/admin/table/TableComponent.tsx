@@ -366,25 +366,19 @@ export const TableComponent = (props: TableComponentProps) => {
         return prev
       }, [] as Participant[])
 
-      //upward propegation
-      const parentColumns = props.table.columns.filter((col) => column.choices?.[0] === col.id)
+      //upward propegation (parent)
+      const parentColumn = props.table.columns.find((col) => column.choices?.[0] === col.id)
+      console.log(parentColumn)
 
-      for(let j = 0; j < parentColumns.length; j++) {
-        if(parentColumns[j].type === 'user') {
+      if(
+        parentColumn && 
+        parentColumn.type === 'user'
+      ) {
           // append myself to the user's participants if not already exists 
           // (and if i am the first participant make me the active one)
-          const foundTemp = tempUsers.find((user) => user.email === parentColumns[j].values[i])
-          const foundUser = !foundTemp ? users.find((user) => user.email === parentColumns[j].values[i]) : undefined
-          const foundParticipant = [
-            ...tempUsers.flatMap((user) => user.participant),
-            ...users.flatMap((user) => user.profile?.participant).filter((participant) => participant !== undefined)
-          ].reduce((prev, cur) => {
-            if(!prev.some((participant) => participant.id === cur.id)) {
-              prev.push(cur)
-            }
-            return prev
-          }, [] as Participant[])
-          .find((participant) => participant.id === text)
+          const foundTemp = tempUsers.find((user) => user.email === parentColumn.values[i])
+          const foundUser = !foundTemp ? users.find((user) => user.email === parentColumn.values[i]) : undefined
+          const foundParticipant = participantList.find((participant) => participant.id === text)
 
           if((foundUser || foundTemp) && foundParticipant) {
             const newParticipant: Participant = {
@@ -423,15 +417,19 @@ export const TableComponent = (props: TableComponentProps) => {
               )))
             }
           }
-          else if(foundParticipant) {
-            const tempValues = parentColumns[j].values.map((value, k) => (k === i ? (
-              foundParticipant.userEmail
-            ) : value))
+          else if(foundParticipant && parentColumn.values[i] === '') {
+            const tempValues = []
+            if(parentColumn.values[i] === '') {
+              tempValues.push(...parentColumn.values.map((value, k) => (k === i ? (
+                foundParticipant.userEmail
+              ) : value)))
+            }
+            else {
+              tempValues.push(...parentColumn.values)
+            }
             
-            //now need to downward propegate for updating the user column
-            const userDependentColumns = props.table.columns.filter((col) => parentColumns[j].id === col.choices?.[0])
-
-            console.log(userDependentColumns)
+            //now need to downward propegate for updates to the user column (parent dependent)
+            const userDependentColumns = props.table.columns.filter((col) => parentColumn.id === col.choices?.[0])
 
             for(let k = 0; k < userDependentColumns.length; k++) {
               if(
@@ -441,9 +439,9 @@ export const TableComponent = (props: TableComponentProps) => {
               ) {
                 //value column dependency works by [dependent column, field]
                 const field = validateMapField(userDependentColumns[k].choices?.[1] ?? '')[0]
-                const foundTempUser = tempUsers.find((user) => user.email === text)
-                const foundUser: UserData | undefined = users.find((user) => text === user.email) !== undefined ? (
-                  users.find((user) => text === user.email)
+                const foundTempUser = tempUsers.find((user) => user.email === foundParticipant.userEmail)
+                const foundUser: UserData | undefined = users.find((user) => foundParticipant.userEmail === user.email) !== undefined ? (
+                  users.find((user) => foundParticipant.userEmail === user.email)
                 ) : (
                   foundTempUser ? {
                     profile: foundTempUser,
@@ -455,6 +453,7 @@ export const TableComponent = (props: TableComponentProps) => {
                     status: '',
                   } : undefined
                 )
+
                 if(field !== null && foundUser?.profile !== undefined) {
                   const tempValues = userDependentColumns[k].values.map((value, k) => (k === i ? 
                     mapUserField({ field: field as UserFields['type'], user: {
@@ -479,18 +478,20 @@ export const TableComponent = (props: TableComponentProps) => {
             }
 
             updateColumn.mutate({
-              column: parentColumns[j],
+              column: parentColumn,
               values: tempValues,
               options: {
                 logging: true
               }
             })
             updatedColumns.push({
-              ...parentColumns[j],
+              ...parentColumn,
               values: tempValues
             })
           }
-        }
+          else if(foundParticipant) {
+
+          }
       }
 
       //downward propegation

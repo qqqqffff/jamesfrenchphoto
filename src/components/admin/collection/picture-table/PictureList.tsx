@@ -18,6 +18,7 @@ import Loading from '../../../common/Loading';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import { invariant } from '@tanstack/react-router';
+import useWindowDimensions from '../../../../hooks/windowDimensions';
 
 interface PictureListProps extends ComponentProps<'div'> {
   set: PhotoSet,
@@ -41,6 +42,7 @@ interface PictureListProps extends ComponentProps<'div'> {
 }
 
 export const PictureList = (props: PictureListProps) => {
+  const { width } = useWindowDimensions()
   const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
   const bottomObserverRef = useRef<IntersectionObserver | null>(null)
   const topObserverRef = useRef<IntersectionObserver | null>(null)
@@ -94,7 +96,6 @@ export const PictureList = (props: PictureListProps) => {
           }
           const sourceData = source.data
           const targetData = target.data
-          //TODO: implement reorder for list of selected items
 
           if(!isPictureData(sourceData) || !isPictureDropTargetData(targetData)) {
             return
@@ -347,9 +348,14 @@ export const PictureList = (props: PictureListProps) => {
     getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
   )
 
+  const gridClassName = ` 
+    grid-cols-${width > 1500 ? '4' : width > 1200 ? '3' : '2'} 
+    grid gap-4 bg-white rounded-lg shadow py-2 px-2 overflow-y-scroll max-h-[88vh]
+  `
+
   return (
     <div className="pt-6 my-0 mx-auto h-[90vh] px-4">
-      <div className="grid grid-cols-4 gap-4 bg-white rounded-lg shadow py-2 px-2 overflow-y-scroll max-h-[88vh]" ref={listRef}>
+      <div className={gridClassName} ref={listRef}>
         {pictures.map((item, index) => {
           return (
             <div 
