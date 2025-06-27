@@ -18,6 +18,7 @@ interface ImagesRowProps extends ListChildComponentProps {
     onDelete: (fileName: string) => void
     issues: UploadIssue[],
     updateIssues: Dispatch<SetStateAction<UploadIssue[]>>,
+    watermarkPath?: string
     watermarkQuery: UseQueryResult<[string | undefined, string], Error>
   }
 }
@@ -110,7 +111,8 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
             !data.loadingPreviews && data.previews?.[data.data[index][0]] !== undefined ? ( 
               <LazyImage 
                 overrideSrc={data.previews[data.data[index][0]]}
-                watermarkPath={data.watermarkQuery}
+                watermarkPath={data.watermarkPath}
+                watermarkQuery={data.watermarkQuery}
                 className="max-w-[300px]"
               />
             ) : (

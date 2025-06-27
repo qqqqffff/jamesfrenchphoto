@@ -202,6 +202,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
     visible: boolean,
     order?: 'ASC' | 'DSC', 
   }>()
+  const [watermarkPath, setWatermarkPath] = useState<string>()
 
   const watermarkQuery = useQuery({
     ...getPathQueryOptions(collection.watermarkPath ?? set.watermarkPath),
@@ -225,6 +226,12 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
       )
     }
   }, [files])
+
+  useEffect(() => {
+    if(watermarkQuery.data) {
+      setWatermarkPath(watermarkQuery.data[1])
+    }
+  }, [watermarkQuery.data])
 
   async function handleUploadPhotos(event: FormEvent){
     event.preventDefault()
@@ -492,7 +499,8 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                         },
                         issues: uploadIssues,
                         updateIssues: setUploadIssues,
-                        watermarkQuery: watermarkQuery
+                        watermarkQuery: watermarkQuery,
+                        watermarkPath: watermarkPath
                       }}
                     >
                       {ImagesRow}
