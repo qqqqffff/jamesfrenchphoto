@@ -1,11 +1,11 @@
-import { Dropdown } from "flowbite-react"
-import { Participant, Table, TableColumn, UserProfile, UserTag } from "../../../types"
-import { Dispatch, SetStateAction, useState } from "react"
+import { Participant, Table, UserProfile, UserTag } from "../../../types"
+import { Dispatch, SetStateAction, useEffect, useState } from "react"
 import { HiOutlinePlusCircle } from "react-icons/hi2"
 import { v4 } from 'uuid'
 import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import { InviteUserParams, inviteUserMutation } from "../../../services/userService"
 import { TagPicker } from "../package/TagPicker"
+import { validateMapField } from "../../../functions/tableFunctions"
 
 interface InviteUserWindowProps {
   email: string,
@@ -13,16 +13,60 @@ interface InviteUserWindowProps {
   rowIndex: number,
   submit: Dispatch<SetStateAction<UserProfile | undefined>>
   tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
+  participantList: Participant[],
+  columnId: string
 }
 
 export const InviteUserWindow = (props: InviteUserWindowProps) => {
   const [sittingNumber, setSittingNumber] = useState<string>('')
   const [firstName, setFirstName] = useState<string>('')
   const [lastName, setLastName] = useState<string>('')
-  const [selectedColumns, setSelectedColumns] = useState<[TableColumn, string, 
-    "first" | 'last' | 'preferred' | 'email' | 'sitting' | 'middle' | 'tags'][]
-  >([])
+
   const [participants, setParticipants] = useState<Participant[]>([])
+
+  useEffect(() => {
+    let firstName: string | undefined
+    let lastName: string | undefined
+    let sittingNumber: string | undefined
+    const participants: Participant[] = []
+    for(let i = 0; i < props.table.columns.length; i++) {
+      //user field mapped
+      if(
+        props.table.columns[i].type === 'value' &&
+        validateMapField(props.table.columns[i].choices?.[1] ?? '')[0] !== null &&
+        props.table.columns[i].choices?.[0] === props.columnId
+      ) {
+        switch(props.table.columns[i].choices?.[1]) {
+          case 'first':
+            firstName = props.table.columns[i].values[props.rowIndex]
+            break;
+          case 'last':
+            lastName = props.table.columns[i].values[props.rowIndex]
+            break;
+          case 'sitting':
+            sittingNumber = props.table.columns[i].values[props.rowIndex]
+            break;
+          default:
+            break;
+        }
+      }
+      //participant mapped field
+      if(
+        props.table.columns[i].type === 'participant' &&
+        props.participantList.some((participant) => participant.id === props.table.columns[i].values[props.rowIndex])
+      ) {
+        const foundParticipant = props.participantList.find((participant) => participant.id === props.table.columns[i].values[props.rowIndex])
+        if(foundParticipant) {
+          participants.push(foundParticipant)
+        }
+      }
+    }
+
+    setFirstName(firstName ?? '')
+    setLastName(lastName ?? '')
+    setSittingNumber(sittingNumber ?? '')
+    setParticipants(participants)
+  }, [props.table.columns, props.participantList, props.tagsQuery.data])
 
   const inviteUser = useMutation({
     mutationFn: (params: InviteUserParams) => inviteUserMutation(params),
@@ -59,34 +103,10 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                 return
               }
 
-              const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'sitting')
-
-              setSelectedColumns(temp)
               setSittingNumber(String(isNaN(numValue) ? 0 : numValue));
             }}
             value={sittingNumber ?? ''}
           />
-          <Dropdown
-            inline
-          >
-            {props.table.columns
-              .filter((col) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user') && /^[0-9]+$/.test(col.values[props.rowIndex]))
-              .map((column, index) => {
-                return (
-                  <Dropdown.Item 
-                    key={index}
-                    className="text-xs"
-                    onClick={() => {
-                      setSittingNumber(column.values[props.rowIndex])
-                      setSelectedColumns([...selectedColumns, [column, 'user', 'sitting']])
-                    }}
-                  >
-                    {column.header}
-                  </Dropdown.Item>
-                )
-              })
-            }
-          </Dropdown>
         </div>
         <div className="flex flex-row gap-2 items-center text-nowrap">
           <span>First Name:</span>
@@ -97,35 +117,10 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
             `}
             placeholder="First Name..."
             onChange={(event) => {
-              const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'first')
-
-              setSelectedColumns(temp)
               setFirstName(event.target.value)
             }}
             value={firstName}
           />
-          <Dropdown
-            inline
-          >
-            {props.table.columns
-              .filter(() => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user'))
-              .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
-              .map((column, index) => {
-                return (
-                  <Dropdown.Item 
-                    key={index}
-                    className="text-xs"
-                    onClick={() => {
-                      setFirstName(column.values[props.rowIndex])
-                      setSelectedColumns([...selectedColumns, [column, 'user', 'first']])
-                    }}
-                  >
-                    {column.header}
-                  </Dropdown.Item>
-                )
-              })
-            }
-          </Dropdown>
         </div>
         <div className="flex flex-row gap-2 items-center text-nowrap">
           <span>Last Name:</span>
@@ -136,35 +131,10 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
             `}
             placeholder="Last Name..."
             onChange={(event) => {
-              const temp = [...selectedColumns].filter((col) => col[1] !== 'user' && col[2] !== 'last')
-
-              setSelectedColumns(temp)
               setLastName(event.target.value)
             }}
             value={lastName}
           />
-          <Dropdown
-            inline
-          >
-            {props.table.columns
-              .filter(() => !selectedColumns.map((col) => col[0]).some((col) => col?.id === 'user'))
-              .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
-              .map((column, index) => {
-                return (
-                  <Dropdown.Item 
-                    key={index}
-                    className="text-xs"
-                    onClick={() => {
-                      setLastName(column.values[props.rowIndex])
-                      setSelectedColumns([...selectedColumns, [column, 'user', 'last']])
-                    }}
-                  >
-                    {column.header}
-                  </Dropdown.Item>
-                )
-              })
-            }
-          </Dropdown>
         </div>
       </div>
       <div className="flex flex-row p-1 justify-between w-full border-b mb-2">
@@ -201,9 +171,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   `}
                   placeholder="First Name..."
                   onChange={(event) => {
-                    const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'first')
-
-                    setSelectedColumns(temp)
                     setParticipants((prev) => {
                       const temp = [...prev]
                         .map((part) => {
@@ -221,42 +188,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   }}
                   value={participant.firstName}
                 />
-                <Dropdown
-                  inline
-                >
-                  {props.table.columns
-                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
-                    .map((column, index) => {
-                      return (
-                        <Dropdown.Item 
-                          key={index}
-                          className="text-xs"
-                          onClick={() => {
-                            const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'first')
-                            setSelectedColumns([...temp, [column, participant.id, 'first']])
-                            setParticipants((prev) => {
-                              const temp = [...prev]
-                                .map((part) => {
-                                  if(part.id === participant.id){
-                                    return {
-                                      ...part,
-                                      firstName: column.values[props.rowIndex]
-                                    }
-                                  }
-                                  return part
-                                })
-
-                              return temp
-                            })
-                          }}
-                        >
-                          {column.header}
-                        </Dropdown.Item>
-                      )
-                    })
-                  }
-                </Dropdown>
               </div>
               <div className="flex flex-row gap-2 items-center text-nowrap">
                 <span>Preferred Name:</span>
@@ -267,9 +198,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   `}
                   placeholder="Preferred Name..."
                   onChange={(event) => {
-                    const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'preferred')
-
-                    setSelectedColumns(temp)
                     setParticipants((prev) => {
                       const temp = [...prev]
                         .map((part) => {
@@ -287,42 +215,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   }}
                   value={participant.preferredName ?? ''}
                 />
-                <Dropdown
-                  inline
-                >
-                  {props.table.columns
-                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
-                    .map((column, index) => {
-                      return (
-                        <Dropdown.Item
-                          key={index} 
-                          className="text-xs"
-                          onClick={() => {
-                            const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'preferred')
-                            setSelectedColumns([...temp, [column, participant.id, 'preferred']])
-                            setParticipants((prev) => {
-                              const temp = [...prev]
-                                .map((part) => {
-                                  if(part.id === participant.id){
-                                    return {
-                                      ...part,
-                                      preferredName: column.values[props.rowIndex]
-                                    }
-                                  }
-                                  return part
-                                })
-
-                              return temp
-                            })
-                          }}
-                        >
-                          {column.header}
-                        </Dropdown.Item>
-                      )
-                    })
-                  }
-                </Dropdown>
               </div>
               <div className="flex flex-row gap-2 items-center text-nowrap">
                 <span>Middle Name:</span>
@@ -333,9 +225,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   `}
                   placeholder="Middle Name..."
                   onChange={(event) => {
-                    const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'middle')
-
-                    setSelectedColumns(temp)
                     setParticipants((prev) => {
                       const temp = [...prev]
                         .map((part) => {
@@ -353,42 +242,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   }}
                   value={participant.middleName ?? ''}
                 />
-                <Dropdown
-                  inline
-                >
-                  {props.table.columns
-                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
-                    .map((column, index) => {
-                      return (
-                        <Dropdown.Item
-                          key={index} 
-                          className="text-xs"
-                          onClick={() => {
-                            const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'preferred')
-                            setSelectedColumns([...temp, [column, participant.id, 'preferred']])
-                            setParticipants((prev) => {
-                              const temp = [...prev]
-                                .map((part) => {
-                                  if(part.id === participant.id){
-                                    return {
-                                      ...part,
-                                      preferredName: column.values[props.rowIndex]
-                                    }
-                                  }
-                                  return part
-                                })
-
-                              return temp
-                            })
-                          }}
-                        >
-                          {column.header}
-                        </Dropdown.Item>
-                      )
-                    })
-                  }
-                </Dropdown>
               </div>
               <div className="flex flex-row gap-2 items-center text-nowrap">
                 <span>Last Name:</span>
@@ -399,9 +252,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   `}
                   placeholder="Last Name..."
                   onChange={(event) => {
-                    const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'last')
-
-                    setSelectedColumns(temp)
                     setParticipants((prev) => {
                       const temp = [...prev]
                         .map((part) => {
@@ -419,42 +269,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   }}
                   value={participant.lastName}
                 />
-                <Dropdown
-                  inline
-                >
-                  {props.table.columns
-                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
-                    .map((column, index) => {
-                      return (
-                        <Dropdown.Item
-                          key={index}
-                          className="text-xs"
-                          onClick={() => {
-                            const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'last')
-                            setSelectedColumns([...temp, [column, participant.id, 'last']])
-                            setParticipants((prev) => {
-                              const temp = [...prev]
-                                .map((part) => {
-                                  if(part.id === participant.id){
-                                    return {
-                                      ...part,
-                                      lastName: column.values[props.rowIndex]
-                                    }
-                                  }
-                                  return part
-                                })
-
-                              return temp
-                            })
-                          }}
-                        >
-                          {column.header}
-                        </Dropdown.Item>
-                      )
-                    })
-                  }
-                </Dropdown>
               </div>
               <div className="flex flex-row gap-2 items-center text-nowrap">
                 <span>Email:</span>
@@ -465,9 +279,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   `}
                   placeholder="Email..."
                   onChange={(event) => {
-                    const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'email')
-
-                    setSelectedColumns(temp)
                     setParticipants((prev) => {
                       const temp = [...prev]
                         .map((part) => {
@@ -485,42 +296,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   }}
                   value={participant.email ?? ''}
                 />
-                <Dropdown
-                  inline
-                >
-                  {props.table.columns
-                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .filter((column) => column.type !== 'date' && column.type !== 'file' && column.type !== 'tag')
-                    .map((column, index) => {
-                      return (
-                        <Dropdown.Item 
-                          key={index}
-                          className="text-xs"
-                          onClick={() => {
-                            const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'email')
-                            setSelectedColumns([...temp, [column, participant.id, 'email']])
-                            setParticipants((prev) => {
-                              const temp = [...prev]
-                                .map((part) => {
-                                  if(part.id === participant.id){
-                                    return {
-                                      ...part,
-                                      firstName: column.values[props.rowIndex]
-                                    }
-                                  }
-                                  return part
-                                })
-
-                              return temp
-                            })
-                          }}
-                        >
-                          {column.header}
-                        </Dropdown.Item>
-                      )
-                    })
-                  }
-                </Dropdown>
               </div>
               <div className="flex flex-row gap-2 items-center text-nowrap">
                 <span>Tags:</span>
@@ -533,10 +308,8 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   tags={props.tagsQuery.data ?? []}
                   parentPickTag={(tag) => {
                     const selectedTag = participant.userTags.some((pTag) => pTag.id === tag.id)
-                    const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'email')
 
                     if(selectedTag) {
-                      setSelectedColumns(temp)
                       setParticipants((prev) => {
                         const temp = [...prev]
                           .map((part) => {
@@ -553,7 +326,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                       })
                     }
                     else {
-                      setSelectedColumns(temp)
                       setParticipants((prev) => {
                         const temp = [...prev]
                           .map((part) => {
@@ -572,48 +344,11 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   }}
                   pickedTag={participant.userTags}
                 />
-                <Dropdown
-                  inline
-                >
-                  {props.table.columns
-                    .filter((column) => !selectedColumns.map((col) => col[0]).some((col) => col?.id === column.id))
-                    .filter((column) => column.type === 'tag')
-                    .map((column, index) => {
-                      return (
-                        <Dropdown.Item 
-                          key={index}
-                          className="text-xs"
-                          onClick={() => {
-                            const temp = [...selectedColumns].filter((col) => col[1] !== participant.id && col[2] !== 'email')
-                            setSelectedColumns([...temp, [column, participant.id, 'email']])
-                            setParticipants((prev) => {
-                              const temp = [...prev]
-                                .map((part) => {
-                                  if(part.id === participant.id){
-                                    return {
-                                      ...part,
-                                      firstName: column.values[props.rowIndex]
-                                    }
-                                  }
-                                  return part
-                                })
-
-                              return temp
-                            })
-                          }}
-                        >
-                          {column.header}
-                        </Dropdown.Item>
-                      )
-                    })
-                  }
-                </Dropdown>
               </div>
               <button 
                 className="self-end border rounded-lg py-1 px-2 hover:bg-gray-50 hover:border-gray-300"
                 onClick={() => {
                   setParticipants(participants.filter((part) => part.id !== participant.id))
-                  setSelectedColumns(selectedColumns.filter((column) => column[1] !== participant.id))
                 }}
               >Delete</button>
               <div className="border-gray-300 border mb-1 mt-1"/>

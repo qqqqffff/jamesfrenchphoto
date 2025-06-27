@@ -443,7 +443,7 @@ export const Picture = (props: PictureProps) => {
                   ref={expandedWatermarkRef}
                   src={props.watermark.data[1]}
                   style={{ maxWidth: `${(expandedImageRef.current?.clientHeight ?? 0)}px` }}
-                  className="absolute inset-0 w-full max-h-screen top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-contain opacity-80 pointer-events-none"
                 />
               )}
             </div>

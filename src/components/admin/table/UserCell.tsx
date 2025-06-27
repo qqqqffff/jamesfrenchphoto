@@ -1,7 +1,7 @@
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
 import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import Loading from "../../common/Loading";
-import { Table, UserData, UserProfile, UserTag } from "../../../types";
+import { Participant, Table, UserData, UserProfile, UserTag } from "../../../types";
 import { Tooltip } from "flowbite-react";
 import { HiOutlineXMark } from 'react-icons/hi2'
 import validator from 'validator'
@@ -109,6 +109,16 @@ export const UserCell = (props: UserCellProps) => {
       />
     ) : undefined
   }
+
+  const participantList = [
+    ...props.tempUsers.flatMap((data) => data.participant),
+    ...props.userData.flatMap((data) => data.profile?.participant).filter((participant) => participant !== undefined)
+  ].reduce((prev, cur) => {
+    if(!prev.some((participant) => participant.id === cur.id)) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as Participant[])
 
   return (
     <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
@@ -249,6 +259,8 @@ export const UserCell = (props: UserCellProps) => {
             rowIndex={props.rowIndex}
             submit={setTempProfile}
             tagsQuery={props.tagsData}
+            participantList={participantList}
+            columnId={props.columnId}
           />
         </div>
       )}

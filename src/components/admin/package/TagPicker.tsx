@@ -11,6 +11,7 @@ interface TagPickerProps {
   placeholder?: string
   className?: string,
   allowMultiple?: boolean
+  hideTag?: boolean
 }
 
 export const TagPicker = (props: TagPickerProps) => {
@@ -23,8 +24,8 @@ export const TagPicker = (props: TagPickerProps) => {
         {props.className ? (
           <input 
             placeholder={props.placeholder ?? 'Pick User Tag...'}
-            className={props.className + ` text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color}`}
-            value={!props.pickedTag || props.pickedTag.length === 0 ? '' : 
+            className={props.className + ` text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color} hover:cursor-pointer`}
+            value={!props.pickedTag || props.pickedTag.length === 0 || props.hideTag ? '' : 
               props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
             onFocus={() => setFocused(true)}
             readOnly
@@ -34,7 +35,7 @@ export const TagPicker = (props: TagPickerProps) => {
             theme={textInputTheme}
             placeholder={props.placeholder ?? 'Pick User Tag...'}
             className={`
-              max-w-[400px] min-w-[400px] placeholder:italic
+              max-w-[400px] min-w-[400px] placeholder:italic hover:cursor-pointer
             `}
             color={!props.pickedTag || props.pickedTag.length === 0 ? 'gray' : props.pickedTag[0].color}
             value={!props.pickedTag || props.pickedTag.length === 0 ? '' : 

@@ -1,52 +1,49 @@
 import { UseQueryResult } from "@tanstack/react-query"
 import { 
   ComponentProps, 
+  Dispatch, 
   MutableRefObject, 
-  useEffect, 
+  SetStateAction, 
   useRef, 
-  useState, 
 } from "react"
-import { CgSpinner } from 'react-icons/cg'
 
 interface LazyImageProps extends Omit<ComponentProps<'img'>, 'src' | 'ref'> {
-  watermarkPath?: UseQueryResult<[string | undefined, string] | undefined, Error>,
+  watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined, Error>,
+  watermarkPath?: string,
   src?: UseQueryResult<[string | undefined, string] | undefined, Error>
   overrideSrc?: string,
   ref?: MutableRefObject<HTMLImageElement | null>
+  pictureDimensions?: [string, { width: number, height: number}][]
+  parentSetPictureDimensions?: Dispatch<SetStateAction<[string, { width: number, height: number}][]>>
 }
 
 export const LazyImage = (props: LazyImageProps) => {
   const imgRef = useRef<HTMLImageElement | null>(null)
   const watermarkRef = useRef<HTMLImageElement | null>(null)
-  const [placeholderDimensions, setPlaceholderDimensions] = useState<{width: number, hieght: number}>()
 
-  useEffect(() => {
-    if(imgRef.current) {
-      setPlaceholderDimensions({
-        width: Math.max(placeholderDimensions?.width ?? 0, imgRef.current.clientWidth),
-        hieght: Math.max(placeholderDimensions?.hieght ?? 0, imgRef.current.clientHeight)
-      })
-    }
-  }, [imgRef.current])
-
-  useEffect(() => {
-    if(
-      props.watermarkPath !== undefined && 
-      (
-        (watermarkRef.current?.naturalWidth ?? 0) < 0 || 
-        !watermarkRef.current?.complete
-      )
-    ) {
-      props.watermarkPath.refetch()
-    }
-  }, [watermarkRef.current])
+  // useEffect(() => {
+  //   if(
+  //     props.watermarkQuery && 
+  //     watermarkRef.current !== null &&
+  //     (
+  //       !watermarkRef.current.complete ||
+  //       watermarkRef.current.clientWidth === 0
+  //     )
+  //   ) {
+  //     props.watermarkQuery.refetch()
+  //   }
+  // }, [watermarkRef.current, props.watermarkQuery?.data])
 
   if(
     (
       !props.src || 
       props.src.isPending || 
       !props.src.data?.[1] || 
-      props.watermarkPath?.isPending
+      props.src.isLoading ||
+      props.src.isFetching || (
+        props.watermarkQuery !== undefined &&
+        props.watermarkPath === undefined
+      )
     ) 
     && 
     !props.overrideSrc
@@ -55,8 +52,8 @@ export const LazyImage = (props: LazyImageProps) => {
       <div 
         className={props.className}
         style={{
-          minHeight: placeholderDimensions?.hieght,
-          minWidth: placeholderDimensions?.width
+          minHeight: `${props.pictureDimensions?.find((dimension) => dimension[0] === props.src?.data?.[0])?.[1].height}px`,
+          minWidth: `${props.pictureDimensions?.find((dimension) => dimension[0] === props.src?.data?.[0])?.[1].width}px`
         }}
       >
         <svg className="text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
@@ -68,18 +65,10 @@ export const LazyImage = (props: LazyImageProps) => {
 
   const imageProps = {...props}
   delete(imageProps.watermarkPath)
+  delete(imageProps.watermarkQuery)
   delete(imageProps.overrideSrc)
-
-  const numbs = []
-  if(placeholderDimensions) {
-    numbs.push(placeholderDimensions.width)
-    numbs.push(placeholderDimensions.hieght)
-  }
-  else {
-    numbs.push(85)
-  }
-
-  const watersize = Math.min(...numbs) * ( 3/4 )
+  delete(imageProps.pictureDimensions)
+  delete(imageProps.parentSetPictureDimensions)
 
   return (
     <div
@@ -87,35 +76,54 @@ export const LazyImage = (props: LazyImageProps) => {
       id='lazy-image-container'
       className="relative"
       style={{
-        // minHeight: placeholderDimensions?.hieght,
-        minWidth: placeholderDimensions?.width
+        minHeight: `${imageProps.pictureDimensions?.find((dimension) => dimension[0] === props.src?.data?.[0])?.[1].height}px`,
+        minWidth: `${imageProps.pictureDimensions?.find((dimension) => dimension[0] === props.src?.data?.[0])?.[1].width}px`
       }}
     >
+      <img 
+        {...imageProps}
+        ref={imgRef}
+        src={props.overrideSrc ? props.overrideSrc : props.src?.data?.[1]}
+        onLoad={(load) => {
+          if(
+            !load.currentTarget.clientHeight || 
+            !load.currentTarget.clientWidth || 
+            !props.pictureDimensions ||
+            !props.parentSetPictureDimensions ||
+            props.src?.data?.[0] === undefined
+          ) return
+
+          const temp = [...props.pictureDimensions]
+
+          if(!temp.some((dimension) => dimension[0] === props.src?.data?.[0])) {
+            temp.push([props.src.data[0], { 
+              width: load.currentTarget.clientWidth,
+              height: load.currentTarget.clientHeight
+            }])
+          }
+          else {
+            temp.map((dimension) => dimension[0] === props.src?.data?.[0] ? ([
+              props.src.data[0], { 
+                width: load.currentTarget.clientWidth,
+                height: load.currentTarget.clientHeight
+              }
+            ]) : dimension)
+          }
+
+          props.parentSetPictureDimensions(temp)
+        }}
+      />
+      {props.watermarkPath && (
         <img 
-          {...imageProps}
-          ref={imgRef}
-          src={props.overrideSrc ? props.overrideSrc : props.src?.data?.[1]}
+          ref={watermarkRef}
+          src={props.watermarkPath}
+          className="absolute inset-0 w-full h-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
+          style={{ 
+            maxWidth: `${imageProps.pictureDimensions?.find((dimension) => dimension[0] === props.src?.data?.[0])?.[1].height}px`
+          }}
+          alt="James French Photography Watermark"
         />
-        {props.watermarkPath?.isLoading || 
-        (props.watermarkPath?.data?.[1] === undefined && props.watermarkPath !== undefined) ? (
-          <CgSpinner 
-            className='absolute text-white opacity-80 animate-spin z-10' 
-            size={watersize} 
-            style={{
-              top: `calc(50% - ${watersize/2}px)`,
-              left: `calc(50% - ${watersize/2}px)`
-            }}
-          />
-        ) :
-        props.watermarkPath?.data?.[1] && (
-          <img 
-            ref={watermarkRef}
-            src={props.watermarkPath.data[1]}
-            className="absolute inset-0 w-full h-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
-            style={{ maxWidth: `${(imgRef.current?.clientHeight ?? 0)}px` }}
-            alt="James French Photography Watermark"
-          />
-        )}
+      )}
     </div>
   )
 }

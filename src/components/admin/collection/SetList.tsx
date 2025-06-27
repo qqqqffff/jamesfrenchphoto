@@ -108,7 +108,7 @@ export const SetList = (props: SetListProps) => {
 
   return (
     <div className="pt-2 my-0 mx-auto">
-      <div className="flex flex-col gap-2 border border-solid rounded p-2">
+      <div className="flex flex-col gap-2 border border-solid rounded p-2 max-h-[44vh] overflow-y-auto">
         {sets.length === 0 ? (
           <div
             className={`flex text-sm bg-white flex-row items-center border-solid rounded p-2 pl-0`}

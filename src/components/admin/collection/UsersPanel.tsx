@@ -85,8 +85,6 @@ export const UsersPanel = (props: UsersPanelProps) => {
     }
   })
 
-  
-
   return (
     <div className="flex flex-col max-h-[90vh] min-h-[90vh] py-2 px-12 w-full overflow-auto">
       <div className="flex flex-row relative justify-center items-center mb-4 gap-4">
@@ -99,7 +97,7 @@ export const UsersPanel = (props: UsersPanelProps) => {
           value={search}
         />
         <Dropdown
-        size="sm"
+          size="xs"
           label={'Filter'}
           color='light'
           dismissOnClick={false}

@@ -1,19 +1,15 @@
 import { createFileRoute, invariant, redirect } from '@tanstack/react-router'
 import { getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
-import { favoriteImageMutation, FavoriteImageMutationParams, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
-import { PhotoSet, PicturePath, UserProfile } from '../types'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { PhotoSet, UserProfile } from '../types'
+import { useEffect, useRef, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Button } from 'flowbite-react'
-import { useInfiniteQuery, useMutation, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { SetCarousel } from '../components/collection/SetCarousel'
-import { CgArrowsExpandRight } from 'react-icons/cg'
-import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart } from 'react-icons/hi2'
-import { downloadImageMutation, DownloadImageMutationParams, getInfinitePathsQueryOptions } from '../services/photoPathService'
-import { HiOutlineDownload } from 'react-icons/hi'
+import { HiOutlineArrowLeft, HiOutlineArrowRight } from 'react-icons/hi2'
 import { UnauthorizedEmailModal } from '../components/modals'
 import { Cover } from '../components/collection/Cover'
-import { LazyImage } from '../components/common/LazyImage'
+import { CollectionGrid } from '../components/collection/CollectionGrid'
 
 interface PhotoCollectionParams {
   set?: string,
@@ -63,62 +59,25 @@ function RouteComponent() {
   const collection = data.collection
   const dimensions = useWindowDimensions()
   const [tempUser, setTempUser] = useState<UserProfile>()
-  const bottomObserverRef = useRef<IntersectionObserver | null>(null)
-  const topObserverRef = useRef<IntersectionObserver | null>(null)
-  const currentOffsetIndex = useRef<number | undefined>()
-  const columnMultiplier = dimensions.width > 1600 ? 5 : (
-    dimensions.width > 800 ? 
-      3 : 1
-    )
+  
   const [set, setSet] = useState<PhotoSet>(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
 
-  const pathsQuery = useInfiniteQuery(
-    getInfinitePathsQueryOptions(set.id ?? data.setId ?? collection.sets[0].id, {
-      unauthenticated: data.token !== undefined,
-      participantId: data.auth.user?.profile.activeParticipant?.id ?? tempUser?.activeParticipant?.id,
-      maxItems: Math.ceil(3 * (columnMultiplier) * 1.5)
-    })
+  const watermarkQuery = useQuery(
+    getPathQueryOptions(set.watermarkPath ?? collection.watermarkPath, collection.id)
   )
-  const [pictures, setPictures] = useState<PicturePath[]>(pathsQuery.data ? pathsQuery.data.pages[pathsQuery.data.pages.length - 1].memo : [])
-  const topIndex = useRef<number>(0)
-  const bottomIndex = useRef<number>(pictures.length - 1)
-  const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
+
+  const [watermarkPath, setWatermarkPath] = useState<string | undefined>()
 
   useEffect(() => {
-    if(pathsQuery.data) {
-      setPictures(pathsQuery.data.pages[pathsQuery.data.pages.length - 1].memo)
+    if(watermarkQuery.data) {
+      setWatermarkPath(watermarkQuery.data[1])
     }
-  }, [pathsQuery.data])
-  
-
-  const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): { 
-    bottom: PicturePath, 
-    top?: PicturePath
-  } => {
-    if(offset) {
-      const pageMultiplier = Math.ceil(4 * 3 * columnMultiplier * 1.5)
-      bottomIndex.current = offset + ((offset + pageMultiplier) >= allItems.length ? allItems.length - offset - 1 : pageMultiplier)
-      topIndex.current = offset - ((offset - pageMultiplier) > 0 ? pageMultiplier : offset)
-      return {
-        bottom: allItems[offset + ((offset + pageMultiplier - (columnMultiplier * 2)) >= allItems.length ? 
-          allItems.length - offset - 1 : (pageMultiplier - (columnMultiplier * 2)))],
-        top: allItems[offset - ((offset - (pageMultiplier - (columnMultiplier * 2))) > 0 ? 
-          (pageMultiplier - (columnMultiplier * 2)) : offset)]
-      }
-    }
-    bottomIndex.current = allItems.length - 1
-    topIndex.current = allItems.length - Math.ceil(4 * 6 * columnMultiplier * 1.5)
-    return {
-      bottom: allItems[allItems.length - allItems.length % columnMultiplier - (columnMultiplier * 2)],
-      top: allItems?.[allItems.length - allItems.length % 4 - Math.ceil(4 * 6 * columnMultiplier * 1.5)]
-    }
-  }, [])
+  }, [watermarkQuery.data])
 
   useEffect(() => {
     setSet(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
   }, [data.setId])
 
-  const [currentControlDisplay, setCurrentControlDisplay] = useState<string>()
   
   const [emailInputVisible, setEmailInputVisible] = useState(data.token !== undefined)
 
@@ -126,13 +85,13 @@ function RouteComponent() {
   const coverPhotoRef = useRef<HTMLImageElement | null>(null)
   const collectionRef = useRef<HTMLDivElement | null>(null)
   const navigateControls = data.auth.admin
-  
 
+  const gridRef = useRef<HTMLDivElement | null>(null)
+  
   useEffect(() => {
     if(coverPhotoRef && coverPhotoRef.current) {
       coverPhotoRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-    
   }, [coverPhotoRef.current])
 
   useEffect(() => {
@@ -141,180 +100,7 @@ function RouteComponent() {
     }
   }, [tempUser])
 
-  const watermarkPath = useQuery(
-    getPathQueryOptions(set.watermarkPath ?? collection.watermarkPath, collection.id)
-  )
-
-  const formattedCollection: PicturePath[][] = []
-  for(let i = 0; i < columnMultiplier; i++){
-    formattedCollection.push([] as PicturePath[])
-  }
-
-  useEffect(() => {
-    if(pictures.length === 0) return
-
-    if(!bottomObserverRef.current) {
-      bottomObserverRef.current = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if(entry.isIntersecting &&
-            currentOffsetIndex.current &&
-            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) > pictures.length
-          ) {
-            currentOffsetIndex.current = undefined
-          }
-          else if(entry.isIntersecting &&
-            currentOffsetIndex.current &&
-            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) < pictures.length
-          ) {
-            const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-            currentOffsetIndex.current = foundIndex
-          }
-          if(entry.isIntersecting && 
-            pathsQuery.hasNextPage && 
-            !pathsQuery.isFetchingNextPage &&
-            !currentOffsetIndex.current
-          ) {
-            pathsQuery.fetchNextPage()
-          }
-        })
-      }, {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-      })
-    }
-    if(!topObserverRef.current) {
-      topObserverRef.current = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-          if(entry.isIntersecting && foundIndex !== 0) {
-            currentOffsetIndex.current = foundIndex
-          }
-        })
-      }, {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-      })
-    }
-    const triggerReturn = getTriggerItems(pictures, currentOffsetIndex.current)
-
-    const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
-    const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
-    if(Tel && topObserverRef.current && triggerReturn.top?.id) {
-      Tel.setAttribute('data-id', triggerReturn.top.id)
-      topObserverRef.current.observe(Tel)
-    }
-    if(Bel && bottomObserverRef.current) {
-      Bel.setAttribute('data-id', triggerReturn.bottom.id)
-      bottomObserverRef.current.observe(Bel)
-    }
-
-    return () => {
-      if(bottomObserverRef.current) {
-        bottomObserverRef.current.disconnect()
-      }
-      if(topObserverRef.current) {
-        topObserverRef.current.disconnect()
-      }
-      topObserverRef.current = null
-      bottomObserverRef.current = null
-    }
-  }, [
-    pictures,
-    currentOffsetIndex.current,
-    pathsQuery.fetchNextPage,
-    pathsQuery.hasNextPage,
-    pathsQuery.isFetchingNextPage,
-    getTriggerItems,
-  ])
-
-  const setItemRef = useCallback((el: HTMLDivElement | null, id: string) => {
-    if(el) {
-      picturesRef.current.set(id, el)
-    }
-  }, [])
-
-  const paths: Record<string, UseQueryResult<[string | undefined, string] | undefined, Error>> = Object.fromEntries(
-    useQueries({
-      queries: pictures
-      .slice(
-        topIndex.current > 0 ? topIndex.current : 0, 
-        (bottomIndex.current + 1) > pictures.length ? undefined : bottomIndex.current + 1)
-      .map((path) => (
-        getPathQueryOptions(path.path, path.id)
-      ))
-    })
-    .map((query, index) => {
-      return [
-        pictures[index + (topIndex.current > 0 ? topIndex.current : 0)].id, 
-        query
-      ]
-    })
-  )
-
-  let curIndex = 0
-  
-  pictures.forEach((picture) => {
-      formattedCollection[curIndex].push(picture)
-      if(curIndex + 2 > columnMultiplier){
-        curIndex = 0
-      }
-      else{
-        curIndex = curIndex + 1
-      }
-    })
-
-  const gridClass = `grid grid-cols-${String(columnMultiplier)} gap-4 mx-4 mt-1`
-
-  function controlsEnabled(id: string){
-    if(id === currentControlDisplay) return 'flex'
-    return 'hidden'
-  }
-
   const currentIndex = collection.sets.findIndex((colSet) => colSet.id === set.id)
-
-  const favorite = useMutation({
-    mutationFn: (params: FavoriteImageMutationParams) => favoriteImageMutation(params),
-    onSettled: (favorite) => {
-      if(favorite) {
-        setSet({
-          ...set,
-          paths: set.paths.map((path) => {
-            if(path.id === favorite[1]){
-              return ({
-                ...path,
-                favorite: favorite[0]
-              })
-            }
-            return path
-          })
-        })
-      }
-    }
-  })
-
-  const unfavorite = useMutation({
-    mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params)
-  })
-
-  const downloadImage = useMutation({
-    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
-    onSettled: (file) => {
-      if(file){
-        try{
-          const url = window.URL.createObjectURL(file)
-          const link = document.createElement('a')
-          link.href = url
-          link.download = file.name
-          link.click()
-          window.URL.revokeObjectURL(url)
-        }catch(error){
-          console.error(error)
-        }
-      }
-    }
-  })
 
   return (
     <>
@@ -371,11 +157,8 @@ function RouteComponent() {
           {dimensions.width > 800 && (
             <div className='flex flex-col items-start font-bodoni'>
               <span className='font-bold text-lg whitespace-nowrap'>James French Photograpahy</span>
-              <span className='italic flex flex-row gap-1 whitespace-nowrap overflow-x-hidden '>
-                <span className=''>{collection.name}</span>
-                <span className='font-light'>&bull;</span>
-                <span className=''>{set.name}</span>
-              </span>
+              <span className='italic text-sm'>{collection.name}</span>
+              <span className='text-sm'>{set.name}</span>
             </div>
           )}
           <div 
@@ -387,6 +170,10 @@ function RouteComponent() {
               onClick={() => {
                 const nextIndex = currentIndex - 1 < 0 ? collection.sets.length - 1 : currentIndex - 1
                 const set = collection.sets[nextIndex]
+                const refObject = gridRef.current
+                if(refObject) {
+                  refObject.scrollIntoView({ block: 'start', behavior: 'smooth' })
+                }
 
                 navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
 
@@ -398,12 +185,9 @@ function RouteComponent() {
             <SetCarousel 
               setList={collection.sets}
               setSelectedSet={(set) => {
-                const refObject = coverPhotoRef.current
-                const secondRef = collectionRef.current
-                
-                if(refObject && secondRef) {
-                  refObject.scrollIntoView()
-                  secondRef.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                const refObject = gridRef.current
+                if(refObject) {
+                  refObject.scrollIntoView({ block: 'start', behavior: 'smooth' })
                 }
                 navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
 
@@ -416,6 +200,10 @@ function RouteComponent() {
               onClick={() => {
                 const nextIndex = currentIndex + 1 >= collection.sets.length ? 0 : currentIndex + 1
                 const set = collection.sets[nextIndex]
+                const refObject = gridRef.current
+                if(refObject) {
+                  refObject.scrollIntoView({ block: 'start', behavior: 'smooth' })
+                }
 
                 navigate({ to: '.', search: { set: set.id, temporaryToken: data.token }})
 
@@ -426,117 +214,19 @@ function RouteComponent() {
             </button>
           </div>
         </div>
-        <div className={gridClass} >
-          {formattedCollection  && formattedCollection.length > 0 && formattedCollection
-            .map((subCollection, index) => {
-              return (
-                <div key={index} className="flex flex-col gap-4">
-                  {subCollection.map((picture, s_index) => {
-                    const url = paths[picture.id]
-                    
-                    return (
-                      <div 
-                        key={s_index} 
-                        ref={el => setItemRef(el, picture.id)}
-                        className="relative" 
-                        onContextMenu={(e) => {
-                          if(!collection.downloadable) e.preventDefault()
-                        }}
-                        onMouseEnter={() => setCurrentControlDisplay(picture.id)}
-                        onMouseLeave={() => setCurrentControlDisplay(undefined)}
-                        onClick={() => setCurrentControlDisplay(picture.id)}
-                      >
-                        <LazyImage 
-                          className={`h-auto max-w-full rounded-lg border-2 ${currentControlDisplay === picture.id ? 'border-gray-300' : 'border-transparent'}`}
-                          src={url}
-                          watermarkPath={watermarkPath}
-                        />
-                        <div className={`absolute bottom-2 inset-x-0 justify-end flex-row gap-1 me-3 ${controlsEnabled(picture.id)}`}>
-                          <button
-                            title={`${picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`}
-                            onClick={() => {
-                              if(!picture.favorite && data.auth.user?.profile.email || tempUser?.email){
-                                favorite.mutate({
-                                  pathId: picture.id,
-                                  collectionId: collection.id,
-                                  participantId: data.auth.user?.profile.email ?? tempUser!.email,
-                                  options: {
-                                    logging: true
-                                  }
-                                })
-                                setSet({
-                                  ...set,
-                                  paths: set.paths.map((path) => {
-                                    if(path.id === picture.id){
-                                      return ({
-                                        ...path,
-                                        favorite: 'temp'
-                                      })
-                                    }
-                                    return path
-                                  })
-                                })
-                              }
-                              else if(picture.favorite && picture.favorite !== 'temp'){
-                                unfavorite.mutate({
-                                  id: picture.favorite,
-                                })
-                                setSet({
-                                  ...set,
-                                  paths: set.paths.map((path) => {
-                                    if(path.id === picture.id){
-                                      return ({
-                                        ...path,
-                                        favorite: undefined
-                                      })
-                                    }
-                                    return path
-                                  })
-                                })
-                              }
-                            }}
-                          >
-                            <HiOutlineHeart size={24} className={`${picture.favorite !== undefined ? 'fill-red-400' : ''} text-white`}/>
-                          </button>
-                          {collection.downloadable && (
-                            <button 
-                              title='Download' 
-                              className={`${downloadImage.isPending ? 'cursor-wait' : ''}`} 
-                              onClick={() => {
-                                if(!downloadImage.isPending){
-                                  downloadImage.mutate({
-                                    path: picture.path
-                                  })
-                                }
-                              }}
-                            >
-                              <HiOutlineDownload size={24} className='text-white'/>
-                            </button>
-                          )}
-                          <button
-                            title='Preview Fullscreen'
-                            onClick={() => {
-                              navigate({
-                                to: `/photo-fullscreen`,
-                                search: {
-                                  set: set.id,
-                                  path: picture.id,
-                                  temporaryToken: data.token
-                                }
-                              })
-                            }}
-                          >
-                            <CgArrowsExpandRight size={24} className='text-white' />
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })
-          }
-        </div>
+        <CollectionGrid 
+          set={set}
+          collection={collection}
+          tempUser={tempUser}
+          data={{
+            auth: data.auth,
+            token: data.token
+          }}
+          watermarkPath={watermarkPath}
+          watermarkQuery={watermarkQuery}
+          gridRef={gridRef}
+          parentUpdateSet={setSet}
+        /> 
         <div className="w-full flex flex-row items-center justify-center">
           <Button
             color='light'

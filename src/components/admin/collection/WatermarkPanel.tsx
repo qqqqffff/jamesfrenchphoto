@@ -49,7 +49,8 @@ export const WatermarkPanel = (props: WatermarkPanelProps) => {
             <LazyImage 
               overrideSrc={tempImage}
               className="rounded-lg border-2 max-w-full"
-              watermarkPath={props.watermarkPaths.find((path) => path.data?.[0] === props.selectedWatermark?.id)}
+              watermarkPath={props.selectedWatermark?.url}
+              watermarkQuery={props.watermarkPaths.find((path) => path.data?.[0] === props.selectedWatermark?.id)}
             />
           </div>
         </div>
