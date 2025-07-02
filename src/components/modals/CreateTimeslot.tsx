@@ -1,9 +1,9 @@
 import { FC, FormEvent, useEffect, useState } from "react";
 import { ModalProps } from ".";
-import { Button, Dropdown, Label, Modal, RangeSlider } from "flowbite-react";
+import { Button, Dropdown, Label, Modal, RangeSlider, TextInput } from "flowbite-react";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../../amplify/data/resource";
-import { DAY_OFFSET, getTimes } from "../../utils";
+import { DAY_OFFSET, getTimes, textInputTheme } from "../../utils";
 import { Timeslot } from "../../types";
 
 const client = generateClient<Schema>()
@@ -22,7 +22,9 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
     const [timeslots, setTimeslots] = useState<Timeslot[]>([])
     const [submitting, setSubmitting] = useState(false)
     const [apiCall, setApiCall] = useState(false)
+    const [description, setDescription] = useState<string>('')
 
+    //TODO: move me to service
     useEffect(() => {
         async function api(){
             const activeTimeslots = (await client.models.Timeslot.list({ filter: {
@@ -80,6 +82,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
 
     const times = getTimes(day)
 
+    //TODO: also move me to a service
     async function createTimeslot(event: FormEvent){
         event.preventDefault()
 
@@ -88,6 +91,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                 const response = await client.models.Timeslot.create({
                     start: timeslot.start.toISOString(),
                     end: timeslot.end.toISOString(),
+                    description: description
                 })
                 return response
             }))
@@ -114,6 +118,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                     const response = await client.models.Timeslot.create({
                         start: timeslot.start.toISOString(),
                         end: timeslot.end.toISOString(),
+                        description: description
                     })
                     return response
                 })
@@ -159,14 +164,30 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
             <Modal.Body>
                 <form onSubmit={createTimeslot}>
                     <div className="flex flex-col">
-                        <span className="self-center text-lg max-h-">Date:</span>
+                        <TextInput
+                            theme={textInputTheme} 
+                            placeholder="Timeslot Descripition..."
+                            className="max-w-[400px] min-w-[400px] placeholder:italic self-center mb-4"
+                            sizing="md" 
+                            onChange={(event) => {
+                                setDescription(event.target.value)
+                            }}
+                            value={description}
+                            name="Timeslot Description"
+                        />
+                        
+                        
                         {/* TODO: scrollable date arrows */}
-                        <span className="self-center text-2xl mb-4 underline underline-offset-4">{day.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}</span>
-                        <div className="grid grid-cols-2 gap-2 mb-6">
+                        
+                        <div className="grid grid-cols-3 gap-2 mb-4">
+                            <div className="flex flex-col text-start ">
+                                <span className="text-lg ms-2">Date:</span>
+                                <span className="text-2xl mb-4 underline underline-offset-4">{day.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}</span>
+                            </div>
                             <div className="flex flex-col items-center">
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-1">
                                     <Label className="ms-2 font-medium text-lg" htmlFor="name">Start:</Label>
-                                    <Dropdown placement="bottom-end" label={typeof startTime === 'string' ? startTime : startTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} color="light" id="name" name="name" className="overflow-auto max-h-[250px]">
+                                    <Dropdown size='sm' placement="bottom-start" label={typeof startTime === 'string' ? startTime : startTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} color="light" id="name" name="name" className="overflow-auto max-h-[250px]">
                                         {times.map((time, index) => { 
                                                 return (
                                                     <Dropdown.Item 
@@ -208,10 +229,10 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                                     </Dropdown>
                                 </div>
                             </div>
-                            <div className="flex flex-col items-center">
-                                <div className="flex flex-col gap-2">
+                            {/* <div className="flex flex-col items-center"> */}
+                                <div className="flex flex-col gap-1">
                                     <Label className="ms-2 font-medium text-lg" htmlFor="name">End:</Label>
-                                    <Dropdown placement="bottom-end" label={typeof endTime === 'string' ? endTime : endTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} color="light" id="name" name="name" disabled={typeof startTime == 'string'} className="overflow-auto max-h-[250px]">
+                                    <Dropdown size='sm' placement="bottom-end" label={typeof endTime === 'string' ? endTime : endTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} color="light" id="name" name="name" disabled={typeof startTime == 'string'} className="overflow-auto max-h-[250px]">
                                         {times.map((time, index) => { 
                                                 return (
                                                     <Dropdown.Item key={index} className='disabled:text-gray-400 disabled:cursor-not-allowed' 
@@ -249,7 +270,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                                             })}
                                     </Dropdown>
                                 </div>
-                            </div>
+                            {/* </div> */}
                         </div>
                     </div>
                     {
@@ -284,32 +305,31 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = ({open, onClose
                             </div>
                         )
                     }
-                    
-                   
-                    
-                        {timeslots.length > 0 ? (
-                            <div className="w-full flex flex-col justify-center items-center mt-4 gap-3">
-                                <span className="underline underline-offset-2">Timeslots for selected range:</span>
-                                <div className="grid grid-cols-4 w-full gap-2 max-h-[200px] overflow-auto border-2 border-gray-500 rounded-lg p-2">
-                                    {timeslots.map((timeslot, index) => {
-                                        const selected = activeTimeslots.find((ts) => ts.start.getTime() == timeslot.start.getTime() && ts.end.getTime() == timeslot.end.getTime()) !== undefined
-                                        return (
-                                            <button key={index} type="button" className={`flex flex-row border-[1.5px] py-1.5 rounded-lg border-black items-center justify-center hover:bg-gray-300 ${selected ? 'bg-gray-200' : ''}`}
-                                                onClick={() => {
-                                                    if(selected){
-                                                        setActiveTimeslots(activeTimeslots.filter((ts) => ts !== timeslot))
-                                                    }
-                                                    else {
-                                                        setActiveTimeslots([...activeTimeslots, timeslot])
-                                                    }
-                                                }}>{timeslot.start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</button>
-                                        )})}
-                                </div>
-                                <div className="flex flex-row w-full justify-end">
-                                    <Button color="light" className="border-gray-700 me-4"  type="button" onClick={() => setActiveTimeslots(timeslots)}>Select All</Button>
-                                </div>
+                    {timeslots.length > 0 ? (
+                        <div className="w-full flex flex-col justify-center items-center mt-4 gap-3">
+                            <span className="underline underline-offset-2">Timeslots for selected range:</span>
+                            <div className="grid grid-cols-4 w-full gap-2 max-h-[200px] overflow-auto border-2 border-gray-500 rounded-lg p-2">
+                                {timeslots.map((timeslot, index) => {
+                                    const selected = activeTimeslots.find((ts) => ts.start.getTime() == timeslot.start.getTime() && ts.end.getTime() == timeslot.end.getTime()) !== undefined
+                                    return (
+                                        <button key={index} type="button" className={`flex flex-row border-[1.5px] py-1.5 rounded-lg border-black items-center justify-center hover:bg-gray-300 ${selected ? 'bg-gray-200' : ''}`}
+                                            onClick={() => {
+                                                if(selected){
+                                                    setActiveTimeslots(activeTimeslots.filter((ts) => ts !== timeslot))
+                                                }
+                                                else {
+                                                    setActiveTimeslots([...activeTimeslots, timeslot])
+                                                }
+                                            }}>{timeslot.start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</button>
+                                    )})}
                             </div>
-                        ) : (<span>No timeslots for the selected range</span>)}
+                            <div className="flex flex-row w-full justify-end">
+                                <Button color="light" className="border-gray-700 me-4"  type="button" onClick={() => setActiveTimeslots(timeslots)}>Select All</Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <span>No timeslots for the selected range</span>
+                    )}
                     
                     <div className="flex flex-row justify-end border-t mt-4">
                         <Button className="text-xl w-[40%] max-w-[8rem] mt-4" type="submit" isProcessing={submitting} onClick={() => setSubmitting(true)}>Create</Button>

@@ -46,8 +46,6 @@ function RouteComponent() {
     }
   }, [timeslotQuery.data])
 
-  
-
   return (
     <>
       <CreateTimeslotModal 
@@ -67,8 +65,8 @@ function RouteComponent() {
         }} 
         timeslot={editTimeslotVisible} 
       />
-      <div className="grid grid-cols-6 gap-4 font-main mt-6">
-        <div className="flex flex-col ms-4 border border-gray-400 rounded-lg px-6 py-2 gap-2">
+      <div className="flex flex-row gap-4 font-main my-2 h-[98vh]">
+        <div className="flex flex-col ms-4 border border-gray-400 rounded-lg px-6 py-2 gap-2 min-w-[275px] h-full">
           <div className="flex flex-row gap-1 w-full justify-between">
             <span className="text-2xl underline underline-offset-4 mb-2">Timeslot Date</span>
           </div>
@@ -109,7 +107,7 @@ function RouteComponent() {
             disabled={activeDate.getTime() < currentDate.getTime()}
           />
         </div>
-        <div className="col-span-4 border border-gray-400 rounded-lg py-4 px-2 h-[500px] overflow-auto">
+        <div className="border border-gray-400 rounded-lg py-4 px-2 h-full overflow-auto w-full">
           <div className="grid gap-2 grid-cols-3">
             {timeslots.length > 0 ?
               (timeslots.map((timeslot, index) => {

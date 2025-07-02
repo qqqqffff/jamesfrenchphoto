@@ -255,8 +255,6 @@ export const CollectionGrid = (props: CollectionGridProps) => {
     }
   }, [])
 
-  
-
   useQuery(getPathQueryOptions())
   
   const gridClass = `grid grid-cols-${String(columnMultiplier)} gap-4 mx-4 mt-1`

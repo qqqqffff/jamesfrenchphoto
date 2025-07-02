@@ -426,18 +426,18 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                         onMouseEnter={() => setExpandTitle(true)}
                         onMouseLeave={() => setExpandTitle(false)}
                         className={`
-                          max-w-[190px] hover:cursor-pointer
+                          max-w-[220px] hover:cursor-pointer
                           ${expandTitle ? '' : 'truncate'}
                           ${collection.published ? 'text-green-400' : 'text-gray-600 italic'}
                         `}
                       >{collection.name}</p>
                     </Tooltip>
-                    <p>&bull;</p>
-                    <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
                   </div>
                   <span className="font-thin text-sm italic flex flex-row gap-1 -z-20">
                     <span className="font-normal italic">Items:</span> 
                     <span>{collection.items}</span>
+                    <p>&bull;</p>
+                    <p>{new Date(collection.createdAt).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}</p>
                   </span>
                 </div>
                 <div className="mt-1">
