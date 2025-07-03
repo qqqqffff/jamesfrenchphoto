@@ -80,6 +80,7 @@ function RouteComponent() {
 
   
   const [emailInputVisible, setEmailInputVisible] = useState(data.token !== undefined)
+  const [resetGridIndex, setResetGridIndex] = useState(false)
 
   const navigate = Route.useNavigate()
   const coverPhotoRef = useRef<HTMLImageElement | null>(null)
@@ -226,14 +227,17 @@ function RouteComponent() {
           watermarkQuery={watermarkQuery}
           gridRef={gridRef}
           parentUpdateSet={setSet}
+          resetOffsets={resetGridIndex}
+          completeOffsetReset={setResetGridIndex}
         /> 
         <div className="w-full flex flex-row items-center justify-center">
           <Button
             color='light'
             className="m-4 self-center"
             onClick={() => {
-              if(coverPhotoRef && coverPhotoRef.current){
-                coverPhotoRef.current.scrollIntoView({
+              if(gridRef && gridRef.current){
+                setResetGridIndex(true)
+                gridRef.current.scrollIntoView({
                   behavior: 'smooth',
                   block: 'start'
                 })
