@@ -540,7 +540,6 @@ export const CollectionGrid = (props: CollectionGridProps) => {
                         <div
                           className="fixed inset-0 z-50 flex items-center justify-center bg-black transition-all duration-300 ease-in-out"
                           style={{ backgroundColor: closing ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.8)' }}
-                          onClick={() => handleClose(picture.id)}
                         >
                           <div
                             ref={expandedRef}
@@ -550,7 +549,10 @@ export const CollectionGrid = (props: CollectionGridProps) => {
                               willChange: 'transform, opacity'
                             }}
                           >
-                            <button className="absolute opacity-60 hover:cursor-pointer hover:opacity-85 pointer-events-auto">
+                            <button 
+                              className="absolute opacity-60 hover:cursor-pointer hover:opacity-85 pointer-events-auto"
+                              onClick={() => handleClose(picture.id)}
+                            >
                               <HiOutlineXCircle size={48} className="fill-white"/>
                             </button>
                             <img 
