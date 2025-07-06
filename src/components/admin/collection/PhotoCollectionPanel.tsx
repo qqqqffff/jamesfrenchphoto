@@ -309,10 +309,10 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
               )}
               {publishable.reason?.map((reason, index) => {
                 return (
-                  <>
-                    <PublishableItems key={index} item="error" message={reason} />
+                  <div key={index}>
+                    <PublishableItems  item="error" message={reason} />
                     <div className="border-t w-full"/>
-                  </>
+                  </div>
                 )
               })}
               {publishable.warning !== undefined && (
@@ -322,10 +322,10 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
               )}
               {publishable.warning?.map((warning, index) => {
                 return (
-                  <>
-                    <PublishableItems key={index} item="warning" message={warning} />
+                  <div key={index}>
+                    <PublishableItems  item="warning" message={warning} />
                     <div className="border-t w-full"/>
-                  </>
+                  </div>
                 )
               })}
             </div>
