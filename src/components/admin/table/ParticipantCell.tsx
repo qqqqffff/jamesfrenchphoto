@@ -153,9 +153,7 @@ export const ParticipantCell = (props: ParticipantCellProps) => {
                       setIsFocused(false)
                     }}
                   >
-                    {item[1].preferredName !== undefined && item[1].preferredName !== '' ? item[1].preferredName : item[1].firstName}
-                    {', '} 
-                    {item[1].lastName}
+                    {formatParticipantName(item[1])}
                   </li>
                 </Tooltip>
               )

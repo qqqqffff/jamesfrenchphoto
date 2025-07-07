@@ -3,14 +3,14 @@ import { getAllTimeslotsByDateQueryOptions } from '../../../services/timeslotSer
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { currentDate, DAY_OFFSET } from '../../../utils'
-import { Timeslot, UserTag } from '../../../types'
+import { Participant, Timeslot, UserTag } from '../../../types'
 import { Label, Progress } from 'flowbite-react'
 import { ControlComponent } from '../../../components/admin/ControlPanel'
 import { HiOutlinePencil, HiOutlinePlusCircle } from 'react-icons/hi2'
 import { SlotComponent } from '../../../components/timeslot/Slot'
 import { CreateTimeslotModal, EditTimeslotModal } from '../../../components/modals'
 import { CustomDatePicker } from '../../../components/common/CustomDatePicker'
-import { getAllUserTagsQueryOptions } from '../../../services/userService'
+import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
 import { TagNavigator } from '../../../components/timeslot/TagNavigator'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
@@ -23,7 +23,9 @@ function RouteComponent() {
   const [activeTag, setActiveTag] = useState<UserTag>()
   const [timeslots, setTimeslots] = useState<Timeslot[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
+  const [participants, setParticipants] = useState<Participant[]>([])
   const timeslotQuery = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
+
   const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
     siCollections: false,
     siNotifications: false,
@@ -32,8 +34,20 @@ function RouteComponent() {
     siTimeslots: true
   }))
 
+  const participantQuery = useQuery(getAllParticipantsQueryOptions({
+    siCollections: false,
+    siNotifications: false,
+    siTags: {
+      siChildren: false,
+      siCollections: false,
+      siPackages: false,
+      siTimeslots: true
+    },
+    siTimeslot: true,
+  }))
+
   const [createTimeslotVisible, setCreateTimeslotVisible] = useState(false)
-  const [editTimeslotVisible, setEditTimeslotVisible] = useState<Timeslot>()
+  const [editTimeslotVisible, setEditTimeslotVisible] = useState<Timeslot | undefined>()
 
   useEffect(() => {
     if(timeslotQuery.data) {
@@ -51,6 +65,15 @@ function RouteComponent() {
     tagsQuery.data
   ])
 
+  useEffect(() => {
+    if(participantQuery.data) {
+      setParticipants(participantQuery.data)
+    }
+  }, [
+    participantQuery.data
+  ])
+
+
   return (
     <>
       <CreateTimeslotModal 
@@ -66,14 +89,23 @@ function RouteComponent() {
         parentUpdateTags={setTags}
         tags={tags}
       />
-      <EditTimeslotModal 
-        open={editTimeslotVisible !== undefined} 
-        onClose={() => {
-          setActiveDate(new Date(activeDate))
-          setEditTimeslotVisible(undefined)
-        }} 
-        timeslot={editTimeslotVisible} 
-      />
+      {editTimeslotVisible && (
+        <EditTimeslotModal 
+          open={editTimeslotVisible !== undefined} 
+          onClose={() => {
+            setEditTimeslotVisible(undefined)
+          }} 
+          timeslot={editTimeslotVisible} 
+          timeslotQuery={timeslotQuery}
+          existingTimeslots={timeslots}
+          tags={tags}
+          participantQuery={participantQuery}
+          participants={participants}
+          parentUpdateTags={setTags}
+          parentUpdateTimeslots={setTimeslots}
+          parentUpdateParticipants={setParticipants}
+        />
+      )}
       <div className="flex flex-row gap-4 font-main my-2 h-[98vh]">
         <div className="flex flex-col ms-4 border border-gray-400 rounded-lg px-6 py-2 gap-2 min-w-[275px] h-full">
           <div className="flex flex-row gap-1 w-full justify-between">
@@ -124,10 +156,16 @@ function RouteComponent() {
                   <button 
                     key={index}
                     onClick={() => {
-                        setEditTimeslotVisible(timeslot)
+                      setEditTimeslotVisible(timeslot)
                     }}>
                       {/* TODO: resolve participants for timeslots */}
-                    <SlotComponent className="hover:bg-gray-200" timeslot={timeslot} participant={null} tag={timeslot.tag} key={index} />
+                    <SlotComponent 
+                      className="hover:bg-gray-200" 
+                      timeslot={timeslot} 
+                      participant={participants.find((participant) => participant.id === timeslot.participantId)} 
+                      tag={timeslot.tag} 
+                      key={index} 
+                    />
                   </button>
                 )
               })
