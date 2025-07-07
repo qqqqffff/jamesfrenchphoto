@@ -17,7 +17,6 @@ export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
   component: RouteComponent,
 })
 
-//TODO: refetch on update
 function RouteComponent() {
   const [activeDate, setActiveDate] = useState<Date>(new Date(currentDate.getTime() + DAY_OFFSET))
   const [activeTag, setActiveTag] = useState<UserTag>()
@@ -158,7 +157,6 @@ function RouteComponent() {
                     onClick={() => {
                       setEditTimeslotVisible(timeslot)
                     }}>
-                      {/* TODO: resolve participants for timeslots */}
                     <SlotComponent 
                       className="hover:bg-gray-200" 
                       timeslot={timeslot} 

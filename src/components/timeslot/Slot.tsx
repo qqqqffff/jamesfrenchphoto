@@ -63,27 +63,25 @@ return (
 }
 
 export const SlotComponent: FC<SlotProps> = ({ timeslot, participant, tag, className }) => {
+  console.log(tag?.color)
   return (
-    <div className={`flex flex-col relative border border-black justify-center items-center rounded-lg py-2 px-4 text-${tag?.color ?? 'black'} ${className ?? ''}`}>
-      <span>{formatTime(timeslot.start, { timeString: false })}</span>
+    <div className={`font-sans flex flex-col relative border border-black justify-center items-center rounded-lg py-2 px-4 text-${tag?.color ?? 'black'} ${className ?? ''}`}>
+      <div className="flex flex-row gap-1">
+        <span>{formatTime(timeslot.start, { timeString: false })}</span>
+        <span>&bull;</span>
+        <span className="font-light">{timeslot.description}</span>
+      </div>
       <span>{createTimeString(timeslot)}</span>
-      {participant ? (
-        <span className="flex flex-row gap-2">
-          {`${participant.preferredName ? participant.preferredName : participant.firstName} ${participant.lastName}`}
-          {createTimeslotEvent(timeslot, participant)}
-        </span>
-      ) : (
-        <span className="italic font-light">No Register</span>
-      )}
-    </div>
-  )
-}
-
-export const CompactSlotComponent: FC<SlotProps> = ({ timeslot }) => {
-  return (
-    <div className="flex flex-row border border-black items-center rounded-lg py-2 text-sm justify-between px-4 italic text-gray-800">
-      <span>{formatTime(timeslot.start, {timeString: false})}</span>
-      <span className="text-xs">{createTimeString(timeslot)}</span>
+      {participant !== null && (
+        participant ? (
+          <span className="flex flex-row gap-2">
+            {`${participant.preferredName ? participant.preferredName : participant.firstName} ${participant.lastName}`}
+            {createTimeslotEvent(timeslot, participant)}
+          </span>
+        ) : (
+          <span className="italic font-light">No Register</span>
+        ))
+      }
     </div>
   )
 }
