@@ -63,7 +63,6 @@ return (
 }
 
 export const SlotComponent: FC<SlotProps> = ({ timeslot, participant, tag, className }) => {
-  console.log(tag?.color)
   return (
     <div className={`font-sans flex flex-col relative border border-black justify-center items-center rounded-lg py-2 px-4 text-${tag?.color ?? 'black'} ${className ?? ''}`}>
       <div className="flex flex-row gap-1">
