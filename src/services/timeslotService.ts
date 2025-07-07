@@ -82,6 +82,7 @@ async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date){
             id: timeslot.id as string,
             register: timeslot.register ?? undefined,
             participantId: timeslot.participantId ?? undefined,
+            description: timeslot.description ?? undefined,
             start: new Date(timeslot.start),
             end: new Date(timeslot.end),
             tag: tag,
@@ -181,12 +182,19 @@ export interface CreateTimeslotsMutationParams {
 }
 export async function createTimeslotsMutation(params: CreateTimeslotsMutationParams) {
     const response = await Promise.all(params.timeslots.map((timeslot) => {
-        return client.models.Timeslot.create({
-            id: timeslot.id,
-            start: timeslot.start.toISOString(),
-            end: timeslot.end.toISOString(),
-            description: timeslot.description
-        })
+
+        return [
+            client.models.Timeslot.create({
+                id: timeslot.id,
+                start: timeslot.start.toISOString(),
+                end: timeslot.end.toISOString(),
+                description: timeslot.description
+            }),
+            timeslot.tag ? client.models.TimeslotTag.create({
+                timeslotId: timeslot.id,
+                tagId: timeslot.tag.id
+            }) : undefined
+        ]
     }))
 
     if(params.options?.logging) console.log(response)

@@ -36,15 +36,11 @@ function RouteComponent() {
 
   useEffect(() => {
     if(timeslotQuery.data) {
-      const tempTimeslots = [...timeslots]
-      for(let i = 0; i < timeslotQuery.data.length; i++) {
-        if(!tempTimeslots.some((timeslot) => timeslot.id === timeslotQuery.data[i].id)) {
-          tempTimeslots.push(timeslotQuery.data[i])
-        }
-      }
-      setTimeslots(tempTimeslots)
+      setTimeslots(timeslotQuery.data)
     }
-  }, [timeslotQuery.data])
+  }, [
+    timeslotQuery.data
+  ])
 
   return (
     <>
@@ -55,7 +51,10 @@ function RouteComponent() {
           setCreateTimeslotVisible(false)
         }} 
         day={activeDate} 
-        update={timeslots.length > 0} 
+        timeslots={timeslots}
+        timeslotQuery={timeslotQuery}
+        parentUpdateTimeslots={setTimeslots}
+        tags={tagsQuery.data ?? []}
       />
       <EditTimeslotModal 
         open={editTimeslotVisible !== undefined} 
