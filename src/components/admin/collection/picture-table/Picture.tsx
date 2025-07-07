@@ -67,7 +67,8 @@ interface PictureProps {
   setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
   participantId?: string,
   reorderPaths: UseMutationResult<void, Error, ReorderPathsParams, unknown>,
-  watermark?: UseQueryResult<[string | undefined, string] | undefined, Error>,
+  watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined, Error>,
+  watermarkPath?: string
   parentIsDragging?: PicturePath,
   parentUpdateIsDragging: Dispatch<SetStateAction<PicturePath | undefined>>
 }
@@ -87,6 +88,7 @@ export const Picture = (props: PictureProps) => {
     startWidth: 0,
     startHeight: 0
   })
+  const [expandedDimensions, setExpandedDimensions] = useState<number>()
 
   const handleExpand = () => {
     if (outerRef.current) {
@@ -257,13 +259,14 @@ export const Picture = (props: PictureProps) => {
 
   useEffect(() => {
     if(
-      props.watermark && 
+      props.watermarkPath && 
+      props.watermarkQuery &&
       (
         !expandedWatermarkRef.current?.complete || 
         expandedWatermarkRef.current.naturalWidth < 0
       )
      ) {
-      props.watermark.refetch()
+      props.watermarkQuery.refetch()
     }
   }, [expandedWatermarkRef.current])
 
@@ -309,16 +312,6 @@ export const Picture = (props: PictureProps) => {
       }
     }
   })
-
-  const numbs = []
-  if(expandedImageRef.current) {
-    numbs.push(expandedImageRef.current.clientWidth)
-    numbs.push(expandedImageRef.current.clientHeight)
-  }
-  else {
-    numbs.push(85)
-  }
-  const watersize = Math.min(...numbs) * ( 3/4 )
 
   return (
     <>
@@ -415,7 +408,7 @@ export const Picture = (props: PictureProps) => {
           >
             <div
               ref={expandedRef}
-              className="relative max-h-screen transition-all duration-300 ease-in-out"
+              className="relative w-screen h-screen transition-all duration-300 ease-in-out"
               style={{
                 transformOrigin: 'center',
                 willChange: 'transform, opacity'
@@ -428,22 +421,27 @@ export const Picture = (props: PictureProps) => {
                 ref={expandedImageRef}
                 src={props.url?.data?.[1]}
                 className="w-full max-h-screen object-contain rounded shadow-xl"
+                onLoad={(load) => {
+                  const naturalRatio = load.currentTarget.naturalWidth / load.currentTarget.naturalHeight
+                  
+                  setExpandedDimensions(naturalRatio * load.currentTarget.clientHeight)
+                }}
               />
-              {props.watermark && props.watermark.isLoading ? (
+              {props.watermarkQuery && props.watermarkQuery.isLoading ? (
                 <CgSpinner 
-                  className='absolute text-white opacity-80 animate-spin z-10' 
-                  size={watersize} 
-                  style={{
-                    top: `calc(50% - ${watersize/2}px)`,
-                    left: `calc(50% - ${watersize/2}px)`
-                  }}
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 inset-0 opacity-80 w-screen h-screen"
+                  style={expandedDimensions ? { 
+                    maxWidth: `${expandedDimensions}px`
+                   } : { }}
                 />
-              ) : props.watermark?.data?.[1] && (
+              ) : props.watermarkPath && (
                 <img 
                   ref={expandedWatermarkRef}
-                  src={props.watermark.data[1]}
-                  style={{ maxWidth: `${(expandedImageRef.current?.clientHeight ?? 0)}px` }}
-                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-contain opacity-80 pointer-events-none"
+                  src={props.watermarkPath}
+                  style={expandedDimensions ? { 
+                    maxWidth: `${expandedDimensions}px`
+                   } : { }}
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 inset-0 opacity-80 w-screen h-screen"
                 />
               )}
             </div>

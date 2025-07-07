@@ -51,11 +51,16 @@ export const PictureList = (props: PictureListProps) => {
   const bottomIndex = useRef<number>(props.paths.length - 1)
   const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const [isDragging, setIsDragging] = useState<PicturePath>()
+  const [watermarkPath, setWatermarkPath] = useState<string>()
   const listRef = useRef<HTMLDivElement | null>(null)
 
   const reorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
   })
+
+  const watermarkQuery = useQuery(
+    getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
+  )
 
   const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): {
     bottom: PicturePath, 
@@ -321,6 +326,12 @@ export const PictureList = (props: PictureListProps) => {
     props.repairItemCounts.isPending,
   ])
 
+  useEffect(() => {
+    if(watermarkQuery.data) {
+      setWatermarkPath(watermarkQuery.data[1])
+    }
+  }, [watermarkQuery.data])
+
   const setItemRef = useCallback((el: HTMLDivElement | null, id: string) => {
     if(el) {
       picturesRef.current.set(id, el)
@@ -328,25 +339,23 @@ export const PictureList = (props: PictureListProps) => {
   }, [])
 
   const urls: Record<string, UseQueryResult<[string | undefined, string], Error>> = 
-    Object.fromEntries(
-      useQueries({
-        queries: pictures
-          .slice(topIndex.current > 0 ? topIndex.current : 0, bottomIndex.current + 1)
-          .map((path) => {
-            return getPathQueryOptions(path.path, path.id)
-          })
-      })
-      .map((query, index) => {
-        return [
-          pictures[index + (topIndex.current > 0 ? topIndex.current : 0)].id,
-          query
-        ]
-      })
-    )
-
-  const watermarkQuery = useQuery(
-    getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
+  Object.fromEntries(
+    useQueries({
+      queries: pictures
+        .slice(topIndex.current > 0 ? topIndex.current : 0, bottomIndex.current + 1)
+        .map((path) => {
+          return getPathQueryOptions(path.path, path.id)
+        })
+    })
+    .map((query, index) => {
+      return [
+        pictures[index + (topIndex.current > 0 ? topIndex.current : 0)].id,
+        query
+      ]
+    })
   )
+
+  
 
   const gridClassName = ` 
     grid-cols-${width > 1500 ? '4' : width > 1200 ? '3' : '2'} 
@@ -384,7 +393,8 @@ export const PictureList = (props: PictureListProps) => {
                 setFilesUploading={props.setFilesUploading}
                 participantId={props.participantId}
                 reorderPaths={reorderPaths}
-                watermark={watermarkQuery}
+                watermarkQuery={watermarkQuery}
+                watermarkPath={watermarkPath}
                 parentIsDragging={isDragging}
                 parentUpdateIsDragging={setIsDragging}
               />

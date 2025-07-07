@@ -164,8 +164,8 @@ async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapU
         notifications: notifications,
         children: children,
         package: pack,
-        participants: participants
-
+        participants: participants,
+        timeslots: timeslots
     }
     return mappedTag
 }
@@ -236,6 +236,7 @@ interface GetUserProfileByEmailOptions {
     }
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
+    if(email === '') return
     const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate()).data?.id : undefined

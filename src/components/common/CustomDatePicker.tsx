@@ -77,6 +77,8 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
     props.selectDate(date)
   }
 
+  
+
   const getDateClassName = (date?: Date) => {
     if(!date) return ''
 
@@ -89,7 +91,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
       return prev
     }, [] as UserTag[])
     const customDate: [UserTag | null, Date] | undefined = taggedDate.length > 0 ? [taggedDate.length > 1 ? null : taggedDate[0], date] : undefined
-    const isSelected = formatDate(activeDate) === formatDate(date) 
+    const isSelected = formatDate(props.selectedDate ?? activeDate) === formatDate(date) 
     const isToday = formatDate(date) === formatDate(currentDate)
 
     let className = 'w-10 h-10 flex items-center justify-center text-sm rounded-lg transition-all duration-200 cursor-pointer '
@@ -99,7 +101,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
         className += ' bg-gray-400 hover:bg-gray-200'
       }
       else if(customDate[0].color){
-        className += ` ${defaultColumnColors[customDate[0].color].text} ${defaultColumnColors[customDate[0].color].bg} ${defaultColumnColors[customDate[0].color].hover}`
+        className += ` text-${defaultColumnColors[customDate[0].color].text} bg-${defaultColumnColors[customDate[0].color].bg} ${defaultColumnColors[customDate[0].color].hover}`
       }
     }
     if(isSelected) {
@@ -124,7 +126,9 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
       }
       return prev
     }, [] as UserTag[])
-    const customDate: [UserTag | null, Date] | undefined = taggedDate ? [taggedDate.length > 1 ? null : taggedDate[0], date] : undefined
+    
+    const customDate: [UserTag | null, Date] | undefined = taggedDate.length > 0 ? [taggedDate.length > 1 ? null : taggedDate[0], date] : undefined
+    
     return customDate !== undefined ? customDate[0] == null ? 'Multiple Tags: ' + dateKey : `${customDate[0].name}: ${dateKey}` : dateKey
   }
 
@@ -137,7 +141,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className='text-gray-900'>
-          {formatDisplayDate(activeDate)}
+          {formatDisplayDate(props.selectedDate ?? activeDate)}
         </span>
         <HiOutlineCalendar size={24} />
       </button>

@@ -69,9 +69,11 @@ function RouteComponent() {
       })
       .sort((a, b) => a.start.getTime() - b.start.getTime())
       .map((timeslot, index) => {
-        const color = timeslot.tag?.color ?? 'black'
+        const tag = userProfile.participant
+          .find((participant) => participant.id === userProfile.activeParticipant?.id)
+          ?.userTags?.find((tag) => tag.id === timeslot.tag?.id)
         
-        const selected = userEmail && userEmail === timeslot.register ? 'bg-gray-200' : ''
+        const selected = userProfile.activeParticipant === timeslot.participantId ? 'bg-gray-200' : ''
         const participantTimeslot = participant.timeslot?.find((partTimeslot) => timeslot.tag?.id === partTimeslot.tag?.id)
         let disabled = timeslot.register !== undefined || currentDate > activeDate || (
           participantTimeslot !== undefined
@@ -89,8 +91,8 @@ function RouteComponent() {
               setUnegisterConfirmationVisible(true)
               setSelectedTimeslot(timeslot)
             }
-          }} disabled={disabled} className={`${selected} rounded-lg enabled:hover:bg-gray-300 text-${color} ${disabledText}`}>
-            <SlotComponent timeslot={timeslot} />
+          }} disabled={disabled} className={`${selected} rounded-lg enabled:hover:bg-gray-300 ${disabledText}`}>
+            <SlotComponent timeslot={{...timeslot, tag: tag }} tag={tag} participant={null} />
           </button>
         )
       })
@@ -206,7 +208,12 @@ function RouteComponent() {
       />
       {width > 1200 ? (
         <FullSizeTimeslot 
-          timeslots={timeslots.data ?? []}
+          timeslots={(timeslots.data ?? []).map((timeslot) => ({
+            ...timeslot,
+            tag: userProfile.participant
+              .find((participant) => participant.id === userProfile.activeParticipant?.id)
+              ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
+          }))}
           activeDate={activeDate}
           setActiveDate={setActiveDate}
           width={width}
@@ -216,7 +223,12 @@ function RouteComponent() {
         />
       ) : (
         <SmallSizeTimeslot
-          timeslots={timeslots.data ?? []}
+          timeslots={(timeslots.data ?? []).map((timeslot) => ({
+            ...timeslot,
+            tag: userProfile.participant
+              .find((participant) => participant.id === userProfile.activeParticipant?.id)
+              ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
+          }))}
           activeDate={activeDate}
           setActiveDate={setActiveDate}
           width={width}

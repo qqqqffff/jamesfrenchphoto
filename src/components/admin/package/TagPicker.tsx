@@ -79,6 +79,7 @@ export const TagPicker = (props: TagPickerProps) => {
                           onClick={(event) => {
                             event.stopPropagation()
                             props.parentPickTag(tag)
+                            if(!props.allowMultiple) setFocused(false)
                           }}
                         >
                           {props.allowMultiple && (
