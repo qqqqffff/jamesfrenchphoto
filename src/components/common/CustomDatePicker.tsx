@@ -77,6 +77,8 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
     props.selectDate(date)
   }
 
+  
+
   const getDateClassName = (date?: Date) => {
     if(!date) return ''
 
@@ -99,7 +101,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
         className += ' bg-gray-400 hover:bg-gray-200'
       }
       else if(customDate[0].color){
-        className += ` ${defaultColumnColors[customDate[0].color].text} ${defaultColumnColors[customDate[0].color].bg} ${defaultColumnColors[customDate[0].color].hover}`
+        className += ` text-${defaultColumnColors[customDate[0].color].text} bg-${defaultColumnColors[customDate[0].color].bg} ${defaultColumnColors[customDate[0].color].hover}`
       }
     }
     if(isSelected) {
@@ -111,6 +113,8 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
     if(!className.includes('hover')) {
       className += ' hover:bg-gray-200'
     }
+
+    
 
     return className
   }
@@ -124,7 +128,9 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
       }
       return prev
     }, [] as UserTag[])
-    const customDate: [UserTag | null, Date] | undefined = taggedDate ? [taggedDate.length > 1 ? null : taggedDate[0], date] : undefined
+    
+    const customDate: [UserTag | null, Date] | undefined = taggedDate.length > 0 ? [taggedDate.length > 1 ? null : taggedDate[0], date] : undefined
+    
     return customDate !== undefined ? customDate[0] == null ? 'Multiple Tags: ' + dateKey : `${customDate[0].name}: ${dateKey}` : dateKey
   }
 

@@ -22,6 +22,7 @@ function RouteComponent() {
   const [activeDate, setActiveDate] = useState<Date>(new Date(currentDate.getTime() + DAY_OFFSET))
   const [activeTag, setActiveTag] = useState<UserTag>()
   const [timeslots, setTimeslots] = useState<Timeslot[]>([])
+  const [tags, setTags] = useState<UserTag[]>([])
   const timeslotQuery = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
   const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
     siCollections: false,
@@ -42,6 +43,14 @@ function RouteComponent() {
     timeslotQuery.data
   ])
 
+  useEffect(() => {
+    if(tagsQuery.data) {
+      setTags(tagsQuery.data)
+    }
+  }, [
+    tagsQuery.data
+  ])
+
   return (
     <>
       <CreateTimeslotModal 
@@ -54,7 +63,8 @@ function RouteComponent() {
         timeslots={timeslots}
         timeslotQuery={timeslotQuery}
         parentUpdateTimeslots={setTimeslots}
-        tags={tagsQuery.data ?? []}
+        parentUpdateTags={setTags}
+        tags={tags}
       />
       <EditTimeslotModal 
         open={editTimeslotVisible !== undefined} 
@@ -81,7 +91,7 @@ function RouteComponent() {
               }
             }}
             selectedDate={activeDate}
-            tags={tagsQuery.data ?? []}
+            tags={tags}
           />
           <TagNavigator 
             setActiveTag={setActiveTag}
@@ -112,6 +122,7 @@ function RouteComponent() {
               (timeslots.map((timeslot, index) => {
                 return (
                   <button 
+                    key={index}
                     onClick={() => {
                         setEditTimeslotVisible(timeslot)
                     }}>

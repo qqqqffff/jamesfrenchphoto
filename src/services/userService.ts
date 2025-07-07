@@ -164,8 +164,8 @@ async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapU
         notifications: notifications,
         children: children,
         package: pack,
-        participants: participants
-
+        participants: participants,
+        timeslots: timeslots
     }
     return mappedTag
 }
