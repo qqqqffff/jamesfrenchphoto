@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { getAllTimeslotsByUserTagListQueryOptions, registerTimeslotMutation } from '../../../services/timeslotService'
 import { useState } from 'react'
-import { currentDate, formatTime, sortDatesAround } from '../../../utils'
+import { currentDate, formatTime, normalizeDate, sortDatesAround } from '../../../utils'
 import { Timeslot } from '../../../types'
 import { ConfirmationModal } from '../../../components/modals'
 import NotificationComponent from '../../../components/timeslot/NotificationComponent'
@@ -48,7 +48,7 @@ function RouteComponent() {
 
   const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
     (timeslots.data ?? []).map((timeslot) => {
-      return new Date(timeslot.start.getFullYear(), timeslot.start.getMonth(), timeslot.start.getDate())
+      return normalizeDate(timeslot.start)
     }), currentDate)[0] ?? currentDate)
   const [selectedTimeslot, setSelectedTimeslot] = useState<Timeslot>()
   
