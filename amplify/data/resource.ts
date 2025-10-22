@@ -14,6 +14,7 @@ import { shareUserInvite } from '../functions/share-user-invite/resource';
 import { repairPaths } from '../functions/repair-paths/resource';
 import { registerUser } from '../functions/register-user/resource';
 import { adminUpdateUserAttributes } from '../auth/admin-update-user-attributes/resource';
+import { registerTimeslot } from '../functions/register-timeslot/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -390,6 +391,17 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(adminUpdateUserAttributes))
     .returns(a.json()),
+  RegisterTimeslot: a
+    .mutation()
+    .arguments({
+      timeslotId: a.string().required(),
+      unregister: a.boolean().required(),
+      userEmail: a.string().required(),
+      participantId: a.string().required()
+    })
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(registerTimeslot))
+    .returns(a.json()),
   VerifyContactChallenge: a
     .query()
     .arguments({
@@ -544,7 +556,8 @@ const schema = a.schema({
   allow.resource(addCreateUserQueue),
   allow.resource(shareUserInvite),
   allow.resource(repairPaths),
-  allow.resource(registerUser)
+  allow.resource(registerUser),
+  allow.resource(registerTimeslot)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;
