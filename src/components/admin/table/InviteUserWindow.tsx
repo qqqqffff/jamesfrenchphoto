@@ -307,39 +307,42 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   '
                   tags={props.tagsQuery.data ?? []}
                   parentPickTag={(tag) => {
-                    const selectedTag = participant.userTags.some((pTag) => pTag.id === tag.id)
+                    //TODO: address tag null case
+                    if(tag) {
+                      const selectedTag = participant.userTags.some((pTag) => pTag.id === tag.id)
 
-                    if(selectedTag) {
-                      setParticipants((prev) => {
-                        const temp = [...prev]
-                          .map((part) => {
-                            if(part.id === participant.id) {
-                              return {
-                                ...part,
-                                userTags: part.userTags.filter((pTag) => pTag.id !== tag.id)
+                      if(selectedTag) {
+                        setParticipants((prev) => {
+                          const temp = [...prev]
+                            .map((part) => {
+                              if(part.id === participant.id) {
+                                return {
+                                  ...part,
+                                  userTags: part.userTags.filter((pTag) => pTag.id !== tag.id)
+                                }
                               }
-                            }
-                            return part
-                          })
+                              return part
+                            })
 
-                        return temp
-                      })
-                    }
-                    else {
-                      setParticipants((prev) => {
-                        const temp = [...prev]
-                          .map((part) => {
-                            if(part.id === participant.id) {
-                              return {
-                                ...part,
-                                userTags: [...part.userTags, tag]
+                          return temp
+                        })
+                      }
+                      else {
+                        setParticipants((prev) => {
+                          const temp = [...prev]
+                            .map((part) => {
+                              if(part.id === participant.id) {
+                                return {
+                                  ...part,
+                                  userTags: [...part.userTags, tag]
+                                }
                               }
-                            }
-                            return part
-                          })
+                              return part
+                            })
 
-                        return temp
-                      })
+                          return temp
+                        })
+                      }
                     }
                   }}
                   pickedTag={participant.userTags}

@@ -101,9 +101,10 @@ export const DetailsPanel = (props: DetailsPanelProps) => {
           ))}
           placeholder='Pick Package Tag...'
           parentPickTag={(value) => {
+            //TODO: address tag null case
             const tempPackage: Package = {
               ...props.selectedPackage,
-              tagId: value.id
+              tagId: value?.id ?? ''
             }
             props.parentUpdatePackage(tempPackage)
             props.parentUpdatePackageList((prev) => prev.map((pack) => (
@@ -123,9 +124,10 @@ export const DetailsPanel = (props: DetailsPanelProps) => {
           ))}
           placeholder='Pick Parent Tag...'
           parentPickTag={(value) => {
+            //TODO: address tag null case
             const tempPackage: Package = {
               ...props.selectedPackage,
-              parentTagId: value.id
+              parentTagId: value?.id ?? ''
             }
             props.parentUpdatePackage(tempPackage)
             props.parentUpdatePackageList((prev) => prev.map((pack) => (
