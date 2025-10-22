@@ -125,8 +125,12 @@ function RouteComponent() {
             tags={tags}
           />
           <TagNavigator 
+            activeDate={activeDate}
             setActiveTag={setActiveTag}
+            setActiveDate={setActiveDate}
             activeTag={activeTag}
+            tags={tags}
+            tagsQuery={tagsQuery}
           />
           <ControlComponent 
             className="mt-2" 

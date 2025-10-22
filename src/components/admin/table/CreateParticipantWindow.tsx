@@ -442,23 +442,26 @@ export const CreateParticipantWindow = (props: CreateParticipantWindowProps) => 
             '
             tags={props.tagsQuery.data ?? []}
             parentPickTag={(tag) => {
-              const selectedTag = participant.userTags.some((pTag) => pTag.id === tag.id)
-              const temp = [...selectedColumns].filter((col) => col.type !== 'tags')
+              if(tag) {
+                const selectedTag = participant.userTags.some((pTag) => pTag.id === tag.id)
+                const temp = [...selectedColumns].filter((col) => col.type !== 'tags')
 
-              if(selectedTag) {
-                setSelectedColumns(temp)
-                setParticipant({
-                  ...participant,
-                  userTags: participant.userTags.filter((pTag) => tag.id !== pTag.id)
-                })
-              }
-              else {
-                setSelectedColumns(temp)
-                setParticipant({
-                  ...participant,
-                  userTags: [...participant.userTags, tag]
-                })
-              }
+                if(selectedTag) {
+                  setSelectedColumns(temp)
+                  setParticipant({
+                    ...participant,
+                    userTags: participant.userTags.filter((pTag) => tag.id !== pTag.id)
+                  })
+                }
+                else {
+                  setSelectedColumns(temp)
+                  setParticipant({
+                    ...participant,
+                    userTags: [...participant.userTags, tag]
+                  })
+                }
+              } 
+              //TODO: address tag null case
             }}
             pickedTag={participant.userTags}
           />

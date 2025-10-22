@@ -95,6 +95,7 @@ const component: FC<TimeslotDisplayProps> = ({timeslots, setActiveDate, activeDa
           <div className="flex flex-col">
             {timeslots
               .filter((timeslot) => timeslot.tag !== undefined)
+              //filtering only timeslots with this id
               .reduce((prev, cur) => {
                 if(!prev.some((timeslot) => timeslot.tag?.id === cur.tag?.id)) prev.push(cur)
                 return prev
@@ -104,12 +105,15 @@ const component: FC<TimeslotDisplayProps> = ({timeslots, setActiveDate, activeDa
                 invariant(tag)
                 const sortedTimeslots = timeslots.sort((a, b) => a.start.getTime() - b.start.getTime())
                 
-                const formattedDateString = sortedTimeslots[0].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' }) + ' - ' + sortedTimeslots[sortedTimeslots.length - 1].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
+                const formattedDateString = 
+                  sortedTimeslots[0].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' }) + 
+                  ' - ' + 
+                  sortedTimeslots[sortedTimeslots.length - 1].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
 
                 return (
                   <div key={index} className="flex flex-col items-center justify-center">
                     <span>Dates for:</span>
-                    <Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 text-md">{tag.name}</Badge>
+                    <Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 ">{tag.name}</Badge>
                     <ColorComponent activeColor={tag.color} customText={formattedDateString} />
                   </div>
                 )

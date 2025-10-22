@@ -19,7 +19,8 @@ export const handler: Schema['AddPublicPhoto']['functionHandler'] = async (event
   const trimmedFileName = event.arguments.path.substring(event.arguments.path.lastIndexOf('/') + 1)
   if(file.Body) {
     const key = `${event.arguments.type}/${trimmedFileName}`
-    const s3file = new File([await file.Body.transformToByteArray()], trimmedFileName)
+
+    const s3file = new File([await file.Body.transformToString('utf-8')], trimmedFileName)
 
     const tempFile = await addTextToImage(s3file, event.arguments.name)
 

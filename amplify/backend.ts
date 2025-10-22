@@ -5,6 +5,7 @@ import { storage } from './storage/resource';
 import { PublicStorage } from './custom/public-storage/resource';
 import { addPublicPhoto } from './functions/add-public-photo/resource';
 import { deletePublicPhoto } from './functions/delete-public-photo/resource';
+import { Events } from './custom/metrics/resource';
 
 /**
  * @see https://docs.amplify.aws/react/build-a-backend/ to add storage, functions, and more
@@ -28,6 +29,17 @@ const publicStorageInstance = new PublicStorage(
     deletePublicPhoto: backend.deletePublicPhoto.resources.lambda
   }
 )
+
+// const eventsStack = new Events( 
+//   backend.createStack('jamesfrenchphoto-events'),
+//   'jamesfrenchphoto-events-stack',
+//   {
+//     graphQLAPI: backend.data.resources.graphqlApi
+//   }
+// )
+
+// backend.data.addEventBridgeDataSource('jamesfrenchphoto-eventbride-datasource', eventsStack.eventBus)
+
 
 backend.addOutput({
   custom: {

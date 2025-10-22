@@ -313,6 +313,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                 parentPickTag={(tag) => setSelectedTag(tag)}
                 pickedTag={selectedTag ? [selectedTag] : undefined}
                 allowMultiple={false}
+                allowClear
                 className="max-w-[150px] border rounded-lg px-2 py-1.5"
               />
             </div>

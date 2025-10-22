@@ -1,16 +1,17 @@
 import { useState } from "react"
 import { UserTag } from "../../../types"
-import { Checkbox, TextInput } from "flowbite-react"
+import { Checkbox, Radio, TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
 import { HiOutlineXMark } from "react-icons/hi2"
 
 interface TagPickerProps {
   tags: UserTag[],
-  parentPickTag: (tag: UserTag) => void
+  parentPickTag: (tag?: UserTag) => void
   pickedTag?: UserTag[],
   placeholder?: string
   className?: string,
   allowMultiple?: boolean
+  allowClear?: boolean
   hideTag?: boolean
 }
 
@@ -55,7 +56,7 @@ export const TagPicker = (props: TagPickerProps) => {
                 <HiOutlineXMark size={16} className="text-gray-400 hover:text-gray-800"/>
               </button>
             </div>
-            <div className="w-full px-2 py-2 flex flex-row gap-2">
+            <div className="w-full px-2 py-2 flex flex-row gap-2 border-b">
               <input 
                 placeholder="Search for a tag"
                 className="font-thin py-1 px-2 text-xs ring-transparent w-full border rounded-md focus:outline-none placeholder:text-gray-400 placeholder:italic"
@@ -67,11 +68,21 @@ export const TagPicker = (props: TagPickerProps) => {
               {props.tags.filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase())).length > 0 ? (
                 props.tags
                   .filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase()))
+                  .sort((a, b) => {
+                    const aSelected = props.pickedTag?.some((pTag) => pTag.id === a.id)
+                    const bSelected = props.pickedTag?.some((pTag) => pTag.id === b.id)
+
+                    if(aSelected && bSelected) return a.name.localeCompare(b.name)
+                    else if(aSelected && !bSelected) return -1
+                    else if(!aSelected && bSelected) return 1
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                  })
                   .map((tag, index) => {
                     const selected = props.pickedTag?.some((pTag) => pTag.id === tag.id)
+                    
                     return (
                       <div 
-                        className="flex flex-row justify-start items-center pe-2" 
+                        className="flex flex-row justify-start items-center pe-2 w-full" 
                         key={index}
                       >
                         <button 
@@ -82,13 +93,19 @@ export const TagPicker = (props: TagPickerProps) => {
                             if(!props.allowMultiple) setFocused(false)
                           }}
                         >
-                          {props.allowMultiple && (
+                          {props.allowMultiple ? (
                             <Checkbox 
                               readOnly
                               checked={selected}
                               onClick={() => props.parentPickTag(tag)}
                             />
-                            )}
+                          ) : (
+                            <Radio
+                              readOnly
+                              checked={selected === true}
+                              onClick={() => props.parentPickTag(tag)}
+                            />
+                          )}
                           <span className={`text-${tag.color ?? 'black'} truncate max-w-[500px]`}>{tag.name}</span>
                         </button>
                       </div>
@@ -100,6 +117,16 @@ export const TagPicker = (props: TagPickerProps) => {
                 </div>
               )}
             </div>
+            {props.allowClear && (
+              <div className="w-full justify-end flex flex-row px-2 py-1 border-t">
+                <button
+                  className="rounded-lg border py-0.5 px-2 hover:bg-gray-50"
+                  onClick={() => props.parentPickTag(undefined)}
+                >
+                  <span>Clear</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
