@@ -8,6 +8,7 @@ import { getPathQueryOptions } from "../../services/collectionService"
 import { PhotoControls } from "./PhotoControls"
 import { HiOutlineXCircle } from "react-icons/hi2"
 import { CgSpinner } from "react-icons/cg"
+import useScrollPosition from "../../hooks/scrollPosition"
 
 interface CollectionGridProps {
   set: PhotoSet,
@@ -21,19 +22,17 @@ interface CollectionGridProps {
   watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined, Error>
   gridRef: LegacyRef<HTMLDivElement>
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet>>
-  resetOffsets: boolean,
   completeOffsetReset: Dispatch<SetStateAction<boolean>>
 }
 
 export const CollectionGrid = (props: CollectionGridProps) => {
   const dimensions = useWindowDimensions()
+  const scrollPosition = useScrollPosition()
 
   const columnMultiplier = dimensions.width > 1600 ? 5 : (
     dimensions.width > 800 ? 
       3 : 1
     )
-
-  const currentOffsetIndex = useRef<number | undefined>()
   
   const pathsQuery = useInfiniteQuery(
     getInfinitePathsQueryOptions(props.set.id, {
@@ -44,128 +43,27 @@ export const CollectionGrid = (props: CollectionGridProps) => {
   )
 
   const [pictures, setPictures] = useState<PicturePath[]>(pathsQuery.data ? pathsQuery.data.pages[pathsQuery.data.pages.length - 1].memo : [])
-  const [pictureDimensions, setPictureDimensions] = useState<[string, { width: number, height: number}][]>([])
+  const [pictureDimensions, setPictureDimensions] = useState<Map<string, { width: number, height: number }>>(new Map())
   const [currentControlDisplay, setCurrentControlDisplay] = useState<string>()
-  const topIndex = useRef<number>(0)
-  const bottomIndex = useRef<number>(columnMultiplier * 6)
   const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
-  const imageObserverRef = useRef<IntersectionObserver | null>(null) 
-
-  useEffect(() => {
-    if(props.resetOffsets) {
-      topIndex.current = 0
-      bottomIndex.current = columnMultiplier * 6
-      currentOffsetIndex.current = undefined
-      props.completeOffsetReset(false)
-    }
-  }, [props.resetOffsets])
+  const columnsRef = useRef<HTMLDivElement[] | null>(null) 
+  const [renderWindow, setRenderWindow] = useState<{top: number, bottom: number}>({ top: 0, bottom: columnMultiplier * (dimensions.height / 250) })
 
   // console.log(topIndex.current, bottomIndex.current, currentOffsetIndex.current)
-
-  const [picDimensions, setPicDimensions] = useState({
-    startX: 0,
-    startY: 0,
-    startWidth: 0,
-    startHeight: 0
-  })
-  const [closing, setClosing] = useState(false)
-  const [expanded, setExpanded] = useState<string>()
-  const expandedRef = useRef<HTMLDivElement | null>(null)
-  const expandedImageRef = useRef<HTMLImageElement | null>(null)
-  const expandedWatermarkRef = useRef<HTMLImageElement | null>(null)
-  const [expandedDimensions, setExpandedDimensions] = useState<number>()
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  const handleLongPress = useCallback((id: string) => {
-    timeoutRef.current = setTimeout(() => {
-      handleExpand(id)
-    }, 300)
-  }, [])
-
-  const handleEndLongPress = useCallback(() => {
-    if(timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-      timeoutRef.current = null
-    }
-  }, [])
-
-  const handleExpand = (id: string) => {
-    const picture = picturesRef.current.get(id)
-    if(picture) {
-      console.log('expanding')
-      const thumbRect = picture.getBoundingClientRect()
-
-      setPicDimensions({
-        startX: thumbRect.left,
-        startY: thumbRect.top,
-        startWidth: thumbRect.width,
-        startHeight: thumbRect.height
-      })
-
-      setExpanded(id)
-      setClosing(false)
-    }
-  }
-
-  const handleClose = (id: string) => {
-    setClosing(true)
-
-    const picture = picturesRef.current.get(id)
-    setTimeout(() => {
-      setExpanded(undefined)
-      setClosing(false)
-      picture?.focus()
-    }, 300)
-  }
-
-  useEffect(() => {
-    if(expanded && expandedImageRef.current && expandedRef.current) {
-      const expandedRect = expandedImageRef.current.getBoundingClientRect()
-      const containerRect = expandedRef.current.getBoundingClientRect()
-
-      const thumbnailCenterX = picDimensions.startX + picDimensions.startWidth / 2
-      const thumbnailCenterY = picDimensions.startY + picDimensions.startHeight / 2
-      const expandedCenterX = containerRect.left + containerRect.width / 2
-      const expandedCenterY = containerRect.top + containerRect.height / 2
-
-      const translateX = thumbnailCenterX - expandedCenterX
-      const translateY = thumbnailCenterY - expandedCenterY
-
-      const scaleX = picDimensions.startWidth / expandedRect.width
-      const scaleY = picDimensions.startHeight / expandedRect.height
-
-      const scale = Math.min(scaleX, scaleY)
-
-      if(!closing) {
-        expandedRef.current.style.transition = 'none'
-        expandedRef.current.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`
-        expandedRef.current.style.opacity = '0.7'
-
-        expandedRef.current.offsetWidth
-
-        expandedRef.current.style.transition = 'transform 300ms ease-out, opacity 300ms ease-out'
-        expandedRef.current.style.transform = 'translate(0,0) scale(1)'
-        expandedRef.current.style.opacity = '1'
-      }
-      else {
-        expandedRef.current.style.transform = `translate(${translateX}px, ${translateY}px) scale({${scale}})`
-        expandedRef.current.style.opacity = '0.7'
-      }
-    }
-  })
-
-  useEffect(() => {
-    if(
-      props.watermarkPath &&
-      props.watermarkQuery && 
-      (
-        !expandedWatermarkRef.current?.complete || 
-        expandedWatermarkRef.current.naturalWidth < 0
-      )
-    ) {
-      props.watermarkQuery.refetch()
-    }
-  }, [expandedWatermarkRef.current])
+  
+  // TODO: fix me
+  // useEffect(() => {
+  //   if(
+  //     props.watermarkPath &&
+  //     props.watermarkQuery && 
+  //     (
+  //       !expandedWatermarkRef.current?.complete || 
+  //       expandedWatermarkRef.current.naturalWidth < 0
+  //     )
+  //   ) {
+  //     props.watermarkQuery.refetch()
+  //   }
+  // }, [expandedWatermarkRef.current])
 
   useEffect(() => {
     if(pathsQuery.data) {
@@ -174,39 +72,6 @@ export const CollectionGrid = (props: CollectionGridProps) => {
     }
   }, [pathsQuery.data])
 
-  const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): { 
-    bottom: PicturePath, 
-    top?: PicturePath
-  } => {
-    //having an offset means scrolling up
-    if(offset) {
-      //1 page = 4 rows * 2 pages until next load
-      const pageMultiplier = 4 * 2 * columnMultiplier
-      //if offset + the pagemultiplier is greater than the length set to the length - the offset otherwise add the multiplier
-      const lowerBound = (offset + pageMultiplier) >= allItems.length ? 
-        allItems.length - offset - 1 : pageMultiplier
-      bottomIndex.current = offset + lowerBound
-      //if offset - pagemultiplier is less than 0 then return the offset otherwise subtract the multiplier
-      const upperBound = (offset - pageMultiplier) > 0 ? 
-        pageMultiplier : offset
-      topIndex.current = offset - upperBound
-
-      return {
-        bottom: allItems[offset + (lowerBound - (columnMultiplier * 4))],
-        top: allItems[offset - (upperBound + (columnMultiplier * 4))]
-        // bottom: allItems[offset + ((offset + pageMultiplier - (columnMultiplier * 2)) >= allItems.length ? 
-        //   allItems.length - offset - 1 : (pageMultiplier - (columnMultiplier * 2)))],
-        // top: allItems[offset - ((offset - (pageMultiplier - (columnMultiplier * 2))) > 0 ? 
-        //   (pageMultiplier - (columnMultiplier * 2)) : offset)]
-      }
-    }
-    bottomIndex.current = allItems.length - 1
-    topIndex.current = allItems.length - Math.ceil(4 * 6 * columnMultiplier * 1.5)
-    return {
-      bottom: allItems[allItems.length - allItems.length % columnMultiplier - (columnMultiplier * 2)],
-      top: allItems?.[allItems.length - allItems.length % 4 - Math.ceil(4 * 6 * columnMultiplier * 1.5)]
-    }
-  }, [])
 
   const pictureQueries = Object.fromEntries(useQueries({
     queries: pictures
