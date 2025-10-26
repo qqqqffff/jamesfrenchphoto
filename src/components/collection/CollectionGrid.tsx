@@ -33,9 +33,6 @@ export const CollectionGrid = (props: CollectionGridProps) => {
       3 : 1
     )
 
-  const bottomObserverRef = useRef<IntersectionObserver | null>(null)
-  const topObserverRef = useRef<IntersectionObserver | null>(null)
-  const unrenderedObserverRef = useRef<IntersectionObserver | null>(null)
   const currentOffsetIndex = useRef<number | undefined>()
   
   const pathsQuery = useInfiniteQuery(
@@ -225,115 +222,94 @@ export const CollectionGrid = (props: CollectionGridProps) => {
     ])
   )
 
-  useEffect(() => {
-    if(pictures.length === 0) return
+  // useEffect(() => {
+  //   if(pictures.length === 0) return
 
-    if(!bottomObserverRef.current) {
-      bottomObserverRef.current = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if(entry.isIntersecting &&
-            currentOffsetIndex.current &&
-            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) > pictures.length
-          ) {
-            currentOffsetIndex.current = undefined
-          }
-          else if(
-            entry.isIntersecting &&
-            currentOffsetIndex.current &&
-            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) < pictures.length
-          ) {
-            const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-            currentOffsetIndex.current = foundIndex
-          }
-          if(
-            entry.isIntersecting && 
-            pathsQuery.hasNextPage && 
-            !pathsQuery.isFetchingNextPage &&
-            currentOffsetIndex.current === undefined
-          ) {
-            pathsQuery.fetchNextPage()
-          }
-        })
-      }, {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-      })
-    }
+  //   if(!bottomObserverRef.current) {
+  //     bottomObserverRef.current = new IntersectionObserver((entries) => {
+  //       entries.forEach(entry => {
+  //         if(entry.isIntersecting &&
+  //           currentOffsetIndex.current &&
+  //           (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) > pictures.length
+  //         ) {
+  //           currentOffsetIndex.current = undefined
+  //         }
+  //         else if(
+  //           entry.isIntersecting &&
+  //           currentOffsetIndex.current &&
+  //           (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) < pictures.length
+  //         ) {
+  //           const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+  //           currentOffsetIndex.current = foundIndex
+  //         }
+  //         if(
+  //           entry.isIntersecting && 
+  //           pathsQuery.hasNextPage && 
+  //           !pathsQuery.isFetchingNextPage &&
+  //           currentOffsetIndex.current === undefined
+  //         ) {
+  //           pathsQuery.fetchNextPage()
+  //         }
+  //       })
+  //     }, {
+  //       root: null,
+  //       rootMargin: '0px',
+  //       threshold: 0.1
+  //     })
+  //   }
 
-    if(!unrenderedObserverRef.current) {
-      unrenderedObserverRef.current = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if(entry.isIntersecting) {
-            const pictureId = entry.target.getAttribute('data-unrendered-id')
-            const foundIndex = pictures.findIndex((path) => path.id === pictureId)
-            if(foundIndex !== -1) {
-              const pageMultiplier = Math.ceil(4 * 3 * columnMultiplier * 1.5)
-              topIndex.current = Math.max(0, foundIndex - Math.floor(pageMultiplier / 2))
-              bottomIndex.current = Math.min(pictures.length - 1, foundIndex + Math.floor(pageMultiplier / 2))
-              currentOffsetIndex.current = foundIndex
-            }
-          }
-        })
-      }, {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-      })
-    }
+  //   if(!topObserverRef.current) {
+  //     topObserverRef.current = new IntersectionObserver((entries) => {
+  //       entries.forEach(entry => {
+  //         const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+  //         if(entry.isIntersecting && foundIndex !== 0) {
+  //           currentOffsetIndex.current = foundIndex
+  //         }
+  //       })
+  //     }, {
+  //       root: null,
+  //       rootMargin: '0px',
+  //       threshold: 0.1
+  //     })
+  //   }
+  //   const triggerReturn = getTriggerItems(pictures, currentOffsetIndex.current)
 
-    if(!topObserverRef.current) {
-      topObserverRef.current = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-          if(entry.isIntersecting && foundIndex !== 0) {
-            currentOffsetIndex.current = foundIndex
-          }
-        })
-      }, {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-      })
-    }
-    const triggerReturn = getTriggerItems(pictures, currentOffsetIndex.current)
+  //   const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
+  //   const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
 
-    const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
-    const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
+  //   if(Tel && topObserverRef.current && triggerReturn.top?.id) {
+  //     Tel.setAttribute('data-id', triggerReturn.top.id)
+  //     topObserverRef.current.observe(Tel)
+  //   }
+  //   if(Bel && bottomObserverRef.current) {
+  //     Bel.setAttribute('data-id', triggerReturn.bottom.id)
+  //     bottomObserverRef.current.observe(Bel)
+  //   }
 
-    if(Tel && topObserverRef.current && triggerReturn.top?.id) {
-      Tel.setAttribute('data-id', triggerReturn.top.id)
-      topObserverRef.current.observe(Tel)
-    }
-    if(Bel && bottomObserverRef.current) {
-      Bel.setAttribute('data-id', triggerReturn.bottom.id)
-      bottomObserverRef.current.observe(Bel)
-    }
-
-    return () => {
-      if(bottomObserverRef.current) {
-        bottomObserverRef.current.disconnect()
-      }
-      if(topObserverRef.current) {
-        topObserverRef.current.disconnect()
-      }
-      if(unrenderedObserverRef.current) {
-        unrenderedObserverRef.current.disconnect()
-      }
-      topObserverRef.current = null
-      bottomObserverRef.current = null
-      unrenderedObserverRef.current = null
-    }
-  }, [
-    pictures,
-    picturesRef.current,
-    currentOffsetIndex.current,
-    pathsQuery.fetchNextPage,
-    pathsQuery.hasNextPage,
-    pathsQuery.isFetchingNextPage,
-    getTriggerItems,
-    pictureQueries
-  ])
+  //   return () => {
+  //     if(bottomObserverRef.current) {
+  //       bottomObserverRef.current.disconnect()
+  //     }
+  //     if(topObserverRef.current) {
+  //       topObserverRef.current.disconnect()
+  //     }
+  //     if(unrenderedObserverRef.current) {
+  //       unrenderedObserverRef.current.disconnect()
+  //     }
+  //     topObserverRef.current = null
+  //     bottomObserverRef.current = null
+  //     unrenderedObserverRef.current = null
+  //   }
+  // }, [
+  //   pictures,
+  //   picturesRef.current,
+  //   currentOffsetIndex.current,
+  //   pathsQuery.fetchNextPage,
+  //   pathsQuery.hasNextPage,
+  //   pathsQuery.isFetchingNextPage,
+  //   getTriggerItems,
+  //   pictureQueries
+  // ])
 
   const setItemRef = useCallback((el: HTMLDivElement | null, id: string) => {
     if(el) {

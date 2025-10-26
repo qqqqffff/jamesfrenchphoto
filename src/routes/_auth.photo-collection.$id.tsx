@@ -24,6 +24,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
   loader: async ({ context, params }) => {
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(!params.id) throw redirect({ to: destination })
+    
 
     const collection = await context.queryClient.ensureQueryData(
       getPhotoCollectionByIdQueryOptions(params.id, { 
@@ -35,8 +36,12 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     )
 
     if(
-      (!collection || collection.sets.length === 0 || !collection.published)
+      !collection || (
+        (collection.sets.length === 0 || !collection.published) &&
+        !context.auth.admin
+      )
     ) throw redirect({ to: destination })
+    console.log('det')
 
     const coverUrl = (await context.queryClient.ensureQueryData(
       getPathQueryOptions(collection.coverPath ?? '')
