@@ -1,4 +1,4 @@
-import { createFileRoute, invariant, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
 import { PhotoSet, UserProfile } from '../types'
 import { useEffect, useRef, useState } from 'react'
@@ -34,8 +34,9 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
       })
     )
 
-    if((!collection || collection.sets.length === 0 || !collection.published) && !context.auth.admin) throw redirect({ to: destination })
-    invariant(collection)
+    if(
+      (!collection || collection.sets.length === 0 || !collection.published)
+    ) throw redirect({ to: destination })
 
     const coverUrl = (await context.queryClient.ensureQueryData(
       getPathQueryOptions(collection.coverPath ?? '')

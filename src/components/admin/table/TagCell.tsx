@@ -4,7 +4,6 @@ import { Checkbox, Dropdown, Tooltip } from "flowbite-react";
 import { HiMinus, HiOutlineXMark } from "react-icons/hi2";
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
 import { updateParticipantMutation, UpdateParticipantMutationParams } from "../../../services/userService";
-import { invariant } from "@tanstack/react-router";
 import { ParticipantPanel } from "../../common/ParticipantPanel";
 import { formatParticipantName } from "../../../functions/clientFunctions";
 
@@ -60,8 +59,7 @@ export const TagCell = (props: TagCellProps) => {
   }, [props.participants])
 
   const column = props.table.columns.find((col) => col.id === props.columnId)
-  invariant(column !== undefined)
-  const hasDependency = props.table.columns.some((col) => col.id === column.choices?.[0])
+  const hasDependency = props.table.columns.some((col) => col.id === column?.choices?.[0])
 
   const updateParticipant = useMutation({
     mutationFn: (params: UpdateParticipantMutationParams) => updateParticipantMutation(params)

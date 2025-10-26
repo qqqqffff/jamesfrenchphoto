@@ -3,7 +3,6 @@ import { UserTag } from "../../../types"
 import { Badge, Dropdown, TextInput, Tooltip } from "flowbite-react"
 import { badgeColorThemeMap, badgeColorThemeMap_hoverable, defaultColors, textInputTheme } from "../../../utils"
 import { BiSolidSquareRounded } from "react-icons/bi"
-import { invariant } from "@tanstack/react-router"
 
 interface DetailsPanelProps {
   selectedTag: UserTag
@@ -66,7 +65,6 @@ export const DetailsPanel = (props: DetailsPanelProps) => {
                       color: undefined
                     }
                   }
-                  invariant(tempTag)
                   props.parentUpdateTag(tempTag)
                   
                 }}
@@ -89,7 +87,6 @@ export const DetailsPanel = (props: DetailsPanelProps) => {
                   color: undefined
                 }
               }
-              invariant(tempTag)
               props.parentUpdateTag(tempTag)
             }}
           />

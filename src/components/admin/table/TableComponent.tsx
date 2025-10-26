@@ -47,7 +47,6 @@ import { DateCell } from "./DateCell"
 import { ChoiceCell } from "./ChoiceCell"
 import { TagCell } from "./TagCell"
 import { FileCell } from "./FileCell"
-import { invariant } from "@tanstack/react-router"
 import { AggregateCell } from "./AggregateCell"
 import { ColorComponent } from "../../common/ColorComponent"
 import { v4 } from 'uuid'
@@ -283,7 +282,10 @@ export const TableComponent = (props: TableComponentProps) => {
     const column = props.table.columns.find((column) => column.id === id)
     let newValue: string | undefined
 
-    invariant(column !== undefined)
+    if(!column) {
+      //TODO: handle error
+      return
+    }
 
     const updatedColumns: TableColumn[] = []
     //user dependent columns
@@ -551,8 +553,12 @@ export const TableComponent = (props: TableComponentProps) => {
       validateMapField(column.choices[1])[0] !== null
     ) {
       const foundColumn = props.table.columns.find((col) => col.id === column.choices?.[0])
-      invariant(foundColumn !== undefined)
-      
+
+      if(!foundColumn){
+        //TODO: handle error
+        return
+      } 
+
       if(foundColumn.type === 'user') {
         const foundTempUser = tempUsers.find((user) => user.email === foundColumn.values[i])
         const foundUser: UserData | undefined = users.find((user) => foundColumn.values[i] === user.email) !== undefined ? (
@@ -714,7 +720,11 @@ export const TableComponent = (props: TableComponentProps) => {
 
   const updateChoices = (id: string, data: {choice: string, color: string}, mode: 'create' | 'delete') => {
     const column = props.table.columns.find((column) => column.id === id)
-    invariant(column !== undefined)
+    
+    if(!column){
+      //TODO: handle error
+      return
+    } 
 
     if(mode === 'create') {
       createChoice.mutate({
@@ -778,7 +788,10 @@ export const TableComponent = (props: TableComponentProps) => {
   const syncParticipantColumn = (id: string, choice: string | null, updatedValues: string[]) => {
     const column = props.table.columns.find((column) => column.id === id)
 
-    invariant(column !== undefined)
+    if(!column){
+      //TODO: handle error
+      return
+    } 
 
     updateColumn.mutate({
       column: column,
@@ -827,7 +840,10 @@ export const TableComponent = (props: TableComponentProps) => {
   ) => {
     const column = props.table.columns.find((column) => column.id === id)
 
-    invariant(column !== undefined)
+    if(!column) {
+      //TODO: handle error
+      return
+    }
 
     updateColumn.mutate({
       column: column,

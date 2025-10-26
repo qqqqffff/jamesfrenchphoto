@@ -17,7 +17,6 @@ import { GetInfinitePathsData } from '../../../../services/photoPathService';
 import Loading from '../../../common/Loading';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
-import { invariant } from '@tanstack/react-router';
 import useWindowDimensions from '../../../../hooks/windowDimensions';
 
 interface PictureListProps extends ComponentProps<'div'> {
@@ -89,7 +88,10 @@ export const PictureList = (props: PictureListProps) => {
   useEffect(() => {
     setPictures(props.paths)
     const element = listRef.current
-    invariant(element)
+    
+    if(!element) {
+      return
+    }
 
     return combine(
       monitorForElements({

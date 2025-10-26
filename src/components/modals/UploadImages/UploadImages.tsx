@@ -7,7 +7,6 @@ import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { UploadImagesMutationParams } from "../../../services/photoSetService";
 import Loading from "../../common/Loading";
-import { invariant } from "@tanstack/react-router";
 import { ImagesRow } from "./ImagesRow";
 import { IssueNotifications, UploadIssue } from "./IssueNotifications";
 import { GoTriangleDown, GoTriangleUp } from "react-icons/go";
@@ -540,7 +539,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                   color='red'
                   onClick={() => {
                     const foundIssueSet = uploadIssues.find((issue) => issue.type === 'duplicate')?.id
-                    invariant(foundIssueSet)
+
+                    if(!foundIssueSet) { 
+                      //TODO: handle error
+                      return
+                    }
                     const tempPreview = new Map<string, File>(filesPreview)
                     const tempUpload = new Map<string, File>(filesUpload)
                     const previewKeys = [...filesPreview.entries()]

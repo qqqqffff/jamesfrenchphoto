@@ -8,320 +8,435 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-// Import Routes
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthPhotoFullscreenRouteImport } from './routes/_auth.photo-fullscreen'
+import { Route as AuthFavoritesFullscreenRouteImport } from './routes/_auth.favorites-fullscreen'
+import { Route as AuthPhotoCollectionIdRouteImport } from './routes/_auth.photo-collection.$id'
+import { Route as AuthClientProfileRouteImport } from './routes/_auth.client/profile'
+import { Route as AuthClientDashboardRouteImport } from './routes/_auth.client/dashboard'
+import { Route as AuthAdminDashboardRouteImport } from './routes/_auth.admin/dashboard'
+import { Route as AuthClientDashboardIndexRouteImport } from './routes/_auth.client/dashboard/index'
+import { Route as AuthAdminDashboardIndexRouteImport } from './routes/_auth.admin/dashboard/index'
+import { Route as AuthClientDashboardSchedulerRouteImport } from './routes/_auth.client/dashboard/scheduler'
+import { Route as AuthClientDashboardPackageRouteImport } from './routes/_auth.client/dashboard/package'
+import { Route as AuthClientDashboardAdvertiseRouteImport } from './routes/_auth.client/dashboard/advertise'
+import { Route as AuthAdminDashboardTaggingRouteImport } from './routes/_auth.admin/dashboard/tagging'
+import { Route as AuthAdminDashboardTableRouteImport } from './routes/_auth.admin/dashboard/table'
+import { Route as AuthAdminDashboardSchedulerRouteImport } from './routes/_auth.admin/dashboard/scheduler'
+import { Route as AuthAdminDashboardPackageRouteImport } from './routes/_auth.admin/dashboard/package'
+import { Route as AuthAdminDashboardNotificationRouteImport } from './routes/_auth.admin/dashboard/notification'
+import { Route as AuthAdminDashboardCollectionRouteImport } from './routes/_auth.admin/dashboard/collection'
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as RegisterImport } from './routes/register'
-import { Route as LoginImport } from './routes/login'
-import { Route as AuthImport } from './routes/_auth'
-import { Route as IndexImport } from './routes/index'
-import { Route as AuthPhotoFullscreenImport } from './routes/_auth.photo-fullscreen'
-import { Route as AuthFavoritesFullscreenImport } from './routes/_auth.favorites-fullscreen'
-import { Route as AuthPhotoCollectionIdImport } from './routes/_auth.photo-collection.$id'
-import { Route as AuthClientProfileImport } from './routes/_auth.client/profile'
-import { Route as AuthClientDashboardImport } from './routes/_auth.client/dashboard'
-import { Route as AuthAdminDashboardImport } from './routes/_auth.admin/dashboard'
-import { Route as AuthClientDashboardIndexImport } from './routes/_auth.client/dashboard/index'
-import { Route as AuthAdminDashboardIndexImport } from './routes/_auth.admin/dashboard/index'
-import { Route as AuthClientDashboardSchedulerImport } from './routes/_auth.client/dashboard/scheduler'
-import { Route as AuthClientDashboardPackageImport } from './routes/_auth.client/dashboard/package'
-import { Route as AuthClientDashboardAdvertiseImport } from './routes/_auth.client/dashboard/advertise'
-import { Route as AuthAdminDashboardTaggingImport } from './routes/_auth.admin/dashboard/tagging'
-import { Route as AuthAdminDashboardTableImport } from './routes/_auth.admin/dashboard/table'
-import { Route as AuthAdminDashboardSchedulerImport } from './routes/_auth.admin/dashboard/scheduler'
-import { Route as AuthAdminDashboardPackageImport } from './routes/_auth.admin/dashboard/package'
-import { Route as AuthAdminDashboardNotificationImport } from './routes/_auth.admin/dashboard/notification'
-import { Route as AuthAdminDashboardCollectionImport } from './routes/_auth.admin/dashboard/collection'
-
-// Create/Update Routes
-
-const RegisterRoute = RegisterImport.update({
+const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const LoginRoute = LoginImport.update({
+const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const AuthRoute = AuthImport.update({
+const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const IndexRoute = IndexImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const AuthPhotoFullscreenRoute = AuthPhotoFullscreenImport.update({
+const AuthPhotoFullscreenRoute = AuthPhotoFullscreenRouteImport.update({
   id: '/photo-fullscreen',
   path: '/photo-fullscreen',
   getParentRoute: () => AuthRoute,
 } as any)
-
-const AuthFavoritesFullscreenRoute = AuthFavoritesFullscreenImport.update({
+const AuthFavoritesFullscreenRoute = AuthFavoritesFullscreenRouteImport.update({
   id: '/favorites-fullscreen',
   path: '/favorites-fullscreen',
   getParentRoute: () => AuthRoute,
 } as any)
-
-const AuthPhotoCollectionIdRoute = AuthPhotoCollectionIdImport.update({
+const AuthPhotoCollectionIdRoute = AuthPhotoCollectionIdRouteImport.update({
   id: '/photo-collection/$id',
   path: '/photo-collection/$id',
   getParentRoute: () => AuthRoute,
 } as any)
-
-const AuthClientProfileRoute = AuthClientProfileImport.update({
+const AuthClientProfileRoute = AuthClientProfileRouteImport.update({
   id: '/client/profile',
   path: '/client/profile',
   getParentRoute: () => AuthRoute,
 } as any)
-
-const AuthClientDashboardRoute = AuthClientDashboardImport.update({
+const AuthClientDashboardRoute = AuthClientDashboardRouteImport.update({
   id: '/client/dashboard',
   path: '/client/dashboard',
   getParentRoute: () => AuthRoute,
 } as any)
-
-const AuthAdminDashboardRoute = AuthAdminDashboardImport.update({
+const AuthAdminDashboardRoute = AuthAdminDashboardRouteImport.update({
   id: '/admin/dashboard',
   path: '/admin/dashboard',
   getParentRoute: () => AuthRoute,
 } as any)
-
-const AuthClientDashboardIndexRoute = AuthClientDashboardIndexImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AuthClientDashboardRoute,
-} as any)
-
-const AuthAdminDashboardIndexRoute = AuthAdminDashboardIndexImport.update({
+const AuthClientDashboardIndexRoute =
+  AuthClientDashboardIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthClientDashboardRoute,
+  } as any)
+const AuthAdminDashboardIndexRoute = AuthAdminDashboardIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthAdminDashboardRoute,
 } as any)
-
 const AuthClientDashboardSchedulerRoute =
-  AuthClientDashboardSchedulerImport.update({
+  AuthClientDashboardSchedulerRouteImport.update({
     id: '/scheduler',
     path: '/scheduler',
     getParentRoute: () => AuthClientDashboardRoute,
   } as any)
-
-const AuthClientDashboardPackageRoute = AuthClientDashboardPackageImport.update(
-  {
+const AuthClientDashboardPackageRoute =
+  AuthClientDashboardPackageRouteImport.update({
     id: '/package',
     path: '/package',
     getParentRoute: () => AuthClientDashboardRoute,
-  } as any,
-)
-
+  } as any)
 const AuthClientDashboardAdvertiseRoute =
-  AuthClientDashboardAdvertiseImport.update({
+  AuthClientDashboardAdvertiseRouteImport.update({
     id: '/advertise',
     path: '/advertise',
     getParentRoute: () => AuthClientDashboardRoute,
   } as any)
-
-const AuthAdminDashboardTaggingRoute = AuthAdminDashboardTaggingImport.update({
-  id: '/tagging',
-  path: '/tagging',
-  getParentRoute: () => AuthAdminDashboardRoute,
-} as any)
-
-const AuthAdminDashboardTableRoute = AuthAdminDashboardTableImport.update({
+const AuthAdminDashboardTaggingRoute =
+  AuthAdminDashboardTaggingRouteImport.update({
+    id: '/tagging',
+    path: '/tagging',
+    getParentRoute: () => AuthAdminDashboardRoute,
+  } as any)
+const AuthAdminDashboardTableRoute = AuthAdminDashboardTableRouteImport.update({
   id: '/table',
   path: '/table',
   getParentRoute: () => AuthAdminDashboardRoute,
 } as any)
-
 const AuthAdminDashboardSchedulerRoute =
-  AuthAdminDashboardSchedulerImport.update({
+  AuthAdminDashboardSchedulerRouteImport.update({
     id: '/scheduler',
     path: '/scheduler',
     getParentRoute: () => AuthAdminDashboardRoute,
   } as any)
-
-const AuthAdminDashboardPackageRoute = AuthAdminDashboardPackageImport.update({
-  id: '/package',
-  path: '/package',
-  getParentRoute: () => AuthAdminDashboardRoute,
-} as any)
-
+const AuthAdminDashboardPackageRoute =
+  AuthAdminDashboardPackageRouteImport.update({
+    id: '/package',
+    path: '/package',
+    getParentRoute: () => AuthAdminDashboardRoute,
+  } as any)
 const AuthAdminDashboardNotificationRoute =
-  AuthAdminDashboardNotificationImport.update({
+  AuthAdminDashboardNotificationRouteImport.update({
     id: '/notification',
     path: '/notification',
     getParentRoute: () => AuthAdminDashboardRoute,
   } as any)
-
 const AuthAdminDashboardCollectionRoute =
-  AuthAdminDashboardCollectionImport.update({
+  AuthAdminDashboardCollectionRouteImport.update({
     id: '/collection',
     path: '/collection',
     getParentRoute: () => AuthAdminDashboardRoute,
   } as any)
 
-// Populate the FileRoutesByPath interface
+export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
+  '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
+  '/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
+  '/client/dashboard': typeof AuthClientDashboardRouteWithChildren
+  '/client/profile': typeof AuthClientProfileRoute
+  '/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
+  '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
+  '/admin/dashboard/notification': typeof AuthAdminDashboardNotificationRoute
+  '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
+  '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
+  '/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
+  '/admin/dashboard/tagging': typeof AuthAdminDashboardTaggingRoute
+  '/client/dashboard/advertise': typeof AuthClientDashboardAdvertiseRoute
+  '/client/dashboard/package': typeof AuthClientDashboardPackageRoute
+  '/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
+  '/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
+  '/client/dashboard/': typeof AuthClientDashboardIndexRoute
+}
+export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
+  '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
+  '/client/profile': typeof AuthClientProfileRoute
+  '/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
+  '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
+  '/admin/dashboard/notification': typeof AuthAdminDashboardNotificationRoute
+  '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
+  '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
+  '/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
+  '/admin/dashboard/tagging': typeof AuthAdminDashboardTaggingRoute
+  '/client/dashboard/advertise': typeof AuthClientDashboardAdvertiseRoute
+  '/client/dashboard/package': typeof AuthClientDashboardPackageRoute
+  '/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
+  '/admin/dashboard': typeof AuthAdminDashboardIndexRoute
+  '/client/dashboard': typeof AuthClientDashboardIndexRoute
+}
+export interface FileRoutesById {
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/_auth': typeof AuthRouteWithChildren
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/_auth/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
+  '/_auth/photo-fullscreen': typeof AuthPhotoFullscreenRoute
+  '/_auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
+  '/_auth/client/dashboard': typeof AuthClientDashboardRouteWithChildren
+  '/_auth/client/profile': typeof AuthClientProfileRoute
+  '/_auth/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
+  '/_auth/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
+  '/_auth/admin/dashboard/notification': typeof AuthAdminDashboardNotificationRoute
+  '/_auth/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
+  '/_auth/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
+  '/_auth/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
+  '/_auth/admin/dashboard/tagging': typeof AuthAdminDashboardTaggingRoute
+  '/_auth/client/dashboard/advertise': typeof AuthClientDashboardAdvertiseRoute
+  '/_auth/client/dashboard/package': typeof AuthClientDashboardPackageRoute
+  '/_auth/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
+  '/_auth/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
+  '/_auth/client/dashboard/': typeof AuthClientDashboardIndexRoute
+}
+export interface FileRouteTypes {
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/register'
+    | '/favorites-fullscreen'
+    | '/photo-fullscreen'
+    | '/admin/dashboard'
+    | '/client/dashboard'
+    | '/client/profile'
+    | '/photo-collection/$id'
+    | '/admin/dashboard/collection'
+    | '/admin/dashboard/notification'
+    | '/admin/dashboard/package'
+    | '/admin/dashboard/scheduler'
+    | '/admin/dashboard/table'
+    | '/admin/dashboard/tagging'
+    | '/client/dashboard/advertise'
+    | '/client/dashboard/package'
+    | '/client/dashboard/scheduler'
+    | '/admin/dashboard/'
+    | '/client/dashboard/'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/login'
+    | '/register'
+    | '/favorites-fullscreen'
+    | '/photo-fullscreen'
+    | '/client/profile'
+    | '/photo-collection/$id'
+    | '/admin/dashboard/collection'
+    | '/admin/dashboard/notification'
+    | '/admin/dashboard/package'
+    | '/admin/dashboard/scheduler'
+    | '/admin/dashboard/table'
+    | '/admin/dashboard/tagging'
+    | '/client/dashboard/advertise'
+    | '/client/dashboard/package'
+    | '/client/dashboard/scheduler'
+    | '/admin/dashboard'
+    | '/client/dashboard'
+  id:
+    | '__root__'
+    | '/'
+    | '/_auth'
+    | '/login'
+    | '/register'
+    | '/_auth/favorites-fullscreen'
+    | '/_auth/photo-fullscreen'
+    | '/_auth/admin/dashboard'
+    | '/_auth/client/dashboard'
+    | '/_auth/client/profile'
+    | '/_auth/photo-collection/$id'
+    | '/_auth/admin/dashboard/collection'
+    | '/_auth/admin/dashboard/notification'
+    | '/_auth/admin/dashboard/package'
+    | '/_auth/admin/dashboard/scheduler'
+    | '/_auth/admin/dashboard/table'
+    | '/_auth/admin/dashboard/tagging'
+    | '/_auth/client/dashboard/advertise'
+    | '/_auth/client/dashboard/package'
+    | '/_auth/client/dashboard/scheduler'
+    | '/_auth/admin/dashboard/'
+    | '/_auth/client/dashboard/'
+  fileRoutesById: FileRoutesById
+}
+export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
+}
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/_auth': {
-      id: '/_auth'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof AuthImport
-      parentRoute: typeof rootRoute
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
-      preLoaderRoute: typeof LoginImport
-      parentRoute: typeof rootRoute
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterImport
-      parentRoute: typeof rootRoute
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_auth/favorites-fullscreen': {
-      id: '/_auth/favorites-fullscreen'
-      path: '/favorites-fullscreen'
-      fullPath: '/favorites-fullscreen'
-      preLoaderRoute: typeof AuthFavoritesFullscreenImport
-      parentRoute: typeof AuthImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_auth/photo-fullscreen': {
       id: '/_auth/photo-fullscreen'
       path: '/photo-fullscreen'
       fullPath: '/photo-fullscreen'
-      preLoaderRoute: typeof AuthPhotoFullscreenImport
-      parentRoute: typeof AuthImport
+      preLoaderRoute: typeof AuthPhotoFullscreenRouteImport
+      parentRoute: typeof AuthRoute
     }
-    '/_auth/admin/dashboard': {
-      id: '/_auth/admin/dashboard'
-      path: '/admin/dashboard'
-      fullPath: '/admin/dashboard'
-      preLoaderRoute: typeof AuthAdminDashboardImport
-      parentRoute: typeof AuthImport
-    }
-    '/_auth/client/dashboard': {
-      id: '/_auth/client/dashboard'
-      path: '/client/dashboard'
-      fullPath: '/client/dashboard'
-      preLoaderRoute: typeof AuthClientDashboardImport
-      parentRoute: typeof AuthImport
-    }
-    '/_auth/client/profile': {
-      id: '/_auth/client/profile'
-      path: '/client/profile'
-      fullPath: '/client/profile'
-      preLoaderRoute: typeof AuthClientProfileImport
-      parentRoute: typeof AuthImport
+    '/_auth/favorites-fullscreen': {
+      id: '/_auth/favorites-fullscreen'
+      path: '/favorites-fullscreen'
+      fullPath: '/favorites-fullscreen'
+      preLoaderRoute: typeof AuthFavoritesFullscreenRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_auth/photo-collection/$id': {
       id: '/_auth/photo-collection/$id'
       path: '/photo-collection/$id'
       fullPath: '/photo-collection/$id'
-      preLoaderRoute: typeof AuthPhotoCollectionIdImport
-      parentRoute: typeof AuthImport
+      preLoaderRoute: typeof AuthPhotoCollectionIdRouteImport
+      parentRoute: typeof AuthRoute
     }
-    '/_auth/admin/dashboard/collection': {
-      id: '/_auth/admin/dashboard/collection'
-      path: '/collection'
-      fullPath: '/admin/dashboard/collection'
-      preLoaderRoute: typeof AuthAdminDashboardCollectionImport
-      parentRoute: typeof AuthAdminDashboardImport
+    '/_auth/client/profile': {
+      id: '/_auth/client/profile'
+      path: '/client/profile'
+      fullPath: '/client/profile'
+      preLoaderRoute: typeof AuthClientProfileRouteImport
+      parentRoute: typeof AuthRoute
     }
-    '/_auth/admin/dashboard/notification': {
-      id: '/_auth/admin/dashboard/notification'
-      path: '/notification'
-      fullPath: '/admin/dashboard/notification'
-      preLoaderRoute: typeof AuthAdminDashboardNotificationImport
-      parentRoute: typeof AuthAdminDashboardImport
+    '/_auth/client/dashboard': {
+      id: '/_auth/client/dashboard'
+      path: '/client/dashboard'
+      fullPath: '/client/dashboard'
+      preLoaderRoute: typeof AuthClientDashboardRouteImport
+      parentRoute: typeof AuthRoute
     }
-    '/_auth/admin/dashboard/package': {
-      id: '/_auth/admin/dashboard/package'
-      path: '/package'
-      fullPath: '/admin/dashboard/package'
-      preLoaderRoute: typeof AuthAdminDashboardPackageImport
-      parentRoute: typeof AuthAdminDashboardImport
-    }
-    '/_auth/admin/dashboard/scheduler': {
-      id: '/_auth/admin/dashboard/scheduler'
-      path: '/scheduler'
-      fullPath: '/admin/dashboard/scheduler'
-      preLoaderRoute: typeof AuthAdminDashboardSchedulerImport
-      parentRoute: typeof AuthAdminDashboardImport
-    }
-    '/_auth/admin/dashboard/table': {
-      id: '/_auth/admin/dashboard/table'
-      path: '/table'
-      fullPath: '/admin/dashboard/table'
-      preLoaderRoute: typeof AuthAdminDashboardTableImport
-      parentRoute: typeof AuthAdminDashboardImport
-    }
-    '/_auth/admin/dashboard/tagging': {
-      id: '/_auth/admin/dashboard/tagging'
-      path: '/tagging'
-      fullPath: '/admin/dashboard/tagging'
-      preLoaderRoute: typeof AuthAdminDashboardTaggingImport
-      parentRoute: typeof AuthAdminDashboardImport
-    }
-    '/_auth/client/dashboard/advertise': {
-      id: '/_auth/client/dashboard/advertise'
-      path: '/advertise'
-      fullPath: '/client/dashboard/advertise'
-      preLoaderRoute: typeof AuthClientDashboardAdvertiseImport
-      parentRoute: typeof AuthClientDashboardImport
-    }
-    '/_auth/client/dashboard/package': {
-      id: '/_auth/client/dashboard/package'
-      path: '/package'
-      fullPath: '/client/dashboard/package'
-      preLoaderRoute: typeof AuthClientDashboardPackageImport
-      parentRoute: typeof AuthClientDashboardImport
-    }
-    '/_auth/client/dashboard/scheduler': {
-      id: '/_auth/client/dashboard/scheduler'
-      path: '/scheduler'
-      fullPath: '/client/dashboard/scheduler'
-      preLoaderRoute: typeof AuthClientDashboardSchedulerImport
-      parentRoute: typeof AuthClientDashboardImport
-    }
-    '/_auth/admin/dashboard/': {
-      id: '/_auth/admin/dashboard/'
-      path: '/'
-      fullPath: '/admin/dashboard/'
-      preLoaderRoute: typeof AuthAdminDashboardIndexImport
-      parentRoute: typeof AuthAdminDashboardImport
+    '/_auth/admin/dashboard': {
+      id: '/_auth/admin/dashboard'
+      path: '/admin/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AuthAdminDashboardRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_auth/client/dashboard/': {
       id: '/_auth/client/dashboard/'
       path: '/'
       fullPath: '/client/dashboard/'
-      preLoaderRoute: typeof AuthClientDashboardIndexImport
-      parentRoute: typeof AuthClientDashboardImport
+      preLoaderRoute: typeof AuthClientDashboardIndexRouteImport
+      parentRoute: typeof AuthClientDashboardRoute
+    }
+    '/_auth/admin/dashboard/': {
+      id: '/_auth/admin/dashboard/'
+      path: '/'
+      fullPath: '/admin/dashboard/'
+      preLoaderRoute: typeof AuthAdminDashboardIndexRouteImport
+      parentRoute: typeof AuthAdminDashboardRoute
+    }
+    '/_auth/client/dashboard/scheduler': {
+      id: '/_auth/client/dashboard/scheduler'
+      path: '/scheduler'
+      fullPath: '/client/dashboard/scheduler'
+      preLoaderRoute: typeof AuthClientDashboardSchedulerRouteImport
+      parentRoute: typeof AuthClientDashboardRoute
+    }
+    '/_auth/client/dashboard/package': {
+      id: '/_auth/client/dashboard/package'
+      path: '/package'
+      fullPath: '/client/dashboard/package'
+      preLoaderRoute: typeof AuthClientDashboardPackageRouteImport
+      parentRoute: typeof AuthClientDashboardRoute
+    }
+    '/_auth/client/dashboard/advertise': {
+      id: '/_auth/client/dashboard/advertise'
+      path: '/advertise'
+      fullPath: '/client/dashboard/advertise'
+      preLoaderRoute: typeof AuthClientDashboardAdvertiseRouteImport
+      parentRoute: typeof AuthClientDashboardRoute
+    }
+    '/_auth/admin/dashboard/tagging': {
+      id: '/_auth/admin/dashboard/tagging'
+      path: '/tagging'
+      fullPath: '/admin/dashboard/tagging'
+      preLoaderRoute: typeof AuthAdminDashboardTaggingRouteImport
+      parentRoute: typeof AuthAdminDashboardRoute
+    }
+    '/_auth/admin/dashboard/table': {
+      id: '/_auth/admin/dashboard/table'
+      path: '/table'
+      fullPath: '/admin/dashboard/table'
+      preLoaderRoute: typeof AuthAdminDashboardTableRouteImport
+      parentRoute: typeof AuthAdminDashboardRoute
+    }
+    '/_auth/admin/dashboard/scheduler': {
+      id: '/_auth/admin/dashboard/scheduler'
+      path: '/scheduler'
+      fullPath: '/admin/dashboard/scheduler'
+      preLoaderRoute: typeof AuthAdminDashboardSchedulerRouteImport
+      parentRoute: typeof AuthAdminDashboardRoute
+    }
+    '/_auth/admin/dashboard/package': {
+      id: '/_auth/admin/dashboard/package'
+      path: '/package'
+      fullPath: '/admin/dashboard/package'
+      preLoaderRoute: typeof AuthAdminDashboardPackageRouteImport
+      parentRoute: typeof AuthAdminDashboardRoute
+    }
+    '/_auth/admin/dashboard/notification': {
+      id: '/_auth/admin/dashboard/notification'
+      path: '/notification'
+      fullPath: '/admin/dashboard/notification'
+      preLoaderRoute: typeof AuthAdminDashboardNotificationRouteImport
+      parentRoute: typeof AuthAdminDashboardRoute
+    }
+    '/_auth/admin/dashboard/collection': {
+      id: '/_auth/admin/dashboard/collection'
+      path: '/collection'
+      fullPath: '/admin/dashboard/collection'
+      preLoaderRoute: typeof AuthAdminDashboardCollectionRouteImport
+      parentRoute: typeof AuthAdminDashboardRoute
     }
   }
 }
-
-// Create and export the route tree
 
 interface AuthAdminDashboardRouteChildren {
   AuthAdminDashboardCollectionRoute: typeof AuthAdminDashboardCollectionRoute
@@ -383,281 +498,12 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
-export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '': typeof AuthRouteWithChildren
-  '/login': typeof LoginRoute
-  '/register': typeof RegisterRoute
-  '/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
-  '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
-  '/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
-  '/client/dashboard': typeof AuthClientDashboardRouteWithChildren
-  '/client/profile': typeof AuthClientProfileRoute
-  '/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
-  '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
-  '/admin/dashboard/notification': typeof AuthAdminDashboardNotificationRoute
-  '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
-  '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
-  '/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
-  '/admin/dashboard/tagging': typeof AuthAdminDashboardTaggingRoute
-  '/client/dashboard/advertise': typeof AuthClientDashboardAdvertiseRoute
-  '/client/dashboard/package': typeof AuthClientDashboardPackageRoute
-  '/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
-  '/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
-  '/client/dashboard/': typeof AuthClientDashboardIndexRoute
-}
-
-export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '': typeof AuthRouteWithChildren
-  '/login': typeof LoginRoute
-  '/register': typeof RegisterRoute
-  '/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
-  '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
-  '/client/profile': typeof AuthClientProfileRoute
-  '/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
-  '/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
-  '/admin/dashboard/notification': typeof AuthAdminDashboardNotificationRoute
-  '/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
-  '/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
-  '/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
-  '/admin/dashboard/tagging': typeof AuthAdminDashboardTaggingRoute
-  '/client/dashboard/advertise': typeof AuthClientDashboardAdvertiseRoute
-  '/client/dashboard/package': typeof AuthClientDashboardPackageRoute
-  '/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
-  '/admin/dashboard': typeof AuthAdminDashboardIndexRoute
-  '/client/dashboard': typeof AuthClientDashboardIndexRoute
-}
-
-export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/': typeof IndexRoute
-  '/_auth': typeof AuthRouteWithChildren
-  '/login': typeof LoginRoute
-  '/register': typeof RegisterRoute
-  '/_auth/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
-  '/_auth/photo-fullscreen': typeof AuthPhotoFullscreenRoute
-  '/_auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
-  '/_auth/client/dashboard': typeof AuthClientDashboardRouteWithChildren
-  '/_auth/client/profile': typeof AuthClientProfileRoute
-  '/_auth/photo-collection/$id': typeof AuthPhotoCollectionIdRoute
-  '/_auth/admin/dashboard/collection': typeof AuthAdminDashboardCollectionRoute
-  '/_auth/admin/dashboard/notification': typeof AuthAdminDashboardNotificationRoute
-  '/_auth/admin/dashboard/package': typeof AuthAdminDashboardPackageRoute
-  '/_auth/admin/dashboard/scheduler': typeof AuthAdminDashboardSchedulerRoute
-  '/_auth/admin/dashboard/table': typeof AuthAdminDashboardTableRoute
-  '/_auth/admin/dashboard/tagging': typeof AuthAdminDashboardTaggingRoute
-  '/_auth/client/dashboard/advertise': typeof AuthClientDashboardAdvertiseRoute
-  '/_auth/client/dashboard/package': typeof AuthClientDashboardPackageRoute
-  '/_auth/client/dashboard/scheduler': typeof AuthClientDashboardSchedulerRoute
-  '/_auth/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
-  '/_auth/client/dashboard/': typeof AuthClientDashboardIndexRoute
-}
-
-export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | ''
-    | '/login'
-    | '/register'
-    | '/favorites-fullscreen'
-    | '/photo-fullscreen'
-    | '/admin/dashboard'
-    | '/client/dashboard'
-    | '/client/profile'
-    | '/photo-collection/$id'
-    | '/admin/dashboard/collection'
-    | '/admin/dashboard/notification'
-    | '/admin/dashboard/package'
-    | '/admin/dashboard/scheduler'
-    | '/admin/dashboard/table'
-    | '/admin/dashboard/tagging'
-    | '/client/dashboard/advertise'
-    | '/client/dashboard/package'
-    | '/client/dashboard/scheduler'
-    | '/admin/dashboard/'
-    | '/client/dashboard/'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | ''
-    | '/login'
-    | '/register'
-    | '/favorites-fullscreen'
-    | '/photo-fullscreen'
-    | '/client/profile'
-    | '/photo-collection/$id'
-    | '/admin/dashboard/collection'
-    | '/admin/dashboard/notification'
-    | '/admin/dashboard/package'
-    | '/admin/dashboard/scheduler'
-    | '/admin/dashboard/table'
-    | '/admin/dashboard/tagging'
-    | '/client/dashboard/advertise'
-    | '/client/dashboard/package'
-    | '/client/dashboard/scheduler'
-    | '/admin/dashboard'
-    | '/client/dashboard'
-  id:
-    | '__root__'
-    | '/'
-    | '/_auth'
-    | '/login'
-    | '/register'
-    | '/_auth/favorites-fullscreen'
-    | '/_auth/photo-fullscreen'
-    | '/_auth/admin/dashboard'
-    | '/_auth/client/dashboard'
-    | '/_auth/client/profile'
-    | '/_auth/photo-collection/$id'
-    | '/_auth/admin/dashboard/collection'
-    | '/_auth/admin/dashboard/notification'
-    | '/_auth/admin/dashboard/package'
-    | '/_auth/admin/dashboard/scheduler'
-    | '/_auth/admin/dashboard/table'
-    | '/_auth/admin/dashboard/tagging'
-    | '/_auth/client/dashboard/advertise'
-    | '/_auth/client/dashboard/package'
-    | '/_auth/client/dashboard/scheduler'
-    | '/_auth/admin/dashboard/'
-    | '/_auth/client/dashboard/'
-  fileRoutesById: FileRoutesById
-}
-
-export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRouteWithChildren
-  LoginRoute: typeof LoginRoute
-  RegisterRoute: typeof RegisterRoute
-}
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
 }
-
-export const routeTree = rootRoute
+export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-/* ROUTE_MANIFEST_START
-{
-  "routes": {
-    "__root__": {
-      "filePath": "__root.tsx",
-      "children": [
-        "/",
-        "/_auth",
-        "/login",
-        "/register"
-      ]
-    },
-    "/": {
-      "filePath": "index.tsx"
-    },
-    "/_auth": {
-      "filePath": "_auth.tsx",
-      "children": [
-        "/_auth/favorites-fullscreen",
-        "/_auth/photo-fullscreen",
-        "/_auth/admin/dashboard",
-        "/_auth/client/dashboard",
-        "/_auth/client/profile",
-        "/_auth/photo-collection/$id"
-      ]
-    },
-    "/login": {
-      "filePath": "login.tsx"
-    },
-    "/register": {
-      "filePath": "register.tsx"
-    },
-    "/_auth/favorites-fullscreen": {
-      "filePath": "_auth.favorites-fullscreen.tsx",
-      "parent": "/_auth"
-    },
-    "/_auth/photo-fullscreen": {
-      "filePath": "_auth.photo-fullscreen.tsx",
-      "parent": "/_auth"
-    },
-    "/_auth/admin/dashboard": {
-      "filePath": "_auth.admin/dashboard.tsx",
-      "parent": "/_auth",
-      "children": [
-        "/_auth/admin/dashboard/collection",
-        "/_auth/admin/dashboard/notification",
-        "/_auth/admin/dashboard/package",
-        "/_auth/admin/dashboard/scheduler",
-        "/_auth/admin/dashboard/table",
-        "/_auth/admin/dashboard/tagging",
-        "/_auth/admin/dashboard/"
-      ]
-    },
-    "/_auth/client/dashboard": {
-      "filePath": "_auth.client/dashboard.tsx",
-      "parent": "/_auth",
-      "children": [
-        "/_auth/client/dashboard/advertise",
-        "/_auth/client/dashboard/package",
-        "/_auth/client/dashboard/scheduler",
-        "/_auth/client/dashboard/"
-      ]
-    },
-    "/_auth/client/profile": {
-      "filePath": "_auth.client/profile.tsx",
-      "parent": "/_auth"
-    },
-    "/_auth/photo-collection/$id": {
-      "filePath": "_auth.photo-collection.$id.tsx",
-      "parent": "/_auth"
-    },
-    "/_auth/admin/dashboard/collection": {
-      "filePath": "_auth.admin/dashboard/collection.tsx",
-      "parent": "/_auth/admin/dashboard"
-    },
-    "/_auth/admin/dashboard/notification": {
-      "filePath": "_auth.admin/dashboard/notification.tsx",
-      "parent": "/_auth/admin/dashboard"
-    },
-    "/_auth/admin/dashboard/package": {
-      "filePath": "_auth.admin/dashboard/package.tsx",
-      "parent": "/_auth/admin/dashboard"
-    },
-    "/_auth/admin/dashboard/scheduler": {
-      "filePath": "_auth.admin/dashboard/scheduler.tsx",
-      "parent": "/_auth/admin/dashboard"
-    },
-    "/_auth/admin/dashboard/table": {
-      "filePath": "_auth.admin/dashboard/table.tsx",
-      "parent": "/_auth/admin/dashboard"
-    },
-    "/_auth/admin/dashboard/tagging": {
-      "filePath": "_auth.admin/dashboard/tagging.tsx",
-      "parent": "/_auth/admin/dashboard"
-    },
-    "/_auth/client/dashboard/advertise": {
-      "filePath": "_auth.client/dashboard/advertise.tsx",
-      "parent": "/_auth/client/dashboard"
-    },
-    "/_auth/client/dashboard/package": {
-      "filePath": "_auth.client/dashboard/package.tsx",
-      "parent": "/_auth/client/dashboard"
-    },
-    "/_auth/client/dashboard/scheduler": {
-      "filePath": "_auth.client/dashboard/scheduler.tsx",
-      "parent": "/_auth/client/dashboard"
-    },
-    "/_auth/admin/dashboard/": {
-      "filePath": "_auth.admin/dashboard/index.tsx",
-      "parent": "/_auth/admin/dashboard"
-    },
-    "/_auth/client/dashboard/": {
-      "filePath": "_auth.client/dashboard/index.tsx",
-      "parent": "/_auth/client/dashboard"
-    }
-  }
-}
-ROUTE_MANIFEST_END */

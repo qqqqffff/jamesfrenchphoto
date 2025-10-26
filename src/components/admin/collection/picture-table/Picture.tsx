@@ -2,7 +2,6 @@ import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState, 
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../../types";
 import { attachClosestEdge, extractClosestEdge, type Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { 
-  invariant, 
   useNavigate 
 } from "@tanstack/react-router";
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
@@ -163,7 +162,11 @@ export const Picture = (props: PictureProps) => {
 
   useEffect(() => {
     const outer = outerRef.current
-    invariant(outer)
+    
+    if(!outer) {
+      return
+    }
+
     const isSelected = props.selectedPhotos.some((picture) => picture.id === props.picture.id)
     const isDraggingSelected = props.selectedPhotos.some((picture) => picture.id === props.parentIsDragging?.id)
 
@@ -173,9 +176,12 @@ export const Picture = (props: PictureProps) => {
         getInitialData: ({ element })  => {
           return getPictureData({ picture: props.picture, rect: element.getBoundingClientRect() })
         },
-        onGenerateDragPreview({ source, nativeSetDragImage }) {
-          const data = source.data
-          invariant(isPictureData(data))
+        onGenerateDragPreview({ 
+          // source, 
+          nativeSetDragImage 
+        }) {
+          //TODO: maybe do something with the source
+          // const data = source.data
 
           setCustomNativeDragPreview({
             nativeSetDragImage,

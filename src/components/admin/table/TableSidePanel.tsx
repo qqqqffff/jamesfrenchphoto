@@ -7,7 +7,7 @@ import { EditableTextField } from "../../common/EditableTextField"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
 import { Dropdown } from "flowbite-react"
 import { ConfirmationModal } from "../../modals"
-import { invariant, useNavigate } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import Loading from "../../common/Loading"
 import { v4 } from 'uuid'
 
@@ -79,8 +79,6 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
           }
           return group
         })
-
-        invariant(mappedTable)
 
         props.parentUpdateTableGroups((prev) => updateGroup(prev))
         props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))

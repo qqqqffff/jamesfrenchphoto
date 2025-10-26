@@ -3,7 +3,6 @@ import { ListChildComponentProps } from "react-window"
 import { UploadIssue } from "./IssueNotifications"
 import { Tooltip } from "flowbite-react"
 import { HiOutlineExclamationTriangle, HiOutlineTrash, HiOutlineXMark } from "react-icons/hi2"
-import { invariant } from "@tanstack/react-router"
 import { HiOutlineRefresh } from "react-icons/hi"
 import { formatFileSize } from "../../../utils"
 import { UseQueryResult } from "@tanstack/react-query"
@@ -63,7 +62,11 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
                   ]
                   
                   const tempIndex = tempIssues.findIndex((isuse) => isuse.type === 'duplicate')
-                  invariant(tempIndex !== -1)
+                  
+                  if(tempIndex === -1) {
+                    //TODO: do something
+                  }
+
                   tempIssues[tempIndex].id = tempIssues[tempIndex].id.filter((id) => id !== data.data[index][0])
                   if(tempIssues[tempIndex].id.length === 0){
                     tempIssues = tempIssues.filter((issue) => issue.type !== 'duplicate')
@@ -89,7 +92,11 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
                 ]
                 
                 const tempIndex = tempIssues.findIndex((isuse) => isuse.type === 'duplicate')
-                invariant(tempIndex !== -1)
+                
+                if(tempIndex === -1) {
+                  //TODO: handle issue
+                }
+                
                 tempIssues[tempIndex].id = tempIssues[tempIndex].id.filter((id) => id !== data.data[index][0])
                 if(tempIssues[tempIndex].id.length === 0){
                   tempIssues = tempIssues.filter((issue) => issue.type !== 'duplicate')
