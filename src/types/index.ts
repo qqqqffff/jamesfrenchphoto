@@ -106,6 +106,8 @@ export type PicturePath = {
     order: number;
     favorite?: string;
     setId: string;
+    width: number;
+    height: number;
 }
 
 export type Watermark = {

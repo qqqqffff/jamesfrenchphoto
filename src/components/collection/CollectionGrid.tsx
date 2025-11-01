@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
+import { useInfiniteQuery, useQueries, UseQueryResult } from "@tanstack/react-query"
 import { Dispatch, LegacyRef, SetStateAction, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import useWindowDimensions from "../../hooks/windowDimensions"
 import { getInfinitePathsQueryOptions } from "../../services/photoPathService"
@@ -6,9 +6,6 @@ import { PhotoCollection, PhotoSet, PicturePath, UserProfile } from "../../types
 import { AuthContext } from "../../auth"
 import { getPathQueryOptions } from "../../services/collectionService"
 import { PhotoControls } from "./PhotoControls"
-import { HiOutlineXCircle } from "react-icons/hi2"
-import { CgSpinner } from "react-icons/cg"
-import useScrollPosition from "../../hooks/scrollPosition"
 
 interface CollectionGridProps {
   set: PhotoSet,
@@ -22,17 +19,20 @@ interface CollectionGridProps {
   watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined, Error>
   gridRef: LegacyRef<HTMLDivElement>
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet>>
-  completeOffsetReset: Dispatch<SetStateAction<boolean>>
 }
 
 export const CollectionGrid = (props: CollectionGridProps) => {
   const dimensions = useWindowDimensions()
-  const scrollPosition = useScrollPosition()
 
   const columnMultiplier = dimensions.width > 1600 ? 5 : (
     dimensions.width > 800 ? 
       3 : 1
     )
+
+  const bottomObserverRef = useRef<IntersectionObserver | null>(null)
+  const topObserverRef = useRef<IntersectionObserver | null>(null)
+  const unrenderedObserverRef = useRef<IntersectionObserver | null>(null)
+  const currentOffsetIndex = useRef<number | undefined>()
   
   const pathsQuery = useInfiniteQuery(
     getInfinitePathsQueryOptions(props.set.id, {
@@ -43,27 +43,12 @@ export const CollectionGrid = (props: CollectionGridProps) => {
   )
 
   const [pictures, setPictures] = useState<PicturePath[]>(pathsQuery.data ? pathsQuery.data.pages[pathsQuery.data.pages.length - 1].memo : [])
-  const [pictureDimensions, setPictureDimensions] = useState<Map<string, { width: number, height: number }>>(new Map())
+  const [pictureColumns, setPictureColumns] = useState<PicturePath[][]>([])
   const [currentControlDisplay, setCurrentControlDisplay] = useState<string>()
-  const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
-  const columnsRef = useRef<HTMLDivElement[] | null>(null) 
-  const [renderWindow, setRenderWindow] = useState<{top: number, bottom: number}>({ top: 0, bottom: columnMultiplier * (dimensions.height / 250) })
-
-  // console.log(topIndex.current, bottomIndex.current, currentOffsetIndex.current)
-  
-  // TODO: fix me
-  // useEffect(() => {
-  //   if(
-  //     props.watermarkPath &&
-  //     props.watermarkQuery && 
-  //     (
-  //       !expandedWatermarkRef.current?.complete || 
-  //       expandedWatermarkRef.current.naturalWidth < 0
-  //     )
-  //   ) {
-  //     props.watermarkQuery.refetch()
-  //   }
-  // }, [expandedWatermarkRef.current])
+  const topIndex = useRef<number>(0)
+  const bottomIndex = useRef<number>(columnMultiplier * 6) //initial load 6 rows
+  const columnsRef = useRef<(HTMLDivElement | null)[]>([])
+  const picturesRef = useRef<Map<string, HTMLDivElement>>(new Map())
 
   useEffect(() => {
     if(pathsQuery.data) {
@@ -72,8 +57,41 @@ export const CollectionGrid = (props: CollectionGridProps) => {
     }
   }, [pathsQuery.data])
 
+  const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): { 
+    bottom: PicturePath, 
+    top?: PicturePath
+  } => {
+    //4 rows per page * 3 pages
+    const pageMultiplier = Math.ceil(4 * 3 * columnMultiplier)
+    if(offset) {
+      //bottom index = offset + (offset + multiplier >= length ? length - offset - 1 : multiplier)
+      //if offset + multiplier >= length set to length otherwise add multiplier to offset
+      bottomIndex.current = offset + ((offset + pageMultiplier) >= allItems.length ? allItems.length - offset - 1 : pageMultiplier)
+      //top index = offset - (offset - multiplier > 0 ? multiplier : offset)
+      //if offset - multiplier < 0 then set to 0 otherwise subtract mutiplier from offset
+      topIndex.current = offset - ((offset - pageMultiplier) < 0 ? offset : pageMultiplier)
+      //halfway until the bottom/top
+      const halfMultiplier = (pageMultiplier - (columnMultiplier * 2))
+      const bottomMidpoint = offset + ((offset + halfMultiplier) >= allItems.length ? allItems.length - offset - 1 : halfMultiplier)
+      const topMidpoint = offset - ((offset - halfMultiplier) < 0 ? offset : halfMultiplier)
+      return {
+        bottom: allItems[bottomMidpoint],
+        top: allItems[topMidpoint]
+      }
+    }
+    //if no offset
+    bottomIndex.current = allItems.length - 1
+    topIndex.current = allItems.length - ((allItems.length - pageMultiplier) < 0 ? allItems.length : pageMultiplier)
 
-  const pictureQueries = Object.fromEntries(useQueries({
+    const bottomMidpoint = allItems.length - (allItems.length / 4)
+    const topMidpoint = allItems.length / 4
+    return {
+      bottom: allItems[bottomMidpoint],
+      top: allItems[topMidpoint]
+    }
+  }, [])
+
+  const a = Object.fromEntries(useQueries({
     queries: pictures
       .slice(
         topIndex.current > 0 ? topIndex.current : 0, 
@@ -87,130 +105,33 @@ export const CollectionGrid = (props: CollectionGridProps) => {
     ])
   )
 
-  // useEffect(() => {
-  //   if(pictures.length === 0) return
-
-  //   if(!bottomObserverRef.current) {
-  //     bottomObserverRef.current = new IntersectionObserver((entries) => {
-  //       entries.forEach(entry => {
-  //         if(entry.isIntersecting &&
-  //           currentOffsetIndex.current &&
-  //           (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) > pictures.length
-  //         ) {
-  //           currentOffsetIndex.current = undefined
-  //         }
-  //         else if(
-  //           entry.isIntersecting &&
-  //           currentOffsetIndex.current &&
-  //           (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) < pictures.length
-  //         ) {
-  //           const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-  //           currentOffsetIndex.current = foundIndex
-  //         }
-  //         if(
-  //           entry.isIntersecting && 
-  //           pathsQuery.hasNextPage && 
-  //           !pathsQuery.isFetchingNextPage &&
-  //           currentOffsetIndex.current === undefined
-  //         ) {
-  //           pathsQuery.fetchNextPage()
-  //         }
-  //       })
-  //     }, {
-  //       root: null,
-  //       rootMargin: '0px',
-  //       threshold: 0.1
-  //     })
-  //   }
-
-  //   if(!topObserverRef.current) {
-  //     topObserverRef.current = new IntersectionObserver((entries) => {
-  //       entries.forEach(entry => {
-  //         const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-  //         if(entry.isIntersecting && foundIndex !== 0) {
-  //           currentOffsetIndex.current = foundIndex
-  //         }
-  //       })
-  //     }, {
-  //       root: null,
-  //       rootMargin: '0px',
-  //       threshold: 0.1
-  //     })
-  //   }
-  //   const triggerReturn = getTriggerItems(pictures, currentOffsetIndex.current)
-
-  //   const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
-  //   const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
-
-  //   if(Tel && topObserverRef.current && triggerReturn.top?.id) {
-  //     Tel.setAttribute('data-id', triggerReturn.top.id)
-  //     topObserverRef.current.observe(Tel)
-  //   }
-  //   if(Bel && bottomObserverRef.current) {
-  //     Bel.setAttribute('data-id', triggerReturn.bottom.id)
-  //     bottomObserverRef.current.observe(Bel)
-  //   }
-
-  //   return () => {
-  //     if(bottomObserverRef.current) {
-  //       bottomObserverRef.current.disconnect()
-  //     }
-  //     if(topObserverRef.current) {
-  //       topObserverRef.current.disconnect()
-  //     }
-  //     if(unrenderedObserverRef.current) {
-  //       unrenderedObserverRef.current.disconnect()
-  //     }
-  //     topObserverRef.current = null
-  //     bottomObserverRef.current = null
-  //     unrenderedObserverRef.current = null
-  //   }
-  // }, [
-  //   pictures,
-  //   picturesRef.current,
-  //   currentOffsetIndex.current,
-  //   pathsQuery.fetchNextPage,
-  //   pathsQuery.hasNextPage,
-  //   pathsQuery.isFetchingNextPage,
-  //   getTriggerItems,
-  //   pictureQueries
-  // ])
-
-  const setItemRef = useCallback((el: HTMLDivElement | null, id: string) => {
-    if(el) {
-      picturesRef.current.set(id, el)
-    }
-  }, [])
-
-  const updateImageDimensions = useCallback((pictureId: string, img: HTMLImageElement) => {
-    if(!img.clientHeight || !img.clientWidth) return
-
-    setPictureDimensions(prev => {
-      const existing = prev.find(([id]) => id === pictureId)
-      if (!existing) {
-        return [...prev, [pictureId, { 
-          width: img.clientWidth,
-          height: img.clientHeight
-        }]]
-      }
-      return prev.map(([id, dims]) => 
-        id === pictureId 
-          ? [id, { width: img.clientWidth, height: img.clientHeight }]
-          : [id, dims]
-      )
-    })
-  }, [])
-
   useEffect(() => {
-    if (!imageObserverRef.current) {
-      imageObserverRef.current = new IntersectionObserver((entries) => {
+    if(pictures.length === 0) return
+
+    if(!bottomObserverRef.current) {
+      bottomObserverRef.current = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const img = entry.target as HTMLImageElement
-            const pictureId = img.getAttribute('data-picture-id')
-            if (pictureId && img.complete && img.naturalHeight !== 0) {
-              updateImageDimensions(pictureId, img)
-            }
+          if(entry.isIntersecting &&
+            currentOffsetIndex.current &&
+            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) > pictures.length
+          ) {
+            currentOffsetIndex.current = undefined
+          }
+          else if(
+            entry.isIntersecting &&
+            currentOffsetIndex.current &&
+            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) < pictures.length
+          ) {
+            const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+            currentOffsetIndex.current = foundIndex
+          }
+          if(
+            entry.isIntersecting && 
+            pathsQuery.hasNextPage && 
+            !pathsQuery.isFetchingNextPage &&
+            currentOffsetIndex.current === undefined
+          ) {
+            pathsQuery.fetchNextPage()
           }
         })
       }, {
@@ -220,46 +141,175 @@ export const CollectionGrid = (props: CollectionGridProps) => {
       })
     }
 
+    if(!unrenderedObserverRef.current) {
+      unrenderedObserverRef.current = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if(entry.isIntersecting) {
+            const pictureId = entry.target.getAttribute('data-unrendered-id')
+            const foundIndex = pictures.findIndex((path) => path.id === pictureId)
+            if(foundIndex !== -1) {
+              const pageMultiplier = Math.ceil(4 * 3 * columnMultiplier * 1.5)
+              topIndex.current = Math.max(0, foundIndex - Math.floor(pageMultiplier / 2))
+              bottomIndex.current = Math.min(pictures.length - 1, foundIndex + Math.floor(pageMultiplier / 2))
+              currentOffsetIndex.current = foundIndex
+            }
+          }
+        })
+      }, {
+        root: null,
+        rootMargin: '50px',
+        threshold: 0.1
+      })
+    }
+    if(!topObserverRef.current) {
+      topObserverRef.current = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+          if(entry.isIntersecting && foundIndex !== 0) {
+            currentOffsetIndex.current = foundIndex
+          }
+        })
+      }, {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1
+      })
+    }
+    const triggerReturn = getTriggerItems(pictures, currentOffsetIndex.current)
+
+    const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
+    const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
+
+    if(Tel && topObserverRef.current && triggerReturn.top?.id) {
+      Tel.setAttribute('data-id', triggerReturn.top.id)
+      topObserverRef.current.observe(Tel)
+    }
+    if(Bel && bottomObserverRef.current) {
+      Bel.setAttribute('data-id', triggerReturn.bottom.id)
+      bottomObserverRef.current.observe(Bel)
+    }
+
     return () => {
-      if (imageObserverRef.current) {
-        imageObserverRef.current.disconnect()
-        imageObserverRef.current = null
+      if(bottomObserverRef.current) {
+        bottomObserverRef.current.disconnect()
       }
+      if(topObserverRef.current) {
+        topObserverRef.current.disconnect()
+      }
+      if(unrenderedObserverRef.current) {
+        unrenderedObserverRef.current.disconnect()
+      }
+      topObserverRef.current = null
+      bottomObserverRef.current = null
+      unrenderedObserverRef.current = null
+    }
+  }, [
+    pictures,
+    picturesRef.current,
+    currentOffsetIndex.current,
+    pathsQuery.fetchNextPage,
+    pathsQuery.hasNextPage,
+    pathsQuery.isFetchingNextPage,
+    getTriggerItems,
+    a
+  ])
+
+  const setPicturesRef = useCallback((el: HTMLDivElement | null, id: string) => {
+    if(el) {
+      picturesRef.current.set(id, el)
     }
   }, [])
-  //necessary for first fetch
-  useQuery(getPathQueryOptions())
+
+  // useQuery(getPathQueryOptions())
   
-  const gridClass = `grid grid-cols-${String(columnMultiplier)} gap-4 mx-4 mt-1 items-start`
+  const gridClass = `grid grid-cols-${String(columnMultiplier)} gap-4 mx-4 mt-1`
 
-  const formattedCollection: PicturePath[][] = Array.from(
-    { length: columnMultiplier },
-    () => [],
-  );
-  const columnHeights = new Array(columnMultiplier).fill(0);
+  const formattedCollection: PicturePath[][] = []
+  for(let i = 0; i < columnMultiplier; i++){
+    formattedCollection.push([] as PicturePath[])
+  }
 
+  let curIndex = 0
   pictures.forEach((picture) => {
-    const dimensions = pictureDimensions.find((d) => d[0] === picture.id);
-    // Use aspect ratio for height calculation, assuming column width is constant.
-    // Default to 1 (square) if dimensions are not yet available.
-    const aspectRatio = dimensions
-      ? dimensions[1].height / dimensions[1].width
-      : 1;
+    formattedCollection[curIndex].push(picture)
+    if(curIndex + 2 > columnMultiplier){
+      curIndex = 0
+    }
+    else{
+      curIndex = curIndex + 1
+    }
+  })
 
-    // Find the column with the minimum height
-    let shortestColumnIndex = 0;
-    for (let i = 1; i < columnHeights.length; i++) {
-      if (columnHeights[i] < columnHeights[shortestColumnIndex]) {
-        shortestColumnIndex = i;
+  //if columnmultiplier changes
+  useEffect(() => {
+    if(pictureColumns.flatMap((pictures) => pictures).length > 0) {
+      setPictureColumns([])
+    }
+  }, [columnMultiplier])
+
+  //if there is some picture that is in the data list but not in the columns add it to the columns
+  const flatDisplayPictures = pictureColumns.flatMap((pictures) => pictures)
+  if(
+    !pictures
+      .some((parentPicture) => flatDisplayPictures.some((picture) => picture.id === parentPicture.id))
+  ) {
+    const newPictures = pictures
+      .filter((parentPicture) => !flatDisplayPictures.some((picture) => parentPicture.id === picture.id))
+      .sort((a, b) => a.order - b.order)
+    const columnMap = columnsRef.current
+      .filter((column) => column != null)
+      .map((column) => ({height: column.clientHeight, column: column}))
+      .sort((a, b) => Number(a.column.id) - Number(b.column.id))
+      .map((column, index) => ({ height: column.height, pictureColumn: pictureColumns[index], index: index }))
+
+    if(columnMap.length === 0) {
+      //fill columnMap
+      for(let i = 0; i < columnMultiplier; i++) {
+        columnMap.push({
+          height: 0,
+          pictureColumn: [],
+          index: i
+        })
+      }
+
+      //greedily add to smallest column
+      for(let i = 0; i < newPictures.length; i++) {
+        const shortestColumn = columnMap.reduce((prev, cur) => {
+          if(cur.height < prev.height) {
+            return cur
+          }
+          return prev
+        })
+
+        columnMap[shortestColumn.index] = {
+          ...shortestColumn,
+          height: columnMap[shortestColumn.index].height + newPictures[i].height + 4, //4px gap on bottom
+          pictureColumn: [...shortestColumn.pictureColumn, newPictures[i]]
+        }
+      }
+    }
+    else {
+      for(let i = 0; i < newPictures.length; i++) {
+        const shortestColumn = columnMap.reduce((prev, cur) => {
+          if(cur.height < prev.height) {
+            return cur
+          }
+          return prev
+        })
+
+        columnMap[shortestColumn.index] = {
+          ...shortestColumn,
+          height: columnMap[shortestColumn.index].height + newPictures[i].height + 4, //4px gap on bottom
+          pictureColumn: [...shortestColumn.pictureColumn, newPictures[i]]
+        }
       }
     }
 
-    // Add the picture to the shortest column
-    formattedCollection[shortestColumnIndex].push(picture);
-
-    // Update the height of that column
-    columnHeights[shortestColumnIndex] += aspectRatio;
-  });
+    setPictureColumns(columnMap
+        .sort((a, b) => a.index - b.index)
+        .map((columns) => columns.pictureColumn)
+      )
+  }
 
   function controlsEnabled(id: string): string{
     if(id === currentControlDisplay) return 'flex'
@@ -282,23 +332,23 @@ export const CollectionGrid = (props: CollectionGridProps) => {
             return (
               <div 
                 key={i} 
-                className="flex flex-col gap-4 h-auto" 
+                className="flex flex-col gap-4"
+                ref={el => columnsRef.current[i] = el}
+                id={String(i)}
               >
                 {subCollection.map((picture, j) => {
-                  const url = pictureQueries[picture.id]
-
+                  const url = a[picture.id]
                   if(
                     !url?.data ||
                     props.watermarkPath === undefined &&
                     props.watermarkQuery !== undefined
                   ) return (
                     <div
-                      id={picture.id}
                       key={j}
                       className='h-auto max-w-full rounded-lg border-2'
                       style={{
-                        width: `${pictureDimensions.find((dimension) => dimension[0] === picture.id)?.[1].width}px`,
-                        height: `${pictureDimensions.find((dimension) => dimension[0] === picture.id)?.[1].height}px`
+                        width: `${picture.width}px`,
+                        height: `${picture.height}px`
                       }}
                     >
                       <svg className="text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
@@ -309,33 +359,15 @@ export const CollectionGrid = (props: CollectionGridProps) => {
 
                   return (
                     <div
-                      ref={el => setItemRef(el, picture.id)}
+                      ref={el => setPicturesRef(el, picture.id)}
                       key={j} 
-                      tabIndex={j}
-                      className="relative focus:ring-0 focus:outline-none" 
+                      className="relative" 
                       onContextMenu={(e) => {
                         if(!props.collection.downloadable) e.preventDefault()
                       }}
-                      onMouseEnter={(event) => {
-                        event.currentTarget.focus()
-                        setCurrentControlDisplay(picture.id)
-                      }}
+                      onMouseEnter={() => setCurrentControlDisplay(picture.id)}
                       onMouseLeave={() => setCurrentControlDisplay(undefined)}
-                      onMouseDown={() => {
-                        handleLongPress(picture.id)
-                        setCurrentControlDisplay(picture.id)
-                      }}
-                      onMouseUp={handleEndLongPress}
-                      onTouchStart={() => {
-                        handleLongPress(picture.id)
-                        setCurrentControlDisplay(picture.id)
-                      }}
-                      onTouchEnd={handleEndLongPress}
-                      onTouchCancel={handleEndLongPress}
-                      onKeyDown={(event) => {
-                        event.preventDefault()
-                        if(event.key === ' ') handleExpand(picture.id)
-                      }}
+                      onClick={() => setCurrentControlDisplay(picture.id)}
                     >
                       <Suspense fallback={
                         <svg className="text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
@@ -350,23 +382,12 @@ export const CollectionGrid = (props: CollectionGridProps) => {
                             h-auto max-w-full rounded-lg border-2 
                             ${currentControlDisplay === picture.id ? 'border-gray-300' : 'border-transparent'}
                           `}
-                          onLoad={(e) => {
-                            updateImageDimensions(picture.id, e.currentTarget)
-                            if (imageObserverRef.current) {
-                              imageObserverRef.current.observe(e.currentTarget)
-                            }
-                          }}
-                          onError={(e) => {
-                            if (e.currentTarget.complete && e.currentTarget.naturalHeight !== 0) {
-                              updateImageDimensions(picture.id, e.currentTarget)
-                            }
-                          }}
                         />
                         <img 
                           src={props.watermarkPath}
                           className="absolute inset-0 w-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
                           style={{ 
-                            maxWidth: `${pictureDimensions.find((dimension) => dimension[0] === picture.id)?.[1].height ?? Math.min(...pictureDimensions.flatMap((dimension) => dimension[1].height))}px`
+                            maxWidth: `${picture.height}px`
                           }}
                         />
                       </Suspense>
@@ -377,55 +398,6 @@ export const CollectionGrid = (props: CollectionGridProps) => {
                         controlsEnabled={controlsEnabled}
                         parentUpdateSet={props.parentUpdateSet}
                       />
-                      {expanded === picture.id && (
-                        <div
-                          className="fixed inset-0 z-50 flex items-center justify-center bg-black transition-all duration-300 ease-in-out"
-                          style={{ backgroundColor: closing ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.8)' }}
-                        >
-                          <div
-                            ref={expandedRef}
-                            className="relative w-screen h-screen transition-all duration-300 ease-in-out"
-                            style={{
-                              transformOrigin: 'center',
-                              willChange: 'transform, opacity'
-                            }}
-                          >
-                            <button 
-                              className="absolute opacity-60 hover:cursor-pointer hover:opacity-85 pointer-events-auto"
-                              onClick={() => handleClose(picture.id)}
-                            >
-                              <HiOutlineXCircle size={48} className="fill-white"/>
-                            </button>
-                            <img 
-                              ref={expandedImageRef}
-                              src={url.data?.[1]}
-                              className="w-full max-h-screen object-contain rounded shadow-xl"
-                              onLoad={(load) => {
-                                const naturalRatio = load.currentTarget.naturalWidth / load.currentTarget.naturalHeight
-                                
-                                setExpandedDimensions(naturalRatio * load.currentTarget.clientHeight)
-                              }}
-                            />
-                            {props.watermarkQuery && props.watermarkQuery.isLoading ? (
-                              <CgSpinner 
-                                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 inset-0 opacity-80 w-screen h-screen"
-                                style={expandedDimensions ? { 
-                                  maxWidth: `${expandedDimensions}px`
-                                  } : { }}
-                              />
-                            ) : props.watermarkPath && (
-                              <img 
-                                ref={expandedWatermarkRef}
-                                src={props.watermarkPath}
-                                style={expandedDimensions ? { 
-                                  maxWidth: `${expandedDimensions}px`
-                                  } : { }}
-                                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 inset-0 opacity-80 w-screen h-screen"
-                              />
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )
                 })}

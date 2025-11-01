@@ -79,7 +79,9 @@ const schema = a.schema({
       order: a.integer().required(),
       setId: a.id().required(),
       set: a.belongsTo('PhotoSet', 'setId'),
-      favorites: a.hasMany('UserFavorites', 'pathId')
+      favorites: a.hasMany('UserFavorites', 'pathId'),
+      width: a.integer().required(),
+      height: a.integer().required()
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [
