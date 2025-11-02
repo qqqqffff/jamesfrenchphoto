@@ -19,6 +19,8 @@ interface CollectionGridProps {
   watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined, Error>
   gridRef: LegacyRef<HTMLDivElement>
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet>>
+  resetOffsets: boolean, //TODO: implement me with use effect
+  completeOffsetReset: Dispatch<SetStateAction<boolean>> //TODO: implement me
 }
 
 export const CollectionGrid = (props: CollectionGridProps) => {

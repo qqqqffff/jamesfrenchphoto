@@ -1,10 +1,11 @@
-import { ComponentProps, Dispatch, SetStateAction } from "react"
+import { ComponentProps, Dispatch, SetStateAction, useState } from "react"
 
 interface UploadComponentProps extends ComponentProps<'div'> {
-  setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
+  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>
 }
 
 export const UploadImagePlaceholder = (props: UploadComponentProps) => {
+  const [placeholderImage, setPlaceholderImage] = useState<string>()
   const rootProps: Partial<UploadComponentProps> = {
     ...props,
   }
@@ -43,6 +44,7 @@ export const UploadImagePlaceholder = (props: UploadComponentProps) => {
               }
             }}
           />
+          <image src={} />
         </label>
       </div> 
     </div>

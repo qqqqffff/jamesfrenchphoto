@@ -61,7 +61,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
   const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
   const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
-  const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
+  const [filesUploading, setFilesUploading] = useState<Map<string, { file: File, width: number, height: number }> | undefined>()
   const [uploads, setUploads] = useState<UploadData[]>([])
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
 

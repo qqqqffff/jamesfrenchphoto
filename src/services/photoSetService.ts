@@ -256,7 +256,7 @@ export interface UploadImagesMutationParams {
     uploadId: string,
     collection: PhotoCollection,
     set: PhotoSet,
-    files: Map<string, File>,
+    files: Map<string, { file: File, width: number, height: number }>,
     updateUpload: Dispatch<SetStateAction<UploadData[]>>
     updatePaths: Dispatch<SetStateAction<PicturePath[]>>
     parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
@@ -315,9 +315,9 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
         const filesBatch = allFiles.slice(startIndex, endIndex)
 
         const response = (await Promise.all(filesBatch.map(async (file, index) => {
-            if(params.duplicates[file.name]){
+            if(params.duplicates[file.file.name]){
                 const result = await remove({
-                    path: params.duplicates[file.name].path
+                    path: params.duplicates[file.file.name].path
                 })
 
                 if(params.options?.logging) console.log(result)
@@ -329,8 +329,8 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
             while(attempts < 5) {
                 try {
                     const result = uploadData({
-                        path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.name}`,
-                        data: file,
+                        path: `photo-collections/${params.collection.id}/${params.set.id}/${v4()}_${file.file.name}`,
+                        data: file.file,
                         options: {
                             onProgress: (event) => {
                                 currentUpload += event.transferredBytes
@@ -371,16 +371,18 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
             let mappedPath: PicturePath | undefined
             if(params.options?.logging) console.log(path)
 
-            if(params.duplicates[file.name]){
+            if(params.duplicates[file.file.name]){
                 const response = await client.models.PhotoPaths.update({
-                    id: params.duplicates[file.name].id,
+                    id: params.duplicates[file.file.name].id,
                     path: path,
+                    width: file.width,
+                    height: file.height
                 })
                 if(params.options?.logging) console.log(response)
                 if(!response || !response.data || response.errors !== undefined) return false
                 mappedPath = {
                     ...response.data,
-                    favorite: params.duplicates[file.name].favorite,
+                    favorite: params.duplicates[file.file.name].favorite,
                     url: ''
                 }
             } else {
@@ -388,6 +390,8 @@ export async function uploadImagesMutation(params: UploadImagesMutationParams){
                     path: path,
                     order: index + params.set.paths.length + (batch * batchSize),
                     setId: params.set.id,
+                    width: file.width,
+                    height: file.height
                 })
                 if(params.options?.logging) console.log(response)
                 if(!response || !response.data || response.errors !== undefined) return false
