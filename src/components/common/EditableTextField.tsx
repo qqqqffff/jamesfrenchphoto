@@ -63,11 +63,11 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
         className={`text-2xl absolute text-transparent ${props.className} -z-10`} 
         ref={contentSpan}
       >
-        {`${spanContent}?`}
+        {`${spanContent}.`}
       </span>
       <input 
         className={`font-thin p-0 text-2xl border-transparent disabled:cursor-default ring-transparent ${props.className}`}
-        value={content} 
+        value={props.text} 
         type="text" 
         ref={inputRef}
         style={{ width: width, minWidth: props.minWidth }}

@@ -86,15 +86,18 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
 }
 
 export interface CreateTableGroupParams {
+    id: string,
     name: string,
     options?: {
         logging?: boolean
     }
 }
 export async function createTableGroupMutation(params: CreateTableGroupParams) {
-    const response = await client.models.TableGroup.create({ name: params.name })
+    const response = await client.models.TableGroup.create({ 
+        id: params.id,
+        name: params.name 
+    })
     if(params.options?.logging) console.log(response)
-    return response.data?.id
 }
 
 export interface UpdateTableGroupParams {

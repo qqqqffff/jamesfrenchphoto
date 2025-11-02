@@ -228,7 +228,7 @@ export interface TableGroup {
     name: string,
     tables: Table[],
     temporary?: boolean,
-    editting?: boolean,
+    edit?: boolean,
     createdAt: string,
 }
 
