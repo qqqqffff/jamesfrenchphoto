@@ -2,7 +2,6 @@ import { Dropdown } from "flowbite-react"
 import { ParticipantFields, Table, TableColumn, UserData, UserFields } from "../../../types"
 import { Dispatch, SetStateAction, useEffect, useState } from "react"
 import { HiOutlineArrowCircleLeft, HiOutlineArrowCircleRight } from "react-icons/hi"
-import { mapParticipantField, mapUserField } from "../../../functions/tableFunctions"
 
 interface ValueSyncItemProps {
   table: Table,
@@ -42,10 +41,6 @@ export const ValueSyncItem = (props: ValueSyncItemProps) => {
 
   const filteredItems = props.table.columns
     .filter((col) => (
-      (
-        col.type === 'user' ||
-        col.type === 'participant'
-      ) && 
       col.id !== props.column.choices?.[0] &&
       col.id !== selectedColumn?.id
     ))
@@ -56,17 +51,6 @@ export const ValueSyncItem = (props: ValueSyncItemProps) => {
       col.choices?.[1] === choice
     ))
   ))
-
-  const userChoices = filteredChoices
-    .filter((choice) => (
-      choice !== 'preferred' &&
-      choice !== 'middle'
-    ))
-
-  const participantChoices = filteredChoices
-    .filter((choice) => (
-      choice !== 'sitting' 
-    ))
 
 
   return (
@@ -116,35 +100,13 @@ export const ValueSyncItem = (props: ValueSyncItemProps) => {
                 {filteredChoices.length > 0 ? (
                   <div className="flex flex-row gap-2 justify-center items-center py-1 border-b">
                     <button onClick={() => {
-                      if(selectedColumn.type === 'user') {
-                        const foundIndex = userChoices.findIndex((choice) => choice == selectedType)
-
-                        const nextIndex = foundIndex <= 0 ? userChoices.length - 1 : foundIndex - 1
-                        setSelectedType(userChoices[nextIndex] as UserFields['type'])
-                      }
-                      else {
-                        const foundIndex = participantChoices.findIndex((choice) => choice == selectedType)
-
-                        const nextIndex = foundIndex <= 0 ? participantChoices.length - 1 : foundIndex - 1
-                        setSelectedType(participantChoices[nextIndex] as ParticipantFields['type'])
-                      }
+                      
                     }}>
                       <HiOutlineArrowCircleLeft size={20} className='text-gray-500 hover:text-gray-900'/>
                     </button>
                     <span>{selectedType ? (selectedType[0].toUpperCase() ?? '') + (selectedType.substring(1) ?? '') : 'None'}</span>
                     <button onClick={() => {
-                      if(selectedColumn.type === 'user') {
-                        const foundIndex = userChoices.findIndex((choice) => choice == selectedType)
-
-                        const nextIndex = foundIndex >= userChoices.length - 1 ? 0 : foundIndex + 1
-                        setSelectedType(userChoices[nextIndex] as UserFields['type'])
-                      }
-                      else {
-                        const foundIndex = participantChoices.findIndex((choice) => choice == selectedType)
-
-                        const nextIndex = foundIndex >= participantChoices.length - 1 ? 0 : foundIndex + 1
-                        setSelectedType(participantChoices[nextIndex] as ParticipantFields['type'])
-                      }
+                      
                     }}>
                       <HiOutlineArrowCircleRight size={20} className='text-gray-500 hover:text-gray-900'/>
                     </button>
@@ -181,38 +143,7 @@ export const ValueSyncItem = (props: ValueSyncItemProps) => {
                   onClick={() => {
                     if(selectedType) {
                       const values: string[] = []
-                      for(let i = 0; i < props.column.values.length; i++) {
-                        if(selectedColumn.type === 'user') {
-                          const foundUser = props.users.find((user) => user.email === selectedColumn.values[i])
-                          console.log(foundUser?.profile)
-
-                          if(foundUser?.profile) {
-                            values.push(mapUserField({ 
-                              field: selectedType as UserFields['type'], 
-                              user: {
-                                ...foundUser.profile,
-                                firstName: foundUser.first,
-                                lastName: foundUser.last
-                              } 
-                            }))
-                          }
-                          else {
-                            values.push('')
-                          }
-                        }
-                        else {
-                          const foundUser = props.users.find((user) => user.profile?.participant.some((participant) => participant.id === selectedColumn.values[i]))
-                          const participant = foundUser?.profile?.participant.find((participant) => participant.id === selectedColumn.values[i])
-
-                          if(participant) {
-                            values.push(mapParticipantField({ field: selectedType as ParticipantFields['type'], participant: participant }))
-                          }
-                          else {
-                            values.push('')
-                          }
-                        }
-                      }
-                      console.log(values)
+                      
                       props.syncColumn(props.column.id, [selectedColumn.id, selectedType], values)
                     }
                   }}

@@ -41,9 +41,9 @@ interface GetTableOptions {
     metrics?: boolean
 }
 async function getTable(client: V6Client<Schema>, id?: string, options?: GetTableOptions) {
-    if(!id) return
+    if(!id) return null
     const tableResponse = await client.models.Table.get({ id: id })
-    if(!tableResponse || !tableResponse.data) return
+    if(!tableResponse || !tableResponse.data) return null
 
     const mappedColumns: TableColumn[] = await Promise.all((await tableResponse.data.tableColumns()).data.map(async (column) => {
         const color: ColumnColor[] = (await column.color()).data.map((color) => {
@@ -141,6 +141,7 @@ export interface CreateTableParams {
     id: string,
     name: string,
     tableGroupId: string,
+    columns: TableColumn[],
     options?: {
         logging?: boolean
     }
@@ -151,6 +152,12 @@ export async function createTableMutation(params: CreateTableParams): Promise<st
         name: params.name,
         tableGroupId: params.tableGroupId,
     })
+    if(params.options?.logging) console.log(response)
+    await Promise.all(params.columns.map(async (column) => {
+        await createTableColumnMutation({
+            column: column
+        })
+    }))
     if(response && response.data) {
         return response.data.id
     }

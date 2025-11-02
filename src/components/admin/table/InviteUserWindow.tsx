@@ -52,7 +52,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
       }
       //participant mapped field
       if(
-        props.table.columns[i].type === 'participant' &&
         props.participantList.some((participant) => participant.id === props.table.columns[i].values[props.rowIndex])
       ) {
         const foundParticipant = props.participantList.find((participant) => participant.id === props.table.columns[i].values[props.rowIndex])

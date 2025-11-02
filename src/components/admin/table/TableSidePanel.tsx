@@ -117,28 +117,12 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                     <div className="pe-16" key={index}>
                       <EditableTextField 
                         label={(<span>&bull;</span>)}
-                        className="min-w-full text-lg border-b-black focus:ring-0 focus:border-transparent focus:border-b-black"
+                        className="min-w-full me-3 text-lg border-b-black focus:ring-0 focus:border-transparent focus:border-b-black"
                         text={group.name ?? ''} 
                         placeholder="Enter Group Name Here..."
                         onSubmitText={(text) => {
                           //TODO: add an on submit error for empty field
                           if(group.temporary && text !== ''){
-                            const updateGroup = (prev: TableGroup[]) => prev.map((parentGroup) => {
-                              if(parentGroup.id == group.id){
-                                const tempGroup: TableGroup = {
-                                  ...parentGroup,
-                                  name: text,
-                                  edit: false,
-                                  temporary: false
-                                }
-
-                                return tempGroup
-                              }
-                              return group
-                            })
-                            props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                            props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-
                             createTableGroup.mutate({
                               id: group.id,
                               name: text,
@@ -146,8 +130,41 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                                 logging: true
                               }
                             })
+
+                            const updateGroup = (prev: TableGroup[]) => {
+                              const temp = [...prev]
+                              
+                              if(!temp.some((parentGroup) => group.id === parentGroup.id)) {
+                                temp.push(group)
+                              }
+
+                              return temp.map((parentGroup) => {
+                                if(parentGroup.id == group.id){
+                                  const tempGroup: TableGroup = {
+                                    ...parentGroup,
+                                    name: text,
+                                    edit: false,
+                                    temporary: false
+                                  }
+
+                                  return tempGroup
+                                }
+                                return parentGroup
+                              })
+                            }
+
+                            props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                            props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
                           }
-                          else if(group.edit && group.name !== ''){
+                          else if(group.edit && group.name !== '' && group.name !== text){
+                            updateTableGroup.mutate({
+                              group: group,
+                              name: text,
+                              options: {
+                                logging: true
+                              }
+                            })
+
                             const updateGroup = (prev: TableGroup[]) => prev.map((parentGroup) => {
                               if(parentGroup.id == group.id){
                                 const tempGroup: TableGroup = {
@@ -159,18 +176,10 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
 
                                 return tempGroup
                               }
-                              return group
+                              return parentGroup
                             })
                             props.parentUpdateTableGroups((prev) => updateGroup(prev))
                             props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-
-                            updateTableGroup.mutate({
-                              group: group,
-                              name: text,
-                              options: {
-                                logging: true
-                              }
-                            })
                           }
                         }} 
                         onCancel={() => {
@@ -178,10 +187,11 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                             ...props.tableGroups
                           ]
                           .filter((group) => !group.temporary)
-                          .map((group) => ({...group, editting: false}))
+                          .map((group) => ({...group, edit: false}))
 
                           props.parentUpdateTableGroups(temp)
                         }}
+                        editting
                       />
                     </div>
                   ) : (
@@ -325,7 +335,7 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                                 if(parentGroup.id === group.id) {
                                   return {
                                     ...parentGroup,
-                                    editting: true
+                                    edit: true
                                   }
                                 }
                                 return parentGroup
@@ -347,9 +357,90 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                   )}
                   {selected && !group.temporary && (
                     <ol className="ps-10">
-                      {group.tables
-                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                      .map((table, index) => {
+                      {group.tables.length === 0 ? (
+                        <button 
+                          className="
+                            text-sm font-light w-full px-6 py-0.5 flex flex-row items-center 
+                            cursor-pointer hover:text-gray-500 hover:bg-gray-100 
+                            hover:border-gray-600 rounded-md hover:underline
+                          "
+                          onClick={() => {
+                            const tableId = v4()
+                            const newTable: Table = {
+                              id: tableId,
+                              temporary: true,
+                              createdAt: new Date().toISOString(),
+                              name: '',
+                              columns: [
+                                {
+                                  id: v4(),
+                                  header: 'Participant First',
+                                  values: ['Jane', '', ''],
+                                  type: 'value',
+                                  display: true,
+                                  tags: [],
+                                  choices: undefined,
+                                  tableId: tableId,
+                                  order: 0,
+                                },
+                                {
+                                  id: v4(),
+                                  header: 'Participant Last',
+                                  values: ['Doe', '', ''],
+                                  type: 'value',
+                                  display: true,
+                                  tags: [],
+                                  choices: undefined,
+                                  tableId: tableId,
+                                  order: 1,
+                                },
+                                {
+                                  id: v4(),
+                                  header: 'Mother Name',
+                                  values: ['Janette Doe', '', ''],
+                                  type: 'value',
+                                  display: true,
+                                  tags: [],
+                                  choices: undefined,
+                                  tableId: tableId,
+                                  order: 2,
+                                },
+                              ],
+                              tableGroupId: group.id
+                            }
+                            
+                            const updateGroup = (prev: TableGroup[]) => {
+                              const temp = [
+                                ...prev
+                              ]
+                              //select the group when adding
+                              if(!temp.some((parentGroup) => group.id === parentGroup.id)) {
+                                temp.push(group)
+                              }
+
+                              return temp.map((parentGroup) => {
+                                if(parentGroup.id === group.id) {
+                                  return ({
+                                    ...parentGroup,
+                                    tables: [...parentGroup.tables, newTable]
+                                  })
+                                }
+                                return parentGroup
+                              })
+                            }
+
+                            props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                            props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                            props.parentUpdateSelectedTable(newTable)
+                          }}
+                        >
+                          <li style={{ listStyleType: 'circle'}} />
+                          <span className="italic">Click here or the three dots to add a table</span>
+                        </button>
+                      ) : (
+                        group.tables
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        .map((table, index) => {
                         const tableSelected = table.id === props.selectedTable?.id
 
                         //only editing textfield if table is temporary
@@ -357,7 +448,7 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                           <div className="ps-6 pe-8 py-0.5" key={index}>
                             <EditableTextField
                               label={<li style={{ listStyleType: 'circle' }} className="text-sm -ms-4 -me-2" />}
-                              className="min-w-full text-sm border-b-black focus:ring-0 focus:border-transparent focus:border-b-black"
+                              className="min-w-full text-sm border-b-black focus:ring-0 focus:border-transparent focus:border-b-black me-3"
                               text={''} //text is empty since temporary means that it was just created
                               placeholder="Enter Table Name Here..."
                               onSubmitText={(text) => {
@@ -366,13 +457,14 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                                     id: table.id,
                                     tableGroupId: group.id,
                                     name: text,
+                                    columns: table.columns,
                                     options: {
                                       logging: true
                                     }
                                   })
+                                  navigate({ to: '.', search: { table: table.id }})
                                 }
                                 
-
                                 //if text is empty remove the table
                                 const updateGroups = (prev: TableGroup[]): TableGroup[] => {
                                   return [
@@ -406,7 +498,8 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                                 //update state for selected groups, groups, and selectedTable
                                 props.parentUpdateSelectedTable((prev) => (prev ? {
                                   ...prev,
-                                  name: text
+                                  name: text,
+                                  temporary: false
                                 } : undefined))
                                 props.parentUpdateSelectedTableGroups((prev) => updateGroups(prev))
                                 props.parentUpdateTableGroups((prev) => updateGroups(prev))
@@ -425,6 +518,7 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                                 props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
                                 props.parentUpdateTableGroups((prev) => updateGroup(prev))
                               }}
+                              editting
                             />
                           </div>
                         ) : (
@@ -449,7 +543,7 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                             <span>{table.name}</span>
                           </div>
                         ))
-                      })}
+                      }))}
                     </ol>
                   )}
                 </div>

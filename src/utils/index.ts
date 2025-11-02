@@ -129,14 +129,8 @@ export const defaultColors = [
 export const getColumnTypeColor = (value?: TableColumn['type']) => {
     if(!value) return 'black'
     switch(value) {
-        case 'user': {
-            return 'red-500'
-        }
-        case 'participant': {
-            return 'pink-400'
-        }
         case 'date': {
-            return 'cyan-400'
+            return 'pink-400'
         }
         case 'choice': {
             return 'blue-500'
@@ -145,7 +139,7 @@ export const getColumnTypeColor = (value?: TableColumn['type']) => {
             return 'fuchsia-600'
         }
         case 'file': {
-            return 'purple-600'
+            return 'red-500'
         }
         case 'value': {
             return 'orange-400'

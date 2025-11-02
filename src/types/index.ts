@@ -246,7 +246,7 @@ export interface TableColumn {
     id: string,
     header: string,
     values: string[],
-    type: 'value' | 'user' | 'participant' | 'date' | 'choice'  | 'tag' | 'file',
+    type: 'value' | 'date' | 'choice'  | 'tag' | 'file',
     choices?: string[],
     color?: ColumnColor[],
     display: boolean,

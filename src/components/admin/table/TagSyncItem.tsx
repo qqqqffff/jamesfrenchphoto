@@ -9,7 +9,7 @@ interface TagSyncItemProps {
 }
 
 export const TagSyncItem = (props: TagSyncItemProps) => {
-  const filteredItems = props.table.columns.filter((col) => col.type === 'participant' && col.id !== props.column.choices?.[0])
+  const filteredItems = props.table.columns.filter((col) => col.id !== props.column.choices?.[0])
   return (
     <Dropdown.Item 
       as='div' 
