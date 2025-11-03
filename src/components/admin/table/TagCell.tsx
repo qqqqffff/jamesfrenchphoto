@@ -178,7 +178,7 @@ export const TagCell = (props: TagCellProps) => {
                             let newValue = cellTags
                               .filter((cTag) => cTag.id !== tag.id)
                               .reduce((prev, cur) => {
-                                return prev + ',' + cur
+                                return prev + ',' + cur.id
                               }, '')
                             
                             newValue = newValue.charAt(0) === ',' ? newValue.substring(1) : newValue
@@ -221,8 +221,10 @@ export const TagCell = (props: TagCellProps) => {
                             let newValue = cellTags
                               .filter((cTag) => cTag.id !== tag.id)
                               .reduce((prev, cur) => {
-                                return prev + ',' + cur
+                                return prev + ',' + cur.id
                               }, '')
+
+                              console.log(newValue)
                             
                             newValue = (newValue.charAt(0) === ',' ? newValue.substring(1) : newValue) + ',' + tag.id
                             props.updateValue(newValue)
