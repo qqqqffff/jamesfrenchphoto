@@ -34,11 +34,8 @@ export const TablePanel = (props: TablePanelProps) => {
       setTableColumns(props.selectedTable.columns)
     }
   }, [
-    table.data, 
-    props.selectedTable.columns
+    table.data
   ])
-
-  console.log(tableColumns)
   
   const updateTable = useMutation({
       mutationFn: (params: UpdateTableParams) => updateTableMutation(params)

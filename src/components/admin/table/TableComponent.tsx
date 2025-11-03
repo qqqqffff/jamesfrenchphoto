@@ -2,12 +2,10 @@ import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
 import { 
   ColumnColor, 
   Participant, 
-  ParticipantFields, 
   Table, 
   TableColumn, 
   TableGroup, 
   UserData, 
-  UserFields, 
   UserProfile, 
   UserTag 
 } from "../../../types"
@@ -47,10 +45,9 @@ import { FileCell } from "./FileCell"
 import { AggregateCell } from "./AggregateCell"
 import { ColorComponent } from "../../common/ColorComponent"
 import { v4 } from 'uuid'
-import { ValueSyncItem } from "./ValueSyncItem"
 import { validateMapField } from "../../../functions/tableFunctions"
 // import { createParticipantMutation, CreateParticipantParams, updateParticipantMutation, UpdateParticipantMutationParams, updateUserAttributeMutation, UpdateUserAttributesMutationParams, updateUserProfileMutation, UpdateUserProfileParams } from "../../../services/userService"
-import { TagSyncItem } from "./TagSyncItem"
+
 
 
 interface TableComponentProps {
@@ -68,7 +65,6 @@ export const TableComponent = (props: TableComponentProps) => {
   const [deleteColumnConfirmation, setDeleteColumnConfirmation] = useState(false)
   const [tempUsers, setTempUsers] = useState<UserProfile[]>([])
   const [users, setUsers] = useState<UserData[]>([])
-  const [headerDropdownHovering, setHeaderDropdownHovering] = useState(false)
 
   const refColumn = useRef<TableColumn | null>()
 
@@ -106,6 +102,7 @@ export const TableComponent = (props: TableComponentProps) => {
 
   const createChoice = useMutation({
     mutationFn: (params: CreateChoiceParams) => createChoiceMutation(params),
+    //TODO: overhaul me please
     onSuccess: (data) => {
       if(data) {
         const temp: Table = {
@@ -164,63 +161,6 @@ export const TableComponent = (props: TableComponentProps) => {
   // const createParticipant = useMutation({
   //   mutationFn: (params: CreateParticipantParams) => createParticipantMutation(params)
   // })
-
-  //TODO: deprecate me please
-  useEffect(() => {
-    if(props.table.columns.length > 0) {
-      let max = 0
-      for(let i = 0; i < props.table.columns.length; i++){
-        if(props.table.columns[i].values.length > max){
-          max = props.table.columns[i].values.length
-        }
-      }
-      if(props.table.columns.some((col) => col.values.length !== max)) {
-        appendRow.mutate({
-          table: props.table,
-          length: max,
-          options: {
-            logging: true
-          }
-        })
-
-        const temp: Table = {
-          ...props.table,
-          columns: props.table.columns.map((col) => {
-            const temp = [...col.values]
-            while(temp.length < max){
-              temp.push('')
-            }
-            return {
-              ...col,
-              values: temp,
-            }
-          })
-        }
-
-        const updateGroup = (prev: TableGroup[]) => {
-          const pTemp: TableGroup[] = [...prev]
-            .map((group) => {
-              if(group.id === temp.tableGroupId){
-                return {
-                  ...group,
-                  tables: group.tables.map((table) => {
-                    if(table.id === temp.id) return temp
-                    return table
-                  })
-                }
-              }
-              return group
-            })
-
-          return pTemp
-        }
-
-        props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-        props.parentUpdateTableGroups((prev) => updateGroup(prev))
-        props.parentUpdateTable(temp)
-      }
-    }
-  }, [props.table])
 
   useEffect(() => {
     if(props.tempUsersData.data && props.tempUsersData.data.length > 0) {
@@ -418,106 +358,7 @@ export const TableComponent = (props: TableComponentProps) => {
     }
   }
 
-  //TODO: move me to a functions file
-  const syncParticipantColumn = (id: string, choice: string | null, updatedValues: string[]) => {
-    const column = props.table.columns.find((column) => column.id === id)
-
-    if(!column){
-      //TODO: handle error
-      return
-    } 
-
-    updateColumn.mutate({
-      column: column,
-      choices: choice !== null ? [choice] : null,
-      values: updatedValues,
-      options: {
-        logging: true
-      }
-    })
-
-    const temp: Table = {
-      ...props.table,
-      columns: props.table.columns.map((column) => (column.id === id ? {
-          ...column,
-          choices: choice !== null ? [choice] : undefined,
-          values: updatedValues
-        } : 
-          column 
-        )
-      )
-    }
-
-    const updateGroup = (prev: TableGroup[]) => {
-      const pTemp = [...prev]
-        .map((group) => (group.id === temp.tableGroupId ? {
-            ...group,
-            tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
-          } : 
-            group
-          )
-        )
-
-      return pTemp
-    }
-
-    props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-    props.parentUpdateTableGroups((prev) => updateGroup(prev))
-    props.parentUpdateTable(temp)
-    props.parentUpdateTableColumns(temp.columns)
-  }
-
-  const syncValueColumn = (
-    id: string, 
-    choice: [string, ParticipantFields['type'] | UserFields['type']] | null, 
-    updatedValues: string[]
-  ) => {
-    const column = props.table.columns.find((column) => column.id === id)
-
-    if(!column) {
-      //TODO: handle error
-      return
-    }
-
-    updateColumn.mutate({
-      column: column,
-      choices: choice !== null ? [choice[0], choice[1] as string] : null,
-      values: updatedValues,
-      options: {
-        logging: true
-      }
-    })
-
-    const temp: Table = {
-      ...props.table,
-      columns: props.table.columns.map((column) => (column.id === id ? {
-          ...column,
-          choices: choice !== null ? [choice[0], choice[1] as string] : undefined,
-          values: updatedValues
-        } : 
-          column 
-        )
-      )
-    }
-
-    const updateGroup = (prev: TableGroup[]) => {
-      const pTemp = [...prev]
-        .map((group) => (group.id === temp.tableGroupId ? {
-            ...group,
-            tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
-          } : 
-            group
-          )
-        )
-
-      return pTemp
-    }
-
-    props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-    props.parentUpdateTableGroups((prev) => updateGroup(prev))
-    props.parentUpdateTable(temp)
-    props.parentUpdateTableColumns(temp.columns)
-  }
+  console.log(props.table.columns)
 
   return (
     <>
@@ -577,7 +418,8 @@ export const TableComponent = (props: TableComponentProps) => {
         <table className="w-full text-sm text-left text-gray-600">
           <thead className="text-xs text-gray-700 bg-gray-50 sticky">
             <tr>
-              {props.table.columns.map((column) => {
+              {props.table.columns
+              .map((column) => {
                 return (
                   <th
                     onMouseEnter={() => {}}
@@ -596,6 +438,10 @@ export const TableComponent = (props: TableComponentProps) => {
                           placeholder="Enter Column Name..."
                           onSubmitText={(text) => {
                             if(column.temporary && text !== ''){
+                              const valuesArray = []
+                              for(let i = 0; i < props.table.columns[0].values.length; i++) {
+                                valuesArray.push('')
+                              }
                               const tempColumn: TableColumn = {
                                 id: column.id,
                                 display: true,
@@ -603,8 +449,7 @@ export const TableComponent = (props: TableComponentProps) => {
                                 header: text,
                                 tableId: props.table.id,
                                 type: column.type,
-                                values: props.table.columns.length > 0 && props.table.columns[0].values.length > 0 ?
-                                  props.table.columns[0].values.fill('') : [],
+                                values: valuesArray,
                                 order: props.table.columns.length,
                               }
                               createColumn.mutate({
@@ -644,7 +489,7 @@ export const TableComponent = (props: TableComponentProps) => {
                               props.parentUpdateTable(temp)
                               props.parentUpdateTableColumns(temp.columns)
                             }
-                            else if(column.edit && text !== column.header) {
+                            else if(column.edit && text !== column.header && text !== '') {
                               updateColumn.mutate({
                                 column: column,
                                 values: column.values,
@@ -660,6 +505,7 @@ export const TableComponent = (props: TableComponentProps) => {
                                   .map((parentColumn) => ({
                                     ...parentColumn, 
                                     header: parentColumn.id === column.id ? text : parentColumn.header,
+                                    edit: parentColumn.id === column.id ? false : parentColumn.edit,
                                   }))
                               }
 
@@ -701,20 +547,11 @@ export const TableComponent = (props: TableComponentProps) => {
 
                             const updateGroup = (prev: TableGroup[]) => {
                               const pTemp = [...prev]
-                                .map((group) => {
-                                  if(group.id === temp.tableGroupId){
-                                    return {
-                                      ...group,
-                                      tables: group.tables.map((table) => {
-                                        if(table.id === temp.id){
-                                          return temp
-                                        }
-                                        return table
-                                      })
-                                    }
-                                  }
-                                  return group
-                                })
+                                .map((group) => group.id === props.table.tableGroupId ? ({
+                                    ...group,
+                                    tables: group.tables.map((table) => table.id === temp.id ? temp : table)
+                                  }) : group
+                                )
 
                               return pTemp
                             }
@@ -724,6 +561,7 @@ export const TableComponent = (props: TableComponentProps) => {
                             props.parentUpdateTable(temp)
                             props.parentUpdateTableColumns(temp.columns)
                           }}
+                          editting
                         />
                       </div>
                     ) : (
@@ -733,7 +571,6 @@ export const TableComponent = (props: TableComponentProps) => {
                         arrowIcon={false}
                         placement="bottom"
                         inline
-                        dismissOnClick={!headerDropdownHovering}
                       >
                         <div className="w-max flex flex-col">
                           <span className="whitespace-nowrap px-4 border-b pb-0.5 font-semibold text-base text-center w-full">
@@ -743,33 +580,6 @@ export const TableComponent = (props: TableComponentProps) => {
                               activeColor={getColumnTypeColor(column.type)}
                             />
                           </span>
-                          {column.type === 'value' && (
-                            <ValueSyncItem 
-                              table={props.table}
-                              column={column}
-                              users={users}
-                              syncColumn={syncValueColumn}
-                              setHovering={setHeaderDropdownHovering}
-                            />
-                          )}
-                          {(column.type === 'tag' || column.type === 'date') && (
-                            <TagSyncItem 
-                              table={props.table}
-                              column={column}
-                              syncColumn={syncParticipantColumn}
-                              participants={[
-                                ...users.flatMap((data) => data.profile).filter((profile) => profile !== undefined),
-                                ...tempUsers
-                              ]
-                              .flatMap((profile) => profile.participant)
-                              .reduce((prev, cur) => {
-                                if(!prev.some((part) => part.id === cur.id)) {
-                                  prev.push(cur)
-                                }
-                                return prev
-                              }, [] as Participant[])}
-                            />
-                          )}
                           <Dropdown.Item 
                             className="justify-center"
                             onClick={() => {
@@ -870,7 +680,7 @@ export const TableComponent = (props: TableComponentProps) => {
                         <HiOutlineCalendar size={32} className="bg-pink-400 border-4 border-pink-400 rounded-lg"/>
                         <div className="flex flex-col">
                           <span className="whitespace-nowrap">Timeslot Column</span>
-                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column syncs with a participant's timeslot.</span>
+                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column hold timeslots available to participants.</span>
                         </div>
                       </Dropdown.Item >
                       <Dropdown.Item  
@@ -892,7 +702,7 @@ export const TableComponent = (props: TableComponentProps) => {
                         <HiOutlineTag size={32} className="bg-fuchsia-600 border-4 border-fuchsia-600 rounded-lg"/>
                         <div className="flex flex-col">
                           <span className="whitespace-nowrap">Tag Column</span>
-                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column syncs with a participant's tags.</span>
+                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds tags associated with participants.</span>
                         </div>
                       </Dropdown.Item >
                     </div>
@@ -962,44 +772,50 @@ export const TableComponent = (props: TableComponentProps) => {
                               key={j}
                               value={v}
                               updateValue={(text) => updateValue(id, text, i)}
-                              tags={props.tagData.data ?? []}
-                              refetchTags={() => props.tagData.refetch()}
+                              tags={props.tagData}
                               table={props.table}
                               columnId={id}
                               rowIndex={i}
-                              participants={[
-                                ...users.flatMap((data) => data.profile).filter((profile) => profile !== undefined),
-                                ...tempUsers
-                              ]
-                              .flatMap((profile) => profile.participant)
-                              .reduce((prev, cur) => {
-                                if(!prev.some((part) => part.id === cur.id)) {
-                                  prev.push(cur)
+                              linkedParticipantId={(() => {
+                                const foundColumn = props.table.columns.find((col) => col.id === id)
+                                if(!foundColumn) return
+                                const foundParticipantChoice = foundColumn.choices?.find((choice) => choice.includes('*participantId*'))
+                                if(!foundParticipantChoice) return
+                                return foundParticipantChoice.substring(foundParticipantChoice.lastIndexOf('*'))
+                              })()}
+                              userData={{
+                                users: users.map((user) => user.profile).filter((profile) => profile !== undefined),
+                                tempUsers: tempUsers
+                              }}
+                              updateParticipant={(userTags, participantId, userEmail, tempUser) => {
+                                if(tempUser) {
+                                  setTempUsers((prev) => prev.map((profile) => {
+                                    return profile.email === userEmail ? ({
+                                      ...profile,
+                                      particiant: profile.participant
+                                        .map((participant) => (participant.id === participantId ? ({
+                                          ...participant,
+                                          userTags: userTags
+                                        }) : participant))
+                                    }) : profile
+                                  }))
                                 }
-                                return prev
-                              }, [] as Participant[])}
-                              updateParticipant={(participant) => {
-                                const foundTemp = tempUsers.find((user) => user.participant.some((pParticipant) => pParticipant.id === participant.id))
-                                const foundUser = users.find((user) => user.profile?.participant.some((pParticipant) => pParticipant.id === participant.id))
-
-                                if(foundUser !== undefined) {
-                                  setUsers((prev) => prev.map((user) => user.email === foundUser.email ? ({
-                                    ...foundUser,
-                                    profile: foundUser.profile !== undefined ? ({
-                                      ...foundUser.profile,
-                                      participant: foundUser.profile.participant.map((pParticipant) => pParticipant.id === participant.id ? participant : pParticipant)
-                                    }) : undefined
-                                  }) : user))
-                                }
-                                else if(foundTemp !== undefined) {
-                                  setTempUsers((prev) => prev.map((user) => user.email === foundTemp.email ? ({
-                                    ...foundTemp,
-                                    participant: foundTemp.participant.map((pParticipant) => pParticipant.id === participant.id ? participant : pParticipant)
-                                  }) : user))
+                                else {
+                                  setUsers((prev) => prev.map((data) => {
+                                    return ({
+                                      ...data,
+                                      profile: data.profile && data.profile.email === userEmail ? ({
+                                        ...data.profile,
+                                        particiant: data.profile.participant
+                                          .map((participant) => (participant.id === participantId ? ({
+                                            ...participant,
+                                            userTags: userTags
+                                          }) : participant))
+                                      }) : data.profile 
+                                    })
+                                  }))
                                 }
                               }}
-                              userQuery={props.userData}
-                              tempUserQuery={props.tempUsersData}
                             />
                           )
                         }
