@@ -139,7 +139,7 @@ export const DateCell = (props: DateCellProps) => {
               </button>
             </div>
           </div>
-          <div className="w-full px-2 py-2 flex flex-row gap-2 justify-between">
+          <div className="w-full px-2 py-2 flex flex-row gap-2 justify-between border-b">
             <div className="flex flex-row"> 
               <button
                 // one month back
@@ -175,7 +175,8 @@ export const DateCell = (props: DateCellProps) => {
                 <HiOutlineChevronLeft />
               </button>
             </div>
-            <span>{formatTime(props.selectedDate, {timeString: false})}</span>
+            {/* TODO: change me to use DateInput */}
+            <span>{formatTime(props.selectedDate, {timeString: false})}</span> 
             <div className="flex flex-row"> 
               <button
                 //one day forward
