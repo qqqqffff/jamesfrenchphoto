@@ -36,7 +36,7 @@ function RouteComponent() {
 
   const usersQuery = useQuery(getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
   
-  const tagsQuery = useQuery(getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: true }))
+  const tagsQuery = useQuery(getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: false }))
 
   const tempUsersQuery = useQuery(getAllTemporaryUsersQueryOptions({ siTags: true }))
 

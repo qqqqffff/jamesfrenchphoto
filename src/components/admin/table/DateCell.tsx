@@ -1,21 +1,32 @@
-import { ComponentProps, useEffect, useState } from "react";
-import { Participant, Table, TableColumn, UserData, UserProfile } from "../../../types";
-import { Dropdown, Tooltip } from "flowbite-react";
-import { HiOutlineArrowPath, HiOutlineXMark } from "react-icons/hi2";
-import { createTimeString } from "../../timeslot/Slot";
-import { formatTime } from "../../../utils";
+import { ComponentProps, Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Participant, Table, Timeslot, UserData, UserProfile } from "../../../types";
+import { HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineXMark } from "react-icons/hi2";
+import { DAY_OFFSET, formatTime } from "../../../utils";
 import { formatParticipantName } from "../../../functions/clientFunctions";
-import { ParticipantPanel } from "../../common/ParticipantPanel";
-import { UseQueryResult } from "@tanstack/react-query";
+import { useMutation, useQueries, UseQueryResult } from "@tanstack/react-query";
+import { updateParticipantMutation, UpdateParticipantMutationParams } from "../../../services/userService";
+import { getTimeslotByIdQueryOptions } from "../../../services/timeslotService";
 
 interface DateCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void,
-  userQuery: UseQueryResult<UserData[] | undefined, Error>,
-  tempUserQuery: UseQueryResult<UserProfile[] | undefined, Error>,
   table: Table,
-  participants: Participant[],
-  choiceColumn?: TableColumn
+  linkedParticipantId?: string,
+  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>
+  userData: {
+    users: UserProfile[]
+    tempUsers: UserProfile[]
+  }
+  usersQuery: UseQueryResult<UserData[] | undefined, Error>
+  timeslotsQuery: UseQueryResult<Timeslot[], Error>
+  updateParticipant: (
+    timeslot: Timeslot,
+    participantId: string,
+    userEmail: string,
+    tempUser: boolean
+  ) => void,
+  selectedDate: Date
+  updateDateSelection: Dispatch<SetStateAction<Date>>
   rowIndex: number,
   columnId: string,
 }
@@ -23,7 +34,8 @@ interface DateCellProps extends ComponentProps<'td'> {
 export const DateCell = (props: DateCellProps) => {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
-  const [source, setSource] = useState<string>()
+  const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile, participant: Participant }  | undefined>()
+  const [availableTimeslots, setAvailableTimeslots] = useState<Timeslot[]>(props.timeslotsQuery.data ?? [])
   
   useEffect(() => {
     if(props.value !== value){
@@ -31,19 +43,66 @@ export const DateCell = (props: DateCellProps) => {
     }
   }, [props.value])
 
-  const participantSource = props.participants.find((participant) => participant.id === value)
-  const undefinedSource = participantSource === undefined
+  useEffect(() => {
+    setFoundParticipant((_) => {
+      if(!props.linkedParticipantId) return undefined
+      let user: UserProfile | undefined
+      let participant = props.userData.users
+        .flatMap((user) => user.participant)
+        .find((participant) => participant.id === props.linkedParticipantId)
+      if(!participant) {
+        participant = props.userData.tempUsers
+          .flatMap((user) => user.participant)
+          .find((participant) => participant.id === props.linkedParticipantId)
 
-  const tempSource = props.participants.find((participant) => participant.id === source)
+        if(participant) {
+          user = props.userData.tempUsers.find((profile) => profile.email === participant?.userEmail)!
+          return ({
+            participant: participant,
+            user: user
+          })
+        }
+      }
+      else {
+        user = props.userData.users.find((profile) => profile.email === participant?.userEmail)!
+        return ({
+          participant: participant,
+          user: user
+        })
+      }
+      return undefined
+    })
+  }, [
+    props.linkedParticipantId
+  ])
 
-  const inputValue = (() => {
-    if((props.userQuery.isLoading || props.tempUserQuery.isLoading) && undefinedSource) return 'Loading...'
-    if(props.choiceColumn && props.value === '') return 'No Participant'
-    if(props.choiceColumn && props.value !== '' && undefinedSource) return 'Broken Source'
-    if(!props.choiceColumn && props.value !== '' && undefinedSource) return 'Invalid Source'
-    if(participantSource && (participantSource.timeslot ?? []).length == 0) return 'No Timeslots'
-    if(participantSource && (participantSource.timeslot ?? []).length > 0) {
-      return `Timeslots: ${(participantSource.timeslot ?? []).length}`
+  useEffect(() => {
+    if(props.timeslotsQuery.data) {
+      setAvailableTimeslots(props.timeslotsQuery.data)
+    }
+  }, [
+    props.timeslotsQuery.data
+  ])
+
+  const updateParticipant = useMutation({
+    mutationFn: (params: UpdateParticipantMutationParams) => updateParticipantMutation(params)
+  })
+
+  const cellTimeslotIds = (value.split(',') ?? []).filter((timeslotId) => timeslotId !== '')
+  const cellTimeslotQueries = useQueries({
+    queries: cellTimeslotIds.map((timeslotId) => {
+      return getTimeslotByIdQueryOptions(timeslotId, { siTag: true })
+    })
+  })
+
+  const timeslotValue = (() => {
+    if(cellTimeslotQueries.some((query) => query.isLoading)) return 'Loading...'
+    if(cellTimeslotIds.length == 0) return 'No Timeslots'
+    if(cellTimeslotIds.length > 0) {
+      return `Timeslots: ${cellTimeslotQueries
+        .map((query) => query.data)
+        .filter((query) => query !== null && query !== undefined).length
+      }`
     }
     return ''
   })()
@@ -51,115 +110,111 @@ export const DateCell = (props: DateCellProps) => {
   return (
     <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
       <input
-        placeholder="Pick Source..."
+        placeholder="Pick Timeslots..."
         className="
           font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
           border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
           hover:cursor-pointer
         "
-        value={inputValue}
+        value={timeslotValue}
         onFocus={() => setIsFocused(true)}
         readOnly
       />
-      {isFocused && undefinedSource && (
+      {isFocused && (
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
           <div className="w-full whitespace-nowrap border-b p-1 text-base self-center flex flex-row justify-between">
-            <span className="font-light ms-2 text-sm">Select Source</span>
-            <button 
-              className=""
-              onClick={() => {
-                setIsFocused(false)
-              }}
-            >
-              <HiOutlineXMark size={16} className="text-gray-400"/>
-            </button>
-          </div>
-          <div className="flex flex-col px-2 py-2 gap-2">
-            <div className="flex flex-row gap-2 items-center text-nowrap">
-              <span>Participant:</span>
-              <Dropdown
-                inline
-                label={tempSource ? formatParticipantName(tempSource) : 'Pick Participant'}
-              >
-                {props.participants
-                  .filter((participant) => participant.id !== source)
-                  .map((participant, index) => {
-                    return (
-                      <Tooltip 
-                        key={index}
-                        style="light"
-                        content={(
-                          <ParticipantPanel 
-                            participant={participant}
-                            showOptions={{
-                              timeslot: true
-                            }}
-                            hiddenOptions={{
-                              tags: true
-                            }}
-                          />
-                        )}                        
-                      >
-                        <Dropdown.Item
-                          onClick={() => setSource(participant.id)}
-                        >
-                          {formatParticipantName(participant)}
-                        </Dropdown.Item>
-                      </Tooltip> 
-                    )
-                  })
-                }
-              </Dropdown>
-            </div>
-            {source && (
-              tempSource && (tempSource.timeslot ?? []).length > 0 ? (
-                <div className="flex flex-col gap-2 px-2 border rounded-lg py-2">
-                  <span>Found Timeslots:</span>
-                  {tempSource.timeslot?.map((timelsot, index) => {
-                    return (
-                      <div className="flex flex-col border w-full rounded-lg items-center py-1" key={index}>
-                        <span className="whitespace-nowrap text-nowrap">{formatTime(timelsot.start, {timeString: false})}</span>
-                        <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timelsot)}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div>
-                  <span>No Timeslots Found.</span>
-                </div>
-              )
+            {foundParticipant ? (
+              <span>Linked with: {formatParticipantName(foundParticipant.participant)}</span>
+            ) : (
+              <span>Pick Tag(s)</span>
             )}
-            <div className="flex flex-row self-end gap-2 items-center me-2">
-              {props.value !== '' && (
-                <button
-                  className="border rounded-lg px-3 py-0.5 enabled:hover:bg-gray-100 enabled:hover:border-gray-300"
-                  onClick={() => {
-                    setSource(undefined)
-                    setValue(props.value)
-                  }}
-                >
-                  <span>Cancel</span>
-                </button>
-              )}
-              <button
-                className="border rounded-lg px-3 py-0.5 enabled:hover:bg-gray-100 enabled:hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-75"
-                disabled={!tempSource}
+            <div className="flex flex-row gap-1 items-center">
+              <button 
+                className=""
                 onClick={() => {
-                  if(tempSource) {
-                    setSource(undefined)
-                    setValue(tempSource.id)
-                    props.updateValue(tempSource.id)
-                  }
+                  setIsFocused(false)
                 }}
               >
-                <span>Sync</span>
+                <HiOutlineXMark size={16} className="text-gray-400 hover:text-gray-800"/>
+              </button>
+            </div>
+          </div>
+          <div className="w-full px-2 py-2 flex flex-row gap-2 justify-between">
+            <div className="flex flex-row"> 
+              <button
+                // one month back
+                title="Go Back One Month"
+                onClick={() => {
+                  const result = new Date(props.selectedDate)
+                  const date = result.getDate()
+                  result.setDate(1)
+                  result.setMonth(result.getMonth() - 1)
+                  result.setDate(Math.min(date, new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()))
+
+                  props.updateDateSelection(result)
+                }}
+              >
+                <HiOutlineChevronLeft />
+              </button>
+              <button
+                // one week back
+                title="Go Back One Week"
+                onClick={() => {
+                  props.updateDateSelection(new Date(props.selectedDate.getTime() - (DAY_OFFSET * 7)))
+                }}
+              >
+                <HiOutlineChevronLeft />
+              </button>
+              <button
+              // one day back
+                title="Go Back One Day"
+                onClick={() => {
+                  props.updateDateSelection(new Date(props.selectedDate.getTime() - DAY_OFFSET))
+                }}
+              >
+                <HiOutlineChevronLeft />
+              </button>
+            </div>
+            <span>{formatTime(props.selectedDate, {timeString: false})}</span>
+            <div className="flex flex-row"> 
+              <button
+                //one day forward
+                title="Go Forward One Day"
+                onClick={() => {
+                  props.updateDateSelection(new Date(props.selectedDate.getTime() + DAY_OFFSET))
+                }}
+              >
+                <HiOutlineChevronRight />
+              </button>
+              <button
+                //one week forward
+                title="Go Forward One Week"
+                onClick={() => {
+                  props.updateDateSelection(new Date(props.selectedDate.getTime() + (DAY_OFFSET * 7)))
+                }}
+              >
+                <HiOutlineChevronRight />
+              </button>
+              <button
+                //one month
+                title="Go Forward One Month"
+                onClick={() => {
+                  const result = new Date(props.selectedDate)
+                  const date = result.getDate()
+                  result.setDate(1)
+                  result.setMonth(result.getMonth() + 1)
+                  result.setDate(Math.min(date, new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()))
+                  
+                  props.updateDateSelection(result)
+                }}
+              >
+                <HiOutlineChevronRight />
               </button>
             </div>
           </div>
         </div>
       )}
-      {isFocused && participantSource && (
+      {/* {isFocused && participantSource && (
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
           <div className="w-full whitespace-nowrap border-b py-1 px-2 mb-2 text-base self-center flex flex-row justify-between">
             <span className="">{formatParticipantName(participantSource)}</span>
@@ -201,7 +256,7 @@ export const DateCell = (props: DateCellProps) => {
           </div>
           
         </div>
-      )}
+      )} */}
     </td>
   )
 }

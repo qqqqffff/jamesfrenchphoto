@@ -176,6 +176,23 @@ async function getAllUntaggedTimeslots(client: V6Client<Schema>, options?: GetAl
     return filteredTimeslots
 }
 
+interface GetTimeslotByIdOptions {
+    siTag?: boolean
+    logging?: boolean,
+    metric?: boolean,
+}
+async function getTimeslotById(client: V6Client<Schema>, timeslotId: string, options?: GetTimeslotByIdOptions): Promise<Timeslot | null> {
+    const start = new Date()
+    const timeslotResponse = await client.models.Timeslot.get({ id: timeslotId })
+    if(!timeslotResponse.data) return null
+    if(options?.metric) console.log(`GETTIMESLOTBYID:${new Date().getTime() - start.getTime()}ms`)
+    return mapTimeslot(timeslotResponse.data, {
+        siTag: options?.siTag ? {
+            memo: []
+        } : undefined
+    })
+}
+
 export interface CreateTimeslotsMutationParams {
     timeslots: Timeslot[],
     options?: {
@@ -383,4 +400,9 @@ export const getAllTimeslotsByUserTagListQueryOptions = (userTagIds: string[]) =
 export const getAllUntaggedTimeslotsQueryOptions = (options?: GetAllUntaggedTimeslotsOptions) => queryOptions({
     queryKey: ['untaggedTimeslots', client, options],
     queryFn: () => getAllUntaggedTimeslots(client, options)
+})
+
+export const getTimeslotByIdQueryOptions = (timeslotId: string, options?: GetTimeslotByIdOptions) => queryOptions({
+    queryKey: ['timeslot', client, timeslotId],
+    queryFn: () => getTimeslotById(client, timeslotId, options)
 })

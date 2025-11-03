@@ -1,5 +1,5 @@
 import { ComponentProps, useEffect, useState } from "react";
-import { Participant, Table, UserProfile, UserTag } from "../../../types";
+import { Participant, Table, UserData, UserProfile, UserTag } from "../../../types";
 import { Checkbox } from "flowbite-react";
 import { HiOutlineXMark } from "react-icons/hi2";
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
@@ -18,6 +18,8 @@ interface TagCellProps extends ComponentProps<'td'> {
     users: UserProfile[]
     tempUsers: UserProfile[]
   },
+  usersQuery: UseQueryResult<UserData[] | undefined, Error>
+  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>
   updateParticipant: (
     newTags: UserTag[], 
     participantId: string, 
@@ -26,9 +28,7 @@ interface TagCellProps extends ComponentProps<'td'> {
   ) => void
 }
 
-//TODO: fix tag removal
-//TODO: handle participant api updates -> state management will be processed by super component with updateValue()
-//TODO: add scrolling between all tags that are inside instead of displaying multiple tags
+//TODO: add horizontal scrolling between all tags that are inside instead of displaying multiple tags
 export const TagCell = (props: TagCellProps) => {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -57,7 +57,7 @@ export const TagCell = (props: TagCellProps) => {
           .find((participant) => participant.id === props.linkedParticipantId)
         
         if(participant) {
-          user = props.userData.users.find((profile) => profile.email === participant?.userEmail)!
+          user = props.userData.tempUsers.find((profile) => profile.email === participant?.userEmail)!
           return ({
             participant: participant,
             user: user
@@ -94,7 +94,9 @@ export const TagCell = (props: TagCellProps) => {
   .filter((tag) => tag !== undefined)
 
   const tagValue = (() => {
-    if(props.tags.isLoading) return 'Loading...'
+    if(
+      props.tags.isLoading 
+    ) return 'Loading...'
     else if(value === '') return ''
     else if(cellTags.length === 1) {
       return cellTags[0].name
@@ -111,12 +113,11 @@ export const TagCell = (props: TagCellProps) => {
     <>
       <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
         <input
-          placeholder={'Pick Tags...'}
+          placeholder="Pick Tags..."
           className={`
             font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
             border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
             hover:cursor-pointer ${cellTags.length === 1 ? `text-${cellTags[0].color ?? 'black'}` : ''}
-            ${tagValue === 'Invalid Source' || tagValue === 'Broken Source' ? 'text-red-500' : ''}
           `}
           value={tagValue}
           onFocus={() => setIsFocused(true)}
@@ -124,11 +125,11 @@ export const TagCell = (props: TagCellProps) => {
         />
         {isFocused && (
           <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
-            <div className="w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between">
+            <div className="italic text-gray-600 w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between">
               {foundParticipant ? (
                 <span>Linked with: {formatParticipantName(foundParticipant.participant)}</span>
               ) : (
-                <></>
+                <span>Pick Tag(s)</span>
               )}
               <div className="flex flex-row gap-1 items-center">
                 <button 
@@ -150,7 +151,16 @@ export const TagCell = (props: TagCellProps) => {
               />
             </div>
             
-            <div className="max-h-60 overflow-y-auto py-1 min-w-max">
+            {(props.usersQuery.isLoading || props.tempUsersQuery.isLoading) && props.linkedParticipantId !== undefined ? (
+              <div className="max-h-60 overflow-y-auto py-1 min-w-max">
+                <div className="flex flex-row justify-start items-center pe-2">
+                  <span className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:cursor-wait">
+                    Loading...
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="max-h-60 overflow-y-auto py-1 min-w-max">
               {availableTags
                 .filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase()))
                 //sorting selected tags to the top
@@ -161,7 +171,7 @@ export const TagCell = (props: TagCellProps) => {
                   if(aSelected && !bSelected) return -1
                   if(!aSelected && bSelected) return 1
 
-                  return 0
+                  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                 })
                 .map((tag, index) => {
                   return (
@@ -274,7 +284,8 @@ export const TagCell = (props: TagCellProps) => {
                     </div>
                   )
                 })}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </td>

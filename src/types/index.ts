@@ -264,7 +264,6 @@ export type ColumnColor = {
     bgColor?: string
     textColor?: string
     columnId: string,
-    temporary?: boolean
 }
 
 export interface TemporaryAccessToken {

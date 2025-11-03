@@ -176,7 +176,6 @@ interface GetTagByIdOptions extends MapUserTagOptions {
 async function getTagById(client: V6Client<Schema>, tagId?: string, options?: GetTagByIdOptions): Promise<UserTag | null> {
     const start = new Date()
     if(!tagId) return null
-    if(options) console.log('options')
 
     const tagResponse = await client.models.UserTag.get({ id: tagId })
     if(tagResponse.data) {
