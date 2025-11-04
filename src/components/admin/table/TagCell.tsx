@@ -236,7 +236,7 @@ export const TagCell = (props: TagCellProps) => {
 
                               console.log(newValue)
                             
-                            newValue = (newValue.charAt(0) === ',' ? newValue.substring(1) : newValue) + ',' + tag.id
+                            newValue = (newValue.charAt(0) === ',' ? newValue.substring(1) : newValue) + (cellTags.length > 0 ? ',' : '') + tag.id
                             props.updateValue(newValue)
 
                             //TODO: can simplify multiple redundant ifs

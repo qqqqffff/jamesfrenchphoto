@@ -51,6 +51,7 @@ export const DateCell = (props: DateCellProps) => {
   const [registerConfirmationVisible, setRegisterConfirmationVisible] = useState(false)
   const selectedTimeslot = useRef<Timeslot | null>(null)
   const [notify, setNotify] = useState<boolean>(true)
+  const [notifyEmail, setNotifyEmail] = useState<string>('')
   
   useEffect(() => {
     if(props.value !== value){
@@ -155,6 +156,9 @@ export const DateCell = (props: DateCellProps) => {
   return (
     <>
       {selectedTimeslot.current && (
+        //if the cell does not own the selected ts id the register for it
+      !cellTimeslotIds.some((id) => id === selectedTimeslot.current?.id) ? 
+      (
         <ConfirmationModal 
           open={registerConfirmationVisible} 
           onClose={() => setRegisterConfirmationVisible(false)} 
@@ -162,22 +166,38 @@ export const DateCell = (props: DateCellProps) => {
           denyText="Back"
           confirmAction={() => {
             //TODO: search for other areas with the edge case of having a register but no participantId
-            if(selectedTimeslot.current && (foundParticipant || selectedTimeslot.current.register)) {
-              registerTimeslot.mutateAsync({
+            if(selectedTimeslot.current) {
+              registerTimeslot.mutate({
                 timeslot: {
                   ...selectedTimeslot.current,
-                  register: foundParticipant?.user.email ?? selectedTimeslot.current.register,
+                  register: foundParticipant?.user.email ? 
+                    foundParticipant.user.email 
+                  : 
+                    selectedTimeslot.current.register ? 
+                      selectedTimeslot.current.register 
+                    : 
+                      'Not specified',
                   participantId: foundParticipant?.participant.id,
                 },
-                notify: notify,
+                notify: notify && 
+                  ((
+                    !foundParticipant && 
+                    validator.isEmail(notifyEmail)
+                  ) || foundParticipant !== undefined),
                 options: {
                   logging: true
                 }
               })
-
-              //TODO: fix updating value
-
+              
               //update state
+              let newValue = cellTimeslotIds
+                .filter((id) => id !== selectedTimeslot.current?.id)
+                .reduce((prev, cur) => {
+                  return prev + ',' + cur
+                }, '')
+              props.updateValue((newValue.charAt(0) === ',' ? newValue.substring(1) : newValue) + (cellTimeslotIds.length > 0 ? ',' : '') + selectedTimeslot.current.id)
+
+              //update participant state
               if(foundParticipant) { 
                 props.updateParticipant(
                   selectedTimeslot.current,
@@ -196,15 +216,8 @@ export const DateCell = (props: DateCellProps) => {
                 placeholder="Parent's email"
                 sizing="sm"
                 className="w-[256px]"
-                onBlur={(event) => {
-                  //TODO: add nicer feedback
-                  if(validator.isEmail(event.target.value)) {
-                    selectedTimeslot.current = ({
-                      ...selectedTimeslot.current!,
-                      register: event.target.value
-                    })
-                  }
-                }}
+                onChange={(event) => setNotifyEmail(event.target.value)}
+                value={notifyEmail}
               />
             </div>
           ) : (
@@ -221,6 +234,52 @@ export const DateCell = (props: DateCellProps) => {
                 'Unknown'
             }, continuing will override the current registrant.` : ""}`}
         />
+      ) : (
+        //otherwise remove registration
+        <ConfirmationModal
+          open={registerConfirmationVisible}
+          onClose={() => setRegisterConfirmationVisible(false)}
+          confirmText="Confirm"
+          denyText="Back"
+          confirmAction={async () => {
+            //removing register/participant association
+            if(selectedTimeslot.current) {
+              registerTimeslot.mutate({
+                timeslot: {
+                  ...selectedTimeslot.current,
+                  register: undefined,
+                  participantId: undefined
+                },
+                notify: false,
+                options: {
+                  logging: true
+                }
+              })
+              
+              //update state
+              let newValue = cellTimeslotIds
+                .filter((id) => id !== selectedTimeslot.current?.id)
+                .reduce((prev, cur) => {
+                  return prev + ',' + cur
+                }, '')
+
+              props.updateValue(newValue.charAt(0) === ',' ? newValue.substring(1) : newValue)
+
+              //update super participant state
+              if(foundParticipant) {
+                props.updateParticipant(
+                  selectedTimeslot.current,
+                  foundParticipant.participant.id,
+                  foundParticipant.user.email,
+                  props.tempUsersQuery.data?.some((user) => user.email === foundParticipant.user.email) ?? false
+                )
+              }
+            }
+          }}
+          title="Confirm Unregistration"
+          body={`<b>Unregistration for Timeslot: ${selectedTimeslot.current.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot.current.start, {timeString: true})} - ${formatTime(selectedTimeslot.current.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`}
+        />
+      )
       )}
       <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
         <input
@@ -275,7 +334,7 @@ export const DateCell = (props: DateCellProps) => {
                 </button>
               </div>
             </div>
-            {props.tagsQuery.isLoading || props.usersQuery.isLoading || props.tempUsersQuery.isLoading ? (  
+            {props.tagsQuery.isLoading || props.usersQuery.isLoading || props.tempUsersQuery.isLoading || cellTimeslotQueries.some((query) => query.isLoading) ? (  
               <div className="flex flex-row">
                 <span>Loading</span>
                 <Loading />
@@ -433,7 +492,7 @@ export const DateCell = (props: DateCellProps) => {
                   )}
                 </div>
                 <div className="flex flex-col gap-2 px-2 py-2 max-h-[150px] overflow-auto">
-                  {availableTimeslots.length == 0 || (filterOption === 'tag' && selectedTag === undefined) ? (
+                  {(availableTimeslots.length == 0 || (filterOption === 'tag' && selectedTag === undefined)) && (
                     <div className="flex flex-col w-full items-center py-1">
                       <span className="text-nowrap">{filterOption === 'tag' && selectedTag === undefined ? 
                         "Pick a Tag to View Timeslots" 
@@ -441,94 +500,69 @@ export const DateCell = (props: DateCellProps) => {
                         `No Timeslots for this ${selectedTag ? 'Tag' : 'Date'}.`
                       }</span>
                     </div>
-                  ) : (
-                    filterOption === 'tag' ? (
-                      availableTimeslots.flatMap((timeslot) => timeslot.start).sort((a, b) => {
-                        const diffA = Math.abs(a.getTime() - currentDate.getTime());
-                        const diffB = Math.abs(b.getTime() - currentDate.getTime());
-                        return diffA - diffB;
-                      }).map((date, index) => {
-                        const timeslot = timeslotRecord[date.getTime()]
-                        return (
-                          <button 
-                            className="flex flex-col border w-full rounded-lg items-center py-1 hover:bg-gray-100" 
-                            key={index} 
-                            onClick={() => {
-                              selectedTimeslot.current = timeslot
-                              setRegisterConfirmationVisible(true)
-                            }}
-                          >
-                            <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId !== undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>
-                            <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId != undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{createTimeString(timeslot)}</span>
-                          </button>
-                        )
-                      })
-                    ) : (
-                      availableTimeslots.map((timeslot, index) => {
-                        return (
-                          <button 
-                            className="flex flex-col border w-full rounded-lg items-center py-1" 
-                            key={index} 
-                            onClick={() => {
-                              selectedTimeslot.current = timeslot
-                              setRegisterConfirmationVisible(true)
-                            }}
-                          >
-                            <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>
-                            <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId ? 'line-through' : ''}`}>{createTimeString(timeslot)}</span>
-                          </button>
-                        )
-                      })
+                  )}
+                  {cellTimeslotQueries.map((query) => query.data).filter((query) => query !== null && query !== undefined).map((timeslot, index) => {
+                    return (
+                      <button 
+                        className="flex flex-col border w-full rounded-lg items-center py-1 hover:bg-gray-100 bg-gray-300" 
+                        key={index} 
+                        onClick={() => {
+                          selectedTimeslot.current = timeslot
+                          setRegisterConfirmationVisible(true)
+                        }}
+                      >
+                        <span className={`whitespace-nowrap text-nowrap font-semibold`}>{formatTime(timeslot.start, {timeString: false})}</span>
+                        <span className={`text-xs whitespace-nowrap text-nowrap font-semibold`}>{createTimeString(timeslot)}</span>
+                      </button>
                     )
+                  })}
+                  {filterOption === 'tag' ? (
+                    availableTimeslots.flatMap((timeslot) => timeslot.start).sort((a, b) => {
+                      const diffA = Math.abs(a.getTime() - currentDate.getTime());
+                      const diffB = Math.abs(b.getTime() - currentDate.getTime());
+                      return diffA - diffB;
+                    })
+                    .filter((date) => !cellTimeslotQueries.flatMap((query) => query.data).some((timeslot) => timeslot?.id === timeslotRecord[date.getTime()].id))
+                    .map((date, index) => {
+                      const timeslot = timeslotRecord[date.getTime()]
+                      return (
+                        <button 
+                          className="flex flex-col border w-full rounded-lg items-center py-1 hover:bg-gray-100" 
+                          key={index} 
+                          onClick={() => {
+                            selectedTimeslot.current = timeslot
+                            setRegisterConfirmationVisible(true)
+                          }}
+                        >
+                          <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId !== undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>
+                          <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId != undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{createTimeString(timeslot)}</span>
+                        </button>
+                      )
+                    })
+                  ) : (
+                    availableTimeslots
+                    .filter((timeslot) => !cellTimeslotQueries.flatMap((query) => query.data).some((cellTimeslot) => cellTimeslot?.id === timeslot.id))
+                    .map((timeslot, index) => {
+                      return (
+                        <button 
+                          className="flex flex-col border w-full rounded-lg items-center py-1" 
+                          key={index} 
+                          onClick={() => {
+                            selectedTimeslot.current = timeslot
+                            setRegisterConfirmationVisible(true)
+                          }}
+                        >
+                          <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>
+                          <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId ? 'line-through' : ''}`}>{createTimeString(timeslot)}</span>
+                        </button>
+                      )
+                    })
                   )}
                 </div>
               </>
             )}
           </div>
         )}
-        {/* {isFocused && participantSource && (
-          <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
-            <div className="w-full whitespace-nowrap border-b py-1 px-2 mb-2 text-base self-center flex flex-row justify-between">
-              <span className="">{formatParticipantName(participantSource)}</span>
-              <div className="flex flex-row gap-1">
-                {!props.choiceColumn && (
-                  <button
-                    title="Update Connection"
-                    onClick={() => setValue('')}
-                  >
-                    <HiOutlineArrowPath size={16} className="text-gray-400"/>
-                  </button>
-                )}
-                <button 
-                  className=""
-                  onClick={() => setIsFocused(false)}
-                >
-                  <HiOutlineXMark size={16} className="text-gray-400"/>
-                </button>
-              </div>
-            </div>
-            <div className="px-2 mb-2">
-              {(participantSource.timeslot ?? []).length > 0 ? (
-                <div className="flex flex-col gap-2 px-2 border rounded-lg py-2">
-                  <span>Found Timeslot{(participantSource.timeslot ?? []).length > 1 ? 's' : ''}:</span>
-                  {participantSource.timeslot?.map((timelsot, index) => {
-                    return (
-                      <div className="flex flex-col border w-full rounded-lg items-center py-1" key={index}>
-                        <span className="whitespace-nowrap text-nowrap">{formatTime(timelsot.start, {timeString: false})}</span>
-                        <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timelsot)}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div>
-                  <span>No Timeslots Found.</span>
-                </div>
-              )}
-            </div>
-            
-          </div>
-        )} */}
       </td>
     </>
   )

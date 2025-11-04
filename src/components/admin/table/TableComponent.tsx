@@ -694,11 +694,11 @@ export const TableComponent = (props: TableComponentProps) => {
                     {row.map(([v, t, id], j) => {
                       switch(t){
                         case 'date': {
-                          // TODO: add a query field for async fetch loading
                           return (
                             <DateCell
                               key={j}
                               value={v}
+                              //TODO: timeslot ids should be mutually exclusive -> need to convert cells from being an array of values to be its own dynamo for now will leave as is and avoid double registrations
                               updateValue={(text) => updateValue(id, text, i)}
                               table={props.table}
                               linkedParticipantId={(() => {
