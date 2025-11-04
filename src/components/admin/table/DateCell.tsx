@@ -7,10 +7,11 @@ import { useMutation, useQueries, UseQueryResult } from "@tanstack/react-query";
 import { getTimeslotByIdQueryOptions, registerTimeslotMutation, RegisterTimeslotMutationParams } from "../../../services/timeslotService";
 import { DateInput } from "../../common/DateInput";
 import { createTimeString } from "../../timeslot/Slot";
-import { Dropdown, Radio, TextInput } from "flowbite-react";
+import { Dropdown, Label, Radio, TextInput } from "flowbite-react";
 import NotificationComponent from "../../timeslot/NotificationComponent";
 import { ConfirmationModal } from "../../modals";
 import Loading from "../../common/Loading";
+import validator from 'validator'
 
 interface DateCellProps extends ComponentProps<'td'> {
   value: string,
@@ -153,37 +154,64 @@ export const DateCell = (props: DateCellProps) => {
 
   return (
     <>
-      {foundParticipant && (
+      {selectedTimeslot.current && (
         <ConfirmationModal 
           open={registerConfirmationVisible} 
           onClose={() => setRegisterConfirmationVisible(false)} 
           confirmText="Schedule"
           denyText="Back"
           confirmAction={() => {
-            if(selectedTimeslot.current && foundParticipant) {
+            //TODO: search for other areas with the edge case of having a register but no participantId
+            if(selectedTimeslot.current && (foundParticipant || selectedTimeslot.current.register)) {
               registerTimeslot.mutateAsync({
                 timeslot: {
                   ...selectedTimeslot.current,
-                  register: foundParticipant.user.email,
-                  participantId: foundParticipant.participant.id,
+                  register: foundParticipant?.user.email ?? selectedTimeslot.current.register,
+                  participantId: foundParticipant?.participant.id,
                 },
                 notify: notify,
                 options: {
                   logging: true
                 }
               })
+
+              //TODO: fix updating value
+
               //update state
-              props.updateParticipant(
+              if(foundParticipant) { 
+                props.updateParticipant(
                   selectedTimeslot.current,
                   foundParticipant.participant.id,
                   foundParticipant.user.email,
                   props.tempUsersQuery.data?.some((user) => user.email === foundParticipant.user.email) ?? false
                 )
+              }
             }
           }}
-          children={(<NotificationComponent setNotify={setNotify} email={foundParticipant?.user.email} notify={notify} />)}
+          children={!foundParticipant ? (
+            <div className="flex flex-row items-center gap-2 mt-2">
+              <Label>Person to notify:</Label>
+              <TextInput 
+                theme={textInputTheme}
+                placeholder="Parent's email"
+                sizing="sm"
+                className="w-[256px]"
+                onBlur={(event) => {
+                  //TODO: add nicer feedback
+                  if(validator.isEmail(event.target.value)) {
+                    selectedTimeslot.current = ({
+                      ...selectedTimeslot.current!,
+                      register: event.target.value
+                    })
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <NotificationComponent setNotify={setNotify} email={foundParticipant.user.email} notify={notify} />
+          )}
           title="Confirm Timeslot Selection" 
-          body={`<b>Registration for Timeslot: ${selectedTimeslot.current?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot.current?.start, {timeString: true})} - ${formatTime(selectedTimeslot.current?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.${selectedTimeslot.current?.register || selectedTimeslot.current?.participantId ? `\nThis timeslot is currently registered to ${
+          body={`<b>Registration for Timeslot: ${selectedTimeslot.current.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot.current.start, {timeString: true})} - ${formatTime(selectedTimeslot.current.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.${selectedTimeslot.current.register || selectedTimeslot.current.participantId ? `\nThis timeslot is currently registered to ${
             selectedTimeslot.current.register ? 
               selectedTimeslot.current.register 
             : 
@@ -426,23 +454,8 @@ export const DateCell = (props: DateCellProps) => {
                             className="flex flex-col border w-full rounded-lg items-center py-1 hover:bg-gray-100" 
                             key={index} 
                             onClick={() => {
-                              if(foundParticipant) {
-                                selectedTimeslot.current = timeslot
-                                setRegisterConfirmationVisible(true)
-                              } else {
-                                props.updateValue(timeslot.id)
-                                registerTimeslot.mutateAsync({
-                                  timeslot: {
-                                    ...timeslot,
-                                    register: 'placeholder',
-                                    participantId: undefined,
-                                  },
-                                  notify: notify,
-                                  options: {
-                                    logging: true
-                                  }
-                                })
-                              }
+                              selectedTimeslot.current = timeslot
+                              setRegisterConfirmationVisible(true)
                             }}
                           >
                             <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId !== undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>

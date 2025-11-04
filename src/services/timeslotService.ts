@@ -376,6 +376,7 @@ export async function registerTimeslotMutation(params: RegisterTimeslotMutationP
         register: params.timeslot.register ?? null,
         participantId: params.timeslot.participantId ?? null
     }, { authMode: 'userPool' })
+    if(params.options?.logging) console.log(response)
     if(!response.data) return false
     if(params.notify && params.timeslot.register){
         const response = await client.queries.SendTimeslotConfirmation({
