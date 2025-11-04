@@ -362,22 +362,30 @@ export async function deleteTimeslotsMutation(params: DeleteTimeslotsMutationPar
     if(params.options?.logging) console.log(response)
 }
 
+export interface RegisterTimeslotMutationParams {
+    timeslot: Timeslot,
+    notify: boolean,
+    options?: {
+        logging: boolean
+    }
+}
 //TODO: convert me into a lambda function
-export async function registerTimeslotMutation(timeslot: Timeslot, notify: boolean){
+export async function registerTimeslotMutation(params: RegisterTimeslotMutationParams){
     const response = await client.models.Timeslot.update({
-        id: timeslot.id,
-        register: timeslot.register ?? null,
-        participantId: timeslot.participantId ?? null
+        id: params.timeslot.id,
+        register: params.timeslot.register ?? null,
+        participantId: params.timeslot.participantId ?? null
     }, { authMode: 'userPool' })
     if(!response.data) return false
-    if(notify && timeslot.register){
-        client.queries.SendTimeslotConfirmation({
-            email: timeslot.register,
-            start: timeslot.start.toISOString(),
-            end: timeslot.end.toISOString()
+    if(params.notify && params.timeslot.register){
+        const response = await client.queries.SendTimeslotConfirmation({
+            email: params.timeslot.register,
+            start: params.timeslot.start.toISOString(),
+            end: params.timeslot.end.toISOString()
         }, {
             authMode: 'userPool'
         })
+        if(params.options?.logging) console.log(response)
     }
     return true
 }

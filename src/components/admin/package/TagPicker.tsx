@@ -15,6 +15,7 @@ interface TagPickerProps {
   hideTag?: boolean
 }
 
+//TODO: move me to common
 export const TagPicker = (props: TagPickerProps) => {
   const [search, setSearch] = useState<string>('')
   const [focused, setFocused] = useState(false)

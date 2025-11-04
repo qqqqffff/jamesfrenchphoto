@@ -74,8 +74,6 @@ export const TableComponent = (props: TableComponentProps) => {
     ...getAllTimeslotsByUserTagQueryOptions(selectedTag?.id),
     enabled: selectedTag !== undefined
   })
-
-  console.log(tagTimeslotQuery.data)
  
   const refColumn = useRef<TableColumn | null>()
 
