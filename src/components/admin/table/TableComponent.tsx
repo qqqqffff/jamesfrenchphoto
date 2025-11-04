@@ -46,7 +46,7 @@ import { AggregateCell } from "./AggregateCell"
 import { ColorComponent } from "../../common/ColorComponent"
 import { v4 } from 'uuid'
 import { validateMapField } from "../../../functions/tableFunctions"
-import { getAllTimeslotsByDateQueryOptions } from "../../../services/timeslotService"
+import { getAllTimeslotsByDateQueryOptions, getAllTimeslotsByUserTagQueryOptions } from "../../../services/timeslotService"
 // import { createParticipantMutation, CreateParticipantParams, updateParticipantMutation, UpdateParticipantMutationParams, updateUserAttributeMutation, UpdateUserAttributesMutationParams, updateUserProfileMutation, UpdateUserProfileParams } from "../../../services/userService"
 
 
@@ -67,9 +67,16 @@ export const TableComponent = (props: TableComponentProps) => {
   const [tempUsers, setTempUsers] = useState<UserProfile[]>([])
   const [users, setUsers] = useState<UserData[]>([])
   const [selectedDate, setSelectedDate] = useState<Date>(currentDate)
+  const [selectedTag, setSelectedTag] = useState<UserTag | undefined>()
 
   const timeslotsQuery = useQuery(getAllTimeslotsByDateQueryOptions(selectedDate))
+  const tagTimeslotQuery = useQuery({
+    ...getAllTimeslotsByUserTagQueryOptions(selectedTag?.id),
+    enabled: selectedTag !== undefined
+  })
 
+  console.log(tagTimeslotQuery.data)
+ 
   const refColumn = useRef<TableColumn | null>()
 
   const tableRows: [string, TableColumn['type'], string][][] = []
@@ -706,7 +713,8 @@ export const TableComponent = (props: TableComponentProps) => {
                                 ) return undefined
                                 return foundParticipantChoice
                               })()}
-                              timeslotsQuery={timeslotsQuery}
+                              timeslotsQuery={selectedTag !== undefined ? tagTimeslotQuery : timeslotsQuery}
+                              tagsQuery={props.tagData}
                               userData={{
                                 users: users.map((user) => user.profile).filter((profile) => profile !== undefined),
                                 tempUsers: tempUsers
@@ -741,6 +749,7 @@ export const TableComponent = (props: TableComponentProps) => {
                               }}
                               selectedDate={selectedDate}
                               updateDateSelection={setSelectedDate}
+                              updateTagSelection={setSelectedTag}
                               rowIndex={i}
                               columnId={id}
                               

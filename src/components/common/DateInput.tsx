@@ -5,7 +5,7 @@ interface DateInputProps {
   onChange: (value: Date) => void;
 }
 
-function DateInputComponent({ value, onChange }: DateInputProps) {
+export function DateInput({ value, onChange }: DateInputProps) {
   const [internalDate, setInternalDate] = useState('');
 
   // Sync internal state with external value prop
@@ -151,9 +151,6 @@ function DateInputComponent({ value, onChange }: DateInputProps) {
 
   return (
     <>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Enter Date (MM/DD/YYYY)
-      </label>
       <input
         type="text"
         value={internalDate}
@@ -161,71 +158,8 @@ function DateInputComponent({ value, onChange }: DateInputProps) {
         onBlur={handleBlur}
         placeholder="MM/DD/YYYY"
         maxLength={10}
-        className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 transition-colors ${
-          internalDate.length === 0
-            ? 'border-gray-300 focus:ring-blue-500'
-            : isValid
-            ? 'border-green-500 focus:ring-green-500'
-            : 'border-red-500 focus:ring-red-500'
-        }`}
+        className='font-thin py-1 px-2 text-xs ring-transparent border rounded-md focus:outline-none placeholder:text-gray-400 placeholder:italic max-w-[100px]'
       />
-      
-      {internalDate.length > 0 && (
-        <p className={`mt-2 text-sm ${isValid ? 'text-green-600' : 'text-red-600'}`}>
-          {isValid ? '✓ Valid date' : '✗ Invalid date'}
-        </p>
-      )}
     </>
-  );
-}
-
-export default function DateInput() {
-  const [date, setDate] = useState<Date>();
-
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Date Input</h2>
-        
-        <div className="mb-4">
-          <DateInputComponent value={date} onChange={setDate} />
-        </div>
-
-        <div className="bg-gray-50 p-4 rounded-md">
-          <p className="text-sm text-gray-600 mb-2">
-            <strong>How it works:</strong>
-          </p>
-          <ul className="text-xs text-gray-500 space-y-1">
-            <li>• Month: 2-9 → auto-pads to 02-09</li>
-            <li>• Day: 4-9 → auto-pads to 04-09</li>
-            <li>• Day: Respects month limits (30/31/28/29)</li>
-            <li>• onChange only fires when date is complete & valid</li>
-          </ul>
-          
-          <p className="text-sm text-gray-600 mt-4">
-            <strong>Current value:</strong> {date ? date.toISOString() : 'None (incomplete or invalid)'}
-          </p>
-          {date && (
-            <p className="text-sm text-gray-600 mt-2">
-              <strong>Parsed:</strong> {date.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </p>
-          )}
-        </div>
-
-        <div className="mt-4 pt-4 border-t">
-          <button
-            onClick={() => setDate(new Date(2025, 11, 25))}
-            className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors"
-          >
-            Set to 12/25/2025
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
