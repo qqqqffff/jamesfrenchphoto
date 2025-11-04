@@ -313,7 +313,7 @@ export const handler: Schema['ShareUserInvite']['functionHandler'] = async (even
 
   const message: sgMail.MailDataRequired = {
     to: email,
-    from: 'jamesfrenchphoto@jamesfrenchphotography.com',
+    from: 'no-reply@jamesfrenchphotography.com',
     subject: 'You have been invited to join James French Photography',
     html: modifiedTemplate
   }

@@ -1232,7 +1232,7 @@ export async function inviteUserMutation(params: InviteUserParams) {
         firstName: params.firstName,
         lastName: params.lastName,
         activeParticipant: participantResponses.length > 0 ? 
-            participantResponses[Math.floor(Math.random() * participantResponses.length)][0]?.id : undefined
+            participantResponses[0][0]?.id : undefined
     })
 
     if(params.options?.logging) console.log(userResponse)
@@ -1243,16 +1243,18 @@ export async function inviteUserMutation(params: InviteUserParams) {
 
     if(params.options?.logging) console.log(tokenResponse)
 
-    if(!tokenResponse.data) return
-
-    const shareResponse = await client.queries.ShareUserInvite({
+    if(tokenResponse.data?.id === undefined) return
+    
+    const response = await client.queries.ShareUserInvite({
         email: params.email,
         firstName: params.firstName,
         lastName: params.lastName,
-        link: params.baseLink + `?token=${tokenResponse.data.id}`
+        link: params.baseLink + `?token=${tokenResponse.data!.id}`
+    }, {
+        authMode: 'userPool'
     })
 
-    if(params.options?.logging) console.log(shareResponse)
+    if(params.options?.logging) console.log(response)
 }
 
 export interface RevokeUserInviteMutationParams {

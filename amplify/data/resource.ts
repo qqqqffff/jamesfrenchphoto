@@ -505,7 +505,7 @@ const schema = a.schema({
       link: a.string().required()
     })
     .handler(a.handler.function(shareUserInvite))
-    .authorization((allow) => [allow.authenticated()])
+    .authorization((allow) => [allow.authenticated()]) //TODO: maybe change me to admin group
     .returns(a.json()),
   DownloadImages: a
     .query()

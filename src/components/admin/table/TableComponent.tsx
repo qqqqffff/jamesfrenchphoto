@@ -16,7 +16,6 @@ import {
   HiOutlinePencil, 
   HiOutlinePlusCircle, 
   HiOutlineTag, 
-  HiOutlineXCircle 
 } from 'react-icons/hi2'
 import { Dropdown } from "flowbite-react"
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
@@ -37,7 +36,7 @@ import {
 import { EditableTextField } from "../../common/EditableTextField"
 import { ValueCell } from "./ValueCell"
 import { currentDate, defaultColumnColors, getColumnTypeColor } from "../../../utils"
-import { ConfirmationModal } from "../../modals"
+import { ConfirmationModal, CreateUserModal } from "../../modals"
 import { DateCell } from "./DateCell"
 import { ChoiceCell } from "./ChoiceCell"
 import { TagCell } from "./TagCell"
@@ -47,6 +46,8 @@ import { ColorComponent } from "../../common/ColorComponent"
 import { v4 } from 'uuid'
 import { validateMapField } from "../../../functions/tableFunctions"
 import { getAllTimeslotsByDateQueryOptions, getAllTimeslotsByUserTagQueryOptions } from "../../../services/timeslotService"
+import { HiOutlineDotsHorizontal } from "react-icons/hi"
+import { inviteUserMutation, InviteUserParams } from "../../../services/userService"
 // import { createParticipantMutation, CreateParticipantParams, updateParticipantMutation, UpdateParticipantMutationParams, updateUserAttributeMutation, UpdateUserAttributesMutationParams, updateUserProfileMutation, UpdateUserProfileParams } from "../../../services/userService"
 
 
@@ -68,6 +69,7 @@ export const TableComponent = (props: TableComponentProps) => {
   const [users, setUsers] = useState<UserData[]>([])
   const [selectedDate, setSelectedDate] = useState<Date>(currentDate)
   const [selectedTag, setSelectedTag] = useState<UserTag | undefined>()
+  const [createUser, setCreateUser] = useState(false)
 
   const timeslotsQuery = useQuery(getAllTimeslotsByDateQueryOptions(selectedDate))
   const tagTimeslotQuery = useQuery({
@@ -76,6 +78,7 @@ export const TableComponent = (props: TableComponentProps) => {
   })
  
   const refColumn = useRef<TableColumn | null>()
+  const refRow = useRef<number>(-1)
 
   const tableRows: [string, TableColumn['type'], string][][] = []
 
@@ -112,6 +115,13 @@ export const TableComponent = (props: TableComponentProps) => {
   const createChoice = useMutation({
     mutationFn: (params: CreateChoiceParams) => createChoiceMutation(params),
   })
+
+  const inviteUser = useMutation({
+    mutationFn: (params: InviteUserParams) => inviteUserMutation(params),
+  })
+
+  const link = window.location.href
+    .replace(new RegExp(/admin.*/g), 'register')
 
   // const updateUserAttribute = useMutation({
   //   mutationFn: (params: UpdateUserAttributesMutationParams) => updateUserAttributeMutation(params)
@@ -387,6 +397,32 @@ export const TableComponent = (props: TableComponentProps) => {
         }}
         onClose={() => setDeleteColumnConfirmation(false)}
         open={deleteColumnConfirmation}
+      />
+      <CreateUserModal 
+        createUser={(userProfile) => {
+          //TODO: retroactively register the participant for the selected timeslots
+          inviteUser.mutate({
+            sittingNumber: userProfile.sittingNumber,
+            email: userProfile.email,
+            firstName: userProfile.firstName!,
+            lastName: userProfile.lastName!,
+            participants: userProfile.participant,
+            baseLink: link,
+            options: {
+              logging: true
+            }
+          })
+
+          tempUsers.push(userProfile)
+        }}
+        tableColumns={props.table.columns}
+        rowNumber={refRow.current}
+        tags={props.tagData}
+        open={createUser}
+        onClose={() => {
+          setCreateUser(false)
+          refRow.current = -1
+        }}
       />
       {/* overflow-x-auto overflow-y-auto */}
       <div className="relative shadow-md overflow-scroll max-w-[60vw] max-h-[85vh]">
@@ -887,60 +923,76 @@ export const TableComponent = (props: TableComponentProps) => {
                       }
                     })}
                     <td className="flex flex-row items-center justify-center py-3">
-                      <button
-                        onClick={() => {
-                          deleteRow.mutate({
-                            table: props.table,
-                            rowIndex: i,
-                            options: {
-                              logging: true
-                            }
-                          })
-
-                          const temp: Table = {
-                            ...props.table,
-                            columns: props.table.columns.map((column) => {
-                              const mappedColumn: TableColumn = {
-                                ...column,
-                                values: column.values.reduce((prev, cur, index) => {
-                                  if(index === i) return prev
-                                  prev.push(cur)
-                                  return prev
-                                }, [] as string[])
-                              }
-                              return mappedColumn
-                            })
-                          }
-
-                          const updateGroup = (prev: TableGroup[]) => {
-                            const pTemp: TableGroup[] = [
-                              ...prev
-                            ].map((parentGroup) => {
-                              if(parentGroup.id === props.table.tableGroupId){
-                                return {
-                                  ...parentGroup,
-                                  tables: parentGroup.tables.map((table) => {
-                                    if(table.id === temp.id){
-                                      return temp
-                                    }
-                                    return table
-                                  })
-                                }
-                              }
-                              return parentGroup
-                            })
-
-                            return pTemp
-                          }
-
-                          props.parentUpdateTable(temp)
-                          props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-                          props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                          props.parentUpdateTableColumns(temp.columns)
-                        }}
+                      {/* TODO: put linked user icon with dropdown to view details */}
+                      {/* TODO: implement revoke for temp users */}
+                      <Dropdown
+                        label={(<HiOutlineDotsHorizontal className="text-gray-600 hover:fill-gray-200 hover:text-gray-900" size={26} />)}
+                        inline
+                        arrowIcon={false}
                       >
-                        <HiOutlineXCircle className="text-gray-600 hover:fill-gray-200 hover:text-gray-900" size={26} />
-                      </button>
+                        <Dropdown.Item
+                          onClick={() => {
+                            setCreateUser(true)
+                            refRow.current = i
+                          }}
+                        >Create User</Dropdown.Item>
+                        <Dropdown.Item
+                          // onClick={() => setCreateUser(true)}
+                          // TODO: implement me please :)
+                        >Link Participant</Dropdown.Item>
+                        <Dropdown.Item 
+                          onClick={() => {
+                            deleteRow.mutate({
+                              table: props.table,
+                              rowIndex: i,
+                              options: {
+                                logging: true
+                              }
+                            })
+
+                            const temp: Table = {
+                              ...props.table,
+                              columns: props.table.columns.map((column) => {
+                                const mappedColumn: TableColumn = {
+                                  ...column,
+                                  values: column.values.reduce((prev, cur, index) => {
+                                    if(index === i) return prev
+                                    prev.push(cur)
+                                    return prev
+                                  }, [] as string[])
+                                }
+                                return mappedColumn
+                              })
+                            }
+
+                            const updateGroup = (prev: TableGroup[]) => {
+                              const pTemp: TableGroup[] = [
+                                ...prev
+                              ].map((parentGroup) => {
+                                if(parentGroup.id === props.table.tableGroupId){
+                                  return {
+                                    ...parentGroup,
+                                    tables: parentGroup.tables.map((table) => {
+                                      if(table.id === temp.id){
+                                        return temp
+                                      }
+                                      return table
+                                    })
+                                  }
+                                }
+                                return parentGroup
+                              })
+
+                              return pTemp
+                            }
+
+                            props.parentUpdateTable(temp)
+                            props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                            props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                            props.parentUpdateTableColumns(temp.columns)
+                          }}
+                        >Delete Row</Dropdown.Item>
+                      </Dropdown>
                     </td>
                   </tr>
                 )
