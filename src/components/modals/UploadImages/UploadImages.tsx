@@ -7,7 +7,6 @@ import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { UploadImagesMutationParams } from "../../../services/photoSetService";
 import Loading from "../../common/Loading";
-import { invariant } from "@tanstack/react-router";
 import { ImagesRow } from "./ImagesRow";
 import { IssueNotifications, UploadIssue } from "./IssueNotifications";
 import { GoTriangleDown, GoTriangleUp } from "react-icons/go";
@@ -20,7 +19,7 @@ import { getPathQueryOptions } from "../../../services/collectionService";
 interface UploadImagesProps extends ModalProps {
   collection: PhotoCollection,
   set: PhotoSet;
-  files: Map<string, File>,
+  files: Map<string, { file: File, width: number, height: number }>,
   createUpload: (params: UploadImagesMutationParams) => void,
   updateUpload: Dispatch<SetStateAction<UploadData[]>>
   updatePicturePaths: Dispatch<SetStateAction<PicturePath[]>>,
@@ -31,17 +30,17 @@ interface UploadImagesProps extends ModalProps {
 
 async function validateFiles(
   files: File[],
-  filesUpload: Map<string, File>,
+  filesUpload: Map<string, { file: File, width: number, height: number }>,
   startIssues: UploadIssue[],
   set: PhotoSet,
-  setFilesPreview: Dispatch<SetStateAction<Map<string, File> | undefined>>,
-  setFilesUpload: Dispatch<SetStateAction<Map<string, File>>>,
+  setFilesPreview: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>,
+  setFilesUpload: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }>>>,
   setUploadIssues: Dispatch<SetStateAction<UploadIssue[]>>,
   setTotalUpload: Dispatch<SetStateAction<number>>,
   setLoadingPreviews: Dispatch<SetStateAction<boolean>>,
   logging: boolean,
-  filesPreviews?: Map<string, File>,
-){
+  filesPreviews?: Map<string,  { file: File, width: number, height: number }>,
+) {
   setLoadingPreviews(true)
   const start = new Date().getTime()
   const issues: UploadIssue[] = [...startIssues]
@@ -74,6 +73,7 @@ async function validateFiles(
   }, [] as File[])
 
   
+  //TODO: don't await all to load previews or find issues
   const previewsMap = await Promise.all(filesArray.map(async (file) => {
     const url = URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type}))
     const dimensions = await new Promise(
@@ -137,7 +137,9 @@ async function validateFiles(
 
     return {
       url: url,
-      file: file
+      file: file,
+      width: dimensions.width,
+      height: dimensions.height
     }  
   }))
 
@@ -145,17 +147,17 @@ async function validateFiles(
   if(logging) console.log(`${done.getTime()}ms`)
 
   if(filesPreviews !== undefined){
-    const previews = new Map<string, File>(filesPreviews)
-    const uploads = new Map<string, File>(filesUpload)
+    const previews = new Map<string, { file: File, width: number, height: number }>(filesPreviews)
+    const uploads = new Map<string, { file: File, width: number, height: number }>(filesUpload)
 
     previewsMap
-    .sort((a, b) => a.file.name.localeCompare(b.file.name))
-    .forEach((preview) => {
-      previews.set(preview.url, preview.file)
-      uploads.set(preview.file.name, preview.file)
-    })
+      .sort((a, b) => a.file.name.localeCompare(b.file.name))
+      .forEach((preview) => {
+        previews.set(preview.url, { file: preview.file, width: preview.width, height: preview.height })
+        uploads.set(preview.file.name, { file: preview.file, width: preview.width, height: preview.height })
+      })
 
-    const total = [...previews.values()].reduce((prev, cur) => prev += cur.size, 0)
+    const total = [...previews.values()].reduce((prev, cur) => prev += cur.file.size, 0)
 
     setFilesPreview(previews)
     setFilesUpload(uploads)
@@ -163,15 +165,15 @@ async function validateFiles(
     setLoadingPreviews(false)
     setTotalUpload(total)
   } else {
-    const previews = new Map<string, File>()
+    const previews = new Map<string, { file: File, width: number, height: number }>()
 
     previewsMap
     .sort((a, b) => a.file.name.localeCompare(b.file.name))
     .forEach((preview) => {
-      previews.set(preview.url, preview.file)
+      previews.set(preview.url, { file: preview.file, width: preview.width, height: preview.height })
     })
 
-    const total = [...previews.values()].reduce((prev, cur) => prev += cur.size, 0)
+    const total = [...previews.values()].reduce((prev, cur) => prev += cur.file.size, 0)
 
     setFilesPreview(previews)
     setUploadIssues(issues)
@@ -187,10 +189,10 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
   parentUpdateCollections
 }) => {
   const { height } = useWindowDimensions()
-  const [filesUpload, setFilesUpload] = useState<Map<string, File>>(files)
-  const [filesPreview, setFilesPreview] = useState<Map<string, File>>()
+  const [filesUpload, setFilesUpload] = useState<Map<string, { file: File, width: number, height: number }>>(files)
+  const [filesPreview, setFilesPreview] = useState<Map<string, { file: File, width: number, height: number }>>()
   const [totalUpload, setTotalUpload] = useState<number>(
-    [...filesUpload.values()].reduce((prev, cur) => prev += cur.size, 0)
+    [...filesUpload.values()].reduce((prev, cur) => prev += cur.file.size, 0)
   )
   
   const [uploadIssues, setUploadIssues] = useState<UploadIssue[]>([])
@@ -212,7 +214,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
   useEffect(() => {
     if(open){
       validateFiles(
-        [...files.values()],
+        [...files.values()].map((file) => file.file),
         filesUpload,
         [],
         set,
@@ -262,7 +264,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
   }
 
   const filteredPreviews =  (() => {
-    const tempPreviews = new Map<string, File>()
+    const tempPreviews = new Map<string, { file: File, width: number, height: number }>()
     
     if(filterText !== ''){
       const trimmedText = filterText.trim().toLocaleLowerCase()
@@ -289,8 +291,8 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
 
     if(sort && sort.order){
       if(sort.type === 'name'){
-        const sortedPreviews = new Map<string, File>()
-        const sortedUploads = new Map<string, File>()
+        const sortedPreviews = new Map<string, { file: File, width: number, height: number }>()
+        const sortedUploads = new Map<string, { file: File, width: number, height: number }>()
         Array.from(filesUpload.entries()).sort((a, b) => {
           if(sort.order === 'DSC') return b[0].localeCompare(a[0])
           return a[0].localeCompare(b[0])
@@ -304,11 +306,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
         return sortedPreviews
       }
       else {
-        const sortedPreviews = new Map<string, File>()
-        const sortedUploads = new Map<string, File>()
+        const sortedPreviews = new Map<string, { file: File, width: number, height: number }>()
+        const sortedUploads = new Map<string, { file: File, width: number, height: number }>()
         Array.from(filesUpload.entries()).sort((a, b) => {
-          if(sort.order === 'DSC') return b[1].size - a[1].size
-          return a[1].size - b[1].size
+          if(sort.order === 'DSC') return b[1].file.size - a[1].file.size
+          return a[1].file.size - b[1].file.size
         }).forEach((entry) => {
           sortedUploads.set(entry[0], entry[1])
           if(tempPreviews.has(entry[0])) sortedPreviews.set(entry[0], entry[1])
@@ -466,22 +468,22 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                       itemSize={35}
                       width={width}
                       itemData={{
-                        data: Array.from(filteredPreviews.entries()),
+                        data: Array.from(filteredPreviews.entries()).map((file) => { return [file[0], file[1].file] as [string, File] }),
                         previews: Object.fromEntries(
-                          Array.from(filesPreview?.entries() ?? []).map((entry) => [entry[1].name, entry[0]])
+                          Array.from(filesPreview?.entries() ?? []).map((entry) => [entry[1].file.name, entry[0]])
                         ),
                         loadingPreviews: loadingPreviews,
                         onDelete: (fileName) => {
-                          const files = new Map<string, File>(
+                          const files = new Map<string, { file: File, width: number, height: number }>(
                             Array.from(filesUpload.entries()).filter((entry) => entry[0] !== fileName)
                           )
                           
                           files.delete(fileName)
 
-                          const totalUpload = [...files.values()].reduce((prev, cur) => prev += cur.size, 0)
+                          const totalUpload = [...files.values()].reduce((prev, cur) => prev += cur.file.size, 0)
 
                           validateFiles(
-                            [...files.values()],
+                            [...files.values()].map((file) => file.file),
                             files,
                             uploadIssues,
                             set,
@@ -540,12 +542,16 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                   color='red'
                   onClick={() => {
                     const foundIssueSet = uploadIssues.find((issue) => issue.type === 'duplicate')?.id
-                    invariant(foundIssueSet)
-                    const tempPreview = new Map<string, File>(filesPreview)
-                    const tempUpload = new Map<string, File>(filesUpload)
+
+                    if(!foundIssueSet) { 
+                      //TODO: handle error
+                      return
+                    }
+                    const tempPreview = new Map<string, { file: File, width: number, height: number }>(filesPreview)
+                    const tempUpload = new Map<string, { file: File, width: number, height: number }>(filesUpload)
                     const previewKeys = [...filesPreview.entries()]
                       .map((entry) => {
-                        if(foundIssueSet.some((id) => id === entry[1].name)){
+                        if(foundIssueSet.some((id) => id === entry[1].file.name)){
                           return entry[0]
                         }
                         return undefined
@@ -558,7 +564,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                       tempUpload.delete(id)
                     })
 
-                    let total = Array.from(tempPreview.values()).reduce((prev, cur) => prev += cur.size, 0)
+                    let total = Array.from(tempPreview.values()).reduce((prev, cur) => prev += cur.file.size, 0)
                     
                     const tempIssues = [...uploadIssues].filter((issue) => issue.type !== 'duplicate')
 

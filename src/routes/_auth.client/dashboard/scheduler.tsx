@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { getAllTimeslotsByUserTagListQueryOptions, registerTimeslotMutation } from '../../../services/timeslotService'
+import { getAllTimeslotsByUserTagListQueryOptions, registerTimeslotMutation, RegisterTimeslotMutationParams } from '../../../services/timeslotService'
 import { useState } from 'react'
 import { currentDate, formatTime, normalizeDate, sortDatesAround } from '../../../utils'
 import { Timeslot } from '../../../types'
@@ -59,7 +59,7 @@ function RouteComponent() {
   const { width } = useWindowDimensions()
 
   const registerTimeslot= useMutation({
-    mutationFn: (timeslot: Timeslot) => registerTimeslotMutation(timeslot, notify)
+    mutationFn: (params: RegisterTimeslotMutationParams) => registerTimeslotMutation(params)
   })
 
   function FormattedTimeslots() {
@@ -127,10 +127,14 @@ function RouteComponent() {
         confirmAction={async () => {
           if(selectedTimeslot && userEmail && participant && userTags) {
             const response = await registerTimeslot.mutateAsync({
-              ...selectedTimeslot,
-              register: userEmail,
-              participantId: participant.id,
+              timeslot: {
+                ...selectedTimeslot,
+                register: userEmail,
+                participantId: participant.id,
+              },
+              notify: notify
             })
+            //TODO: remove asyncronous code
             if(response){
               const updatedTimeslot = participant.timeslot ?? []
               updatedTimeslot.push({
@@ -172,9 +176,12 @@ function RouteComponent() {
           if(selectedTimeslot && userEmail && participant && userTags) {
             //TODO: explore not doing async
             const response = await registerTimeslot.mutateAsync({
-              ...selectedTimeslot,
-              register: undefined,
-              participantId: undefined
+              timeslot: {
+                ...selectedTimeslot,
+                register: undefined,
+                participantId: undefined,
+              },
+              notify: false
             })
             if(response){
               const updatedTimeslot = (participant.timeslot ?? [])

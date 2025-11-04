@@ -5,5 +5,8 @@ export const shareUserInvite = defineFunction({
   entry: './handler.ts',
   environment: {
     SENDGRID_API_KEY: secret('sendgrid-api-key')
+  },
+  bundling: {
+    minify: false
   }
 })

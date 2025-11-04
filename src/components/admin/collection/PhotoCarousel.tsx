@@ -1,6 +1,6 @@
 import { UseQueryResult } from "@tanstack/react-query"
 import { PicturePath } from "../../../types"
-import { invariant, useLocation, useNavigate } from "@tanstack/react-router"
+import { useLocation, useNavigate } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react"
 
 interface PhotoCarouselProps {
@@ -53,7 +53,10 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                       ref={el => imageRefs.current[index] = el} 
                       onClick={() => {
                         const foundItem = props.paths.find((path) => path.id === url.data?.[0])
-                        invariant(foundItem)
+
+                        if(!foundItem) {
+                          return
+                        }
 
                         props.setSelectedPath(foundItem)
                         if(location.href.includes('favorites-fullscreen')){

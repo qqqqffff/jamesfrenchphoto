@@ -176,6 +176,23 @@ async function getAllUntaggedTimeslots(client: V6Client<Schema>, options?: GetAl
     return filteredTimeslots
 }
 
+interface GetTimeslotByIdOptions {
+    siTag?: boolean
+    logging?: boolean,
+    metric?: boolean,
+}
+async function getTimeslotById(client: V6Client<Schema>, timeslotId: string, options?: GetTimeslotByIdOptions): Promise<Timeslot | null> {
+    const start = new Date()
+    const timeslotResponse = await client.models.Timeslot.get({ id: timeslotId })
+    if(!timeslotResponse.data) return null
+    if(options?.metric) console.log(`GETTIMESLOTBYID:${new Date().getTime() - start.getTime()}ms`)
+    return mapTimeslot(timeslotResponse.data, {
+        siTag: options?.siTag ? {
+            memo: []
+        } : undefined
+    })
+}
+
 export interface CreateTimeslotsMutationParams {
     timeslots: Timeslot[],
     options?: {
@@ -345,22 +362,31 @@ export async function deleteTimeslotsMutation(params: DeleteTimeslotsMutationPar
     if(params.options?.logging) console.log(response)
 }
 
+export interface RegisterTimeslotMutationParams {
+    timeslot: Timeslot,
+    notify: boolean,
+    options?: {
+        logging: boolean
+    }
+}
 //TODO: convert me into a lambda function
-export async function registerTimeslotMutation(timeslot: Timeslot, notify: boolean){
+export async function registerTimeslotMutation(params: RegisterTimeslotMutationParams){
     const response = await client.models.Timeslot.update({
-        id: timeslot.id,
-        register: timeslot.register ?? null,
-        participantId: timeslot.participantId ?? null
+        id: params.timeslot.id,
+        register: params.timeslot.register ?? null,
+        participantId: params.timeslot.participantId ?? null
     }, { authMode: 'userPool' })
+    if(params.options?.logging) console.log(response)
     if(!response.data) return false
-    if(notify && timeslot.register){
-        client.queries.SendTimeslotConfirmation({
-            email: timeslot.register,
-            start: timeslot.start.toISOString(),
-            end: timeslot.end.toISOString()
+    if(params.notify && params.timeslot.register){
+        const response = await client.queries.SendTimeslotConfirmation({
+            email: params.timeslot.register,
+            start: params.timeslot.start.toISOString(),
+            end: params.timeslot.end.toISOString()
         }, {
             authMode: 'userPool'
         })
+        if(params.options?.logging) console.log(response)
     }
     return true
 }
@@ -383,4 +409,9 @@ export const getAllTimeslotsByUserTagListQueryOptions = (userTagIds: string[]) =
 export const getAllUntaggedTimeslotsQueryOptions = (options?: GetAllUntaggedTimeslotsOptions) => queryOptions({
     queryKey: ['untaggedTimeslots', client, options],
     queryFn: () => getAllUntaggedTimeslots(client, options)
+})
+
+export const getTimeslotByIdQueryOptions = (timeslotId: string, options?: GetTimeslotByIdOptions) => queryOptions({
+    queryKey: ['timeslot', client, timeslotId],
+    queryFn: () => getTimeslotById(client, timeslotId, options)
 })

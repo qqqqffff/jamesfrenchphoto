@@ -9,25 +9,32 @@ interface EditableTextFieldProps extends ComponentProps<'span'> {
   onCancel?: () => void
   minWidth?: string
   placeholder?: string
+  editting?: boolean
 }
 
 export const EditableTextField = (props: EditableTextFieldProps) => {
   const [content, setContent] = useState(props.text)
   const [spanContent, setSpanContent] = useState(props.text)
   const [width, setWidth] = useState(0)
-  const contentSpan = useRef<HTMLSpanElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const contentSpan = useRef<HTMLSpanElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
   const [showEdit, setShowEdit] = useState(false)
   const [editing, setEditing] = useState(false)
 
-
   useEffect(() => {
     setWidth(contentSpan.current?.clientWidth ?? 0)
-    if(props.placeholder && inputRef.current){
+    if(props.editting && !editing) {
       setEditing(true)
+    }
+    
+    if(editing && inputRef.current){
       inputRef.current.focus()
     }
-  }, [spanContent])
+  }, [
+    spanContent,
+    props.editting,
+    editing
+  ])
 
   useEffect(() => {
     setContent(props.text)
@@ -63,7 +70,7 @@ export const EditableTextField = (props: EditableTextFieldProps) => {
         className={`text-2xl absolute text-transparent ${props.className} -z-10`} 
         ref={contentSpan}
       >
-        {`${spanContent}?`}
+        {`${spanContent}.`}
       </span>
       <input 
         className={`font-thin p-0 text-2xl border-transparent disabled:cursor-default ring-transparent ${props.className}`}

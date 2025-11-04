@@ -1,4 +1,4 @@
-import { ListObjectsCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, ListObjectsCommand, S3Client } from "@aws-sdk/client-s3";
 import { Schema } from "../../data/resource";
 import { env } from '$amplify/env/repair-paths'
 import { getAmplifyDataClientConfig } from '@aws-amplify/backend/function/runtime'
@@ -6,6 +6,8 @@ import { Amplify } from 'aws-amplify'
 import { generateClient} from 'aws-amplify/data'
 import { PicturePath } from '../../../src/types'
 import { getAllPaths } from '../../../src/services/photoPathService'
+import { imageSize } from 'image-size'
+import sizeOf from "image-size";
 
 const client = new S3Client()
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
@@ -54,6 +56,8 @@ export const handler: Schema['RepairPaths']['functionHandler'] = async (event) =
     )
   }
 
+  //TODO: add a SI to scan pictures based on if there is a picture path with the existing path
+
   const mappedPaths = await Promise.all(Array.from(pictures.entries())
     .sort((a, b) => 
       a[1]
@@ -63,11 +67,22 @@ export const handler: Schema['RepairPaths']['functionHandler'] = async (event) =
         .substring(b[1].indexOf('_') + 1)
     ))
     .map(async (entry, index) => {
+      const getObjectResponse = await client.send(new GetObjectCommand({
+        Bucket: bucket,
+        Key: entry[1]
+      }))
+
+      if(!getObjectResponse.Body) return
+      
+      const dimensions = sizeOf(await getObjectResponse.Body.transformToByteArray())
+
       const response = await dynamoClient.models.PhotoPaths.create({
         id: entry[0],
         path: entry[1],
         order: index + existingPathsSet.size,
         setId: event.arguments.set,
+        width: dimensions.width,
+        height: dimensions.height
       })
 
       const mappedPath: PicturePath = {
@@ -75,7 +90,9 @@ export const handler: Schema['RepairPaths']['functionHandler'] = async (event) =
         path: entry[1],
         order: index + existingPathsSet.size,
         setId: event.arguments.set,
-        url: ''
+        url: '',
+        width: dimensions.width,
+        height: dimensions.height
       }
 
       return ({
@@ -85,7 +102,7 @@ export const handler: Schema['RepairPaths']['functionHandler'] = async (event) =
     })
   )
 
-  const returnPaths: PicturePath[] = [...existingPaths, ...mappedPaths.map((path) => path.path)]
+  const returnPaths: PicturePath[] = [...existingPaths, ...mappedPaths.filter((path) => path !== undefined).map((path) => path.path)]
 
   const setUpdateResponse = await dynamoClient.models.PhotoSet.update({
     id: event.arguments.set,
@@ -96,7 +113,7 @@ export const handler: Schema['RepairPaths']['functionHandler'] = async (event) =
     paths: returnPaths, 
     responses: {
       set: setUpdateResponse,
-      paths: mappedPaths.map((path) => path.response)
+      paths: mappedPaths.filter((path) => path !== undefined).map((path) => path.response)
     }
   })
 }

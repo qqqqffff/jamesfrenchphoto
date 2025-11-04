@@ -1,4 +1,4 @@
-import { createFileRoute, invariant, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { favoriteImageMutation, FavoriteImageMutationParams, getPhotoSetByIdQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
 import { useMutation, useQueries } from '@tanstack/react-query'
 import { getPathQueryOptions, getPhotoCollectionByIdQueryOptions } from '../services/collectionService'
@@ -176,7 +176,9 @@ function RouteComponent() {
       <button className='fixed top-1/2 right-4 -translate-y-1/2 text-gray-700 rounded-lg p-4 z-50 hover:text-gray-500'
         onClick={() => {
           const currentIndex = data.set.paths.findIndex((path) => path.id === current.id)
-          invariant(currentIndex !== -1)
+          if(currentIndex == -1) {
+            //TODO: handle the error
+          }
           const nextIndex = currentIndex + 1 >= data.set.paths.length ? 0 : currentIndex + 1
           setCurrent(data.set.paths[nextIndex])
           navigate({ to: '.', search: { set: data.set.id, path: data.set.paths[nextIndex].id }})
@@ -187,7 +189,9 @@ function RouteComponent() {
       <button className='fixed top-1/2 left-4 -translate-y-1/2 text-gray-700 rounded-lg p-4 z-50 hover:text-gray-500'
         onClick={() => {
           const currentIndex = data.set.paths.findIndex((path) => path.id === current.id)
-          invariant(currentIndex !== -1)
+          if(currentIndex == -1) {
+            //TODO: handle the error
+          }
           const nextIndex = currentIndex - 1 < 0 ? data.set.paths.length - 1 : currentIndex - 1
           setCurrent(data.set.paths[nextIndex])
           navigate({ to: '.', search: { set: data.set.id, path: data.set.paths[nextIndex].id }})

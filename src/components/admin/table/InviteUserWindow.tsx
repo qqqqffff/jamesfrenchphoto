@@ -52,7 +52,6 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
       }
       //participant mapped field
       if(
-        props.table.columns[i].type === 'participant' &&
         props.participantList.some((participant) => participant.id === props.table.columns[i].values[props.rowIndex])
       ) {
         const foundParticipant = props.participantList.find((participant) => participant.id === props.table.columns[i].values[props.rowIndex])
@@ -166,7 +165,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                 <span>First Name:</span>
                 <input
                   className={`
-                    font-thin p-0 text-xs border-transparent ring-transparent w-full border-b-gray-400 
+                    font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-[200px]
                     border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
                   `}
                   placeholder="First Name..."
@@ -193,7 +192,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                 <span>Preferred Name:</span>
                 <input
                   className={`
-                    font-thin p-0 text-xs border-transparent ring-transparent w-full border-b-gray-400 
+                    font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-[200px]
                     border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
                   `}
                   placeholder="Preferred Name..."
@@ -348,12 +347,7 @@ export const InviteUserWindow = (props: InviteUserWindowProps) => {
                   pickedTag={participant.userTags}
                 />
               </div>
-              <button 
-                className="self-end border rounded-lg py-1 px-2 hover:bg-gray-50 hover:border-gray-300"
-                onClick={() => {
-                  setParticipants(participants.filter((part) => part.id !== participant.id))
-                }}
-              >Delete</button>
+              
               <div className="border-gray-300 border mb-1 mt-1"/>
             </div>
           )

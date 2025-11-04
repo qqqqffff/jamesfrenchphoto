@@ -3,9 +3,8 @@ import { TimeslotDisplayProps } from "./Timeslot";
 import { Badge, Dropdown, Label, Tooltip } from "flowbite-react";
 import { badgeColorThemeMap, normalizeDate } from "../../utils";
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineInformationCircle } from "react-icons/hi"
-import { Timeslot } from "../../types";
+import { Timeslot, UserTag } from "../../types";
 import { ColorComponent } from "../common/ColorComponent";
-import { invariant } from "@tanstack/react-router";
 
 const component: FC<TimeslotDisplayProps> = ({timeslots, setActiveDate, activeDate, formatTimeslot, formatRegisteredTimeslot }) => {
   const normalDates = timeslots
@@ -97,12 +96,10 @@ const component: FC<TimeslotDisplayProps> = ({timeslots, setActiveDate, activeDa
               .filter((timeslot) => timeslot.tag !== undefined)
               //filtering only timeslots with this id
               .reduce((prev, cur) => {
-                if(!prev.some((timeslot) => timeslot.tag?.id === cur.tag?.id)) prev.push(cur)
+                if(cur.tag && !prev.some((tag) => tag.id === cur.tag?.id)) prev.push(cur.tag)
                 return prev
-              }, [] as Timeslot[])
-              .map((timeslot, index) => {
-                const tag = timeslot.tag
-                invariant(tag)
+              }, [] as UserTag[])
+              .map((tag, index) => {
                 const sortedTimeslots = timeslots.sort((a, b) => a.start.getTime() - b.start.getTime())
                 
                 const formattedDateString = 

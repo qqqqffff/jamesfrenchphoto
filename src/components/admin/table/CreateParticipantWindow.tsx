@@ -102,7 +102,6 @@ export const CreateParticipantWindow = (props: CreateParticipantWindowProps) => 
                 !selectedColumns.some((col) => col.type === 'userEmail')
               ))
               .filter((column) => (
-                column.type === 'user' &&
                 validator.isEmail(column.values[props.rowIndex])
               ))
               .map((column, index) => {
@@ -164,7 +163,6 @@ export const CreateParticipantWindow = (props: CreateParticipantWindowProps) => 
                 column.type !== 'date' && 
                 column.type !== 'file' && 
                 column.type !== 'tag' && 
-                column.type !== 'user' &&
                 column.values[props.rowIndex].match(/^([A-z]+)$/g)
               ))
               .map((column, index) => {
@@ -226,7 +224,6 @@ export const CreateParticipantWindow = (props: CreateParticipantWindowProps) => 
                 column.type !== 'date' && 
                 column.type !== 'file' && 
                 column.type !== 'tag' && 
-                column.type !== 'user' &&
                 column.values[props.rowIndex].match(/^([A-z]+)$/g)
               ))
               .map((column, index) => {
@@ -288,7 +285,6 @@ export const CreateParticipantWindow = (props: CreateParticipantWindowProps) => 
                 column.type !== 'date' && 
                 column.type !== 'file' && 
                 column.type !== 'tag' && 
-                column.type !== 'user' &&
                 column.values[props.rowIndex].match(/^([A-z]+)$/g)
               ))
               .map((column, index) => {
@@ -350,7 +346,6 @@ export const CreateParticipantWindow = (props: CreateParticipantWindowProps) => 
                 column.type !== 'date' && 
                 column.type !== 'file' && 
                 column.type !== 'tag' && 
-                column.type !== 'user' &&
                 column.values[props.rowIndex].match(/^([A-z]+)$/g)
               ))
               .map((column, index) => {
@@ -409,7 +404,6 @@ export const CreateParticipantWindow = (props: CreateParticipantWindowProps) => 
                 !selectedColumns.some((col) => col.type === 'email')
               ))
               .filter((column) => (
-                column.type === 'user' &&
                 validator.isEmail(column.values[props.rowIndex])
               ))
               .map((column, index) => {

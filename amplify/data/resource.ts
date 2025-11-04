@@ -79,7 +79,9 @@ const schema = a.schema({
       order: a.integer().required(),
       setId: a.id().required(),
       set: a.belongsTo('PhotoSet', 'setId'),
-      favorites: a.hasMany('UserFavorites', 'pathId')
+      favorites: a.hasMany('UserFavorites', 'pathId'),
+      width: a.integer().required(),
+      height: a.integer().required()
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [
@@ -229,7 +231,7 @@ const schema = a.schema({
       header: a.string().required(),
       values: a.string().array(),
       choices: a.string().array(),
-      type: a.enum(['value', 'user', 'participant', 'date', 'choice', 'tag', 'file']),
+      type: a.enum(['value', 'date', 'choice', 'tag', 'file']),
       color: a.hasMany('ColumnColorMapping', 'columnId'),
       tag: a.string().array(),
       tableId: a.id().required(),
@@ -503,7 +505,7 @@ const schema = a.schema({
       link: a.string().required()
     })
     .handler(a.handler.function(shareUserInvite))
-    .authorization((allow) => [allow.authenticated()])
+    .authorization((allow) => [allow.authenticated()]) //TODO: maybe change me to admin group
     .returns(a.json()),
   DownloadImages: a
     .query()

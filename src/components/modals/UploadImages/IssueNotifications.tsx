@@ -1,7 +1,6 @@
 import { Alert, FlowbiteColors } from "flowbite-react";
 import { DynamicStringEnumKeysOf } from "../../../utils";
 import { Dispatch, SetStateAction } from "react";
-import { invariant } from "@tanstack/react-router";
 
 export interface UploadIssue {
   message: string, 
@@ -24,7 +23,11 @@ export const IssueNotifications = (props: {issues: UploadIssue[], setIssues: Dis
               className="w-[90%] opacity-75"
               onDismiss={() => {
                 const foundIssue = props.issues.findIndex((i) => i.type === issue.type)
-                invariant(foundIssue !== -1)
+                
+                if(foundIssue === -1) {
+                  //TODO: handle error
+                }
+
                 const tempIssues = [...props.issues]
                 tempIssues[foundIssue].visible = false
                 props.setIssues(tempIssues)

@@ -61,7 +61,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
   const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
   const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
-  const [filesUploading, setFilesUploading] = useState<Map<string, File> | undefined>()
+  const [filesUploading, setFilesUploading] = useState<Map<string, { file: File, width: number, height: number }> | undefined>()
   const [uploads, setUploads] = useState<UploadData[]>([])
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
 
@@ -216,12 +216,26 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
     }
   })
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const fileMap = new Map<string, File>()
-    acceptedFiles.forEach((file) => {
-      fileMap.set(file.name, file)
-    })
-    setFilesUploading(fileMap)
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const filesMap = new Map<string, { file: File, width: number, height: number }>()
+    //TODO: add interactive upload preprocessing modal
+    await Promise.all(acceptedFiles.map(async (file) => {
+      const url = URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type }))
+      const dimensions = await new Promise(
+        (resolve: (item: { width: number, height: number}) => void) => {
+          const image: HTMLImageElement = document.createElement('img')
+          image.src = url
+          image.onload = () => {
+            resolve({
+              width: image.naturalWidth,
+              height: image.naturalHeight,
+            })
+          }
+        }
+      )
+      filesMap.set(file.name, { file: file, width: dimensions.width, height: dimensions.height })
+    }))
+    setFilesUploading(filesMap)
   }, [])
 
   const {getRootProps, getInputProps, isDragActive} = useDropzone({ 

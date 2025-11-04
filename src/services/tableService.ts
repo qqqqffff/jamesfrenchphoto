@@ -41,9 +41,9 @@ interface GetTableOptions {
     metrics?: boolean
 }
 async function getTable(client: V6Client<Schema>, id?: string, options?: GetTableOptions) {
-    if(!id) return
+    if(!id) return null
     const tableResponse = await client.models.Table.get({ id: id })
-    if(!tableResponse || !tableResponse.data) return
+    if(!tableResponse || !tableResponse.data) return null
 
     const mappedColumns: TableColumn[] = await Promise.all((await tableResponse.data.tableColumns()).data.map(async (column) => {
         const color: ColumnColor[] = (await column.color()).data.map((color) => {
@@ -86,15 +86,18 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
 }
 
 export interface CreateTableGroupParams {
+    id: string,
     name: string,
     options?: {
         logging?: boolean
     }
 }
 export async function createTableGroupMutation(params: CreateTableGroupParams) {
-    const response = await client.models.TableGroup.create({ name: params.name })
+    const response = await client.models.TableGroup.create({ 
+        id: params.id,
+        name: params.name 
+    })
     if(params.options?.logging) console.log(response)
-    return response.data?.id
 }
 
 export interface UpdateTableGroupParams {
@@ -138,6 +141,7 @@ export interface CreateTableParams {
     id: string,
     name: string,
     tableGroupId: string,
+    columns: TableColumn[],
     options?: {
         logging?: boolean
     }
@@ -148,6 +152,12 @@ export async function createTableMutation(params: CreateTableParams): Promise<st
         name: params.name,
         tableGroupId: params.tableGroupId,
     })
+    if(params.options?.logging) console.log(response)
+    await Promise.all(params.columns.map(async (column) => {
+        await createTableColumnMutation({
+            column: column
+        })
+    }))
     if(response && response.data) {
         return response.data.id
     }
@@ -270,6 +280,7 @@ export async function updateTableColumnsMutation(params: UpdateTableColumnParams
 
 export interface CreateChoiceParams {
     column: TableColumn,
+    colorId: string,
     choice: string,
     color: string,
     options?: {
@@ -284,15 +295,15 @@ export async function createChoiceMutation(params: CreateChoiceParams): Promise<
     if(params.options?.logging) console.log(columnResponse)
 
     const createColor = await client.models.ColumnColorMapping.create({
+        id: params.colorId,
         columnId: params.column.id,
         textColor: defaultColumnColors[params.color].text,
         bgColor: defaultColumnColors[params.color].bg,
         value: params.choice
     })
 
-    if(createColor.data) {
-        return [createColor.data.id, params.column.id]
-    }
+    if(params.options?.logging) console.log(createColor)
+
     return
 }
 export interface AppendTableRowParams {

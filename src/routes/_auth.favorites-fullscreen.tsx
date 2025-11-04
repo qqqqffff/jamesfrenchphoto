@@ -1,5 +1,5 @@
 import { useMutation, useQueries } from '@tanstack/react-query'
-import { createFileRoute, invariant, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import {
   getPathQueryOptions,
@@ -168,7 +168,9 @@ function RouteComponent() {
           const currentIndex = data.paths.findIndex(
             (path) => path.id === current.id,
           )
-          invariant(currentIndex !== -1)
+          if(currentIndex == -1) {
+            //TODO: handle the error
+          }
           const nextIndex =
             currentIndex + 1 >= data.paths.length ? 0 : currentIndex + 1
           setCurrent(data.paths[nextIndex])
@@ -189,7 +191,9 @@ function RouteComponent() {
           const currentIndex = data.paths.findIndex(
             (path) => path.id === current.id,
           )
-          invariant(currentIndex !== -1)
+          if(currentIndex == -1) {
+            //TODO: handle the error
+          }
           const nextIndex =
             currentIndex - 1 < 0 ? data.paths.length - 1 : currentIndex - 1
           setCurrent(data.paths[nextIndex])

@@ -1,7 +1,7 @@
 import { ComponentProps, Dispatch, SetStateAction } from "react"
 
 interface UploadComponentProps extends ComponentProps<'div'> {
-  setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
+  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>
 }
 
 export const UploadImagePlaceholder = (props: UploadComponentProps) => {
@@ -33,12 +33,27 @@ export const UploadImagePlaceholder = (props: UploadComponentProps) => {
             className="hidden" 
             multiple 
             accept="image/*"
-            onChange={(event) => {
+            onChange={async (event) => {
               if(event.target.files){
-                const filesMap = new Map<string, File>()
-                Array.from(event.target.files).forEach((file) => {
-                  filesMap.set(file.name, file)
-                })
+                
+                const filesMap = new Map<string, { file: File, width: number, height: number }>()
+                //TODO: add interactive upload preprocessing modal
+                await Promise.all(Array.from(event.target.files).map(async (file) => {
+                  const url = URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type }))
+                  const dimensions = await new Promise(
+                    (resolve: (item: { width: number, height: number}) => void) => {
+                      const image: HTMLImageElement = document.createElement('img')
+                      image.src = url
+                      image.onload = () => {
+                        resolve({
+                          width: image.naturalWidth,
+                          height: image.naturalHeight,
+                        })
+                      }
+                    }
+                  )
+                  filesMap.set(file.name, { file: file, width: dimensions.width, height: dimensions.height })
+                }))
                 props.setFilesUploading(filesMap)
               }
             }}

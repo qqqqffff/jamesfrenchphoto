@@ -106,6 +106,8 @@ export type PicturePath = {
     order: number;
     favorite?: string;
     setId: string;
+    width: number;
+    height: number;
 }
 
 export type Watermark = {
@@ -226,7 +228,7 @@ export interface TableGroup {
     name: string,
     tables: Table[],
     temporary?: boolean,
-    editting?: boolean,
+    edit?: boolean,
     createdAt: string,
 }
 
@@ -244,7 +246,7 @@ export interface TableColumn {
     id: string,
     header: string,
     values: string[],
-    type: 'value' | 'user' | 'participant' | 'date' | 'choice'  | 'tag' | 'file',
+    type: 'value' | 'date' | 'choice'  | 'tag' | 'file',
     choices?: string[],
     color?: ColumnColor[],
     display: boolean,
@@ -262,7 +264,6 @@ export type ColumnColor = {
     bgColor?: string
     textColor?: string
     columnId: string,
-    temporary?: boolean
 }
 
 export interface TemporaryAccessToken {

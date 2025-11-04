@@ -17,7 +17,6 @@ import { GetInfinitePathsData } from '../../../../services/photoPathService';
 import Loading from '../../../common/Loading';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
-import { invariant } from '@tanstack/react-router';
 import useWindowDimensions from '../../../../hooks/windowDimensions';
 
 interface PictureListProps extends ComponentProps<'div'> {
@@ -35,7 +34,7 @@ interface PictureListProps extends ComponentProps<'div'> {
   controlsEnabled: (id: string, override: boolean) => string
   displayTitleOverride: boolean
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
-  setFilesUploading: Dispatch<SetStateAction<Map<string, File> | undefined>>
+  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>
   participantId?: string,
   pathsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePathsData, unknown>, Error>
   repairItemCounts: UseMutationResult<PhotoCollection | undefined, Error, RepairItemCountsParams, unknown>
@@ -89,7 +88,10 @@ export const PictureList = (props: PictureListProps) => {
   useEffect(() => {
     setPictures(props.paths)
     const element = listRef.current
-    invariant(element)
+    
+    if(!element) {
+      return
+    }
 
     return combine(
       monitorForElements({

@@ -29,9 +29,9 @@ export const ParticipantSyncItem = (props: ParticipantSyncItemProps) => {
         ) : (
           <span className="px-4 pt-2 font-normal text-base whitespace-nowrap border-b text-center">Available Columns</span>
         )}
-        {props.table.columns.filter((col) => col.type === 'user' && col.id !== props.column.choices?.[0]).length > 0 ? (
+        {props.table.columns.filter((col) => col.id !== props.column.choices?.[0]).length > 0 ? (
           props.table.columns
-            .filter((col) => col.type === 'user' && col.id !== props.column.choices?.[0])
+            .filter((col) => col.id !== props.column.choices?.[0])
             .map((col) => {
               return (
                 <Dropdown.Item
