@@ -151,9 +151,6 @@ export function AuthProvider({ children } : { children: ReactNode }) {
 
     useEffect(() => {
         setUser(getStoredUser())
-        return () => {
-
-        }
     }, [])
 
     return (
