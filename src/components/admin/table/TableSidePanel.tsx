@@ -280,7 +280,7 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                                   tags: [],
                                   choices: ['', '', ''],
                                   tableId: tableId,
-                                  order: 0,
+                                  order: 1,
                                 },
                                 {
                                   id: v4(),
@@ -291,7 +291,7 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                                   tags: [],
                                   choices: ['', '', ''],
                                   tableId: tableId,
-                                  order: 0,
+                                  order: 2,
                                 },
                               ],
                               tableGroupId: group.id
@@ -374,8 +374,8 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                               columns: [
                                 {
                                   id: v4(),
-                                  header: 'Participant First',
-                                  values: ['Jane', '', ''],
+                                  header: 'Sitting Number',
+                                  values: ['1234', '', ''],
                                   type: 'value',
                                   display: true,
                                   tags: [],
@@ -385,8 +385,8 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                                 },
                                 {
                                   id: v4(),
-                                  header: 'Participant Last',
-                                  values: ['Doe', '', ''],
+                                  header: 'Participant First',
+                                  values: ['Jane', '', ''],
                                   type: 'value',
                                   display: true,
                                   tags: [],
@@ -396,8 +396,8 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
                                 },
                                 {
                                   id: v4(),
-                                  header: 'Mother Name',
-                                  values: ['Janette Doe', '', ''],
+                                  header: 'Participant Last',
+                                  values: ['Doe', '', ''],
                                   type: 'value',
                                   display: true,
                                   tags: [],
