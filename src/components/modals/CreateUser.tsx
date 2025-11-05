@@ -119,7 +119,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
             tempFirst = props.tableColumns[i].values[props.rowNumber]
           }
           else if(props.tableColumns[i].header.toLocaleLowerCase().includes('last')) {
-            tempFirst = props.tableColumns[i].values[props.rowNumber]
+            tempLast = props.tableColumns[i].values[props.rowNumber]
           }
           else if(
             props.tableColumns[i].header.toLocaleLowerCase().includes('sitting') &&

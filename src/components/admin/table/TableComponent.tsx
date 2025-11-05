@@ -416,6 +416,7 @@ export const TableComponent = (props: TableComponentProps) => {
       <CreateUserModal 
         createUser={(userProfile) => {
           //TODO: retroactively register the participant for the selected timeslots
+          //TODO: also handle errors too
           inviteUser.mutate({
             sittingNumber: userProfile.sittingNumber,
             email: userProfile.email,

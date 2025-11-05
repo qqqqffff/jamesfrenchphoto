@@ -44,6 +44,7 @@ export const Route = createFileRoute('/_auth')({
         }
       })
     }
+    
     else if(!context.auth.admin && location.pathname.includes('admin')){
       throw redirect({
         to: '/client/dashboard'
