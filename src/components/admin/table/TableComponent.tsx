@@ -343,6 +343,21 @@ export const TableComponent = (props: TableComponentProps) => {
     }
   }
 
+  //TODO: implement me
+  // const linkUserProfile = (
+  //   userProfile: UserProfile, 
+  //   rowIndex: number,
+  //   linkedColumns: { 
+  //     columnId: string, 
+  //     field: 'first' | 'last' | 'middle' | 'email' | 'sitting' | 'preferred', 
+  //     participant: boolean
+  //   }[]
+  // ) => {
+  //   // only value, tag or date columns will be affected by linked participant
+  //   //append [*participantId*<id>, field] to values columns
+  //   //append [*participantId*<id>] to tag or date columns
+  // }
+
   console.log(props.table.columns)
 
   return (
@@ -940,6 +955,10 @@ export const TableComponent = (props: TableComponentProps) => {
                           // onClick={() => setCreateUser(true)}
                           // TODO: implement me please :)
                         >Link Participant</Dropdown.Item>
+                        {/* TODO: implement me please */}
+                        <Dropdown.Item>
+                          Notify User
+                        </Dropdown.Item>
                         <Dropdown.Item 
                           onClick={() => {
                             deleteRow.mutate({

@@ -73,12 +73,15 @@ function RouteComponent() {
           .find((participant) => participant.id === userProfile.activeParticipant?.id)
           ?.userTags?.find((tag) => tag.id === timeslot.tag?.id)
         
-        const selected = userProfile.activeParticipant === timeslot.participantId ? 'bg-gray-200' : ''
-        const participantTimeslot = participant.timeslot?.find((partTimeslot) => timeslot.tag?.id === partTimeslot.tag?.id)
-        let disabled = timeslot.register !== undefined || currentDate > activeDate || (
-          participantTimeslot !== undefined
-        )
-        if(participantTimeslot?.id === timeslot.id) disabled = false
+        const selected = (userProfile.activeParticipant?.id ?? userProfile.participant[0].id) === timeslot.participantId ? 'bg-gray-200' : ''
+        const alreadyRegistered = tag?.timeslots?.find((tagTimeslot) => tagTimeslot.participantId === participant.id || tagTimeslot.register === userProfile.email)
+        console.log(alreadyRegistered)
+        let disabled = 
+          (timeslot.register !== undefined && userProfile.email !== timeslot.register) || 
+          (timeslot.participantId !== undefined && (userProfile.activeParticipant?.id ?? userProfile.participant[0].id) !== timeslot.participantId) || 
+          currentDate > activeDate ||
+          (alreadyRegistered !== undefined && timeslot.id !== alreadyRegistered.id)
+
         const disabledText = disabled ? 'line-through cursor-not-allowed' : ''
 
         return (
