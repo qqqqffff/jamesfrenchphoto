@@ -3,7 +3,7 @@ import { createRootRouteWithContext, Link, Outlet, useLocation, useNavigate } fr
 import { HiOutlineCheckCircle } from "react-icons/hi2";
 import { AuthContext, useAuth } from '../auth'
 import { Dropdown } from 'flowbite-react'
-import { Dispatch, FC, ReactNode, SetStateAction, useState } from 'react'
+import { Dispatch, FC, ReactNode, SetStateAction, useEffect, useState } from 'react'
 import bannerIcon from '../assets/headerPhoto.png'
 import useWindowDimensions from '../hooks/windowDimensions';
 import { HiOutlineMenu } from 'react-icons/hi';
@@ -96,6 +96,18 @@ const RootComponent = () => {
   const data = Route.useLoaderData()
   const auth = useAuth()
   const [selectedParticipant, setSelectedParticipant] = useState(auth.user?.profile.activeParticipant?.id)
+
+  useEffect(() => {
+    if(selectedParticipant === undefined) {
+      if(auth.user?.profile.activeParticipant) {
+        setSelectedParticipant(auth.user?.profile.activeParticipant.id)
+      }
+      else if((auth.user?.profile.participant ?? []).length > 0 && auth.user?.profile.participant[0].id) {
+        setSelectedParticipant(auth.user.profile.participant[0].id)
+        auth.changeParticipant(auth.user.profile.participant[0].id)
+      }
+    }
+  }, [auth.user])
 
   const changeParticipant = async (participantId: string) => {
     await auth.changeParticipant(participantId)
