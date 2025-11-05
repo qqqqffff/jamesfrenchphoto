@@ -3,7 +3,14 @@ import { RegistrationProfile, FormError, FormStep } from "./RegisterForm"
 import { Participant } from "../../types"
 import { v4 } from 'uuid'
 import { badgeColorThemeMap, badgeColorThemeMap_hoverable, textInputTheme } from "../../utils"
-import { Badge, Button, Checkbox, Label, TextInput, Tooltip } from "flowbite-react"
+import { 
+  Badge, 
+  // Button, 
+  Checkbox, 
+  Label, 
+  TextInput, 
+  Tooltip 
+} from "flowbite-react"
 
 interface ParticipantPanelProps {
   userProfile: RegistrationProfile,
@@ -54,10 +61,10 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
     <>
       <div className="flex flex-col gap-1 w-full">
         <div className="flex flex-col w-full items-center">
-          <span className="flex flex-row gap-1 me-3 font-light italic text-lg">
+          {/* <span className="flex flex-row gap-1 me-3 font-light italic text-lg">
             <span>Participant{props.userProfile.participant.length > 1 ? 's' : ''}</span>
             <span>{props.userProfile.participant.length}/5</span>
-          </span>
+          </span> */}
           <div className={`${props.width > 800 ? 'flex flex-row' : 'grid grid-cols-2'} gap-2 mt-2`}>
             {props.userProfile.participant.map((participant, index) => {
               return (
@@ -378,7 +385,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
               />
               <span>Have notifications sent to participant's email</span>
             </button>
-            <button 
+            {/* <button 
               className="flex flex-row gap-2 text-left items-center disabled:text-gray-400 disabled:cursor-not-allowed mb-2" 
               onClick={(event) => {
                 event.stopPropagation()
@@ -483,7 +490,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   }}
                 >Add Participant</Button>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
