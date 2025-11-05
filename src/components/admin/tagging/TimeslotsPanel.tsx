@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useState } from "react"
-import { normalizeDate } from "../../../utils"
+import { currentDate, normalizeDate } from "../../../utils"
 import { Datepicker, Label } from "flowbite-react"
 import { Participant, Timeslot, UserTag } from "../../../types"
 import { UseQueryResult } from "@tanstack/react-query"
@@ -93,7 +93,13 @@ export const TimeslotsPanel = (props: TimeslotsPanelProps) => {
           {(props.selectedTag.timeslots?.length ?? 0) === 0 ? (
             <span className="italic font-light">No Selected Timeslots</span>
           ) : (
-            (props.selectedTag.timeslots ?? []).map((timeslot, index) => {
+            (props.selectedTag.timeslots ?? [])
+            .sort((a, b) => {
+              const diffA = Math.abs(a.start.getTime() - currentDate.getTime());
+              const diffB = Math.abs(b.start.getTime() - currentDate.getTime());
+              return diffA - diffB;
+            })
+            .map((timeslot, index) => {
               return (
                 <button 
                   key={index} 

@@ -67,8 +67,12 @@ export const SlotComponent: FC<SlotProps> = ({ timeslot, participant, tag, class
     <div className={`font-sans flex flex-col relative border border-black justify-center items-center rounded-lg py-2 px-4 text-${tag?.color ?? 'black'} ${className ?? ''}`}>
       <div className="flex flex-row gap-1">
         <span>{formatTime(timeslot.start, { timeString: false })}</span>
-        <span>&bull;</span>
-        <span className="font-light">{timeslot.description}</span>
+        {timeslot.description !== undefined && (
+          <>
+            <span>&bull;</span>
+            <span className="font-light">{timeslot.description}</span>
+          </>
+        )}
       </div>
       <span>{createTimeString(timeslot)}</span>
       {participant !== null && (

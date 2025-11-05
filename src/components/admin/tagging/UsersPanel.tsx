@@ -36,7 +36,7 @@ export const UsersPanel = (props: UsersPanelProps) => {
   })()
 
   return (
-    <div className="flex flex-col max-h-[70vh] items-center justify-center w-full">
+    <div className="flex flex-col max-h-[68vh] h-[68vh] items-center justify-center w-full">
       <TextInput 
         theme={textInputTheme}
         sizing="sm"
@@ -45,66 +45,72 @@ export const UsersPanel = (props: UsersPanelProps) => {
         onChange={(event) => setSearch(event.target.value)}
         value={search}
       />
-      <div className="grid grid-cols-3 px-10 place-items-center gap-x-6 w-full">
-        <div className="flex flex-col gap-4 border rounded-lg p-4 w-full h-full">
-          {props.participantQuery.isLoading ? (
-            <span className="flex flex-row text-start gap-1 italic font-light">
-              <span>Loading</span>
-              <Loading />
-            </span>
-          ) : (
-          filteredItems.length === 0 ? (
-            search !== ''? (
-              <div className="flex flex-row gap-4">
-                <span className="italic font-light">No Results</span>
-              </div>
+      <div className="grid grid-cols-3 px-10 place-items-center gap-x-6 w-full h-full">
+        <div className="flex flex-col border rounded-lg p-4 w-full max-h-full overflow-auto self-start">
+          <div className="flex flex-col gap-4">
+            {props.participantQuery.isLoading ? (
+              <span className="flex flex-row text-start gap-1 italic font-light">
+                <span>Loading</span>
+                <Loading />
+              </span>
             ) : (
-              <div className="flex flex-row gap-4">
-                <span className="italic font-light">No Users</span>
-              </div>
-            )
-          ) : (
-            participantColumns[0].map((participant, index) => {
-              const selected = props.selectedTag.participants?.some((pParticipant) => pParticipant.id === participant.id)
+            filteredItems.length === 0 ? (
+              search !== ''? (
+                <div className="flex flex-row gap-4">
+                  <span className="italic font-light">No Results</span>
+                </div>
+              ) : (
+                <div className="flex flex-row gap-4">
+                  <span className="italic font-light">No Users</span>
+                </div>
+              )
+            ) : (
+              participantColumns[0].map((participant, index) => {
+                const selected = props.selectedTag.participants?.some((pParticipant) => pParticipant.id === participant.id)
+                return (
+                  <ParticipantItem 
+                    key={index}
+                    participant={participant}
+                    selected={selected ?? false}
+                    selectedTag={props.selectedTag}
+                    parentUpdateTag={props.parentUpdateTag}
+                  />
+                )
+              })
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col border rounded-lg p-4 w-full max-h-full overflow-auto self-start">
+          <div className="flex flex-col gap-4">
+            {participantColumns[1].map((participant, index) => {
+              const selected = props.selectedTag.participants?.some((pParticipant) => participant.id === pParticipant.id)
               return (
                 <ParticipantItem 
-                  key={index}
+                key={index}
                   participant={participant}
                   selected={selected ?? false}
                   selectedTag={props.selectedTag}
                   parentUpdateTag={props.parentUpdateTag}
                 />
               )
-            })
-          ))}
+            })}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 border rounded-lg p-4 w-full h-full">
-          {participantColumns[1].map((participant, index) => {
-            const selected = props.selectedTag.participants?.some((pParticipant) => participant.id === pParticipant.id)
-            return (
-              <ParticipantItem 
-              key={index}
-                participant={participant}
-                selected={selected ?? false}
-                selectedTag={props.selectedTag}
-                parentUpdateTag={props.parentUpdateTag}
-              />
-            )
-          })}
-        </div>
-        <div className="flex flex-col gap-4 border rounded-lg p-4 w-full h-full">
-          {participantColumns[2].map((participant, index) => {
-            const selected = props.selectedTag.participants?.some((pParticipant) => participant.id === pParticipant.id)
-            return (
-              <ParticipantItem
-                key={index} 
-                participant={participant}
-                selected={selected ?? false}
-                selectedTag={props.selectedTag}
-                parentUpdateTag={props.parentUpdateTag}
-              />
-            )
-          })}
+        <div className="flex flex-col border rounded-lg p-4 w-full max-h-full overflow-auto self-start">
+          <div className="flex flex-col gap-4">
+            {participantColumns[2].map((participant, index) => {
+              const selected = props.selectedTag.participants?.some((pParticipant) => participant.id === pParticipant.id)
+              return (
+                <ParticipantItem
+                  key={index} 
+                  participant={participant}
+                  selected={selected ?? false}
+                  selectedTag={props.selectedTag}
+                  parentUpdateTag={props.parentUpdateTag}
+                />
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
