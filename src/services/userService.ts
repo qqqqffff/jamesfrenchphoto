@@ -236,19 +236,21 @@ interface GetUserProfileByEmailOptions {
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     if(email === '') return
-    const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
+    const profileResponse = await client.models.UserProfile.get({ email: email })
     console.log(profileResponse)
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate()).data?.id : undefined
-    let participantResponse = (await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
+    let participantResponse = (await profileResponse.data.participant()).data
+    console.log(participantResponse)
     if(participantResponse.length === 0) {
-        participantResponse = (await client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
+        participantResponse = (await client.models.Participant.listParticipantByUserEmail({ userEmail: email })).data
+        console.log(participantResponse)
         if(participantResponse.length === 0 && profileResponse.data.activeParticipant !== null) {
             const getActiveParticipant = (await client.models.Participant.get({ id: profileResponse.data.activeParticipant })).data
+            console.log(getActiveParticipant)
             if(getActiveParticipant) participantResponse = [getActiveParticipant]
         }
     }
-    console.log(participantResponse)
 
     const notificationMemo: Notification[] = []
     const collectionsMemo: PhotoCollection[] = []
@@ -537,16 +539,17 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
     //no need to create a tags memo since the memo does not change
 
     if(options?.siTags) {
+        const tagsResponse = await participantResponse.tags()
+        console.log(tagsResponse)
         userTags.push(...(
             (await Promise.all(
-                ((await participantResponse.tags({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data ?? []).map(async (tag) => {
+                (tagsResponse.data ?? []).map(async (tag) => {
                     let mappedTag: UserTag | undefined = options.memos?.tagsMemo?.find((mTag) => tag.tagId === mTag.id)
                     if(mappedTag) {
                         return mappedTag
                     }
                     if(!tag) return
                     const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
-                    console.log(tagResponse)
                     if(tagResponse.data) {
                         const children: UserTag[] = []
                         const notifications: Notification[] = []
