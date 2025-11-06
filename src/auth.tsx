@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react"
+import { createContext, ReactNode, useCallback, useContext, useState } from "react"
 import { UserProfile, UserStorage } from "./types"
 import { confirmSignIn, fetchAuthSession, fetchUserAttributes, FetchUserAttributesOutput, getCurrentUser, signIn, signOut } from "aws-amplify/auth"
 import { generateClient } from "aws-amplify/api";
@@ -147,10 +147,6 @@ export function AuthProvider({ children } : { children: ReactNode }) {
             setStoredUser(tempUser)
             setUser(tempUser)
         }
-    }, [])
-
-    useEffect(() => {
-        setUser(getStoredUser())
     }, [])
 
     return (
