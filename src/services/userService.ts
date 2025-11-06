@@ -240,14 +240,21 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
     console.log(profileResponse)
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate()).data?.id : undefined
-    const participantResponse = await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    let participantResponse = (await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
+    if(participantResponse.length === 0) {
+        participantResponse = (await client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
+        if(participantResponse.length === 0 && profileResponse.data.activeParticipant !== null) {
+            const getActiveParticipant = (await client.models.Participant.get({ id: profileResponse.data.activeParticipant })).data
+            if(getActiveParticipant) participantResponse = [getActiveParticipant]
+        }
+    }
     console.log(participantResponse)
 
     const notificationMemo: Notification[] = []
     const collectionsMemo: PhotoCollection[] = []
     const tagsMemo: UserTag[] = options?.memo?.tags ?? []
 
-    const mappedParticipants: Participant[] = await Promise.all(participantResponse.data.map(async (participant) => {
+    const mappedParticipants: Participant[] = await Promise.all(participantResponse.map(async (participant) => {
         const newParticipant = await mapParticipant(participant, {
             siCollections: options?.siCollections,
             siNotifications: options?.siNotifications,
