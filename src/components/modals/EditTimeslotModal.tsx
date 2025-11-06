@@ -305,9 +305,6 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
             updateTimeslot.mutate({
               timeslots: [newTimeslot],
               previousTimeslots: [props.timeslot],
-              previousTags: props.timeslot.tag?.id !== activeTag?.id && props.timeslot.tag ? (
-                [props.timeslot.tag]
-              ) : [],
               options: {
                 logging: true
               }

@@ -222,88 +222,108 @@ export async function createTimeslotsMutation(params: CreateTimeslotsMutationPar
 export interface UpdateTimeslotsMutationParams {
     timeslots: Timeslot[]
     previousTimeslots: Timeslot[]
-    previousTags: UserTag[]
     options?: {
         logging?: boolean
     }
 }
+/* 
+
+update timeslot flow
+remove previous timeslot tags for timeslots that tags change
+create new timeslot tags for those timeslots that change
+
+timeslots are the new timeslots that overlap with the previous
+previous are just the previous version that are being updated
+
+*/
 export async function updateTimeslotMutation(params: UpdateTimeslotsMutationParams){
-    const timeslotTagsMemo: { id: string, tagId: string, timeslotId: string}[] = []
-    const previousTagCleanup = await Promise.all(params.previousTags.map(async (tag) => {
-        let tagResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ 
-            tagId: tag.id
-        })
-
-        const tagData = tagResponse.data
-        while(tagResponse.nextToken) {
-            tagResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({
-                tagId: tag.id
-            }, { nextToken: tagResponse.nextToken })
-            tagData.push(...tagResponse.data)
-        }
-        
-        timeslotTagsMemo.push(...tagData.map((data) => ({ id: data.id, tagId: data.tagId, timeslotId: data.timeslotId })))
-
-        return timeslotTagsMemo
-            .filter((memo) => params.timeslots.some((timeslot) => timeslot.id === memo.id && tag.id === memo.tagId))
-            .map((memo) => client.models.TimeslotTag.delete({ id: memo.id }))
-    }))
-    if(params.options?.logging) console.log(previousTagCleanup)
-
     const response = await Promise.all(params.timeslots.map(async (timeslot) => {
-        // tag cases: 
-        
-        // dne in db -> create instance
-        // no tag -> if exists in db delete otherwise skip
-        // exists in db -> skip
-        const foundTag = timeslotTagsMemo.find((memo) => memo.timeslotId === timeslot.id && memo.tagId === timeslot.tag?.id)
-        //does not exist in memo && memo does not have the tags
-        if(
-            timeslot.tag && 
-            foundTag === undefined && 
-            !timeslotTagsMemo.some((memo) => memo.tagId === timeslot.tag?.id)
-        ) {
-            let tagResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ 
-                tagId: timeslot.tag.id
-            })
-
-            const tagData = tagResponse.data
-            while(tagResponse.nextToken) {
-                tagResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({
-                    tagId: timeslot.tag.id
-                }, { nextToken: tagResponse.nextToken })
-                tagData.push(...tagResponse.data)
-            }
-            
-            timeslotTagsMemo.push(...tagData.map((data) => ({ id: data.id, tagId: data.tagId, timeslotId: data.timeslotId })))
-
-            const createResponse = await client.models.TimeslotTag.create({
-                tagId: timeslot.tag.id,
-                timeslotId: timeslot.id
-            })
-            if(params.options?.logging) console.log(createResponse)
-        }
-        else if(
-            timeslot.tag &&
-            timeslotTagsMemo.some((memo) => memo.tagId === timeslot.tag?.id)
-        ) {
-            const createResponse = await client.models.TimeslotTag.create({
-                tagId: timeslot.tag.id,
-                timeslotId: timeslot.id
-            })
-            if(params.options?.logging) console.log(createResponse)
-        }
-        //previous tags have been deleted atp
-
         const previousTimeslot = params.previousTimeslots.find((pTimeslot) => pTimeslot.id === timeslot.id)
-        if(previousTimeslot && (
-            //deep comparison check
+        
+        if(!previousTimeslot) return
+
+        //timeslot tag handling
+        if(
+            previousTimeslot.tag?.id !== timeslot.tag?.id
+        ) {
+            //timeslot ids are the same
+            const timeslotTagResponse = await client.models.TimeslotTag.listTimeslotTagByTimeslotId({
+                timeslotId: timeslot.id
+            })
+            if(params.options?.logging) console.log(timeslotTagResponse)
+
+            //three cases: 
+            //no tag to yes tag
+            //yes tag to no tag
+            //yes tag to yes tag
+            
+            if(
+                previousTimeslot.tag === undefined &&
+                timeslot.tag !== undefined
+            ) {
+                let success = false
+                //should not be more than 0 but just in case
+                if(timeslotTagResponse.data.length > 0) {
+                    const response = Promise.all(timeslotTagResponse.data.map((timeslotTag) => {
+                        if(timeslotTag.tagId === timeslot.tag?.id && !success) {
+                            success = true
+                            return
+                        }
+                        return client.models.TimeslotTag.delete({ id: timeslotTag.id })
+                    }))
+
+                    if(params.options?.logging) console.log(response)
+                }
+
+                if(!success) {
+                    const response = await client.models.TimeslotTag.create({ 
+                        tagId: timeslot.tag.id, 
+                        timeslotId: timeslot.id
+                    })
+                    if(params.options?.logging) console.log(response)
+                }
+            }
+            else if(
+                previousTimeslot.tag !== undefined &&
+                timeslot.tag === undefined
+            ) {
+                const response = Promise.all(timeslotTagResponse.data.map((timeslotTag) => {
+                    return client.models.TimeslotTag.delete({ id: timeslotTag.id })
+                }))
+                if(params.options?.logging) console.log(response)
+            }
+            else if(
+                previousTimeslot.tag !== undefined &&
+                timeslot.tag !== undefined
+            ) {
+                let success = false
+                const response = Promise.all(timeslotTagResponse.data.map((timeslotTag) => {
+                    if(timeslotTag.tagId === timeslot.tag?.id) {
+                        success = true
+                        return
+                    }
+                    return client.models.TimeslotTag.delete({ id: timeslotTag.id })
+                }))
+                if(params.options?.logging) console.log(response)
+
+                if(!success) {
+                    const response = client.models.TimeslotTag.create({
+                        timeslotId: timeslot.id,
+                        tagId: timeslot.tag.id
+                    })
+                    if(params.options?.logging) console.log(response)
+                }
+            }
+        }
+
+        if(
+            //deep comparison field check
             previousTimeslot.start.getTime() !== timeslot.start.getTime() ||
             previousTimeslot.end.getTime() !== timeslot.end.getTime() ||
             previousTimeslot.description !== timeslot.description ||
             previousTimeslot.register !== timeslot.register ||
             previousTimeslot.participantId !== timeslot.participantId
-        )) {
+        ) {
             return client.models.Timeslot.update({
                 id: timeslot.id,
                 start: timeslot.start.toISOString(),
@@ -326,33 +346,19 @@ export interface DeleteTimeslotsMutationParams {
     }
 }
 export async function deleteTimeslotsMutation(params: DeleteTimeslotsMutationParams){
-    const timeslotTagsMemo: { id: string, tagId: string, timeslotId: string }[] = []
     const response = await Promise.all(params.timeslots.map(async (timeslot) => {
-        const foundTag = timeslotTagsMemo.find((tag) => tag.timeslotId === timeslot.id)
-        if(foundTag) {
-            const deleteTagResponse = await client.models.TimeslotTag.delete({ id: foundTag.id })
-            if(params.options?.logging) console.log(deleteTagResponse)
-        }
-        if(timeslot.tag && !foundTag) {
-            let taggingResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: timeslot.tag.id })
-            const taggingData = taggingResponse.data
+        if(timeslot.tag) {
+            const timeslotTagResponse = await client.models.TimeslotTag.listTimeslotTagByTimeslotId({
+                timeslotId: timeslot.id
+            })
 
-            while(taggingResponse.nextToken) {
-                taggingResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: timeslot.tag.id }, { nextToken: taggingResponse.nextToken })
-                taggingData.push(...taggingResponse.data)
-            }
-
-            for(let i = 0; i < taggingData.length; i++) {
-                if(taggingData[i].timeslotId === timeslot.id) {
-                    const deleteTagResponse = await client.models.TimeslotTag.delete({ id: taggingData[i].id })
-                    if(params.options?.logging) console.log(deleteTagResponse)
-                    continue;
+            if(timeslotTagResponse.data != null) {
+                return {
+                    deleteTimeslotPromise: client.models.Timeslot.delete({ id: timeslot.id }),
+                    deleteTimeslotTagPromise: timeslotTagResponse.data.map((timeslotTagResponse) => (
+                        client.models.TimeslotTag.delete({ id: timeslotTagResponse.id })
+                    ))
                 }
-                timeslotTagsMemo.push({ 
-                    id: taggingData[i].id, 
-                    tagId: taggingData[i].tagId, 
-                    timeslotId: taggingData[i].timeslotId 
-                })
             }
         }
 

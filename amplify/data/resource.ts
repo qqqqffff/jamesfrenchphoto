@@ -136,7 +136,7 @@ const schema = a.schema({
       timeslot: a.belongsTo('Timeslot', 'timeslotId')
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('tagId')])
+    .secondaryIndexes((index) => [index('tagId'), index('timeslotId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   Package: a
     .model({
