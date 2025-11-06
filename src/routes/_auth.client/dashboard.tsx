@@ -36,6 +36,11 @@ function RouteComponent() {
     })
   })
 
+  const tempProfile = auth.user?.profile
+  const tempParticipant = auth.user?.profile.activeParticipant
+  
+  console.log(tempProfile, tempParticipant, auth)
+
   const structureFullname = (userProfile: UserProfile) => {
     return  (
       userProfile.activeParticipant ? (
