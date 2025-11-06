@@ -539,10 +539,10 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
     //no need to create a tags memo since the memo does not change
     console.log(options?.siTags)
     if(options?.siTags !== undefined) {
-        let tagsResponse = await participantResponse.tags()
+        let tagsResponse = await participantResponse.tags({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
         console.log(tagsResponse)
         if(tagsResponse.data.length === 0) {
-            tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: participantResponse.id })
+            tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: participantResponse.id }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
             console.log(tagsResponse)
         }
         
@@ -1229,12 +1229,12 @@ export async function inviteUserMutation(params: InviteUserParams) {
     ][] = await Promise.all(params.participants.map(async (participant) => {
         const response = await client.models.Participant.create({
             id: participant.id,
-            userEmail: params.email,
+            userEmail: params.email.toLocaleLowerCase(),
             firstName: participant.firstName,
             preferredName: participant.preferredName,
             middleName: participant.middleName,
             lastName: participant.lastName,
-            email: participant.email
+            email: (participant.email ?? '').toLocaleLowerCase()
         })
         return [
             response.data,
@@ -1262,7 +1262,7 @@ export async function inviteUserMutation(params: InviteUserParams) {
     if(params.options?.logging) console.log(userResponse)
 
     const tokenResponse = await client.models.TemporaryCreateUsersTokens.create({
-        userEmail: params.email
+        userEmail: params.email.toLocaleLowerCase()
     })
 
     if(params.options?.logging) console.log(tokenResponse)
@@ -1270,7 +1270,7 @@ export async function inviteUserMutation(params: InviteUserParams) {
     if(tokenResponse.data?.id === undefined) return
     
     const response = await client.queries.ShareUserInvite({
-        email: params.email,
+        email: params.email.toLocaleLowerCase(),
         firstName: params.firstName,
         lastName: params.lastName,
         link: params.baseLink + `?token=${tokenResponse.data!.id}`
