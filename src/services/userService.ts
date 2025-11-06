@@ -537,10 +537,15 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
     const notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
     const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
     //no need to create a tags memo since the memo does not change
-
-    if(options?.siTags) {
-        const tagsResponse = await participantResponse.tags()
+    console.log(options?.siTags)
+    if(options?.siTags !== undefined) {
+        let tagsResponse = await participantResponse.tags()
         console.log(tagsResponse)
+        if(tagsResponse.data.length === 0) {
+            tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: participantResponse.id })
+            console.log(tagsResponse)
+        }
+        
         userTags.push(...(
             (await Promise.all(
                 (tagsResponse.data ?? []).map(async (tag) => {
