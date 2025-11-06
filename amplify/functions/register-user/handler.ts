@@ -40,7 +40,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
     returnObject.deleteResponse = deleteResponse.data
 
     //soft check if the email was changed
-    const profileResponse = await client.models.UserProfile.get({ email: userProfile.email })
+    const profileResponse = await client.models.UserProfile.get({ email: userProfile.email.toLocaleLowerCase() })
     console.log(profileResponse)
     //if null need to create and delete old profile
     if(!profileResponse.data) {
@@ -54,7 +54,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
       }
 
       const createProfileResponse = await client.models.UserProfile.create({
-        email: userProfile.email,
+        email: userProfile.email.toLocaleLowerCase(),
         firstName: userProfile.firstName,
         lastName: userProfile.lastName,
         preferredContact: userProfile.preferredContact,
@@ -104,7 +104,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
           //impossible to create a participant with tags
           const createResponse = await client.models.Participant.create({
             ...participant,
-            userEmail: userProfile.email
+            userEmail: userProfile.email.toLocaleLowerCase()
           })
           console.log(createResponse)
           returnObject.participantResponses = [
@@ -123,7 +123,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
       profileResponse.data.preferredContact !== userProfile.preferredContact
     ){
       const updateProfileResponse = await client.models.UserProfile.update({
-        email: userProfile.email,
+        email: userProfile.email.toLocaleLowerCase(),
         firstName: userProfile.firstName,
         lastName: userProfile.lastName,
         preferredContact: userProfile.preferredContact,
@@ -169,7 +169,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
             middleName: participant.middleName,
             preferredName: participant.preferredName,
             email: participant.email,
-            userEmail: userProfile.email
+            userEmail: userProfile.email.toLocaleLowerCase()
           })
 
           returnObject.participantResponses = [
@@ -185,7 +185,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
   else {
     //no token means no pre-existing profile
     const createProfileResponse = await client.models.UserProfile.create({
-      email: userProfile.email,
+      email: userProfile.email.toLocaleLowerCase(),
       firstName: userProfile.firstName,
       lastName: userProfile.lastName,
       preferredContact: userProfile.preferredContact,
@@ -197,7 +197,7 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
         //impossible to create a participant with tags
         const createResponse = await client.models.Participant.create({
           ...participant,
-          userEmail: userProfile.email
+          userEmail: userProfile.email.toLocaleLowerCase()
         })
         returnObject.participantResponses = [
           ...(returnObject.participantResponses ?? []), [

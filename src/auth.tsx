@@ -1,11 +1,9 @@
 import { createContext, ReactNode, useCallback, useContext, useState } from "react"
 import { UserProfile, UserStorage } from "./types"
 import { confirmSignIn, fetchAuthSession, fetchUserAttributes, FetchUserAttributesOutput, getCurrentUser, signIn, signOut } from "aws-amplify/auth"
-import { generateClient } from "aws-amplify/api";
 import { Schema } from "../amplify/data/resource";
 import { getUserProfileByEmail } from "./services/userService";
-
-const client = generateClient<Schema>()
+import { V6Client } from '@aws-amplify/api-graphql'
 
 type LoginReturnType = 'fail' | 'admin' | 'client' | 'nextStep'
 export interface AuthContext {
@@ -37,7 +35,7 @@ function setStoredUser(user: UserStorage | null){
     }
 }
 
-export function AuthProvider({ children } : { children: ReactNode }) {
+export function AuthProvider({ children, client } : { children: ReactNode, client: V6Client<Schema> }) {
     const [user, setUser] = useState<UserStorage | null>(getStoredUser())
 
     const isAuthenticated = !!user
@@ -79,7 +77,7 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         try {
             const alreadyLoggedIn = await getCurrentUser()
             if(alreadyLoggedIn.signInDetails?.loginId !== undefined) {
-                const response = await signinFlow(username)
+                const response = await signinFlow(username.toLocaleLowerCase())
                 return response
             }
         }catch(err) {
@@ -88,12 +86,12 @@ export function AuthProvider({ children } : { children: ReactNode }) {
         
         try{
             const response = await signIn({
-                username: username,
+                username: username.toLocaleLowerCase(),
                 password: password
             })
             if(response.nextStep.signInStep == 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') return 'nextStep'
             else if(response.isSignedIn) {
-                const response = await signinFlow(username)
+                const response = await signinFlow(username.toLocaleLowerCase())
                 return response
             }
             return 'fail'
@@ -109,7 +107,7 @@ export function AuthProvider({ children } : { children: ReactNode }) {
                 challengeResponse: password
             })
 
-            const response = await signinFlow(username)
+            const response = await signinFlow(username.toLocaleLowerCase())
             return response
         } catch(err){
             console.error(err)
