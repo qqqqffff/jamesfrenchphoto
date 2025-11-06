@@ -10,45 +10,32 @@ import { SlotComponent } from '../../../components/timeslot/Slot'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import SmallSizeTimeslot from '../../../components/timeslot/SmallSizeTimeslot'
 import FullSizeTimeslot from '../../../components/timeslot/FullSizeTimeslot'
+import { useAuth } from '../../../auth'
 
 export const Route = createFileRoute('/_auth/client/dashboard/scheduler')({
   component: RouteComponent,
-  loader: async ({ context }) => {
-    const activeParticipant = context.auth.user?.profile.activeParticipant ?? 
-      (context.auth.user?.profile.participant?? []).length > 0 ? 
-        context.auth.user?.profile.participant[0] 
-      : 
-        undefined
-    const userProfile = context.auth.user?.profile
-    const userEmail = context.auth.user?.profile.email
-    if(!activeParticipant || !userEmail || !userProfile) throw redirect({ to: '/client/dashboard' })
-    const userTags = activeParticipant.userTags
-    const participant = activeParticipant
-
-    const updateProfile = context.auth.updateProfile
-    
-    return {
-      userEmail,
-      userTags,
-      participant,
-      updateProfile,
-      userProfile
-    }
-  }
 })
 
 function RouteComponent() {
   const {
-    userEmail,
-    userTags,
-    participant,
+    user,
     updateProfile,
-    userProfile
-  } = Route.useLoaderData()
+  } = useAuth()
   const router = useRouter()
 
+  const tempProfile = user?.profile
+  const tempParticipant = user?.profile.activeParticipant
+  
+  if(tempProfile === undefined || tempParticipant === undefined) throw redirect({ to: '/client/dashboard' })
+  
+  const userProfile = tempProfile
+  const participant = tempParticipant
+  const userTags = participant.userTags
+  const userEmail = userProfile.email
+
+  console.log(userProfile, userTags, participant, userEmail)
+
   const timeslots = useQuery(getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
-  console.log(timeslots, userTags)
 
   const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
     (timeslots.data ?? []).map((timeslot) => {
