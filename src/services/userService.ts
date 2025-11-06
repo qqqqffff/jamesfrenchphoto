@@ -237,9 +237,11 @@ interface GetUserProfileByEmailOptions {
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     if(email === '') return
     const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool'})
+    console.log(profileResponse)
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate()).data?.id : undefined
     const participantResponse = await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    console.log(participantResponse)
 
     const notificationMemo: Notification[] = []
     const collectionsMemo: PhotoCollection[] = []
@@ -261,7 +263,7 @@ export async function getUserProfileByEmail(client: V6Client<Schema>, email: str
                 notificationsMemo: notificationMemo,
                 tagsMemo: tagsMemo,
                 collectionsMemo: collectionsMemo,
-            }
+            },
         })
 
         //pushing to the memo, combining the items from the user tag with the participant specific items and deudplication
@@ -537,6 +539,7 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                     }
                     if(!tag) return
                     const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+                    console.log(tagResponse)
                     if(tagResponse.data) {
                         const children: UserTag[] = []
                         const notifications: Notification[] = []
@@ -703,6 +706,7 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                 const foundNotification = notificationMemo.find((noti) => noti.id === notification.notificationId)
                 if(foundNotification) return foundNotification
                 const notificationResponse = await notification.notification()
+                console.log(notificationResponse)
                 if(notificationResponse.data) {
                     const mappedNotification: Notification = {
                         ...notificationResponse.data,
@@ -726,6 +730,7 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                     return foundCollection
                 }
                 const collectionResponse = await collection.collection()
+                console.log(collectionResponse)
                 if(collectionResponse.data) {
                     const mappedCollection: PhotoCollection = {
                         ...collectionResponse.data,
@@ -753,9 +758,11 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
     }
 
     if(options?.siTimeslot) {
+        const timeslotResponse = await participantResponse.timeslot()
+        console.log(timeslotResponse)
         timeslots.push(...(
             //TODO: use timeslot mapping function
-            await Promise.all((await participantResponse.timeslot()).data.map(async (timeslot) => {
+            await Promise.all(timeslotResponse.data.map(async (timeslot) => {
                 const mappedTimeslot: Timeslot = {
                     ...timeslot,
                     description: timeslot.description ?? undefined,
