@@ -237,17 +237,13 @@ interface GetUserProfileByEmailOptions {
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     if(email === '') return
     const profileResponse = await client.models.UserProfile.get({ email: email })
-    console.log(profileResponse)
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate()).data?.id : undefined
     let participantResponse = (await profileResponse.data.participant()).data
-    console.log(participantResponse)
     if(participantResponse.length === 0) {
         participantResponse = (await client.models.Participant.listParticipantByUserEmail({ userEmail: email })).data
-        console.log(participantResponse)
         if(participantResponse.length === 0 && profileResponse.data.activeParticipant !== null) {
             const getActiveParticipant = (await client.models.Participant.get({ id: profileResponse.data.activeParticipant })).data
-            console.log(getActiveParticipant)
             if(getActiveParticipant) participantResponse = [getActiveParticipant]
         }
     }
@@ -537,13 +533,10 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
     const notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
     const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
     //no need to create a tags memo since the memo does not change
-    console.log(options?.siTags)
     if(options?.siTags !== undefined) {
         let tagsResponse = await participantResponse.tags()
-        console.log(tagsResponse)
         if(tagsResponse.data.length === 0) {
             tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: participantResponse.id })
-            console.log(tagsResponse)
         }
         
         userTags.push(...(
@@ -721,7 +714,6 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                 const foundNotification = notificationMemo.find((noti) => noti.id === notification.notificationId)
                 if(foundNotification) return foundNotification
                 const notificationResponse = await notification.notification()
-                console.log(notificationResponse)
                 if(notificationResponse.data) {
                     const mappedNotification: Notification = {
                         ...notificationResponse.data,
