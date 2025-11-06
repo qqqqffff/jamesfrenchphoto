@@ -539,10 +539,10 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
     //no need to create a tags memo since the memo does not change
     console.log(options?.siTags)
     if(options?.siTags !== undefined) {
-        let tagsResponse = await participantResponse.tags()
+        let tagsResponse = await participantResponse.tags({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
         console.log(tagsResponse)
         if(tagsResponse.data.length === 0) {
-            tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: participantResponse.id })
+            tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: participantResponse.id }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
             console.log(tagsResponse)
         }
         
