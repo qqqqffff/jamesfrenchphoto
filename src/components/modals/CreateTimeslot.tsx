@@ -80,9 +80,15 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
   const times = getTimes(props.day)
 
   function submitForm(){
-    //timeslots can only be created or deleted
+    console.log(props.timeslots, selectedTimeslots)
+    const newIntersectionTimeslots = selectedTimeslots.filter((timeslot) => props.timeslots.some((qTimeslot) => qTimeslot.id === timeslot.id))
+    const oldIntersectionTimeslots = props.timeslots.filter((timeslot) => selectedTimeslots.some((qTimeslot) => qTimeslot.id === timeslot.id))
+    const newTimeslots = selectedTimeslots.filter((timeslot) => !props.timeslots.some((qTimeslot) => qTimeslot.id === timeslot.id))
+    const oldTimeslots = props.timeslots.filter((timeslot) => !selectedTimeslots.some((sTimeslot) => sTimeslot.id === timeslot.id))
+    
+    
     createTimeslot.mutate({
-      timeslots: selectedTimeslots.filter((timeslot) => !props.timeslots.some((qTimeslot) => qTimeslot.id === timeslot.id)),
+      timeslots: newTimeslots,
       options: {
         logging: true
       }
@@ -90,23 +96,16 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
 
     updateTimeslot.mutate({
       //new timeslots intersection with old updated direction
-      timeslots: selectedTimeslots.filter((timeslot) => props.timeslots.some((qTimeslot) => qTimeslot.id === timeslot.id)),
+      timeslots: newIntersectionTimeslots,
       //old direction intersection
-      previousTimeslots: props.timeslots.filter((qTimeslot) => selectedTimeslots.some((timeslot) => timeslot.id === qTimeslot.id)),
-      previousTags: props.timeslots
-        .flatMap((timeslot) => timeslot.tag)
-        .filter((tag) => (
-          //tag does not appear in the new tags
-          !selectedTimeslots.some((timeslot) => timeslot.tag?.id === tag?.id)
-        ))
-        .filter((tag) => tag !== undefined),
+      previousTimeslots: oldIntersectionTimeslots,
       options: {
         logging: true
       }
     })
     
     deleteTimeslot.mutate({
-      timeslots: props.timeslots.filter((timeslot) => !selectedTimeslots.some((sTimeslot) => sTimeslot.id === timeslot.id)),
+      timeslots: oldTimeslots,
       options: {
         logging: true
       }

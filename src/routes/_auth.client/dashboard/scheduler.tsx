@@ -73,6 +73,12 @@ function RouteComponent() {
         return activeDate.toISOString().includes(timeslot.start.toISOString().substring(0, timeslot.start.toISOString().indexOf('T')))
       })
       .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .reduce((prev, cur) => {
+        if(!prev.some((timeslot) => timeslot.id === cur.id)) {
+          prev.push(cur)
+        }
+        return prev
+      }, [] as Timeslot[])
       .map((timeslot, index) => {
         const tag = userProfile.participant
           .find((participant) => participant.id === userProfile.activeParticipant?.id)
@@ -126,9 +132,15 @@ function RouteComponent() {
               <span className="underline underline-offset-2">
                   {timeslot.tag ? timeslot.tag.name : 'Undefined'}
               </span>
-              <span>
+              <button 
+                onClick={() => {
+                  setUnegisterConfirmationVisible(true)
+                  setSelectedTimeslot(timeslot)
+                }} 
+                className='hover:line-through'
+              >
                   {`${new Date(timeslot.start).toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}: ${new Date(timeslot.start).toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} - ${new Date(timeslot.end).toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}`}
-              </span>
+              </button>
           </div>
         )
       })

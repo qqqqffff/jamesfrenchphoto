@@ -236,14 +236,18 @@ interface GetUserProfileByEmailOptions {
 }
 export async function getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     if(email === '') return
-    const profileResponse = await client.models.UserProfile.get({ email: email })
+    const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    console.log(profileResponse)
     if(!profileResponse || !profileResponse.data) return
-    const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate()).data?.id : undefined
-    let participantResponse = (await profileResponse.data.participant()).data
+    const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data?.id : undefined
+    let participantResponse = (await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
+    console.log(participantResponse)
     if(participantResponse.length === 0) {
-        participantResponse = (await client.models.Participant.listParticipantByUserEmail({ userEmail: email })).data
+        participantResponse = (await client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
+        console.log(participantResponse)
         if(participantResponse.length === 0 && profileResponse.data.activeParticipant !== null) {
-            const getActiveParticipant = (await client.models.Participant.get({ id: profileResponse.data.activeParticipant })).data
+            const getActiveParticipant = (await client.models.Participant.get({ id: profileResponse.data.activeParticipant }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
+            console.log(getActiveParticipant)
             if(getActiveParticipant) participantResponse = [getActiveParticipant]
         }
     }
@@ -533,21 +537,26 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
     const notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
     const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
     //no need to create a tags memo since the memo does not change
+    console.log(options?.siTags)
     if(options?.siTags !== undefined) {
         let tagsResponse = await participantResponse.tags()
+        console.log(tagsResponse)
         if(tagsResponse.data.length === 0) {
             tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: participantResponse.id })
+            console.log(tagsResponse)
         }
         
         userTags.push(...(
             (await Promise.all(
                 (tagsResponse.data ?? []).map(async (tag) => {
                     let mappedTag: UserTag | undefined = options.memos?.tagsMemo?.find((mTag) => tag.tagId === mTag.id)
+                    console.log(mappedTag)
                     if(mappedTag) {
                         return mappedTag
                     }
                     if(!tag) return
                     const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+                    //when unauthenticated shallow auth required
                     if(tagResponse.data) {
                         const children: UserTag[] = []
                         const notifications: Notification[] = []
@@ -555,7 +564,7 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                         const timeslots: Timeslot[] = []
                         let pack: Package | undefined
 
-                        if(options.siTags?.siChildren) {
+                        if(options.siTags?.siChildren && !options.unauthenticated) {
                             //assume that a parent's children are unique and will not show up in a different tag therefore memoization will make no difference
                             children.push(...(
                                 await Promise.all((await tagResponse.data.childTags()).data.map(async (child) => {
@@ -591,7 +600,7 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                             ).filter((tag) => tag !== undefined))
                         }
 
-                        if(options?.siNotifications) {
+                        if(options?.siNotifications && !options.unauthenticated) {
                             notifications.push(...(
                                 await Promise.all((await tagResponse.data.notifications()).data.map(async (notification) => {
                                     const foundNotification = options.memos?.notificationsMemo?.find((noti) => noti.id === notification.id)
@@ -612,7 +621,7 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                             ).filter((notification) => notification !== undefined))
                         }
 
-                        if(options?.siTags?.siCollections) {
+                        if(options?.siTags?.siCollections && !options.unauthenticated) {
                             collections.push(...(
                                 await Promise.all((await tagResponse.data.collectionTags()).data.map(async (collection) => {
                                     const foundCollection = collectionsMemo.find((col) => col.id === collection.collectionId)
@@ -646,7 +655,7 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                             ).filter((collection) => collection !== undefined))
                         }
 
-                        if(options?.siTags?.siTimeslots) {
+                        if(options?.siTags?.siTimeslots && !options.unauthenticated) {
                             //timeslots are not memoized since they are unique for user tags
                             timeslots.push(...(
                                 await Promise.all((await tagResponse.data.timeslotTags()).data.map(async (timeslot) => {
@@ -667,7 +676,7 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                             ).filter((timeslot) => timeslot !== undefined))
                         }
 
-                        if(options?.siTags?.siPackages) {
+                        if(options?.siTags?.siPackages && !options.unauthenticated) {
                             //packages are tag unique, memo not required
                             const packageResponse = await tagResponse.data.packages()
                             if(packageResponse.data) {
@@ -714,6 +723,7 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
                 const foundNotification = notificationMemo.find((noti) => noti.id === notification.notificationId)
                 if(foundNotification) return foundNotification
                 const notificationResponse = await notification.notification()
+                console.log(notificationResponse)
                 if(notificationResponse.data) {
                     const mappedNotification: Notification = {
                         ...notificationResponse.data,
