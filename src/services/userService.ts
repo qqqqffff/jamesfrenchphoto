@@ -961,11 +961,11 @@ export async function registerUserMutation(params: RegisterUserMutationParams) {
     if(params.options?.logging) console.log(response)
     
     const cognitoResponse = await signUp({
-        username: params.userProfile.email,
+        username: params.userProfile.email.toLocaleLowerCase(),
         password: params.userProfile.password,
         options: {
             userAttributes: {
-                email: params.userProfile.email,
+                email: params.userProfile.email.toLocaleLowerCase(),
                 ...(params.userProfile.phone && params.userProfile.phone !== '' && ({phone_number: `+1${params.userProfile.phone.replace(/\D/g, '')}`})),
                 given_name: params.userProfile.firstName,
                 family_name: params.userProfile.lastName,
@@ -1252,7 +1252,7 @@ export async function inviteUserMutation(params: InviteUserParams) {
 
     const userResponse = await client.models.UserProfile.create({
         sittingNumber: params.sittingNumber,
-        email: params.email,
+        email: params.email.toLocaleLowerCase(),
         firstName: params.firstName,
         lastName: params.lastName,
         activeParticipant: participantResponses.length > 0 ? 

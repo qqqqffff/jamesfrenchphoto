@@ -7,8 +7,11 @@ import { AuthProvider, useAuth } from './auth.tsx'
 import { routeTree } from './routeTree.gen.ts'
 import { Amplify } from 'aws-amplify'
 import outputs from '../amplify_outputs.json'
+import { generateClient } from 'aws-amplify/api'
+import { Schema } from '../amplify/data/resource.ts'
 
 Amplify.configure(outputs)
+const client = generateClient<Schema>()
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,7 +49,7 @@ function App() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
+    <AuthProvider client={client} >
       <App />
     </AuthProvider>
   </StrictMode>

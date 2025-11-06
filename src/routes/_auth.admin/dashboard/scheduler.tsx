@@ -23,8 +23,9 @@ function RouteComponent() {
   const [timeslots, setTimeslots] = useState<Timeslot[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
-  const timeslotQuery = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
 
+  const timeslotQuery = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
+  
   const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
     siCollections: false,
     siNotifications: false,
