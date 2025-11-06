@@ -33,8 +33,6 @@ function RouteComponent() {
   const userTags = participant.userTags
   const userEmail = userProfile.email
 
-  console.log(userProfile, userTags, participant, userEmail)
-
   const timeslots = useQuery(getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
 
   const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
