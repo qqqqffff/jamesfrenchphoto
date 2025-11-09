@@ -5,7 +5,7 @@ import { Alert, Button, FlowbiteColors } from "flowbite-react";
 import { DynamicStringEnumKeysOf } from "../../../utils";
 import { createTagMutation, CreateTagParams, getAllParticipantsByUserTagQueryOptions, updateTagMutation, UpdateTagParams } from "../../../services/userService";
 import { getAllTimeslotsByUserTagQueryOptions } from "../../../services/timeslotService";
-import { getAllCollectionsFromUserTagIdQueryOptions } from "../../../services/collectionService";
+import { CollectionService } from "../../../services/collectionService";
 import { DetailsPanel } from "./DetailsPanel";
 import { CollectionsPanel } from "./CollectionsPanel";
 import { TimeslotsPanel } from "./TimeslotsPanel";
@@ -14,6 +14,7 @@ import { ReviewPanel } from "./ReviewPanel";
 import { evaluateTagDif } from "../../../functions/tagFunctions";
 
 interface BuilderFormProps {
+  CollectionService: CollectionService,
   selectedTag: UserTag,
   queriedTag?: UserTag,
   tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
@@ -95,7 +96,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
 
   //only need to know that the tag has these collections to start
   const tagCollectionsQuery = useQuery({
-    ...getAllCollectionsFromUserTagIdQueryOptions(props.selectedTag.id, { 
+    ...props.CollectionService.getAllCollectionsFromUserTagIdQueryOptions(props.selectedTag.id, { 
       siPaths: false, 
       siSets: false, 
       siTags: false

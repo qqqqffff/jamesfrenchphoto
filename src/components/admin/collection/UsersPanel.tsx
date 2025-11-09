@@ -2,10 +2,11 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react"
 import { Participant, PhotoCollection, UserTag } from "../../../types"
 import { Dropdown, Radio, Tooltip } from "flowbite-react"
 import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query"
-import { addCollectionParticipantMutation, AddCollectionParticipantParams, removeCollectionParticipantMutation, RemoveCollectionParticipantParams, UpdateCollectionParams } from "../../../services/collectionService"
+import { CollectionService, AddCollectionParticipantParams, RemoveCollectionParticipantParams, UpdateCollectionParams } from "../../../services/collectionService"
 import { ParticipantPanel } from "../../common/ParticipantPanel"
 
 interface UsersPanelProps {
+  CollectionService: CollectionService,
   collection: PhotoCollection,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
@@ -75,11 +76,11 @@ export const UsersPanel = (props: UsersPanelProps) => {
   }
 
   const addCollectionParticipant = useMutation({
-    mutationFn: (params: AddCollectionParticipantParams) => addCollectionParticipantMutation(params)
+    mutationFn: (params: AddCollectionParticipantParams) => props.CollectionService.addCollectionParticipantMutation(params)
   })
 
   const removeCollectionParticipant = useMutation({
-    mutationFn: (params: RemoveCollectionParticipantParams) => removeCollectionParticipantMutation(params),
+    mutationFn: (params: RemoveCollectionParticipantParams) => props.CollectionService.removeCollectionParticipantMutation(params),
     onSettled: () => {
       props.collectionParticipants.refetch()
     }

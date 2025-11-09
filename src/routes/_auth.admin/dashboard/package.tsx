@@ -5,13 +5,23 @@ import { Package, PackageItem, UserTag } from '../../../types'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { getAllPackagesQueryOptions, getInfinitePackageItemsQueryOptions } from '../../../services/packageService'
-import { getAllPhotoCollectionsQueryOptions } from '../../../services/collectionService'
+import { CollectionService } from '../../../services/collectionService'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/package')({
   component: RouteComponent,
+  loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+
+    return {
+      CollectionService: new CollectionService(client)
+    }
+  }
 })
 
 function RouteComponent() {
+  const data = Route.useLoaderData()
   const [packages, setPackages] = useState<Package[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
   const [allPackageItems, setAllPackageItems] = useState<PackageItem[]>([])
@@ -28,7 +38,7 @@ function RouteComponent() {
   }))
 
   //TODO: focus query based on selected tags and available user's collections
-  const collectionQuery = useQuery(getAllPhotoCollectionsQueryOptions({
+  const collectionQuery = useQuery(data.CollectionService.getAllPhotoCollectionsQueryOptions({
     siPaths: false,
     siSets: false,
     siTags: false

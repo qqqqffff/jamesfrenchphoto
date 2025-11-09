@@ -9,17 +9,11 @@ import { ConfirmationModal, CreateCollectionModal } from "../../modals"
 import { useNavigate } from "@tanstack/react-router"
 import { PhotoSetPanel } from "./PhotoSetPanel"
 import { 
-  deleteCollectionMutation,
-  DeleteCollectionParams,
-  deleteCoverMutation, 
-  DeleteCoverParams, 
-  getAllCollectionParticipantsQueryOptions, 
-  getPathQueryOptions, 
-  publishCollectionMutation, 
+  CollectionService,
+  DeleteCollectionParams, 
+  DeleteCoverParams,  
   PublishCollectionParams, 
-  updateCollectionMutation, 
-  UpdateCollectionParams, 
-  uploadCoverMutation, 
+  UpdateCollectionParams,  
   UploadCoverParams
 } from "../../../services/collectionService"
 import Loading from "../../common/Loading"
@@ -49,6 +43,7 @@ import { CollectionSidePanelButton } from "./CollectionSidePanelButton"
 import { v4 } from 'uuid'
 
 interface PhotoCollectionPanelProps {
+  CollectionService: CollectionService
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
   availableTags: UserTag[],
@@ -70,7 +65,7 @@ export interface Publishable {
 }
 
 export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({ 
-  watermarkObjects, updateWatermarkObjects, availableTags, collection, 
+  CollectionService, watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
   updateShareTemplates, coverPath, updateParentCollections
 }) => {
@@ -88,17 +83,17 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   const navigate = useNavigate()
 
   const deleteImage = useMutation({
-    mutationFn: (params: DeleteCoverParams) => deleteCoverMutation(params),
+    mutationFn: (params: DeleteCoverParams) => CollectionService.deleteCoverMutation(params),
   })
 
   const updateCollection = useMutation({
-    mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params)
+    mutationFn: (params: UpdateCollectionParams) => CollectionService.updateCollectionMutation(params)
   })
   
   //TODO: parent state management
 
   const deleteCollection = useMutation({
-    mutationFn: (params: DeleteCollectionParams) => deleteCollectionMutation(params)
+    mutationFn: (params: DeleteCollectionParams) => CollectionService.deleteCollectionMutation(params)
   })
 
   const uploadWatermarks = useMutation({
@@ -115,12 +110,12 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
 
   const watermarkPaths = useQueries({
     queries: watermarkObjects.map((watermark) => {
-      return getPathQueryOptions(watermark.path, watermark.id)
+      return CollectionService.getPathQueryOptions(watermark.path, watermark.id)
     })
   })
 
   const publishCollection = useMutation({
-    mutationFn: (params: PublishCollectionParams) => publishCollectionMutation(params),
+    mutationFn: (params: PublishCollectionParams) => CollectionService.publishCollectionMutation(params),
     onSuccess: (data) => {
       if(data){
         const tempCollection: PhotoCollection = {
@@ -151,10 +146,10 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     siCollections: true
   }))
 
-  const collectionParticipants = useQuery(getAllCollectionParticipantsQueryOptions(collection.id, { siTags: true }))
+  const collectionParticipants = useQuery(CollectionService.getAllCollectionParticipantsQueryOptions(collection.id, { siTags: true }))
 
   const uploadCover = useMutation({
-    mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
+    mutationFn: (params: UploadCoverParams) => CollectionService.uploadCoverMutation(params),
     onSuccess: (path) => {
       const tempCollection: PhotoCollection = {
         ...collection,
@@ -189,7 +184,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   })
 
   const deleteCover = useMutation({
-    mutationFn: (params: DeleteCoverParams) => deleteCoverMutation(params),
+    mutationFn: (params: DeleteCoverParams) => CollectionService.deleteCoverMutation(params),
     onSettled: () => {
       if(fileUpload.current) {
         uploadCover.mutate({
@@ -341,6 +336,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   return (
     <>
       <CreateCollectionModal
+        CollectionService={CollectionService}
         parentCollection={collection}
         onSubmit={(collection) => {
           if(collection){
@@ -407,6 +403,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
       <div className="flex flex-row mx-4 mt-4 gap-4">
         <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
           <CollectionThumbnail 
+            CollectionService={CollectionService}
             collectionId={collection.id}
             cover={coverPath}
             allowUpload
@@ -596,6 +593,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
               <div className="border w-full"></div>
               <div className="w-full">
                 <SetList 
+                CollectionService={CollectionService}
                   setList={collection.sets}
                   selectedSet={selectedSet}
                   setSelectedSet={(set: PhotoSet | undefined) => {
@@ -779,6 +777,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
         { activeConsole === 'sets' ? (
             selectedSet ? (
               <PhotoSetPanel 
+                CollectionService={CollectionService}
                 photoCollection={collection} 
                 photoSet={selectedSet} 
                 deleteParentSet={(setId) => {
@@ -835,6 +834,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
           activeConsole === 'share' ? (
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
               <SharePanel 
+                CollectionService={CollectionService}
                 collection={collection}
                 selectedTemplate={selectedTemplate}
                 updateParentSelectedTemplate={setSelectedTemplate}
@@ -845,6 +845,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
           activeConsole === 'users' ? (
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
               <UsersPanel
+                CollectionService={CollectionService}
                 collection={collection}
                 parentUpdateCollection={updateParentCollection}
                 parentUpdateCollections={updateParentCollections}

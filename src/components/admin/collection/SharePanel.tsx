@@ -17,8 +17,10 @@ import { HiOutlineCheckBadge, HiOutlineExclamationTriangle } from "react-icons/h
 import validator from 'validator'
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea";
 import { createAccessTokenMutation, CreateAccessTokenMutationParams } from "../../../services/userService";
+import { CollectionService } from "../../../services/collectionService";
 
 interface SharePanelProps {
+  CollectionService: CollectionService,
   collection: PhotoCollection,
   selectedTemplate?: ShareTemplate,
   updateParentSelectedTemplate: Dispatch<SetStateAction<ShareTemplate | undefined>>
@@ -395,6 +397,7 @@ export const SharePanel = (props: SharePanelProps) => {
         </div>
         <div className="flex flex-col gap-4">
           <SharePreview 
+            CollectionService={props.CollectionService}
             collection={props.collection}
             header={header}
             header2={header2}

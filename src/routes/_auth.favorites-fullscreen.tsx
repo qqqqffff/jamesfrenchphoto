@@ -1,10 +1,7 @@
 import { useMutation, useQueries } from '@tanstack/react-query'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
-import {
-  getPathQueryOptions,
-  getPhotoCollectionByIdQueryOptions,
-} from '../services/collectionService'
+import { CollectionService } from '../services/collectionService'
 import {
   downloadImageMutation,
   DownloadImageMutationParams,
@@ -19,6 +16,8 @@ import {
 import { PhotoCarousel } from '../components/admin/collection/PhotoCarousel'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { PicturePath } from '../types'
+import { Schema } from '../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 interface FavoritesFullScreenParams {
   favorites: string[]
@@ -36,6 +35,8 @@ export const Route = createFileRoute('/_auth/favorites-fullscreen')({
   }),
   beforeLoad: ({ search }) => search,
   loader: async ({ context }) => {
+    const client = context.client as V6Client<Schema>
+    const collectionService = new CollectionService(client)
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if (context.favorites.length === 0) throw redirect({ to: destination })
 
@@ -49,7 +50,7 @@ export const Route = createFileRoute('/_auth/favorites-fullscreen')({
       paths[0].path.indexOf('/') + 1,
     )
     const collection = await context.queryClient.ensureQueryData(
-      getPhotoCollectionByIdQueryOptions(
+      collectionService.getPhotoCollectionByIdQueryOptions(
         firstSubstring.substring(0, firstSubstring.indexOf('/'))
       )
     )
@@ -64,6 +65,7 @@ export const Route = createFileRoute('/_auth/favorites-fullscreen')({
 
     //TODO: improved visual for de-duplication
     return {
+      CollectionService: collectionService,
       collection: collection,
       favorites: filteredFavorites,
       paths: paths.reduce((prev, cur) => {
@@ -88,7 +90,7 @@ function RouteComponent() {
 
   const paths = useQueries({
     queries: data.paths.map((path) =>
-      getPathQueryOptions(path.path ?? '', path.id),
+      data.CollectionService.getPathQueryOptions(path.path ?? '', path.id),
     ),
   })
 

@@ -1,13 +1,14 @@
 import { ComponentProps, Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react"
 import { useDropzone } from "react-dropzone"
 import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query"
-import { deleteCoverMutation, DeleteCoverParams, PublishCollectionParams, uploadCoverMutation, UploadCoverParams } from "../../../services/collectionService"
+import { CollectionService, DeleteCoverParams, PublishCollectionParams, UploadCoverParams } from "../../../services/collectionService"
 import { CgSpinner } from "react-icons/cg";
 import { ConfirmationModal } from "../../modals"
 import { PhotoCollection } from "../../../types";
 
 //TODO: consolidate cover uploader
 interface CollectionThumbnailProps extends ComponentProps<'div'> {
+  CollectionService: CollectionService
   collectionId: string,
   cover?: UseQueryResult<[string | undefined, string] | undefined, Error>,
   onClick?: () => void,
@@ -22,7 +23,8 @@ interface CollectionThumbnailProps extends ComponentProps<'div'> {
 export const CollectionThumbnail= ({ 
   collectionId, onClick, cover, allowUpload, 
   contentChildren, updateParentCollection,
-  updatePublishStatus, updateParentCollections
+  updatePublishStatus, updateParentCollections,
+  CollectionService
 }: CollectionThumbnailProps) => {
   const [hovering, setHovering] = useState(false)
   const fileUpload = useRef<File | null>(null)
@@ -37,7 +39,7 @@ export const CollectionThumbnail= ({
   }, [coverRef.current])
   
   const uploadCover = useMutation({
-    mutationFn: (params: UploadCoverParams) => uploadCoverMutation(params),
+    mutationFn: (params: UploadCoverParams) => CollectionService.uploadCoverMutation(params),
     onSuccess: (path) => {
       let temp: PhotoCollection | undefined
       updateParentCollection!((prev) => {
@@ -77,7 +79,7 @@ export const CollectionThumbnail= ({
   })
 
   const deleteCover = useMutation({
-    mutationFn: (params: DeleteCoverParams) => deleteCoverMutation(params),
+    mutationFn: (params: DeleteCoverParams) => CollectionService.deleteCoverMutation(params),
     onSettled: () => {
       if(fileUpload.current) {
         uploadCover.mutate({

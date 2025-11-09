@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
 import { PhotoCollection } from "../../../types"
-import { getPathQueryOptions } from "../../../services/collectionService"
+import { CollectionService } from "../../../services/collectionService"
 
 interface SharePreviewProps {
+  CollectionService: CollectionService,
   collection: PhotoCollection,
   header?: string,
   header2?: string,
@@ -12,7 +13,7 @@ interface SharePreviewProps {
 
 
 export const SharePreview = (props: SharePreviewProps) => {
-  const coverPath = useQuery(getPathQueryOptions(props.collection.coverPath ?? ''))
+  const coverPath = useQuery(props.CollectionService.getPathQueryOptions(props.collection.coverPath ?? ''))
 
   function transformText(value: string){
     const split = value.split('\n')

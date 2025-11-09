@@ -14,9 +14,10 @@ import { UploadData } from "./UploadToast";
 import { v4 } from 'uuid'
 import useWindowDimensions from "../../../hooks/windowDimensions";
 import { useQuery } from "@tanstack/react-query";
-import { getPathQueryOptions } from "../../../services/collectionService";
+import { CollectionService } from "../../../services/collectionService";
 
 interface UploadImagesProps extends ModalProps {
+  CollectionService: CollectionService,
   collection: PhotoCollection,
   set: PhotoSet;
   files: Map<string, { file: File, width: number, height: number }>,
@@ -183,6 +184,7 @@ async function validateFiles(
 }
 
 export const UploadImagesModal: FC<UploadImagesProps> = ({ 
+  CollectionService,
   open, onClose, collection, set, files, 
   createUpload, updateUpload, updatePicturePaths,
   parentUpdateSet, parentUpdateCollection,
@@ -207,7 +209,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
   const [watermarkPath, setWatermarkPath] = useState<string>()
 
   const watermarkQuery = useQuery({
-    ...getPathQueryOptions(collection.watermarkPath ?? set.watermarkPath),
+    ...CollectionService.getPathQueryOptions(collection.watermarkPath ?? set.watermarkPath),
     enabled: collection.watermarkPath !== undefined || set.watermarkPath !== undefined
   })
   

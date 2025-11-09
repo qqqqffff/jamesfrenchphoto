@@ -5,8 +5,10 @@ import { v4 } from "uuid";
 import { HiOutlinePlusCircle } from "react-icons/hi2";
 import { BuilderForm } from "./BuilderForm";
 import Loading from "../../common/Loading";
+import { CollectionService } from "../../../services/collectionService";
 
 interface BuilderPanelProps {
+  CollectionService: CollectionService,
   tags: UserTag[]
   tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
   parentUpdateTagList: Dispatch<SetStateAction<UserTag[]>>
@@ -90,6 +92,7 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
       <div className="w-full border border-gray-400 flex flex-col rounded-2xl">
         {selectedTag ? (
           <BuilderForm 
+            CollectionService={props.CollectionService}
             selectedTag={selectedTag}
             queriedTag={props.tagsQuery.data?.find((tag) => tag.id === selectedTag.id)}
             tagsQuery={props.tagsQuery}

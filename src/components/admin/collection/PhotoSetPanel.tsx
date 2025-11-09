@@ -32,25 +32,27 @@ import { AuthContext } from "../../../auth";
 import { PictureList } from "./picture-table/PictureList";
 import { getInfinitePathsQueryOptions } from "../../../services/photoPathService";
 import Loading from "../../common/Loading";
-import { PublishCollectionParams, repairItemCountMutation, RepairItemCountsParams, repairPathsMutation, RepairPathsParams } from "../../../services/collectionService";
+import { CollectionService, PublishCollectionParams, RepairItemCountsParams, RepairPathsParams } from "../../../services/collectionService";
 import { CgSpinner } from "react-icons/cg";
 import { Publishable } from "./PhotoCollectionPanel";
 import { PublishableItems } from "./PublishableItems";
 import { useNavigate } from "@tanstack/react-router";
 
 export type PhotoSetPanelProps = {
-  photoCollection: PhotoCollection;
-  photoSet: PhotoSet;
+  CollectionService: CollectionService,
+  photoCollection: PhotoCollection,
+  photoSet: PhotoSet,
   deleteParentSet: (setId: string) => void,
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
-  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
+  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>,
   auth: AuthContext,
-  publishable: Publishable
+  publishable: Publishable,
   publishCollection: UseMutationResult<string | undefined, Error, PublishCollectionParams, unknown>
 }
 
 export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
+  CollectionService,
   photoCollection, photoSet, publishable, publishCollection,
   deleteParentSet, parentUpdateSet,
   parentUpdateCollection, auth, parentUpdateCollections
@@ -156,7 +158,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   })
 
   const repairPaths = useMutation({
-    mutationFn: (params: RepairPathsParams) => repairPathsMutation(params),
+    mutationFn: (params: RepairPathsParams) => CollectionService.repairPathsMutation(params),
     onSuccess: (data) => {
       if(data) {
         const temp: PhotoSet = {
@@ -199,7 +201,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   })
 
   const repairItemCounts = useMutation({
-    mutationFn: (params: RepairItemCountsParams) => repairItemCountMutation(params),
+    mutationFn: (params: RepairItemCountsParams) => CollectionService.repairItemCountMutation(params),
     onSuccess: (data) => {
       if(data) {
         parentUpdateCollection(data)
@@ -324,6 +326,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   <>
     {filesUploading && 
       <UploadImagesModal 
+        CollectionService={CollectionService}
         collection={photoCollection}
         set={photoSet}
         files={filesUploading}
@@ -754,6 +757,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           </div>
         ) : (
           <PictureList 
+            CollectionService={CollectionService}
             collection={photoCollection}
             set={photoSet}
             paths={filteredPhotos

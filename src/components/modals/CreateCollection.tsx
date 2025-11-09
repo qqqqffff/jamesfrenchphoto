@@ -4,15 +4,16 @@ import { ModalProps } from "."
 import { PhotoCollection, PhotoSet, UserTag } from "../../types";
 import { textInputTheme } from "../../utils";
 import { useMutation } from "@tanstack/react-query";
-import { createCollectionMutation, CreateCollectionParams, updateCollectionMutation, UpdateCollectionParams } from "../../services/collectionService";
+import { CollectionService, CreateCollectionParams, UpdateCollectionParams } from "../../services/collectionService";
 import { v4 } from 'uuid'
 
 interface CreateCollectionProps extends ModalProps {
+  CollectionService: CollectionService,
   onSubmit: (collection: PhotoCollection) => void;
   parentCollection?: PhotoCollection
 }
 
-export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose, onSubmit, parentCollection }) => {
+export const CreateCollectionModal: FC<CreateCollectionProps> = ({ CollectionService, open, onClose, onSubmit, parentCollection }) => {
     const [collection, setCollection] = useState<PhotoCollection>(parentCollection ? parentCollection : ({
       id: v4(),
       name: '',
@@ -32,13 +33,13 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ open, onClose
     }, [collection])
 
     const createCollection = useMutation({
-      mutationFn: (params: CreateCollectionParams) => createCollectionMutation(params),
+      mutationFn: (params: CreateCollectionParams) => CollectionService.createCollectionMutation(params),
       onSuccess: () => onSubmit(collection),
       onSettled: () => clearState()
     })
 
     const updateCollection = useMutation({
-      mutationFn: (params: UpdateCollectionParams) => updateCollectionMutation(params),
+      mutationFn: (params: UpdateCollectionParams) => CollectionService.updateCollectionMutation(params),
       onSuccess: () => onSubmit(collection),
       onSettled: () => clearState()
     })

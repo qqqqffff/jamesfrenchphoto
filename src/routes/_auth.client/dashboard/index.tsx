@@ -5,7 +5,7 @@ import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { getPathQueryOptions } from '../../../services/collectionService'
+import { CollectionService } from '../../../services/collectionService'
 import { badgeColorThemeMap, currentDate } from '../../../utils'
 import { getUserCollectionList } from '../../../functions/clientFunctions'
 import { getClientAdvertiseList, getClientPackages } from '../../../functions/packageFunctions'
@@ -13,12 +13,21 @@ import { useState } from 'react'
 import { HiOutlineArrowLeftCircle, HiOutlineArrowRightCircle } from 'react-icons/hi2'
 import { PackageCard } from '../../../components/common/package/PackageCard'
 import { getAllPackageItemsQueryOptions } from '../../../services/packageService'
+import { V6Client } from '@aws-amplify/api-graphql'
+import { Schema } from '../../../../amplify/data/resource'
 
 export const Route = createFileRoute('/_auth/client/dashboard/')({
   component: RouteComponent,
+  loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+    return {
+      CollectionService: new CollectionService(client)
+    }
+  }
 })
 
 function RouteComponent() {
+  const data = Route.useLoaderData()
   const auth = useAuth()
   const tags: UserTag[] = auth.user?.profile.activeParticipant?.userTags ?? []
   const packageList = getClientPackages(tags)
@@ -36,7 +45,7 @@ function RouteComponent() {
   )
 
   const collectionCoverQueries = useQueries({
-    queries: collections.map((collection) => getPathQueryOptions(collection.coverPath, collection.id))
+    queries: collections.map((collection) => data.CollectionService.getPathQueryOptions(collection.coverPath, collection.id))
   })
 
   const collectionCovers = Object.fromEntries(
@@ -86,6 +95,7 @@ function RouteComponent() {
                   const coverPath = collectionCovers[collection.id]
                   return (
                     <CollectionThumbnail 
+                      CollectionService={data.CollectionService}
                       collectionId={collection.id} 
                       cover={coverPath}
                       key={index} 

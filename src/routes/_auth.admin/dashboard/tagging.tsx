@@ -2,16 +2,25 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { UserTag } from '../../../types'
 import { useQuery } from '@tanstack/react-query'
-import { getAllPhotoCollectionsQueryOptions } from '../../../services/collectionService'
+import { CollectionService } from '../../../services/collectionService'
 import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
 import { getAllUntaggedTimeslotsQueryOptions } from '../../../services/timeslotService'
 import { BuilderPanel } from '../../../components/admin/tagging/BuilderPanel'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/tagging')({
   component: RouteComponent,
+  loader: ({ context }) => {
+    const client = context.client as  V6Client<Schema>
+    return {
+      CollectionService: new CollectionService(client)
+    }
+  }
 })
 
 function RouteComponent() {
+  const data = Route.useLoaderData()
   const [tags, setTags] = useState<UserTag[]>([])
 
   //si will be performed on the selected tag
@@ -28,7 +37,7 @@ function RouteComponent() {
   }))
   
   const collectionsQuery = useQuery(
-    getAllPhotoCollectionsQueryOptions({
+    data.CollectionService.getAllPhotoCollectionsQueryOptions({
       siPaths: false,
       siSets: false,
       siTags: false,
@@ -63,6 +72,7 @@ function RouteComponent() {
   return (
     <>
       <BuilderPanel 
+        CollectionService={data.CollectionService}
         tags={tags}
         tagsQuery={tagsQuery}
         parentUpdateTagList={setTags}

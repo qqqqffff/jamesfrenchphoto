@@ -10,7 +10,7 @@ import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
 import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
 import { InfiniteData, UseInfiniteQueryResult, useMutation, UseMutationResult, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
-import { getPathQueryOptions, RepairItemCountsParams } from '../../../../services/collectionService';
+import { CollectionService, RepairItemCountsParams } from '../../../../services/collectionService';
 import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
 import { GetInfinitePathsData } from '../../../../services/photoPathService';
@@ -20,6 +20,7 @@ import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-sc
 import useWindowDimensions from '../../../../hooks/windowDimensions';
 
 interface PictureListProps extends ComponentProps<'div'> {
+  CollectionService: CollectionService,
   set: PhotoSet,
   collection: PhotoCollection
   paths: PicturePath[],
@@ -58,7 +59,7 @@ export const PictureList = (props: PictureListProps) => {
   })
 
   const watermarkQuery = useQuery(
-    getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
+    props.CollectionService.getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
   )
 
   const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): {
@@ -346,7 +347,7 @@ export const PictureList = (props: PictureListProps) => {
       queries: pictures
         .slice(topIndex.current > 0 ? topIndex.current : 0, bottomIndex.current + 1)
         .map((path) => {
-          return getPathQueryOptions(path.path, path.id)
+          return props.CollectionService.getPathQueryOptions(path.path, path.id)
         })
     })
     .map((query, index) => {

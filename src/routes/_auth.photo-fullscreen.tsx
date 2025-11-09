@@ -1,13 +1,15 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { favoriteImageMutation, FavoriteImageMutationParams, getPhotoSetByIdQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
 import { useMutation, useQueries } from '@tanstack/react-query'
-import { getPathQueryOptions, getPhotoCollectionByIdQueryOptions } from '../services/collectionService'
+import { CollectionService } from '../services/collectionService'
+import { V6Client } from '@aws-amplify/api-graphql'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart, HiOutlineDownload } from "react-icons/hi";
 import { useState } from 'react'
 import { parsePathName } from '../utils'
 import { PhotoCarousel } from '../components/admin/collection/PhotoCarousel'
 import { downloadImageMutation, DownloadImageMutationParams } from '../services/photoPathService'
+import { Schema } from '../../amplify/data/resource'
 
 interface PhotoFullScreenParams {
   set: string,
@@ -23,6 +25,8 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
   }),
   beforeLoad: ({ search }) => search,
   loader: async ({ context }) => {
+    const client = context.client as V6Client<Schema>
+    const collectionService = new CollectionService(client)
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(context.set === '' ||
     context.path === ''
@@ -40,12 +44,13 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
     if(!set || !path) throw redirect({ to: destination })
 
     const collection = await context.queryClient.ensureQueryData(
-      getPhotoCollectionByIdQueryOptions(set.collectionId, { siPaths: false, siSets: false, siTags: false })
+      collectionService.getPhotoCollectionByIdQueryOptions(set.collectionId, { siPaths: false, siSets: false, siTags: false })
     )
 
     if(!collection) throw redirect({ to: destination })
 
     return {
+      CollectionService: collectionService,
       auth: context.auth,
       path: path,
       set: set,
@@ -63,7 +68,7 @@ function RouteComponent() {
 
   const paths = useQueries({
     queries: data.set.paths.map((path) => (
-      getPathQueryOptions(path.path ?? '', path.id)
+      data.CollectionService.getPathQueryOptions(path.path ?? '', path.id)
     ))
   })
 
