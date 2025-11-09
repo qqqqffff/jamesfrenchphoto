@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getAllNotificationsQueryOptions } from '../../../services/notificationService'
+import { NotificationService } from '../../../services/notificationService'
 import { useEffect, useState } from 'react'
 import { NotificationPanel } from '../../../components/admin/notification/NotificationPanel'
 import { Notification, Participant, UserTag } from '../../../types'
@@ -7,6 +7,8 @@ import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../.
 import { NotificationSidePanel } from '../../../components/admin/notification/NotificationSidePanel'
 import { useQuery } from '@tanstack/react-query'
 import { v4 } from 'uuid'
+import { V6Client } from '@aws-amplify/api-graphql'
+import { Schema } from '../../../../amplify/data/resource'
 
 interface NotificationSearchParams {
   notificationId?: string,
@@ -17,7 +19,10 @@ export const Route = createFileRoute('/_auth/admin/dashboard/notification')({
   }),
   beforeLoad: ({ search }) => search,
   loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+
     return {
+      NotificationService: new NotificationService(client),
       notificationId: context.notificationId
     }
   },
@@ -28,14 +33,21 @@ function RouteComponent() {
   const data = Route.useLoaderData()
 
   //notificationSpecific query
-  const notificationsQuery = useQuery(getAllNotificationsQueryOptions({ 
+  const notificationsQuery = useQuery(data.NotificationService.getAllNotificationsQueryOptions({ 
     siParticipants: true, 
     siTags: true 
   }))
+  //TODO: convert me to infinite query
   const participantsQuery = useQuery(getAllParticipantsQueryOptions({ 
-      siNotifications: true, 
-      siTags: { } 
-    }))
+    siNotifications: true, 
+    siTags: { 
+      siChildren: false,
+      siCollections: false,
+      siPackages: false,
+      siTimeslots: false
+    } 
+  }))
+  //TODO: convert me to infinite query
   const userTagsQuery = useQuery(getAllUserTagsQueryOptions({ siCollections: false, siTimeslots: false, siNotifications: true }))
   
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -104,6 +116,7 @@ function RouteComponent() {
       <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
         {selectedNotification ? (
           <NotificationPanel 
+            NotificationService={data.NotificationService}
             notification={selectedNotification}
             parentUpdateNotification={setSelectedNotification}
             parentUpdateNotifications={setNotifications}

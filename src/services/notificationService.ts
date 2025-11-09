@@ -1,10 +1,7 @@
-import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Notification, Participant, UserTag } from "../types";
 import { queryOptions } from "@tanstack/react-query";
-
-const client = generateClient<Schema>()
 
 interface GetAllNotificationOptions {
   siParticipants?: boolean
@@ -19,7 +16,9 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
   if(options?.logging) console.log(notificationsResponse);
 
   while(notificationsResponse.nextToken) {
-    notificationsResponse = await client.models.Notifications.list({ nextToken: notificationsResponse.nextToken })
+    notificationsResponse = await client.models.Notifications.list({ 
+      nextToken: notificationsResponse.nextToken 
+    })
     if(options?.logging) console.log(notificationsResponse);
     notificationData.push(...notificationsResponse.data)
   }
@@ -36,7 +35,9 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
       const participantData = participantResponse.data
 
       while(participantResponse.nextToken) {
-        participantResponse = await notification.participant({ nextToken: participantResponse.nextToken })
+        participantResponse = await notification.participant({ 
+          nextToken: participantResponse.nextToken 
+        })
         participantData.push(...participantResponse.data)
       }
 
@@ -72,7 +73,9 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
       const tagData = tagResponse.data
 
       while(tagResponse.nextToken) {
-        tagResponse = await notification.tags({ nextToken: tagResponse.nextToken })
+        tagResponse = await notification.tags({ 
+          nextToken: tagResponse.nextToken 
+        })
         tagData.push(...tagResponse.data)
       }
 
@@ -112,6 +115,7 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
   return mappedNotifications
 }
 
+//TODO: implement me
 // interface GetAllParticipantNotificationOptions {
 
 // }
@@ -122,16 +126,27 @@ async function getAllNotifications(client: V6Client<Schema>, options?: GetAllNot
 interface GetAllNotificationsFromUserTagsOptions {
   logging?: boolean
 }
-export async function getAllNotificationsFromUserTag(client: V6Client<Schema>, memo: Notification[], tagId?: string, options?: GetAllNotificationsFromUserTagsOptions): Promise<[Notification[], Notification[]]> {
+export async function getAllNotificationsFromUserTag(
+  client: V6Client<Schema>, 
+  memo: Notification[], 
+  tagId?: string, 
+  options?: GetAllNotificationsFromUserTagsOptions
+): Promise<[Notification[], Notification[]]> {
   const mappedNotifications: Notification[] = []
   const updatedMemo = [...memo]
   if(!tagId) return [mappedNotifications, updatedMemo]
 
-  let tagResponse = await client.models.NotificationUserTags.listNotificationUserTagsByTagId({ tagId: tagId })
+  let tagResponse = await client.models.NotificationUserTags.listNotificationUserTagsByTagId({
+    tagId: tagId 
+  })
   const tagData = tagResponse.data
 
   while(tagResponse.nextToken) {
-    tagResponse = await client.models.NotificationUserTags.listNotificationUserTagsByTagId({ tagId: tagId }, { nextToken: tagResponse.nextToken })
+    tagResponse = await client.models.NotificationUserTags.listNotificationUserTagsByTagId({ 
+      tagId: tagId 
+    }, { 
+      nextToken: tagResponse.nextToken 
+    })
     tagData.push(...tagResponse.data)
   }
   
@@ -166,40 +181,7 @@ export interface CreateNotificationParams {
     logging?: boolean
   }
 }
-export async function createNotificationMutation(params: CreateNotificationParams): Promise<string | undefined> {
-  const response = await client.models.Notifications.create({
-    id: params.notification.id,
-    content: params.notification.content,
-    location: params.notification.location,
-    expiration: params.notification.expiration,
-  })
 
-  if(params.options?.logging) console.log(response)
-
-  if(response.data) {
-    const userTagResponse = await Promise.all((params.notification.tags ?? []).map((tag) => {
-      return client.models.NotificationUserTags.create({
-        tagId: tag.id,
-        notificationId: response.data!.id
-      })
-    }))
-
-    if(params.options?.logging) console.log(userTagResponse)
-
-    const participantResponse = await Promise.all((params.notification.participants ?? []).map((participant) => {
-      return client.models.NotificationParticipants.create({
-        participantId: participant.id,
-        notificationId: response.data!.id
-      })
-    }))
-
-    if(params.options?.logging) console.log(participantResponse)
-
-    return response.data.id
-  }
-}
-
-//TODO: validate and update me please
 export interface UpdateNotificationParams extends Partial<CreateNotificationParams> {
   notification: Notification,
   content: string,
@@ -208,97 +190,6 @@ export interface UpdateNotificationParams extends Partial<CreateNotificationPara
   participantIds: string[],
   tagIds: string[],
 }
-export async function updateNotificationMutation(params: UpdateNotificationParams) {
-  if(params.participantIds?.some((cPid) => !params.notification.participants.some((participant) => cPid === participant.id))) {
-    const deletedParticipants: string[] = params.notification.participants
-      .filter((participant) => !params.participantIds?.some((id) => id === participant.id))
-      .map((participant) => participant.id)
-
-    const addedParticipants: string[] = params.participantIds
-      .filter((id) => !params.notification.participants.some((participant) => participant.id === id))
-
-
-    let tagResponse = await client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ notificationId: params.notification.id })
-    let tagData = tagResponse.data
-
-    while(tagResponse.nextToken) {
-      tagResponse = await client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ notificationId: params.notification.id }, { nextToken: tagResponse.nextToken })
-      tagData.push(...tagResponse.data)
-    }
-
-    const deleteResponse = await Promise.all(deletedParticipants.map((pId) => {
-      const foundId = tagData.find((tag) => tag.participantId === pId)?.id
-      if(foundId) {
-        return client.models.NotificationParticipants.delete({
-          id: foundId,
-        })
-      }
-    }))
-
-    if(params.options?.logging) console.log(deleteResponse)
-
-    const addResponse = await Promise.all(addedParticipants.map((participant) => {
-      return client.models.NotificationParticipants.create({
-        participantId: participant,
-        notificationId: params.notification.id
-      })
-    }))
-
-    if(params.options?.logging) console.log(addResponse)
-  }
-
-  if(params.tagIds?.some((cTid) => !params.notification.tags.some((tag) => cTid === tag.id))) {
-    const deletedTags: string[] = params.notification.tags
-      .filter((tag) => !params.tagIds?.some((id) => id === tag.id))
-      .map((tag) => tag.id)
-
-    const addedTags: string[] = params.tagIds
-      .filter((id) => !params.notification.tags.some((tag) => tag.id === id))
-
-
-    let tagResponse = await client.models.NotificationUserTags.listNotificationUserTagsByNotificationId({ notificationId: params.notification.id })
-    let tagData = tagResponse.data
-
-    while(tagResponse.nextToken) {
-      tagResponse = await client.models.NotificationUserTags.listNotificationUserTagsByNotificationId({ notificationId: params.notification.id }, { nextToken: tagResponse.nextToken })
-      tagData.push(...tagResponse.data)
-    }
-
-    const deleteResponse = await Promise.all(deletedTags.map((tId) => {
-      const foundId = tagData.find((tag) => tag.tagId === tId)?.id
-      if(foundId) {
-        return client.models.NotificationUserTags.delete({
-          id: foundId,
-        })
-      }
-    }))
-
-    if(params.options?.logging) console.log(deleteResponse)
-
-    const addResponse = await Promise.all(addedTags.map((tag) => {
-      return client.models.NotificationUserTags.create({
-        tagId: tag,
-        notificationId: params.notification.id
-      })
-    }))
-
-    if(params.options?.logging) console.log(addResponse)
-  }
-
-  if(params.content !== params.notification.content ||
-    params.location !== params.notification.location ||
-    params.expiration !== params.notification.expiration
-  ) {
-    const response = await client.models.Notifications.update({
-      id: params.notification.id,
-      content: params.content ?? params.notification.content,
-      location: params.location ?? params.notification.location,
-      expiration: params.expiration === 'none' ? null : params.expiration ?? params.notification.expiration,
-    })
-
-    if(params.options?.logging) console.log(response)
-  }
-}
 
 export interface DeleteNotificationParams {
   notificationId: string,
@@ -306,18 +197,165 @@ export interface DeleteNotificationParams {
     logging?: boolean
   }
 }
-export async function deleteNotificationMutation(params: DeleteNotificationParams) {
-  const response = await client.models.Notifications.delete({ id: params.notificationId })
-
-  if(params.options?.logging) console.log(response)
-}
-
-export const getAllNotificationsQueryOptions = (options?: GetAllNotificationOptions) => queryOptions({
-  queryKey: ['notifications', client, options],
-  queryFn: () => getAllNotifications(client, options)
-})
 
 // export const getAllParticipantNotificationsQueryOptions = (participantId?: string, options?: GetAllParticipantNotificationOptions) => queryOptions({
 //   queryKey: ['participantNotifications', client, options],
 //   queryFn: () => getAllParticipantNotifications(client, participantId, options)
 // })
+
+export class NotificationService {
+  private client: V6Client<Schema>;
+
+  constructor(client: V6Client<Schema>) {
+    this.client = client
+  }
+
+  async createNotificationMutation(params: CreateNotificationParams): Promise<string | undefined> {
+    const response = await this.client.models.Notifications.create({
+      id: params.notification.id,
+      content: params.notification.content,
+      location: params.notification.location,
+      expiration: params.notification.expiration,
+    })
+
+    if(params.options?.logging) console.log(response)
+
+    if(response.data) {
+      const userTagResponse = Promise.all((params.notification.tags ?? []).map((tag) => {
+        return this.client.models.NotificationUserTags.create({
+          tagId: tag.id,
+          notificationId: response.data!.id
+        })
+      }))
+
+      if(params.options?.logging) console.log(userTagResponse)
+
+      const participantResponse = Promise.all((params.notification.participants ?? []).map((participant) => {
+        return this.client.models.NotificationParticipants.create({
+          participantId: participant.id,
+          notificationId: response.data!.id
+        })
+      }))
+
+      if(params.options?.logging) console.log(participantResponse)
+
+      return response.data.id
+    }
+  }
+
+  async updateNotificationMutation(params: UpdateNotificationParams) {
+    if(params.participantIds?.some((cPid) => !params.notification.participants.some((participant) => cPid === participant.id))) {
+      const deletedParticipants: string[] = params.notification.participants
+        .filter((participant) => !params.participantIds?.some((id) => id === participant.id))
+        .map((participant) => participant.id)
+
+      const addedParticipants: string[] = params.participantIds
+        .filter((id) => !params.notification.participants.some((participant) => participant.id === id))
+
+
+      let tagResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
+        notificationId: params.notification.id 
+      })
+      let tagData = tagResponse.data
+
+      while(tagResponse.nextToken) {
+        tagResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
+          notificationId: params.notification.id 
+        }, { 
+          nextToken: tagResponse.nextToken 
+        })
+        tagData.push(...tagResponse.data)
+      }
+
+      const deleteResponse = Promise.all(deletedParticipants.map((pId) => {
+        const foundId = tagData.find((tag) => tag.participantId === pId)?.id
+        if(foundId) {
+          return this.client.models.NotificationParticipants.delete({
+            id: foundId,
+          })
+        }
+      }))
+
+      if(params.options?.logging) console.log(deleteResponse)
+
+      const addResponse = Promise.all(addedParticipants.map((participant) => {
+        return this.client.models.NotificationParticipants.create({
+          participantId: participant,
+          notificationId: params.notification.id
+        })
+      }))
+
+      if(params.options?.logging) console.log(addResponse)
+    }
+
+    if(params.tagIds?.some((cTid) => !params.notification.tags.some((tag) => cTid === tag.id))) {
+      const deletedTags: string[] = params.notification.tags
+        .filter((tag) => !params.tagIds?.some((id) => id === tag.id))
+        .map((tag) => tag.id)
+
+      const addedTags: string[] = params.tagIds
+        .filter((id) => !params.notification.tags.some((tag) => tag.id === id))
+
+
+      let tagResponse = await this.client.models.NotificationUserTags.listNotificationUserTagsByNotificationId({ 
+        notificationId: params.notification.id 
+      })
+      let tagData = tagResponse.data
+
+      while(tagResponse.nextToken) {
+        tagResponse = await this.client.models.NotificationUserTags.listNotificationUserTagsByNotificationId({ 
+          notificationId: params.notification.id 
+        }, { 
+          nextToken: tagResponse.nextToken 
+        })
+        tagData.push(...tagResponse.data)
+      }
+
+      const deleteResponse = Promise.all(deletedTags.map((tId) => {
+        const foundId = tagData.find((tag) => tag.tagId === tId)?.id
+        if(foundId) {
+          return this.client.models.NotificationUserTags.delete({
+            id: foundId,
+          })
+        }
+      }))
+
+      if(params.options?.logging) console.log(deleteResponse)
+
+      const addResponse = Promise.all(addedTags.map((tag) => {
+        return this.client.models.NotificationUserTags.create({
+          tagId: tag,
+          notificationId: params.notification.id
+        })
+      }))
+
+      if(params.options?.logging) console.log(addResponse)
+    }
+
+    if(params.content !== params.notification.content ||
+      params.location !== params.notification.location ||
+      params.expiration !== params.notification.expiration
+    ) {
+      const response = this.client.models.Notifications.update({
+        id: params.notification.id,
+        content: params.content ?? params.notification.content,
+        location: params.location ?? params.notification.location,
+        expiration: params.expiration === 'none' ? null : params.expiration ?? params.notification.expiration,
+      })
+
+      if(params.options?.logging) console.log(response)
+    }
+  }
+
+  async deleteNotificationMutation(params: DeleteNotificationParams) {
+    const response = this.client.models.Notifications.delete({ id: params.notificationId })
+
+    if(params.options?.logging) console.log(response)
+  }
+
+  public getAllNotificationsQueryOptions = (options?: GetAllNotificationOptions) => queryOptions({
+    queryKey: ['notifications', options],
+    queryFn: () => getAllNotifications(this.client, options)
+  })
+
+}

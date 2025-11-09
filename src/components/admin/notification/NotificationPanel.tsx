@@ -7,9 +7,10 @@ import { useMutation } from "@tanstack/react-query"
 import { badgeColorThemeMap_hoverable, currentDate, DAY_OFFSET, textInputTheme } from "../../../utils"
 import { HiOutlineX } from "react-icons/hi"
 import { ParticipantPanel } from "../../common/ParticipantPanel"
-import { createNotificationMutation, CreateNotificationParams, deleteNotificationMutation, DeleteNotificationParams, updateNotificationMutation, UpdateNotificationParams } from "../../../services/notificationService"
+import { CreateNotificationParams, DeleteNotificationParams, NotificationService, UpdateNotificationParams } from "../../../services/notificationService"
 
 interface  NotificationPanelProps {
+  NotificationService: NotificationService
   notification: Notification
   parentUpdateNotification: Dispatch<SetStateAction<Notification | undefined>>
   parentUpdateNotifications: Dispatch<SetStateAction<Notification[]>>
@@ -63,15 +64,15 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
   }, [props.notification])
 
   const createNotification = useMutation({
-    mutationFn: (params: CreateNotificationParams) => createNotificationMutation(params),
+    mutationFn: (params: CreateNotificationParams) => props.NotificationService.createNotificationMutation(params),
   })
 
   const updateNotification = useMutation({
-    mutationFn: (params: UpdateNotificationParams) => updateNotificationMutation(params)
+    mutationFn: (params: UpdateNotificationParams) => props.NotificationService.updateNotificationMutation(params)
   })
 
   const deleteNotification = useMutation({
-    mutationFn: (params: DeleteNotificationParams) => deleteNotificationMutation(params)
+    mutationFn: (params: DeleteNotificationParams) => props.NotificationService.deleteNotificationMutation(params)
   })
 
   //TODO: add me to a util file
