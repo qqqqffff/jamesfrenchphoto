@@ -31,7 +31,7 @@ import { parsePathName } from "../../../utils"
 import { WatermarkPanel } from "./WatermarkPanel"
 import { SharePanel } from "./SharePanel"
 import { 
-  deleteShareTemplateMutation, 
+  ShareService, 
   DeleteShareTemplateParams,  
 } from "../../../services/shareService"
 import { CgSpinner } from "react-icons/cg"
@@ -48,6 +48,7 @@ interface PhotoCollectionPanelProps {
   CollectionService: CollectionService,
   PhotoPathService: PhotoPathService,
   PhotoSetService: PhotoSetService,
+  ShareService: ShareService,
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
   availableTags: UserTag[],
@@ -72,7 +73,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   CollectionService, watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
   updateShareTemplates, coverPath, updateParentCollections, PhotoPathService,
-  PhotoSetService,
+  PhotoSetService, ShareService,
 }) => {
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
   const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
@@ -110,7 +111,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   })
 
   const deleteShareTemplate = useMutation({
-    mutationFn: (params: DeleteShareTemplateParams) => deleteShareTemplateMutation(params)
+    mutationFn: (params: DeleteShareTemplateParams) => ShareService.deleteShareTemplateMutation(params)
   })
 
   const watermarkPaths = useQueries({
@@ -845,6 +846,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
               <SharePanel 
                 CollectionService={CollectionService}
+                ShareService={ShareService}
                 collection={collection}
                 selectedTemplate={selectedTemplate}
                 updateParentSelectedTemplate={setSelectedTemplate}

@@ -10,7 +10,7 @@ import { TextInput, Tooltip } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
-import { getAllShareTemplatesQueryOptions } from '../../../services/shareService'
+import { ShareService } from '../../../services/shareService'
 import Loading from '../../../components/common/Loading'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
@@ -39,6 +39,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
       CollectionService: new CollectionService(client),
       PhotoPathService: new PhotoPathService(client),
       PhotoSetService: new PhotoSetService(client),
+      ShareService: new ShareService(client),
       set: context.set,
       collection: context.collection,
       auth: context.auth,
@@ -62,7 +63,7 @@ function RouteComponent() {
 
   const tagsPromise = useSuspenseQuery(getAllUserTagsQueryOptions({ siCollections: false }))
   const watermarkQuery = useQuery(data.CollectionService.getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
-  const shareTemplatesQuery = useQuery(getAllShareTemplatesQueryOptions())
+  const shareTemplatesQuery = useQuery(data.ShareService.getAllShareTemplatesQueryOptions())
 
   //TODO: convert me to an infinite query and conditional enabling
   const collectionsQuery = useQuery(data.CollectionService.getAllPhotoCollectionsQueryOptions({ 
@@ -191,6 +192,7 @@ function RouteComponent() {
             CollectionService={data.CollectionService}
             PhotoPathService={data.PhotoPathService}
             PhotoSetService={data.PhotoSetService}
+            ShareService={data.ShareService}
             coverPath={selectedCoverPath}
             collection={selectedCollection}
             updateParentCollection={setSelectedCollection}

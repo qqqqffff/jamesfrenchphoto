@@ -1,11 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
 import { PhotoCollection, ShareTemplate } from "../../../types";
 import { 
-  createShareTemplateMutation, 
+  ShareService, 
   CreateShareTemplateParams, 
-  shareCollectionMutation, 
-  ShareCollectionParams, 
-  updateShareTemplateMutation, 
+  ShareCollectionParams,
   UpdateShareTemplateParams 
 } from "../../../services/shareService";
 import { Badge, Button, Checkbox, Dropdown, TextInput } from "flowbite-react";
@@ -21,6 +19,7 @@ import { CollectionService } from "../../../services/collectionService";
 
 interface SharePanelProps {
   CollectionService: CollectionService,
+  ShareService: ShareService,
   collection: PhotoCollection,
   selectedTemplate?: ShareTemplate,
   updateParentSelectedTemplate: Dispatch<SetStateAction<ShareTemplate | undefined>>
@@ -84,11 +83,11 @@ export const SharePanel = (props: SharePanelProps) => {
   }, [props.selectedTemplate])
 
   const share = useMutation({
-    mutationFn: (params: ShareCollectionParams) => shareCollectionMutation(params)
+    mutationFn: (params: ShareCollectionParams) => props.ShareService.shareCollectionMutation(params)
   })
 
   const save = useMutation({
-    mutationFn: (params: CreateShareTemplateParams) => createShareTemplateMutation(params),
+    mutationFn: (params: CreateShareTemplateParams) => props.ShareService.createShareTemplateMutation(params),
     onSuccess: (data) => {
         if(data){
           let finalizedCollection: ShareTemplate | undefined
@@ -113,7 +112,7 @@ export const SharePanel = (props: SharePanelProps) => {
   })
 
   const update = useMutation({
-    mutationFn: (params: UpdateShareTemplateParams) => updateShareTemplateMutation(params)
+    mutationFn: (params: UpdateShareTemplateParams) => props.ShareService.updateShareTemplateMutation(params)
   })
 
   const createAccessToken = useMutation({
