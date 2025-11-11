@@ -7,9 +7,11 @@ import { Badge } from 'flowbite-react'
 import { badgeColorThemeMap } from '../../../utils'
 import { PackageCard } from '../../../components/common/package/PackageCard'
 import { useQuery, UseQueryResult } from '@tanstack/react-query'
-import { getAllPackageItemsQueryOptions } from '../../../services/packageService'
+import { PackageService } from '../../../services/packageService'
 import { getUserCollectionList } from '../../../functions/clientFunctions'
 import { getClientAdvertiseList } from '../../../functions/packageFunctions'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 interface PackageParams {
   id?: string
@@ -22,9 +24,12 @@ export const Route = createFileRoute('/_auth/client/dashboard/package')({
   beforeLoad: ({ search }) => search,
   component: RouteComponent,
   loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+
     return {
       auth: context.auth,
       packageId: context.id,
+      PackageService: new PackageService(client),
     }
   }
 })
@@ -32,7 +37,8 @@ export const Route = createFileRoute('/_auth/client/dashboard/package')({
 function RouteComponent() {
   const {
     auth,
-    packageId
+    packageId,
+    PackageService
   } = Route.useLoaderData()
   const { width } = useWindowDimensions()
   const [selectedParent, setSelectedParent] = useState<string | undefined>()
@@ -58,7 +64,7 @@ function RouteComponent() {
       .map((pack) => [
         pack.id,
         useQuery(
-          getAllPackageItemsQueryOptions(pack.id, { siCollectionItems: true })
+          PackageService.getAllPackageItemsQueryOptions(pack.id, { siCollectionItems: true })
         )
       ])
   )

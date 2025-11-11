@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { UserTag } from '../../../types'
+import { Package, UserTag } from '../../../types'
 import { Alert, Badge } from 'flowbite-react'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
@@ -12,7 +12,7 @@ import { getClientAdvertiseList, getClientPackages } from '../../../functions/pa
 import { useState } from 'react'
 import { HiOutlineArrowLeftCircle, HiOutlineArrowRightCircle } from 'react-icons/hi2'
 import { PackageCard } from '../../../components/common/package/PackageCard'
-import { getAllPackageItemsQueryOptions } from '../../../services/packageService'
+import { PackageService } from '../../../services/packageService'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from '../../../../amplify/data/resource'
 
@@ -21,7 +21,8 @@ export const Route = createFileRoute('/_auth/client/dashboard/')({
   loader: ({ context }) => {
     const client = context.client as V6Client<Schema>
     return {
-      CollectionService: new CollectionService(client)
+      CollectionService: new CollectionService(client),
+      PackageService: new PackageService(client)
     }
   }
 })
@@ -30,7 +31,7 @@ function RouteComponent() {
   const data = Route.useLoaderData()
   const auth = useAuth()
   const tags: UserTag[] = auth.user?.profile.activeParticipant?.userTags ?? []
-  const packageList = getClientPackages(tags)
+  const packageList: Record<string, Package | undefined> = getClientPackages(tags)
   const advertiseList = getClientAdvertiseList(tags)
   
   const dimensions = useWindowDimensions()
@@ -56,7 +57,7 @@ function RouteComponent() {
   )
 
   const packageItems = useQuery({
-    ...getAllPackageItemsQueryOptions(packageList[selectedParentTagId ?? '']?.id),
+    ...data.PackageService.getAllPackageItemsQueryOptions(packageList[selectedParentTagId ?? '']?.id),
     enabled: selectedParentTagId !== undefined
   })
 

@@ -4,7 +4,7 @@ import { BuilderPanel } from '../../../components/admin/package/BuilderPanel'
 import { Package, PackageItem, UserTag } from '../../../types'
 import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { getAllPackagesQueryOptions, getInfinitePackageItemsQueryOptions } from '../../../services/packageService'
+import { PackageService } from '../../../services/packageService'
 import { CollectionService } from '../../../services/collectionService'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
@@ -15,7 +15,8 @@ export const Route = createFileRoute('/_auth/admin/dashboard/package')({
     const client = context.client as V6Client<Schema>
 
     return {
-      CollectionService: new CollectionService(client)
+      CollectionService: new CollectionService(client),
+      PackageService: new PackageService(client),
     }
   }
 })
@@ -33,7 +34,7 @@ function RouteComponent() {
     siPackages: { }
   }))
 
-  const packageItemsInfiniteQuery = useInfiniteQuery(getInfinitePackageItemsQueryOptions({
+  const packageItemsInfiniteQuery = useInfiniteQuery(data.PackageService.getInfinitePackageItemsQueryOptions({
     siCollectionItems: false
   }))
 
@@ -44,7 +45,7 @@ function RouteComponent() {
     siTags: false
   }))
 
-  const packagesQuery = useQuery(getAllPackagesQueryOptions({
+  const packagesQuery = useQuery(data.PackageService.getAllPackagesQueryOptions({
     siPackageItems: undefined
   }))
 
@@ -75,6 +76,7 @@ function RouteComponent() {
   return (
     <>
       <BuilderPanel 
+        PackageService={data.PackageService}
         packages={packages}
         packagesQuery={packagesQuery}
         parentUpdatePackages={setPackages}
