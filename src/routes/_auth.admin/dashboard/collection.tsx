@@ -15,6 +15,7 @@ import Loading from '../../../components/common/Loading'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { PhotoPathService } from '../../../services/photoPathService'
+import { PhotoSetService } from '../../../services/photoSetService'
 
 interface CollectionSearchParams {
   collection?: string,
@@ -37,6 +38,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
     return {
       CollectionService: new CollectionService(client),
       PhotoPathService: new PhotoPathService(client),
+      PhotoSetService: new PhotoSetService(client),
       set: context.set,
       collection: context.collection,
       auth: context.auth,
@@ -188,6 +190,7 @@ function RouteComponent() {
           <PhotoCollectionPanel 
             CollectionService={data.CollectionService}
             PhotoPathService={data.PhotoPathService}
+            PhotoSetService={data.PhotoSetService}
             coverPath={selectedCoverPath}
             collection={selectedCollection}
             updateParentCollection={setSelectedCollection}

@@ -42,10 +42,12 @@ import { CoverSidePanel } from "./CoverSidePanel"
 import { CollectionSidePanelButton } from "./CollectionSidePanelButton"
 import { v4 } from 'uuid'
 import { PhotoPathService } from "../../../services/photoPathService"
+import { PhotoSetService } from "../../../services/photoSetService"
 
 interface PhotoCollectionPanelProps {
   CollectionService: CollectionService,
   PhotoPathService: PhotoPathService,
+  PhotoSetService: PhotoSetService,
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
   availableTags: UserTag[],
@@ -70,6 +72,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   CollectionService, watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
   updateShareTemplates, coverPath, updateParentCollections, PhotoPathService,
+  PhotoSetService,
 }) => {
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
   const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
@@ -595,7 +598,8 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
               <div className="border w-full"></div>
               <div className="w-full">
                 <SetList 
-                CollectionService={CollectionService}
+                  PhotoSetService={PhotoSetService}
+                  CollectionService={CollectionService}
                   setList={collection.sets}
                   selectedSet={selectedSet}
                   setSelectedSet={(set: PhotoSet | undefined) => {
@@ -779,6 +783,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
         { activeConsole === 'sets' ? (
             selectedSet ? (
               <PhotoSetPanel 
+                PhotoSetService={PhotoSetService}
                 PhotoPathService={PhotoPathService}
                 CollectionService={CollectionService}
                 photoCollection={collection} 
@@ -817,6 +822,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
           activeConsole === 'favorites' ? (
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
             <FavoritePanel 
+              PhotoSetService={PhotoSetService}
               PhotoPathService={PhotoPathService}
               collection={collection}
             />

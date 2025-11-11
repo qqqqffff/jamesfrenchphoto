@@ -6,10 +6,12 @@ import { PhotoCollection, PhotoSet, PicturePath, UserProfile } from "../../types
 import { AuthContext } from "../../auth"
 import { CollectionService } from "../../services/collectionService"
 import { PhotoControls } from "./PhotoControls"
+import { PhotoSetService } from "../../services/photoSetService"
 
 interface CollectionGridProps {
   CollectionService: CollectionService,
   PhotoPathService: PhotoPathService,
+  PhotoSetService: PhotoSetService,
   set: PhotoSet,
   collection: PhotoCollection,
   tempUser?: UserProfile
@@ -396,6 +398,7 @@ export const CollectionGrid = (props: CollectionGridProps) => {
                         />
                       </Suspense>
                       <PhotoControls 
+                        PhotoSetService={props.PhotoSetService}
                         PhotoPathService={props.PhotoPathService}
                         picture={picture}
                         set={props.set}

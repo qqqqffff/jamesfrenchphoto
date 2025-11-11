@@ -13,6 +13,7 @@ import { CollectionGrid } from '../components/collection/CollectionGrid'
 import { Schema } from '../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { PhotoPathService } from '../services/photoPathService'
+import { PhotoSetService } from '../services/photoSetService'
 
 interface PhotoCollectionParams {
   set?: string,
@@ -57,6 +58,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     return {
       CollectionService: collectionService,
       PhotoPathService: new PhotoPathService(client),
+      PhotoSetService: new PhotoSetService(client),
       collection: collection,
       auth: context.auth,
       coverPath: coverUrl,
@@ -230,6 +232,7 @@ function RouteComponent() {
         </div>
         <CollectionGrid 
           PhotoPathService={data.PhotoPathService}
+          PhotoSetService={data.PhotoSetService}
           set={set}
           CollectionService={data.CollectionService}
           collection={collection}

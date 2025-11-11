@@ -14,15 +14,11 @@ import { SetControls } from "./SetControls";
 import { EditableTextField } from "../../common/EditableTextField";
 import { useInfiniteQuery, useMutation, UseMutationResult } from "@tanstack/react-query";
 import { 
-  deleteImagesMutation, 
+  PhotoSetService, 
   DeleteImagesMutationParams, 
-  deleteSetMutation, 
   DeleteSetMutationParams, 
-  reorderPathsMutation, 
   ReorderPathsParams, 
-  updateSetMutation, 
-  UpdateSetParams, 
-  uploadImagesMutation, 
+  UpdateSetParams,  
   UploadImagesMutationParams
 } from "../../../services/photoSetService";
 import { detectDuplicates } from "./utils";
@@ -40,6 +36,7 @@ import { useNavigate } from "@tanstack/react-router";
 
 export type PhotoSetPanelProps = {
   PhotoPathService: PhotoPathService,
+  PhotoSetService: PhotoSetService,
   CollectionService: CollectionService,
   photoCollection: PhotoCollection,
   photoSet: PhotoSet,
@@ -53,7 +50,7 @@ export type PhotoSetPanelProps = {
 }
 
 export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
-  CollectionService, PhotoPathService,
+  CollectionService, PhotoPathService, PhotoSetService,
   photoCollection, photoSet, publishable, publishCollection,
   deleteParentSet, parentUpdateSet,
   parentUpdateCollection, auth, parentUpdateCollections
@@ -99,7 +96,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   }, [photoSet])
 
   const updateSet = useMutation({
-    mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
+    mutationFn: (params: UpdateSetParams) => PhotoSetService.updateSetMutation(params),
   })
 
   function pictureStyle(id: string){
@@ -118,11 +115,11 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const duplicates = detectDuplicates(picturePaths)
 
   const deleteImages = useMutation({
-    mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
+    mutationFn: (params: DeleteImagesMutationParams) => PhotoSetService.deleteImagesMutation(params)
   })
 
   const uploadImages = useMutation({
-    mutationFn: (params: UploadImagesMutationParams) => uploadImagesMutation(params),
+    mutationFn: (params: UploadImagesMutationParams) => PhotoSetService.uploadImagesMutation(params),
     onSettled: () => {
       const temp: PhotoCollection = {
         ...photoCollection,
@@ -155,7 +152,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   })
 
   const deleteSet = useMutation({
-    mutationFn: (params: DeleteSetMutationParams) => deleteSetMutation(params)
+    mutationFn: (params: DeleteSetMutationParams) => PhotoSetService.deleteSetMutation(params)
   })
 
   const repairPaths = useMutation({
@@ -198,7 +195,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   })
 
   const reorderPaths = useMutation({
-    mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+    mutationFn: (params: ReorderPathsParams) => PhotoSetService.reorderPathsMutation(params)
   })
 
   const repairItemCounts = useMutation({
@@ -378,6 +375,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
     />
     {selectedPhotos.length > 0 && (
       <SetControls 
+        PhotoSetService={PhotoSetService}
         collection={photoCollection}
         set={photoSet}
         paths={picturePaths}
@@ -758,6 +756,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           </div>
         ) : (
           <PictureList 
+            PhotoSetService={PhotoSetService}
             CollectionService={CollectionService}
             PhotoPathService={PhotoPathService}
             collection={photoCollection}

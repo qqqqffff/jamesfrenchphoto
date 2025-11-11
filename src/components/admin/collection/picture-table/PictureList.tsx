@@ -11,7 +11,7 @@ import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
 import { InfiniteData, UseInfiniteQueryResult, useMutation, UseMutationResult, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
 import { CollectionService, RepairItemCountsParams } from '../../../../services/collectionService';
-import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/photoSetService';
+import { PhotoSetService, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
 import { GetInfinitePathsData, PhotoPathService } from '../../../../services/photoPathService';
 import Loading from '../../../common/Loading';
@@ -22,6 +22,7 @@ import useWindowDimensions from '../../../../hooks/windowDimensions';
 interface PictureListProps extends ComponentProps<'div'> {
   CollectionService: CollectionService,
   PhotoPathService: PhotoPathService,
+  PhotoSetService: PhotoSetService,
   set: PhotoSet,
   collection: PhotoCollection
   paths: PicturePath[],
@@ -56,7 +57,7 @@ export const PictureList = (props: PictureListProps) => {
   const listRef = useRef<HTMLDivElement | null>(null)
 
   const reorderPaths = useMutation({
-    mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+    mutationFn: (params: ReorderPathsParams) => props.PhotoSetService.reorderPathsMutation(params)
   })
 
   const watermarkQuery = useQuery(
@@ -377,6 +378,7 @@ export const PictureList = (props: PictureListProps) => {
               key={index}
             >
               <Picture 
+                PhotoSetService={props.PhotoSetService}
                 PhotoPathService={props.PhotoPathService}
                 index={index}
                 set={props.set}

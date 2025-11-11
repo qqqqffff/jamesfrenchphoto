@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { DownloadData, PhotoCollection } from "../../../types"
-import { getFavoritesFromPhotoCollectionQueryOptions } from "../../../services/photoSetService"
+import { PhotoSetService } from "../../../services/photoSetService"
 import Loading from "../../common/Loading"
 import { HiOutlineDownload, HiOutlineEye } from "react-icons/hi"
 import { Tooltip } from "flowbite-react"
@@ -13,7 +13,8 @@ import { formatTime } from "../../../utils"
 
 interface FavoritePanelProps {
   PhotoPathService: PhotoPathService,
-  collection: PhotoCollection
+  PhotoSetService: PhotoSetService,
+  collection: PhotoCollection,
 }
 
 export const FavoritePanel = (props: FavoritePanelProps) => {
@@ -21,7 +22,7 @@ export const FavoritePanel = (props: FavoritePanelProps) => {
   const navigate = useNavigate()
 
   const favorites = useQuery(
-    getFavoritesFromPhotoCollectionQueryOptions(props.collection, { metric: true })
+    props.PhotoSetService.getFavoritesFromPhotoCollectionQueryOptions(props.collection, { metric: true })
   )
 
   const download = useMutation({

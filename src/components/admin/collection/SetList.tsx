@@ -8,9 +8,11 @@ import { Set } from './Set';
 import { PhotoCollection, PhotoSet } from '../../../types';
 import { useMutation } from '@tanstack/react-query';
 import { CollectionService, ReorderSetsParams } from '../../../services/collectionService';
+import { PhotoSetService } from '../../../services/photoSetService';
 
 interface SetListProps extends ComponentProps<'div'> {
   CollectionService: CollectionService,
+  PhotoSetService: PhotoSetService,
   setList: PhotoSet[],
   selectedSet: PhotoSet | undefined
   setSelectedSet: (set?: PhotoSet) => void
@@ -122,6 +124,7 @@ export const SetList = (props: SetListProps) => {
           .map((set, index) => {
             return (
               <Set 
+                PhotoSetService={props.PhotoSetService}
                 key={index} 
                 set={set} 
                 onClick={() => props.setSelectedSet(set)}

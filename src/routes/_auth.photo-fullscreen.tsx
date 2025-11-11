@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { favoriteImageMutation, FavoriteImageMutationParams, getPhotoSetByIdQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
+import { PhotoSetService, FavoriteImageMutationParams, UnfavoriteImageMutationParams } from '../services/photoSetService'
 import { useMutation, useQueries } from '@tanstack/react-query'
 import { CollectionService } from '../services/collectionService'
 import { V6Client } from '@aws-amplify/api-graphql'
@@ -27,13 +27,14 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
   loader: async ({ context }) => {
     const client = context.client as V6Client<Schema>
     const collectionService = new CollectionService(client)
+    const photoSetService = new PhotoSetService(client)
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(context.set === '' ||
     context.path === ''
     ) throw redirect({ to: destination })
 
     const set = await context.queryClient.ensureQueryData(
-      getPhotoSetByIdQueryOptions(context.set, { 
+      photoSetService.getPhotoSetByIdQueryOptions(context.set, { 
         resolveUrls: false, 
         participantId: context.auth.user?.profile.activeParticipant?.id 
       })
@@ -52,6 +53,7 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
     return {
       CollectionService: collectionService,
       PhotoPathService: new PhotoPathService(client),
+      PhotoSetService: photoSetService,
       auth: context.auth,
       path: path,
       set: set,
@@ -74,7 +76,7 @@ function RouteComponent() {
   })
 
   const favorite = useMutation({
-    mutationFn: (params: FavoriteImageMutationParams) => favoriteImageMutation(params),
+    mutationFn: (params: FavoriteImageMutationParams) => data.PhotoSetService.favoriteImageMutation(params),
     onSettled: (favorite) => {
       if(favorite){
         setCurrent({
@@ -86,7 +88,7 @@ function RouteComponent() {
   })
 
   const unfavorite = useMutation({
-    mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params),
+    mutationFn: (params: UnfavoriteImageMutationParams) => data.PhotoSetService.unfavoriteImageMutation(params),
   })
 
   const downloadImage = useMutation({

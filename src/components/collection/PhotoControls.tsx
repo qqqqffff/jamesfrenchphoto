@@ -2,13 +2,14 @@ import { useMutation } from "@tanstack/react-query"
 import { CgArrowsExpandRight } from "react-icons/cg"
 import { HiOutlineHeart, HiOutlineDownload } from "react-icons/hi"
 import { DownloadImageMutationParams, PhotoPathService } from "../../services/photoPathService"
-import { FavoriteImageMutationParams, favoriteImageMutation, UnfavoriteImageMutationParams, unfavoriteImageMutation } from "../../services/photoSetService"
+import { FavoriteImageMutationParams, UnfavoriteImageMutationParams, PhotoSetService } from "../../services/photoSetService"
 import { PhotoCollection, PhotoSet, PicturePath, UserProfile } from "../../types"
 import { Dispatch, SetStateAction } from "react"
 import { useNavigate } from "@tanstack/react-router"
 
 interface PhotoControlsProps {
   PhotoPathService: PhotoPathService,
+  PhotoSetService: PhotoSetService,
   picture: PicturePath,
   set: PhotoSet
   collection: PhotoCollection,
@@ -20,7 +21,7 @@ interface PhotoControlsProps {
 export const PhotoControls = (props: PhotoControlsProps) => {
   const navigate = useNavigate()
   const favorite = useMutation({
-    mutationFn: (params: FavoriteImageMutationParams) => favoriteImageMutation(params),
+    mutationFn: (params: FavoriteImageMutationParams) => props.PhotoSetService.favoriteImageMutation(params),
     onSettled: (favorite) => {
       if(favorite) {
         props.parentUpdateSet((set) => ({
@@ -40,7 +41,7 @@ export const PhotoControls = (props: PhotoControlsProps) => {
   })
 
   const unfavorite = useMutation({
-    mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params)
+    mutationFn: (params: UnfavoriteImageMutationParams) => props.PhotoSetService.unfavoriteImageMutation(params)
   })
 
   const downloadImage = useMutation({
