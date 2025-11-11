@@ -1,13 +1,14 @@
 import { useMutation } from "@tanstack/react-query"
 import { CgArrowsExpandRight } from "react-icons/cg"
 import { HiOutlineHeart, HiOutlineDownload } from "react-icons/hi"
-import { DownloadImageMutationParams, downloadImageMutation } from "../../services/photoPathService"
+import { DownloadImageMutationParams, PhotoPathService } from "../../services/photoPathService"
 import { FavoriteImageMutationParams, favoriteImageMutation, UnfavoriteImageMutationParams, unfavoriteImageMutation } from "../../services/photoSetService"
 import { PhotoCollection, PhotoSet, PicturePath, UserProfile } from "../../types"
 import { Dispatch, SetStateAction } from "react"
 import { useNavigate } from "@tanstack/react-router"
 
 interface PhotoControlsProps {
+  PhotoPathService: PhotoPathService,
   picture: PicturePath,
   set: PhotoSet
   collection: PhotoCollection,
@@ -43,7 +44,7 @@ export const PhotoControls = (props: PhotoControlsProps) => {
   })
 
   const downloadImage = useMutation({
-    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
+    mutationFn: (params: DownloadImageMutationParams) => props.PhotoPathService.downloadImageMutation(params),
     onSettled: (file) => {
       if(file){
         try{

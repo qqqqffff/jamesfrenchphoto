@@ -6,14 +6,15 @@ import { TableColumn } from "../../../types";
 import { parsePathName } from "../../../utils";
 import { HiOutlineXCircle } from "react-icons/hi2";
 import { HiOutlineDownload } from "react-icons/hi";
-import { downloadImageMutation, DownloadImageMutationParams } from "../../../services/photoPathService";
+import { DownloadImageMutationParams, PhotoPathService } from "../../../services/photoPathService";
 import { CgSpinner } from "react-icons/cg";
 
 interface FileCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void,
   column: TableColumn,
-  rowIndex: number
+  rowIndex: number,
+  PhotoPathService: PhotoPathService
 }
 
 export const FileCell = (props: FileCellProps) => {
@@ -39,7 +40,7 @@ export const FileCell = (props: FileCellProps) => {
   })
 
   const downloadFile = useMutation({
-    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
+    mutationFn: (params: DownloadImageMutationParams) => props.PhotoPathService.downloadImageMutation(params),
     onSettled: (file) => {
       if (file) {
         try {

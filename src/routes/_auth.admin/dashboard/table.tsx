@@ -6,6 +6,9 @@ import { TableSidePanel } from '../../../components/admin/table/TableSidePanel'
 import { TablePanel } from '../../../components/admin/table/TablePanel'
 import { useQuery } from '@tanstack/react-query'
 import { getAuthUsersQueryOptions, getAllUserTagsQueryOptions, getAllTemporaryUsersQueryOptions } from '../../../services/userService'
+import { V6Client } from '@aws-amplify/api-graphql'
+import { Schema } from '../../../../amplify/data/resource'
+import { PhotoPathService } from '../../../services/photoPathService'
 
 interface ManagementTablesSearchParams {
   table?: string,
@@ -18,7 +21,10 @@ export const Route = createFileRoute('/_auth/admin/dashboard/table')({
   }),
   beforeLoad: ({ search }) => search,
   loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+
     return {
+      PhotoPathService: new PhotoPathService(client),
       searchTable: context.table,
     }
   }
@@ -26,6 +32,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/table')({
 
 function RouteComponent() {
   const {
+    PhotoPathService,
     searchTable,
   } = Route.useLoaderData()
   const [tableGroups, setTableGroups] = useState<TableGroup[]>([])
@@ -66,6 +73,7 @@ function RouteComponent() {
         />
         { selectedTable ? (
           <TablePanel
+            PhotoPathService={PhotoPathService}
             parentUpdateSelectedTableGroups={setSelectedGroups}
             parentUpdateTableGroups={setTableGroups}
             parentUpdateSelectedTable={setSelectedTable}

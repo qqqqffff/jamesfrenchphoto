@@ -3,12 +3,9 @@ import { parsePathName } from "../utils"
 import { DownloadData, Favorite, PicturePath } from "../types"
 import { Dispatch, SetStateAction } from "react"
 import JSZip from 'jszip';
-import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
-
-const client = generateClient<Schema>()
 
 interface GetPathsFromFavoriteIdsOptions {
   logging?: boolean,
@@ -132,18 +129,6 @@ export interface DownloadImageMutationParams {
   }
 }
 
-export async function downloadImageMutation(params: DownloadImageMutationParams){
-  const downloadResponse = await downloadData({
-    path: params.path
-  }).result
-
-  if(params.options?.logging) console.log(downloadResponse)
-
-  const blob = await downloadResponse.body.blob()
-
-  return new File([blob], parsePathName(params.path), { type: blob.type })
-}
-
 export interface DownloadFavoritesMutationOptions {
   downloadId: string,
   zipName: string,
@@ -153,24 +138,57 @@ export interface DownloadFavoritesMutationOptions {
     logging?: boolean
   }
 }
-export async function downloadFavoritesMutation(params: DownloadFavoritesMutationOptions){
-  const paths: string[] = (await Promise.all(params.favorites
-    .map((favorite) => favorite.pathId)
-    .map(async (pathId) => {
-      const mappedPath = await client.models.PhotoPaths.get({ id: pathId })
-      if(!mappedPath.data) return
-      return mappedPath.data.path
-  }))).filter((path) => path !== undefined)
 
-  const zip = new JSZip()
+export class PhotoPathService {
+  private client: V6Client<Schema>
+  constructor(client: V6Client<Schema>) {
+    this.client = client
+  }
 
-  for(const path of paths){
-    const file = await downloadData({
-      path: path
+  async downloadImageMutation(params: DownloadImageMutationParams){
+    const downloadResponse = await downloadData({
+      path: params.path
     }).result
 
-    if(file){
-      zip.file(parsePathName(path), new File([await file.body.blob()], parsePathName(path), { type: file.contentType }))
+    if(params.options?.logging) console.log(downloadResponse)
+
+    const blob = await downloadResponse.body.blob()
+
+    return new File([blob], parsePathName(params.path), { type: blob.type })
+  }
+
+  async downloadFavoritesMutation(params: DownloadFavoritesMutationOptions){
+    const paths: string[] = (await Promise.all(params.favorites
+      .map((favorite) => favorite.pathId)
+      .map(async (pathId) => {
+        const mappedPath = await this.client.models.PhotoPaths.get({ id: pathId })
+        if(!mappedPath.data) return
+        return mappedPath.data.path
+    }))).filter((path) => path !== undefined)
+
+    const zip = new JSZip()
+
+    for(const path of paths){
+      const file = await downloadData({
+        path: path
+      }).result
+
+      if(file){
+        zip.file(parsePathName(path), new File([await file.body.blob()], parsePathName(path), { type: file.contentType }))
+      }
+
+      params.updateProgress((prev) => {
+        const temp = [...prev].map((download) => {
+          if(download.id === params.downloadId){
+            return {
+              ...download,
+              progress: download.progress + 1
+            }
+          }
+          return download
+        })
+        return temp
+      })
     }
 
     params.updateProgress((prev) => {
@@ -178,45 +196,32 @@ export async function downloadFavoritesMutation(params: DownloadFavoritesMutatio
         if(download.id === params.downloadId){
           return {
             ...download,
-            progress: download.progress + 1
+            state: 'done' as 'done'
           }
         }
         return download
       })
       return temp
     })
+
+    const zipContent = zip.generateAsync({ type: 'blob' })
+    console.log(zipContent)
+
+    return new File([await zipContent], params.zipName, { type: 'application/zip' }) 
   }
 
-  params.updateProgress((prev) => {
-    const temp = [...prev].map((download) => {
-      if(download.id === params.downloadId){
-        return {
-          ...download,
-          state: 'done' as 'done'
-        }
-      }
-      return download
-    })
-    return temp
+  getPathsFromFavoriteIdsQueryOptions = (ids: string[], options?: GetPathsFromFavoriteIdsOptions) => queryOptions({
+    queryKey: ['favorites', ids, options],
+    queryFn: () => getPathsFromFavoriteIds(this.client, ids, options)
   })
 
-  const zipContent = zip.generateAsync({ type: 'blob' })
-  console.log(zipContent)
-
-  return new File([await zipContent], params.zipName, { type: 'application/zip' }) 
+  getInfinitePathsQueryOptions = (setId?: string, options?: GetInfinitePathsOptions) => infiniteQueryOptions({
+    queryKey: ['infinitePhotoPaths', setId, options],
+    queryFn: ({ pageParam }) => getInfinitePaths(this.client, pageParam, setId, options),
+    getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
+    initialPageParam: ({
+      memo: [] as PicturePath[],
+    } as GetInfinitePathsData),
+    refetchOnWindowFocus: false,
+  })
 }
-
-export const getPathsFromFavoriteIdsQueryOptions = (ids: string[], options?: GetPathsFromFavoriteIdsOptions) => queryOptions({
-  queryKey: ['favorites', client, ids, options],
-  queryFn: () => getPathsFromFavoriteIds(client, ids, options)
-})
-
-export const getInfinitePathsQueryOptions = (setId?: string, options?: GetInfinitePathsOptions) => infiniteQueryOptions({
-  queryKey: ['infinitePhotoPaths', client, setId, options],
-  queryFn: ({ pageParam }) => getInfinitePaths(client, pageParam, setId, options),
-  getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
-  initialPageParam: ({
-    memo: [] as PicturePath[],
-  } as GetInfinitePathsData),
-  refetchOnWindowFocus: false,
-})

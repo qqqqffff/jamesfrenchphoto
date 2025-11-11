@@ -41,9 +41,11 @@ import { CoverPanel } from "./CoverPanel"
 import { CoverSidePanel } from "./CoverSidePanel"
 import { CollectionSidePanelButton } from "./CollectionSidePanelButton"
 import { v4 } from 'uuid'
+import { PhotoPathService } from "../../../services/photoPathService"
 
 interface PhotoCollectionPanelProps {
-  CollectionService: CollectionService
+  CollectionService: CollectionService,
+  PhotoPathService: PhotoPathService,
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
   availableTags: UserTag[],
@@ -67,7 +69,7 @@ export interface Publishable {
 export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({ 
   CollectionService, watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
-  updateShareTemplates, coverPath, updateParentCollections
+  updateShareTemplates, coverPath, updateParentCollections, PhotoPathService,
 }) => {
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
   const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
@@ -777,6 +779,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
         { activeConsole === 'sets' ? (
             selectedSet ? (
               <PhotoSetPanel 
+                PhotoPathService={PhotoPathService}
                 CollectionService={CollectionService}
                 photoCollection={collection} 
                 photoSet={selectedSet} 
@@ -814,6 +817,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
           activeConsole === 'favorites' ? (
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
             <FavoritePanel 
+              PhotoPathService={PhotoPathService}
               collection={collection}
             />
           </div>

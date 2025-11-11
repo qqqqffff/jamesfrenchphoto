@@ -3,9 +3,8 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { CollectionService } from '../services/collectionService'
 import {
-  downloadImageMutation,
+  PhotoPathService,
   DownloadImageMutationParams,
-  getPathsFromFavoriteIdsQueryOptions,
 } from '../services/photoPathService'
 import { parsePathName } from '../utils'
 import {
@@ -37,13 +36,14 @@ export const Route = createFileRoute('/_auth/favorites-fullscreen')({
   loader: async ({ context }) => {
     const client = context.client as V6Client<Schema>
     const collectionService = new CollectionService(client)
+    const photoPathService = new PhotoPathService(client)
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if (context.favorites.length === 0) throw redirect({ to: destination })
 
       
     const filteredFavorites = Array.from(new Set(context.favorites))
     const paths = await context.queryClient.ensureQueryData(
-      getPathsFromFavoriteIdsQueryOptions(filteredFavorites),
+      photoPathService.getPathsFromFavoriteIdsQueryOptions(filteredFavorites),
     )
 
     const firstSubstring = paths[0].path.substring(
@@ -66,6 +66,7 @@ export const Route = createFileRoute('/_auth/favorites-fullscreen')({
     //TODO: improved visual for de-duplication
     return {
       CollectionService: collectionService,
+      PhotoPathService: photoPathService,
       collection: collection,
       favorites: filteredFavorites,
       paths: paths.reduce((prev, cur) => {
@@ -97,7 +98,7 @@ function RouteComponent() {
 
   const downloadImage = useMutation({
     mutationFn: (params: DownloadImageMutationParams) =>
-      downloadImageMutation(params),
+      data.PhotoPathService.downloadImageMutation(params),
     onSettled: (file) => {
       if (file) {
         try {

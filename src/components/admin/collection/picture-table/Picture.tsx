@@ -17,7 +17,7 @@ import { FlowbiteColors } from "flowbite-react";
 import { LazyImage } from "../../../common/LazyImage";
 import { deleteImagesMutation, DeleteImagesMutationParams, favoriteImageMutation, FavoriteImageMutationParams, ReorderPathsParams, unfavoriteImageMutation, UnfavoriteImageMutationParams } from "../../../../services/photoSetService";
 import { HiOutlineDownload, HiOutlineHeart } from 'react-icons/hi'
-import { downloadImageMutation, DownloadImageMutationParams } from "../../../../services/photoPathService";
+import { DownloadImageMutationParams, PhotoPathService } from "../../../../services/photoPathService";
 import { CgArrowsExpandRight, CgSpinner } from "react-icons/cg";
 import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash, HiOutlineXCircle } from "react-icons/hi2";
 
@@ -46,30 +46,31 @@ const outerStyles: { [Key in PictureState['type']]?: HTMLAttributes<HTMLDivEleme
 const idle: PictureState = { type: 'idle' }
 
 interface PictureProps {
+  PhotoPathService: PhotoPathService,
   index: number,
-  paths: PicturePath[]
-  set: PhotoSet
-  collection: PhotoCollection
-  picture: PicturePath
-  url?: UseQueryResult<[string | undefined, string] | undefined, Error>
-  parentUpdatePaths: Dispatch<SetStateAction<PicturePath[]>>
-  parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
-  parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
-  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
-  pictureStyle: (id: string) => string
-  selectedPhotos: PicturePath[]
-  setSelectedPhotos: (photos: PicturePath[]) => void
-  setDisplayPhotoControls: (id?: string) => void
-  controlsEnabled: (id: string, override: boolean) => string
-  displayTitleOverride: boolean
+  paths: PicturePath[],
+  set: PhotoSet,
+  collection: PhotoCollection,
+  picture: PicturePath,
+  url?: UseQueryResult<[string | undefined, string] | undefined, Error>,
+  parentUpdatePaths: Dispatch<SetStateAction<PicturePath[]>>,
+  parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
+  parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
+  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>,
+  pictureStyle: (id: string) => string,
+  selectedPhotos: PicturePath[],
+  setSelectedPhotos: (photos: PicturePath[]) => void,
+  setDisplayPhotoControls: (id?: string) => void,
+  controlsEnabled: (id: string, override: boolean) => string,
+  displayTitleOverride: boolean,
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
-  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>
+  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>,
   participantId?: string,
   reorderPaths: UseMutationResult<void, Error, ReorderPathsParams, unknown>,
   watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined, Error>,
-  watermarkPath?: string
+  watermarkPath?: string,
   parentIsDragging?: PicturePath,
-  parentUpdateIsDragging: Dispatch<SetStateAction<PicturePath | undefined>>
+  parentUpdateIsDragging: Dispatch<SetStateAction<PicturePath | undefined>>,
 }
 
 export const Picture = (props: PictureProps) => {
@@ -302,7 +303,7 @@ export const Picture = (props: PictureProps) => {
   })
 
   const downloadImage = useMutation({
-    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
+    mutationFn: (params: DownloadImageMutationParams) => props.PhotoPathService.downloadImageMutation(params),
     onSettled: (file) => {
       if(file){
         try{

@@ -14,6 +14,7 @@ import { getAllShareTemplatesQueryOptions } from '../../../services/shareService
 import Loading from '../../../components/common/Loading'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
+import { PhotoPathService } from '../../../services/photoPathService'
 
 interface CollectionSearchParams {
   collection?: string,
@@ -35,6 +36,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
     const client = context.client as V6Client<Schema>
     return {
       CollectionService: new CollectionService(client),
+      PhotoPathService: new PhotoPathService(client),
       set: context.set,
       collection: context.collection,
       auth: context.auth,
@@ -185,6 +187,7 @@ function RouteComponent() {
         ) : (
           <PhotoCollectionPanel 
             CollectionService={data.CollectionService}
+            PhotoPathService={data.PhotoPathService}
             coverPath={selectedCoverPath}
             collection={selectedCollection}
             updateParentCollection={setSelectedCollection}

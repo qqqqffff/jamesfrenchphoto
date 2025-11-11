@@ -48,12 +48,14 @@ import { validateMapField } from "../../../functions/tableFunctions"
 import { getAllTimeslotsByDateQueryOptions, getAllTimeslotsByUserTagQueryOptions } from "../../../services/timeslotService"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
 import { inviteUserMutation, InviteUserParams } from "../../../services/userService"
+import { PhotoPathService } from "../../../services/photoPathService"
 // import { createParticipantMutation, CreateParticipantParams, updateParticipantMutation, UpdateParticipantMutationParams, updateUserAttributeMutation, UpdateUserAttributesMutationParams, updateUserProfileMutation, UpdateUserProfileParams } from "../../../services/userService"
 
 
 
 interface TableComponentProps {
   table: Table,
+  PhotoPathService: PhotoPathService,
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
@@ -879,6 +881,7 @@ export const TableComponent = (props: TableComponentProps) => {
                         case 'file': {
                           return (
                             <FileCell
+                              PhotoPathService={props.PhotoPathService}
                               key={j}
                               value={v}
                               updateValue={(text) => {

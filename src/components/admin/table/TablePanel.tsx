@@ -8,8 +8,10 @@ import { Dropdown, TextInput } from "flowbite-react"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
 import { TableComponent } from "./TableComponent"
 import Loading from "../../common/Loading"
+import { PhotoPathService } from "../../../services/photoPathService"
 
 interface TablePanelProps {
+  PhotoPathService: PhotoPathService,
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   selectedTable: Table
@@ -163,6 +165,7 @@ export const TablePanel = (props: TablePanelProps) => {
                   ...props.selectedTable,
                   columns: tableColumns,
                 }}
+                PhotoPathService={props.PhotoPathService}
                 parentUpdateTable={props.parentUpdateSelectedTable}
                 parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
                 parentUpdateTableGroups={props.parentUpdateTableGroups}

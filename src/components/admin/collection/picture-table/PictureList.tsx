@@ -13,7 +13,7 @@ import { InfiniteData, UseInfiniteQueryResult, useMutation, UseMutationResult, u
 import { CollectionService, RepairItemCountsParams } from '../../../../services/collectionService';
 import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
-import { GetInfinitePathsData } from '../../../../services/photoPathService';
+import { GetInfinitePathsData, PhotoPathService } from '../../../../services/photoPathService';
 import Loading from '../../../common/Loading';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
@@ -21,6 +21,7 @@ import useWindowDimensions from '../../../../hooks/windowDimensions';
 
 interface PictureListProps extends ComponentProps<'div'> {
   CollectionService: CollectionService,
+  PhotoPathService: PhotoPathService,
   set: PhotoSet,
   collection: PhotoCollection
   paths: PicturePath[],
@@ -376,6 +377,7 @@ export const PictureList = (props: PictureListProps) => {
               key={index}
             >
               <Picture 
+                PhotoPathService={props.PhotoPathService}
                 index={index}
                 set={props.set}
                 collection={props.collection}

@@ -6,12 +6,13 @@ import { HiOutlineDownload, HiOutlineEye } from "react-icons/hi"
 import { Tooltip } from "flowbite-react"
 import { DownloadToast } from "../../common/DownloadToast"
 import { useState } from "react"
-import { downloadFavoritesMutation, DownloadFavoritesMutationOptions } from "../../../services/photoPathService"
+import { DownloadFavoritesMutationOptions, PhotoPathService } from "../../../services/photoPathService"
 import { v4 } from 'uuid'
 import { useNavigate } from "@tanstack/react-router"
 import { formatTime } from "../../../utils"
 
 interface FavoritePanelProps {
+  PhotoPathService: PhotoPathService,
   collection: PhotoCollection
 }
 
@@ -24,7 +25,7 @@ export const FavoritePanel = (props: FavoritePanelProps) => {
   )
 
   const download = useMutation({
-    mutationFn: (params: DownloadFavoritesMutationOptions) => downloadFavoritesMutation(params),
+    mutationFn: (params: DownloadFavoritesMutationOptions) => props.PhotoPathService.downloadFavoritesMutation(params),
     onSettled: (file) => {
       if(file) {
         try {

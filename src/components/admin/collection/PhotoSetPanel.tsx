@@ -30,7 +30,7 @@ import { useDropzone } from "react-dropzone";
 import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
 import { AuthContext } from "../../../auth";
 import { PictureList } from "./picture-table/PictureList";
-import { getInfinitePathsQueryOptions } from "../../../services/photoPathService";
+import { PhotoPathService } from "../../../services/photoPathService";
 import Loading from "../../common/Loading";
 import { CollectionService, PublishCollectionParams, RepairItemCountsParams, RepairPathsParams } from "../../../services/collectionService";
 import { CgSpinner } from "react-icons/cg";
@@ -39,6 +39,7 @@ import { PublishableItems } from "./PublishableItems";
 import { useNavigate } from "@tanstack/react-router";
 
 export type PhotoSetPanelProps = {
+  PhotoPathService: PhotoPathService,
   CollectionService: CollectionService,
   photoCollection: PhotoCollection,
   photoSet: PhotoSet,
@@ -52,7 +53,7 @@ export type PhotoSetPanelProps = {
 }
 
 export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
-  CollectionService,
+  CollectionService, PhotoPathService,
   photoCollection, photoSet, publishable, publishCollection,
   deleteParentSet, parentUpdateSet,
   parentUpdateCollection, auth, parentUpdateCollections
@@ -70,7 +71,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const navigate = useNavigate()
 
   const pathsQuery = useInfiniteQuery(
-    getInfinitePathsQueryOptions(photoSet.id, {
+    PhotoPathService.getInfinitePathsQueryOptions(photoSet.id, {
       participantId: auth.user?.profile.activeParticipant?.id,
       maxItems: 16,
       maxWindow: 64
@@ -758,6 +759,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
         ) : (
           <PictureList 
             CollectionService={CollectionService}
+            PhotoPathService={PhotoPathService}
             collection={photoCollection}
             set={photoSet}
             paths={filteredPhotos

@@ -8,7 +8,7 @@ import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart, HiOutlineDownl
 import { useState } from 'react'
 import { parsePathName } from '../utils'
 import { PhotoCarousel } from '../components/admin/collection/PhotoCarousel'
-import { downloadImageMutation, DownloadImageMutationParams } from '../services/photoPathService'
+import { DownloadImageMutationParams, PhotoPathService } from '../services/photoPathService'
 import { Schema } from '../../amplify/data/resource'
 
 interface PhotoFullScreenParams {
@@ -51,6 +51,7 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
 
     return {
       CollectionService: collectionService,
+      PhotoPathService: new PhotoPathService(client),
       auth: context.auth,
       path: path,
       set: set,
@@ -89,7 +90,7 @@ function RouteComponent() {
   })
 
   const downloadImage = useMutation({
-    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
+    mutationFn: (params: DownloadImageMutationParams) => data.PhotoPathService.downloadImageMutation(params),
     onSettled: (file) => {
       if(file){
         try{
