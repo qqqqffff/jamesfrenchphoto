@@ -40,7 +40,7 @@ import { AggregateCell } from "./AggregateCell"
 import { ColorComponent } from "../../common/ColorComponent"
 import { v4 } from 'uuid'
 import { validateMapField } from "../../../functions/tableFunctions"
-import { getAllTimeslotsByDateQueryOptions, getAllTimeslotsByUserTagQueryOptions } from "../../../services/timeslotService"
+import { TimeslotService } from "../../../services/timeslotService"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
 import { inviteUserMutation, InviteUserParams } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
@@ -50,6 +50,7 @@ import { PhotoPathService } from "../../../services/photoPathService"
 
 interface TableComponentProps {
   TableService: TableService,
+  TimeslotService: TimeslotService,
   table: Table,
   PhotoPathService: PhotoPathService,
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
@@ -69,9 +70,9 @@ export const TableComponent = (props: TableComponentProps) => {
   const [selectedTag, setSelectedTag] = useState<UserTag | undefined>()
   const [createUser, setCreateUser] = useState(false)
 
-  const timeslotsQuery = useQuery(getAllTimeslotsByDateQueryOptions(selectedDate))
+  const timeslotsQuery = useQuery(props.TimeslotService.getAllTimeslotsByDateQueryOptions(selectedDate))
   const tagTimeslotQuery = useQuery({
-    ...getAllTimeslotsByUserTagQueryOptions(selectedTag?.id),
+    ...props.TimeslotService.getAllTimeslotsByUserTagQueryOptions(selectedTag?.id),
     enabled: selectedTag !== undefined
   })
  
@@ -748,6 +749,7 @@ export const TableComponent = (props: TableComponentProps) => {
                             <DateCell
                               key={j}
                               value={v}
+                              TimeslotService={props.TimeslotService}
                               //TODO: timeslot ids should be mutually exclusive -> need to convert cells from being an array of values to be its own dynamo for now will leave as is and avoid double registrations
                               updateValue={(text) => updateValue(id, text, i)}
                               table={props.table}

@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { getAllTimeslotsByUserTagListQueryOptions, registerTimeslotMutation, RegisterTimeslotMutationParams } from '../../../services/timeslotService'
+import { TimeslotService, RegisterTimeslotMutationParams } from '../../../services/timeslotService'
 import { useEffect, useState } from 'react'
 import { currentDate, formatTime, normalizeDate, sortDatesAround } from '../../../utils'
 import { Timeslot } from '../../../types'
@@ -11,9 +11,18 @@ import useWindowDimensions from '../../../hooks/windowDimensions'
 import SmallSizeTimeslot from '../../../components/timeslot/SmallSizeTimeslot'
 import FullSizeTimeslot from '../../../components/timeslot/FullSizeTimeslot'
 import { useAuth } from '../../../auth'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 export const Route = createFileRoute('/_auth/client/dashboard/scheduler')({
   component: RouteComponent,
+  loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+
+    return {
+      TimeslotService: new TimeslotService(client)
+    }
+  }
 })
 
 function RouteComponent() {
@@ -21,6 +30,7 @@ function RouteComponent() {
     user,
     updateProfile,
   } = useAuth()
+  const data = Route.useLoaderData()
   const router = useRouter()
 
   const tempProfile = user?.profile
@@ -33,7 +43,7 @@ function RouteComponent() {
   const userTags = participant.userTags
   const userEmail = userProfile.email
 
-  const timeslots = useQuery(getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
+  const timeslots = useQuery(data.TimeslotService.getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
 
   const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
     (timeslots.data ?? []).map((timeslot) => {
@@ -64,7 +74,7 @@ function RouteComponent() {
   }, [timeslots.data])
 
   const registerTimeslot= useMutation({
-    mutationFn: (params: RegisterTimeslotMutationParams) => registerTimeslotMutation(params)
+    mutationFn: (params: RegisterTimeslotMutationParams) => data.TimeslotService.registerTimeslotMutation(params)
   })
 
   function FormattedTimeslots() {

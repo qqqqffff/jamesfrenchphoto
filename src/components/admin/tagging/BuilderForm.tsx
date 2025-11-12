@@ -4,7 +4,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Alert, Button, FlowbiteColors } from "flowbite-react";
 import { DynamicStringEnumKeysOf } from "../../../utils";
 import { createTagMutation, CreateTagParams, getAllParticipantsByUserTagQueryOptions, updateTagMutation, UpdateTagParams } from "../../../services/userService";
-import { getAllTimeslotsByUserTagQueryOptions } from "../../../services/timeslotService";
+import { TimeslotService } from "../../../services/timeslotService";
 import { CollectionService } from "../../../services/collectionService";
 import { DetailsPanel } from "./DetailsPanel";
 import { CollectionsPanel } from "./CollectionsPanel";
@@ -15,6 +15,7 @@ import { evaluateTagDif } from "../../../functions/tagFunctions";
 
 interface BuilderFormProps {
   CollectionService: CollectionService,
+  TimeslotService: TimeslotService,
   selectedTag: UserTag,
   queriedTag?: UserTag,
   tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
@@ -90,7 +91,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
 
   //all timeslots ascociated with the tag
   const tagTimeslotsQuery = useQuery({
-    ...getAllTimeslotsByUserTagQueryOptions(props.selectedTag.id),
+    ...props.TimeslotService.getAllTimeslotsByUserTagQueryOptions(props.selectedTag.id),
     enabled: !props.selectedTag.temporary
   })
 

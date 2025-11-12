@@ -4,7 +4,7 @@ import { UserTag } from '../../../types'
 import { useQuery } from '@tanstack/react-query'
 import { CollectionService } from '../../../services/collectionService'
 import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
-import { getAllUntaggedTimeslotsQueryOptions } from '../../../services/timeslotService'
+import { TimeslotService } from '../../../services/timeslotService'
 import { BuilderPanel } from '../../../components/admin/tagging/BuilderPanel'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
@@ -14,7 +14,8 @@ export const Route = createFileRoute('/_auth/admin/dashboard/tagging')({
   loader: ({ context }) => {
     const client = context.client as  V6Client<Schema>
     return {
-      CollectionService: new CollectionService(client)
+      CollectionService: new CollectionService(client),
+      TimeslotService: new TimeslotService(client),
     }
   }
 })
@@ -46,7 +47,7 @@ function RouteComponent() {
   )
 
   const timeslotsQuery = useQuery(
-    getAllUntaggedTimeslotsQueryOptions({
+    data.TimeslotService.getAllUntaggedTimeslotsQueryOptions({
       metric: true
     })
   )
@@ -73,6 +74,7 @@ function RouteComponent() {
     <>
       <BuilderPanel 
         CollectionService={data.CollectionService}
+        TimeslotService={data.TimeslotService}
         tags={tags}
         tagsQuery={tagsQuery}
         parentUpdateTagList={setTags}

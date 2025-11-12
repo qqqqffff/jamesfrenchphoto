@@ -9,6 +9,7 @@ import { getAuthUsersQueryOptions, getAllUserTagsQueryOptions, getAllTemporaryUs
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from '../../../../amplify/data/resource'
 import { PhotoPathService } from '../../../services/photoPathService'
+import { TimeslotService } from '../../../services/timeslotService'
 
 interface ManagementTablesSearchParams {
   table?: string,
@@ -26,6 +27,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/table')({
     return {
       PhotoPathService: new PhotoPathService(client),
       TableService: new TableService(client),
+      TimeslotService: new TimeslotService(client),
       searchTable: context.table,
     }
   }
@@ -35,6 +37,7 @@ function RouteComponent() {
   const {
     PhotoPathService,
     TableService,
+    TimeslotService,
     searchTable,
   } = Route.useLoaderData()
   const [tableGroups, setTableGroups] = useState<TableGroup[]>([])
@@ -77,6 +80,7 @@ function RouteComponent() {
         { selectedTable ? (
           <TablePanel
             TableService={TableService}
+            TimeslotService={TimeslotService}
             PhotoPathService={PhotoPathService}
             parentUpdateSelectedTableGroups={setSelectedGroups}
             parentUpdateTableGroups={setTableGroups}

@@ -4,11 +4,12 @@ import { Button, Dropdown, Label, Modal, RangeSlider, TextInput } from "flowbite
 import { DAY_OFFSET, defaultColumnColors, getTimes, textInputTheme } from "../../utils";
 import { Timeslot, UserTag } from "../../types";
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
-import { createTimeslotsMutation, CreateTimeslotsMutationParams, deleteTimeslotsMutation, DeleteTimeslotsMutationParams, updateTimeslotMutation, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
+import { TimeslotService, CreateTimeslotsMutationParams, DeleteTimeslotsMutationParams, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
 import { v4 } from 'uuid'
 import { TagPicker } from "../admin/package/TagPicker";
 
 interface CreateTimeslotModalProps extends ModalProps {
+  TimeslotService: TimeslotService,
   day: Date;
   timeslots: Timeslot[]
   timeslotQuery: UseQueryResult<Timeslot[] | undefined, Error>
@@ -27,15 +28,15 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
   const [selectedTag, setSelectedTag] = useState<UserTag>()
 
   const createTimeslot = useMutation({
-    mutationFn: (params: CreateTimeslotsMutationParams) => createTimeslotsMutation(params)
+    mutationFn: (params: CreateTimeslotsMutationParams) => props.TimeslotService.createTimeslotsMutation(params)
   })
 
   const updateTimeslot = useMutation({
-    mutationFn: (params: UpdateTimeslotsMutationParams) => updateTimeslotMutation(params)
+    mutationFn: (params: UpdateTimeslotsMutationParams) => props.TimeslotService.updateTimeslotMutation(params)
   })
 
   const deleteTimeslot = useMutation({
-    mutationFn: (params: DeleteTimeslotsMutationParams) => deleteTimeslotsMutation(params)
+    mutationFn: (params: DeleteTimeslotsMutationParams) => props.TimeslotService.deleteTimeslotsMutation(params)
   })
 
   useEffect(() => {

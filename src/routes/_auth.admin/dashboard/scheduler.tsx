@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getAllTimeslotsByDateQueryOptions } from '../../../services/timeslotService'
+import { TimeslotService } from '../../../services/timeslotService'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { currentDate, DAY_OFFSET } from '../../../utils'
@@ -12,19 +12,28 @@ import { CreateTimeslotModal, EditTimeslotModal } from '../../../components/moda
 import { CustomDatePicker } from '../../../components/common/CustomDatePicker'
 import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
 import { TagNavigator } from '../../../components/timeslot/TagNavigator'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
   component: RouteComponent,
+  loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+    return {
+      TimeslotService: new TimeslotService(client)
+    }
+  }
 })
 
 function RouteComponent() {
+  const data = Route.useLoaderData()
   const [activeDate, setActiveDate] = useState<Date>(new Date(currentDate.getTime() + DAY_OFFSET))
   const [activeTag, setActiveTag] = useState<UserTag>()
   const [timeslots, setTimeslots] = useState<Timeslot[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
 
-  const timeslotQuery = useQuery(getAllTimeslotsByDateQueryOptions(activeDate))
+  const timeslotQuery = useQuery(data.TimeslotService.getAllTimeslotsByDateQueryOptions(activeDate))
   
   const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
     siCollections: false,
@@ -77,6 +86,7 @@ function RouteComponent() {
   return (
     <>
       <CreateTimeslotModal 
+        TimeslotService={data.TimeslotService}
         open={createTimeslotVisible} 
         onClose={() => {
           setActiveDate(new Date(activeDate))
@@ -91,6 +101,7 @@ function RouteComponent() {
       />
       {editTimeslotVisible && (
         <EditTimeslotModal 
+          TimeslotService={data.TimeslotService}
           open={editTimeslotVisible !== undefined} 
           onClose={() => {
             setEditTimeslotVisible(undefined)

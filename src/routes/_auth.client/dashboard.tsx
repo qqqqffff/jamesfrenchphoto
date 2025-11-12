@@ -6,13 +6,23 @@ import { badgeColorThemeMap } from '../../utils'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { UserProfile } from '../../types'
 import { getAllUserTagsQueryOptions } from '../../services/userService'
-import { getAllTimeslotsByUserTagQueryOptions } from '../../services/timeslotService'
+import { TimeslotService } from '../../services/timeslotService'
+import { Schema } from '../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 export const Route = createFileRoute('/_auth/client/dashboard')({
   component: RouteComponent,
+  loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+
+    return {
+      TimeslotService: new TimeslotService(client)
+    }
+  }
 })
 
 function RouteComponent() {
+  const data = Route.useLoaderData()
   const auth = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -32,7 +42,7 @@ function RouteComponent() {
     ) : (
       tags.data ?? [])
     ).map((tag) => {
-      return getAllTimeslotsByUserTagQueryOptions(tag.id)
+      return data.TimeslotService.getAllTimeslotsByUserTagQueryOptions(tag.id)
     })
   })
 
