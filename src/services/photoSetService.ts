@@ -298,8 +298,8 @@ export class PhotoSetService {
         )
     ) : params.paths
     
-    const updatedPathsResponse = Promise.all(orderedPaths
-      .map(async (path) => {
+    const updatedPathsResponse = await Promise.all(orderedPaths
+      .map((path) => {
         const response = this.client.models.PhotoPaths.update({
           id: path.id,
           order: path.order,

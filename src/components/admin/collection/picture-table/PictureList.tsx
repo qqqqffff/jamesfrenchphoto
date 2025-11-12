@@ -111,13 +111,15 @@ export const PictureList = (props: PictureListProps) => {
             return
           }
 
+          //TODO: update with revamped algo from setlist.tsx
           //if the dnd-ed object is the single selected photo or if it is not a selected photo
           const draggingSelected = props.selectedPhotos.some((picture) => picture.id === sourceData.picture.id)
           if(props.selectedPhotos.length == 1 && !draggingSelected) {
             const indexOfSource = pictures.findIndex((picture) => picture.id === sourceData.picture.id)
             const indexOfTarget = pictures.findIndex((picture) => picture.id === targetData.picture.id)
   
-            if(indexOfTarget < 0 || indexOfTarget < 0) {
+            //should be a reorder with edge instead of a swap
+            if(indexOfSource < 0 || indexOfTarget < 0) {
               return
             }
   

@@ -197,6 +197,13 @@ export interface UploadColumnFileParams {
   }
 }
 
+export interface ReorderTableColumnsParams {
+  tableColumns: TableColumn[],
+  options?: {
+    logging?: boolean
+  }
+}
+
 export class TableService {
   private client: V6Client<Schema>
   constructor(client: V6Client<Schema>) {
@@ -466,6 +473,16 @@ export class TableService {
     else {
       return ''
     }
+  }
+
+  async reorderTableColumnsMutation(params: ReorderTableColumnsParams) {
+    const updatedTableColumns = await Promise.all(params.tableColumns.map((tableColumn) => {
+      return this.client.models.TableColumn.update({
+        id: tableColumn.id,
+        order: tableColumn.order,
+      })
+    }))
+    if(params.options?.logging) console.log(updatedTableColumns)
   }
 
   getAllTableGroupsQueryOptions = (options?: GetAllTableGroupsOptions) => queryOptions({

@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
+import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react"
 import { 
   ColumnColor, 
   Participant, 
@@ -26,7 +26,8 @@ import {
   CreateTableColumnParams, 
   DeleteTableColumnParams, 
   DeleteTableRowParams, 
-  UpdateTableColumnParams 
+  UpdateTableColumnParams, 
+  ReorderTableColumnsParams
 } from "../../../services/tableService"
 import { EditableTextField } from "../../common/EditableTextField"
 import { ValueCell } from "./ValueCell"
@@ -44,9 +45,49 @@ import { TimeslotService } from "../../../services/timeslotService"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
 import { UserService, InviteUserParams } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
+import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
+import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { getTableColumnData, isDraggingTableColumn, isTableColumnData } from "./TableColumnData"
+import { flushSync } from "react-dom"
+import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
+import {
+  draggable,
+  dropTargetForElements,
+} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import {
+  attachClosestEdge,
+  type Edge,
+  extractClosestEdge,
+} from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
+import type { CleanupFn } from '@atlaskit/pragmatic-drag-and-drop/types';
+import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
+import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview';
+import { DropIndicator } from "../../common/DropIndicator"
+
 // import { createParticipantMutation, CreateParticipantParams, updateParticipantMutation, UpdateParticipantMutationParams, updateUserAttributeMutation, UpdateUserAttributesMutationParams, updateUserProfileMutation, UpdateUserProfileParams } from "../../../services/userService"
 
 
+type TableColumnState = 
+  | {
+      type: 'idle';
+    }
+  | {
+      type: 'preview';
+      container: HTMLElement;
+    }
+  | {
+      type: 'is-dragging';
+    }
+  | {
+      type: 'is-dragging-over';
+      closestEdge: Edge | null
+    };
+
+const stateStyles: { [Key in TableColumnState['type']]?: HTMLAttributes<HTMLDivElement>['className'] } = {
+  'is-dragging': 'opacity-40',
+}
+
+const idle: TableColumnState = { type: 'idle' }
 
 interface TableComponentProps {
   TableService: TableService,
@@ -70,6 +111,7 @@ export const TableComponent = (props: TableComponentProps) => {
   const [selectedDate, setSelectedDate] = useState<Date>(currentDate)
   const [selectedTag, setSelectedTag] = useState<UserTag | undefined>()
   const [createUser, setCreateUser] = useState(false)
+  const [tableColumnState, setTableColumnState] = useState<Map<TableColumn, TableColumnState>>(new Map(props.table.columns.map((column) => ([column, idle]))))
 
   const timeslotsQuery = useQuery(props.TimeslotService.getAllTimeslotsByDateQueryOptions(selectedDate))
   const tagTimeslotQuery = useQuery({
@@ -77,6 +119,8 @@ export const TableComponent = (props: TableComponentProps) => {
     enabled: selectedTag !== undefined
   })
  
+  const tableRef = useRef<HTMLTableElement | null>(null)
+  const tableColumnRef = useRef<Map<TableColumn, HTMLTableCellElement | null>>(new Map())
   const refColumn = useRef<TableColumn | null>()
   const refRow = useRef<number>(-1)
 
@@ -120,6 +164,10 @@ export const TableComponent = (props: TableComponentProps) => {
     mutationFn: (params: InviteUserParams) => props.UserService.inviteUserMutation(params),
   })
 
+  const reorderTableColumns = useMutation({
+    mutationFn: (params: ReorderTableColumnsParams) => props.TableService.reorderTableColumnsMutation(params)
+  })
+
   const link = window.location.href
     .replace(new RegExp(/admin.*/g), 'register')
 
@@ -150,6 +198,203 @@ export const TableComponent = (props: TableComponentProps) => {
       setUsers(props.userData.data)
     }
   }, [props.userData.data])
+
+  console.log(tableColumnState)
+
+  useEffect(() => {
+    if(
+      Array.from(tableColumnState.keys()).some((key) => !props.table.columns.some((column) => column.id === key.id)) ||
+      props.table.columns.some((column) => !Array.from(tableColumnState.keys()).some((key) => key.id === column.id))
+    ) {
+      const temp = new Map(props.table.columns.map((column) => ([column, idle])))
+      setTableColumnState(temp)
+    }
+
+    const element = tableRef.current
+
+    if(!element) {
+      return
+    }
+
+    return combine(
+      monitorForElements({
+        canMonitor: isDraggingTableColumn,
+        onDrop({ location, source }) {
+          const target = location.current.dropTargets[0]
+          if(!target){
+            return
+          }
+
+          const sourceData = source.data
+          const targetData = target.data
+
+          if(!isTableColumnData(sourceData) || !isTableColumnData(targetData)) {
+            return
+          }
+
+          const indexOfSource = props.table.columns.find((tableColumn) => tableColumn.id === sourceData.columnId)?.order ?? -1
+          const indexOfTarget = props.table.columns.find((tableColumn) => tableColumn.id === targetData.columnId)?.order ?? -1
+
+          if(indexOfTarget < 0 || indexOfSource < 0) {
+            return
+          }
+
+          const closestEdgeOfTarget = extractClosestEdge(targetData)
+
+          const updatedTableColumns: TableColumn[] = []
+
+          if(closestEdgeOfTarget === 'left') {
+            updatedTableColumns.push(
+              ...props.table.columns.slice(0, indexOfTarget)
+            )
+            updatedTableColumns.push({...props.table.columns[indexOfSource], order: indexOfTarget })
+            updatedTableColumns.push(
+              ...props.table.columns.slice(indexOfTarget)
+            )
+          }
+          else if(closestEdgeOfTarget === 'right') {
+            updatedTableColumns.push(
+              ...props.table.columns.slice(0, indexOfTarget + 1)
+            )
+            updatedTableColumns.push({ ...props.table.columns[indexOfSource], order: indexOfTarget })
+            updatedTableColumns.push(
+              ...props.table.columns.slice(indexOfTarget + 1)
+            )
+          }
+
+          flushSync(() => {
+            const newTableColumns = updatedTableColumns.filter((column) => column.order !== indexOfSource).map((column, index) => ({ ...column, order: index }))
+
+            const updateGroup = (prev: TableGroup[]): TableGroup[] => {
+              return prev.map((group) => group.tables.some((table) => table.id === props.table.id) ? ({
+                ...group,
+                tables: group.tables.map((table) => table.id === props.table.id ? ({
+                  ...table,
+                  columns: newTableColumns,
+                }) : table)
+              }) : group)
+            }
+            reorderTableColumns.mutate({
+              tableColumns: newTableColumns,
+              options: {
+                logging: true
+              }
+            })
+            props.parentUpdateTableColumns(newTableColumns)
+            props.parentUpdateSelectedTableGroups(prev => updateGroup(prev))
+            props.parentUpdateTableGroups(prev => updateGroup(prev))
+            props.parentUpdateTable({
+              ...props.table,
+              columns: newTableColumns
+            })
+          })
+
+          const element = document.querySelector(`[data-table-column-id="${sourceData.columnId}"]`);
+          if(element instanceof HTMLElement) {
+            triggerPostMoveFlash(element)
+          }
+        }
+      })
+    )
+  }, [props.table])
+
+  useEffect(() => {
+    const functions: CleanupFn[] = []
+
+    const elementsArray = Array.from(tableColumnRef.current.entries())
+    for(let i = 0; i < elementsArray.length; i++) {
+      const entry = elementsArray[i]
+      if(entry[1] === null) continue
+      const element = entry[1]
+
+      functions.push(draggable({
+        element,
+        getInitialData(){
+          return getTableColumnData(entry[0])
+        },
+        canDrag: () => true,
+        onGenerateDragPreview({ nativeSetDragImage }) {
+          setCustomNativeDragPreview({
+            nativeSetDragImage,
+            getOffset: pointerOutsideOfPreview({
+              x: '16px',
+              y: '8px'
+            }),
+            render({ container }) {
+              const temp = new Map(tableColumnState)
+              temp.set(entry[0], { type: 'preview', container })
+              setTableColumnState(temp)
+            }
+          })
+        },
+        onDragStart() {
+          const temp = new Map(tableColumnState)
+          temp.set(entry[0], { type: 'is-dragging' })
+          setTableColumnState(temp)
+        },
+        onDrop() {
+          const temp = new Map(tableColumnState)
+          temp.set(entry[0], { type: 'idle' })
+          setTableColumnState(temp)
+        }
+      }))
+
+      functions.push(dropTargetForElements({
+        element,
+        canDrop({ source }) {
+          if(source.element === element) {
+            return false
+          }
+          return isTableColumnData(source.data)
+        },
+        getData({ input }) {
+          const data = getTableColumnData(entry[0])
+          return attachClosestEdge(data, {
+            element,
+            input,
+            allowedEdges: ['left', 'right']
+          })
+        },
+        getIsSticky() {
+          return true
+        },
+        onDragEnter({ self }) {
+          const closestEdge = extractClosestEdge(self.data)
+          const temp = new Map(tableColumnState)
+          temp.set(entry[0], { type: 'is-dragging-over', closestEdge })
+          setTableColumnState(temp)
+        },
+        onDrag({ self }) {
+          const closestEdge = extractClosestEdge(self.data)
+          const currentColumn = tableColumnState.get(entry[0])
+
+          if(
+            currentColumn && 
+            currentColumn.type === 'is-dragging-over' && 
+            currentColumn.closestEdge !== closestEdge
+          ) {
+            const temp = new Map(tableColumnState)
+            temp.set(entry[0], { type: 'is-dragging-over', closestEdge })
+            setTableColumnState(temp)
+          }
+        },
+        onDragLeave() {
+          const temp = new Map(tableColumnState)
+          temp.set(entry[0], idle)
+          setTableColumnState(temp)
+        },
+        onDrop() {
+          const temp = new Map(tableColumnState)
+          temp.set(entry[0], idle)
+          setTableColumnState(temp)
+        }
+      }))
+    }
+
+    return combine(
+      ...functions
+    )
+  }, [tableColumnRef.current])
 
   const pushColumn = (type: TableColumn['type']) => {
     const temp: TableColumn = {
@@ -442,225 +687,237 @@ export const TableComponent = (props: TableComponentProps) => {
       />
       {/* overflow-x-auto overflow-y-auto */}
       <div className="relative shadow-md overflow-scroll max-w-[60vw] max-h-[85vh]">
-        <table className="w-full text-sm text-left text-gray-600">
+        <table className="w-full text-sm text-left text-gray-600" ref={tableRef}>
           <thead className="text-xs text-gray-700 bg-gray-50 sticky">
             <tr>
               {props.table.columns
               .map((column) => {
+                const state = tableColumnState.get(column)
+                // if(state === undefined) return (<></>)
                 return (
-                  <th
-                    onMouseEnter={() => {}}
-                    key={column.id}
-                    className="
-                      relative border-x border-x-gray-300 border-b border-b-gray-300 
-                      min-w-[150px] max-w-[150px] whitespace-normal break-words place-items-center
-                      items-center
-                    "
-                  >
-                    {column.temporary || column.edit ? (
-                      <div className="w-full pe-10">
-                        <EditableTextField 
-                          className="text-xs border-b-black focus:ring-0 focus:border-transparent focus:border-b-black min-w-full bg-transparent"
-                          text={column.header ?? ''}
-                          placeholder="Enter Column Name..."
-                          onSubmitText={(text) => {
-                            if(column.temporary && text !== ''){
-                              const valuesArray = []
-                              for(let i = 0; i < props.table.columns[0].values.length; i++) {
-                                valuesArray.push('')
-                              }
-                              const tempColumn: TableColumn = {
-                                id: column.id,
-                                display: true,
-                                tags: [],
-                                header: text,
-                                tableId: props.table.id,
-                                type: column.type,
-                                values: valuesArray,
-                                order: props.table.columns.length,
-                              }
-                              createColumn.mutate({
-                                column: tempColumn,
-                                options: {
-                                  logging: true
+                  <>
+                    <th
+                      data-table-column-id={column.id}
+                      ref={el => tableColumnRef.current.set(column, el)}
+                      // onMouseEnter={() => {}}
+                      key={column.id}
+                      className={`
+                        relative border-x border-x-gray-300 border-b border-b-gray-300 
+                        min-w-[150px] max-w-[150px] whitespace-normal break-words place-items-center
+                        items-center ${stateStyles[state?.type ?? 'idle'] ?? ''}
+                      `}
+                    >
+                      {state !== undefined && state.type === 'is-dragging-over' && state.closestEdge && state.closestEdge === 'left' && (
+                        <DropIndicator edge={state.closestEdge} gap={'8px'} />
+                      )}
+                      {column.temporary || column.edit ? (
+                        <div className="w-full pe-10">
+                          <EditableTextField 
+                            className="text-xs border-b-black focus:ring-0 focus:border-transparent focus:border-b-black min-w-full bg-transparent"
+                            text={column.header ?? ''}
+                            placeholder="Enter Column Name..."
+                            onSubmitText={(text) => {
+                              if(column.temporary && text !== ''){
+                                const valuesArray = []
+                                for(let i = 0; i < props.table.columns[0].values.length; i++) {
+                                  valuesArray.push('')
                                 }
-                              })
-                              const temp: Table = {
-                                ...props.table,
-                                columns: props.table.columns
-                                  .map((pColumn) => (pColumn.id === tempColumn.id ? tempColumn : pColumn))
-                              }
-
-                              const updateGroup = (prev: TableGroup[]) => {
-                                const pTemp: TableGroup[] = [...prev]
-                                  .map((group) => {
-                                    if(group.id === props.table.tableGroupId){
-                                      return {
-                                        ...group,
-                                        tables: group.tables.map((table) => {
-                                          if(table.id === props.table.id){
-                                            return temp
-                                          }
-                                          return table
-                                        })
-                                      }
-                                    }
-                                    return group
-                                  })
-
-                                return pTemp
-                              }
-
-                              props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-                              props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                              props.parentUpdateTable(temp)
-                              props.parentUpdateTableColumns(temp.columns)
-                            }
-                            else if(column.edit && text !== column.header && text !== '') {
-                              updateColumn.mutate({
-                                column: column,
-                                values: column.values,
-                                header: text,
-                                options: {
-                                  logging: true
+                                const tempColumn: TableColumn = {
+                                  id: column.id,
+                                  display: true,
+                                  tags: [],
+                                  header: text,
+                                  tableId: props.table.id,
+                                  type: column.type,
+                                  values: valuesArray,
+                                  order: props.table.columns.length,
                                 }
-                              })
-
-                              const temp: Table = {
-                                ...props.table,
-                                columns: props.table.columns
-                                  .map((parentColumn) => ({
-                                    ...parentColumn, 
-                                    header: parentColumn.id === column.id ? text : parentColumn.header,
-                                    edit: parentColumn.id === column.id ? false : parentColumn.edit,
-                                  }))
-                              }
-
-                              const updateGroup = (prev: TableGroup[]) => {
-                                const pTemp = [...prev]
-                                  .map((group) => {
-                                    if(group.id === temp.tableGroupId){
-                                      return {
-                                        ...group,
-                                        tables: group.tables.map((table) => {
-                                          if(table.id === temp.id){
-                                            return temp
-                                          }
-                                          return table
-                                        })
-                                      }
-                                    }
-                                    return group
-                                  })
-
-                                return pTemp
-                              }
-    
-                              props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-                              props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                              props.parentUpdateTable(temp)
-                              props.parentUpdateTableColumns(temp.columns)
-                            }
-                          }}
-                          onCancel={() => {
-                            const temp: Table = {
-                              ...props.table,
-                              columns: props.table.columns
-                                .filter((col) => col.temporary === undefined || col.temporary === false)
-                                .map((col) => (col.id === column.id ? ({
-                                  ...col,
-                                  edit: false
-                                }) : col))
-                            }
-
-                            const updateGroup = (prev: TableGroup[]) => {
-                              const pTemp = [...prev]
-                                .map((group) => group.id === props.table.tableGroupId ? ({
-                                    ...group,
-                                    tables: group.tables.map((table) => table.id === temp.id ? temp : table)
-                                  }) : group
-                                )
-
-                              return pTemp
-                            }
-
-                            props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-                            props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                            props.parentUpdateTable(temp)
-                            props.parentUpdateTableColumns(temp.columns)
-                          }}
-                          editting
-                        />
-                      </div>
-                    ) : (
-                      <Dropdown 
-                        className="min-w-max"
-                        label={(<span className="hover:underline underline-offset-2">{column.header}</span>)}
-                        arrowIcon={false}
-                        placement="bottom"
-                        inline
-                      >
-                        <div className="w-max flex flex-col">
-                          <span className="whitespace-nowrap px-4 border-b pb-0.5 font-semibold text-base text-center w-full">
-                            <span>Type:</span>
-                            <ColorComponent 
-                              customText={' ' + column.type[0].toUpperCase() + column.type.substring(1)} 
-                              activeColor={getColumnTypeColor(column.type)}
-                            />
-                          </span>
-                          <Dropdown.Item 
-                            className="justify-center"
-                            onClick={() => {
-                              const temp: Table = {
-                                ...props.table,
-                                columns: props.table.columns.map((parentColumn) => {
-                                  if(parentColumn.id === column.id){
-                                    return {
-                                      ...parentColumn,
-                                      edit: true
-                                    }
+                                createColumn.mutate({
+                                  column: tempColumn,
+                                  options: {
+                                    logging: true
                                   }
-                                  return parentColumn
                                 })
+                                const temp: Table = {
+                                  ...props.table,
+                                  columns: props.table.columns
+                                    .map((pColumn) => (pColumn.id === tempColumn.id ? tempColumn : pColumn))
+                                }
+
+                                const updateGroup = (prev: TableGroup[]) => {
+                                  const pTemp: TableGroup[] = [...prev]
+                                    .map((group) => {
+                                      if(group.id === props.table.tableGroupId){
+                                        return {
+                                          ...group,
+                                          tables: group.tables.map((table) => {
+                                            if(table.id === props.table.id){
+                                              return temp
+                                            }
+                                            return table
+                                          })
+                                        }
+                                      }
+                                      return group
+                                    })
+
+                                  return pTemp
+                                }
+
+                                props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                                props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                                props.parentUpdateTable(temp)
+                                props.parentUpdateTableColumns(temp.columns)
+                              }
+                              else if(column.edit && text !== column.header && text !== '') {
+                                updateColumn.mutate({
+                                  column: column,
+                                  values: column.values,
+                                  header: text,
+                                  options: {
+                                    logging: true
+                                  }
+                                })
+
+                                const temp: Table = {
+                                  ...props.table,
+                                  columns: props.table.columns
+                                    .map((parentColumn) => ({
+                                      ...parentColumn, 
+                                      header: parentColumn.id === column.id ? text : parentColumn.header,
+                                      edit: parentColumn.id === column.id ? false : parentColumn.edit,
+                                    }))
+                                }
+
+                                const updateGroup = (prev: TableGroup[]) => {
+                                  const pTemp = [...prev]
+                                    .map((group) => {
+                                      if(group.id === temp.tableGroupId){
+                                        return {
+                                          ...group,
+                                          tables: group.tables.map((table) => {
+                                            if(table.id === temp.id){
+                                              return temp
+                                            }
+                                            return table
+                                          })
+                                        }
+                                      }
+                                      return group
+                                    })
+
+                                  return pTemp
+                                }
+      
+                                props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                                props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                                props.parentUpdateTable(temp)
+                                props.parentUpdateTableColumns(temp.columns)
+                              }
+                            }}
+                            onCancel={() => {
+                              const temp: Table = {
+                                ...props.table,
+                                columns: props.table.columns
+                                  .filter((col) => col.temporary === undefined || col.temporary === false)
+                                  .map((col) => (col.id === column.id ? ({
+                                    ...col,
+                                    edit: false
+                                  }) : col))
                               }
 
                               const updateGroup = (prev: TableGroup[]) => {
                                 const pTemp = [...prev]
-                                  .map((group) => {
-                                    if(group.id === temp.tableGroupId){
-                                      return {
-                                        ...group,
-                                        tables: group.tables.map((table) => {
-                                          if(table.id === temp.id){
-                                            return temp
-                                          }
-                                          return table
-                                        })
-                                      }
-                                    }
-                                    return group
-                                  })
+                                  .map((group) => group.id === props.table.tableGroupId ? ({
+                                      ...group,
+                                      tables: group.tables.map((table) => table.id === temp.id ? temp : table)
+                                    }) : group
+                                  )
 
                                 return pTemp
                               }
 
-                              props.parentUpdateTable(temp)
                               props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
                               props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                              props.parentUpdateTable(temp)
                               props.parentUpdateTableColumns(temp.columns)
                             }}
-                          >Rename</Dropdown.Item>
-                          <Dropdown.Item 
-                            className="justify-center"
-                            onClick={() => {
-                              refColumn.current = column
-                              setDeleteColumnConfirmation(true)
-                            }}
-                          >Delete</Dropdown.Item>
+                            editting
+                          />
                         </div>
-                      </Dropdown>
-                    )}
-                  </th>
+                      ) : (
+                        <Dropdown 
+                          className="min-w-max"
+                          label={(<span className="hover:underline underline-offset-2">{column.header}</span>)}
+                          arrowIcon={false}
+                          placement="bottom"
+                          inline
+                        >
+                          <div className="w-max flex flex-col">
+                            <span className="whitespace-nowrap px-4 border-b pb-0.5 font-semibold text-base text-center w-full">
+                              <span>Type:</span>
+                              <ColorComponent 
+                                customText={' ' + column.type[0].toUpperCase() + column.type.substring(1)} 
+                                activeColor={getColumnTypeColor(column.type)}
+                              />
+                            </span>
+                            <Dropdown.Item 
+                              className="justify-center"
+                              onClick={() => {
+                                const temp: Table = {
+                                  ...props.table,
+                                  columns: props.table.columns.map((parentColumn) => {
+                                    if(parentColumn.id === column.id){
+                                      return {
+                                        ...parentColumn,
+                                        edit: true
+                                      }
+                                    }
+                                    return parentColumn
+                                  })
+                                }
+
+                                const updateGroup = (prev: TableGroup[]) => {
+                                  const pTemp = [...prev]
+                                    .map((group) => {
+                                      if(group.id === temp.tableGroupId){
+                                        return {
+                                          ...group,
+                                          tables: group.tables.map((table) => {
+                                            if(table.id === temp.id){
+                                              return temp
+                                            }
+                                            return table
+                                          })
+                                        }
+                                      }
+                                      return group
+                                    })
+
+                                  return pTemp
+                                }
+
+                                props.parentUpdateTable(temp)
+                                props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+                                props.parentUpdateTableGroups((prev) => updateGroup(prev))
+                                props.parentUpdateTableColumns(temp.columns)
+                              }}
+                            >Rename</Dropdown.Item>
+                            <Dropdown.Item 
+                              className="justify-center"
+                              onClick={() => {
+                                refColumn.current = column
+                                setDeleteColumnConfirmation(true)
+                              }}
+                            >Delete</Dropdown.Item>
+                          </div>
+                        </Dropdown>
+                      )}
+                      {state !== undefined && state.type === 'is-dragging-over' && state.closestEdge && state.closestEdge === 'right' && (
+                        <DropIndicator edge={state.closestEdge} gap={'8px'} />
+                      )}
+                    </th>
+                  </>
                 )
               })}
               <th
