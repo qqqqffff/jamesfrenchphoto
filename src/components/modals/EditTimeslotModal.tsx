@@ -5,7 +5,7 @@ import { Alert, Button, Dropdown, Label, Modal, TextInput, Tooltip } from "flowb
 import { getTimes, normalizeDate, textInputTheme } from "../../utils";
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
 import { TimeslotService, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
-import { getUserProfileByEmailQueryOptions } from "../../services/userService";
+import { UserService } from "../../services/userService";
 import { HiOutlineExclamation } from "react-icons/hi";
 import { formatParticipantName } from "../../functions/clientFunctions";
 import { HiOutlineXMark } from "react-icons/hi2";
@@ -15,6 +15,7 @@ import { TagPicker } from "../admin/package/TagPicker";
 
 interface EditTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,
+  UserService: UserService,
   timeslot: Timeslot,
   //TODO: do some dynamic rendering while loading participants/timeslots
   timeslotQuery: UseQueryResult<Timeslot[] | undefined, Error>
@@ -40,7 +41,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
   const [participantSearchFocused, setParticipantSearchFocused] = useState(false)
 
   const userProfile = useQuery({
-    ...getUserProfileByEmailQueryOptions(props.participants.find((participant) => participant.id === participantId)?.userEmail ?? '', {
+    ...props.UserService.getUserProfileByEmailQueryOptions(props.participants.find((participant) => participant.id === participantId)?.userEmail ?? '', {
       siCollections: false,
       siNotifications: false,
       siSets: false,

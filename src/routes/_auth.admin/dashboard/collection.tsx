@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { CollectionService } from '../../../services/collectionService'
-import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { PhotoCollectionPanel } from '../../../components/admin/collection/PhotoCollectionPanel'
 import { useQueries, useQuery, UseQueryResult, useSuspenseQuery } from '@tanstack/react-query'
 import { CreateCollectionModal, LoadingModal } from '../../../components/modals'
@@ -16,6 +15,9 @@ import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { PhotoPathService } from '../../../services/photoPathService'
 import { PhotoSetService } from '../../../services/photoSetService'
+import { TagService } from '../../../services/tagService'
+import { WatermarkService } from '../../../services/watermarkService'
+import { UserService } from '../../../services/userService'
 
 interface CollectionSearchParams {
   collection?: string,
@@ -40,6 +42,9 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
       PhotoPathService: new PhotoPathService(client),
       PhotoSetService: new PhotoSetService(client),
       ShareService: new ShareService(client),
+      TagService: new TagService(client),
+      WatermarkService: new WatermarkService(client),
+      UserService: new UserService(client),
       set: context.set,
       collection: context.collection,
       auth: context.auth,
@@ -61,7 +66,7 @@ function RouteComponent() {
   const [search, setSearch] = useState<string>('')
   const [expandedTitle, setExpandedTitle] = useState<string>()
 
-  const tagsPromise = useSuspenseQuery(getAllUserTagsQueryOptions({ siCollections: false }))
+  const tagsPromise = useSuspenseQuery(data.TagService.getAllUserTagsQueryOptions({ siCollections: false }))
   const watermarkQuery = useQuery(data.CollectionService.getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
   const shareTemplatesQuery = useQuery(data.ShareService.getAllShareTemplatesQueryOptions())
 
@@ -189,6 +194,8 @@ function RouteComponent() {
           </div>
         ) : (
           <PhotoCollectionPanel 
+            UserService={data.UserService}
+            WatermarkService={data.WatermarkService}
             CollectionService={data.CollectionService}
             PhotoPathService={data.PhotoPathService}
             PhotoSetService={data.PhotoSetService}

@@ -305,7 +305,7 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
         participants.push(...(await Promise.all(participantTagData.map(async (tagResponse) => {
             const participant = await tagResponse.participant()
             if(participant.data) {
-              const newParticipant = await mapParticipant(participant.data, {
+              const newParticipant = await mapParticipant(client, participant.data, {
                   siCollections: false,
                   siNotifications: false,
                   siTags: options?.siTags ? {

@@ -2,7 +2,7 @@ import { createContext, ReactNode, useCallback, useContext, useState } from "rea
 import { UserProfile, UserStorage } from "./types"
 import { confirmSignIn, fetchAuthSession, fetchUserAttributes, FetchUserAttributesOutput, getCurrentUser, signIn, signOut } from "aws-amplify/auth"
 import { Schema } from "../amplify/data/resource";
-import { getUserProfileByEmail } from "./services/userService";
+import { UserService } from "./services/userService";
 import { V6Client } from '@aws-amplify/api-graphql'
 
 type LoginReturnType = 'fail' | 'admin' | 'client' | 'nextStep'
@@ -46,13 +46,15 @@ export function AuthProvider({ children, client } : { children: ReactNode, clien
         setUser(null)
     }, [])
 
+    const userService = new UserService(client)
+
     const signinFlow = async (username: string) => {
         const user = await getCurrentUser()
         const session = await fetchAuthSession()
         const attributes = await fetchUserAttributes()
         const groups = JSON.stringify(session.tokens?.accessToken.payload['cognito:groups'])
         //TODO: validate that this is fetching entire profile correctly
-        const profile = await getUserProfileByEmail(client, username, 
+        const profile = await userService.getUserProfileByEmail(client, username, 
             groups.includes('ADMINS') || groups.includes('USERS') ? {
                 siTags: true,
                 siTimeslot: true,

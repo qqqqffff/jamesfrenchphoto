@@ -5,10 +5,10 @@ import { HiArrowUturnLeft, HiOutlineCalendar, HiOutlineClipboard, HiOutlineHome 
 import { badgeColorThemeMap } from '../../utils'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { UserProfile } from '../../types'
-import { getAllUserTagsQueryOptions } from '../../services/userService'
 import { TimeslotService } from '../../services/timeslotService'
 import { Schema } from '../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
+import { TagService } from '../../services/tagService'
 
 export const Route = createFileRoute('/_auth/client/dashboard')({
   component: RouteComponent,
@@ -16,7 +16,8 @@ export const Route = createFileRoute('/_auth/client/dashboard')({
     const client = context.client as V6Client<Schema>
 
     return {
-      TimeslotService: new TimeslotService(client)
+      TimeslotService: new TimeslotService(client),
+      TagService: new TagService(client),
     }
   }
 })
@@ -33,7 +34,7 @@ function RouteComponent() {
   }
 
   const tags = useQuery({
-    ...getAllUserTagsQueryOptions({ siCollections: false }),
+    ...data.TagService.getAllUserTagsQueryOptions({ siCollections: false }),
     enabled: auth.admin ?? false
   })
   const timeslots = useQueries({

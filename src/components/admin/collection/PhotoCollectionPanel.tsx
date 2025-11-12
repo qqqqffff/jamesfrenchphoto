@@ -22,9 +22,8 @@ import { AuthContext } from "../../../auth"
 import { FavoritePanel } from "./FavoritePanel"
 import { HiOutlineUpload } from "react-icons/hi"
 import { 
-  deleteWatermarkMutation, 
-  DeleteWatermarkParams, 
-  uploadWatermarksMutation,
+  WatermarkService, 
+  DeleteWatermarkParams,
   WatermarkUploadParams 
 } from "../../../services/watermarkService"
 import { parsePathName } from "../../../utils"
@@ -36,7 +35,7 @@ import {
 } from "../../../services/shareService"
 import { CgSpinner } from "react-icons/cg"
 import { UsersPanel } from "./UsersPanel"
-import { getAllParticipantsQueryOptions } from "../../../services/userService"
+import { UserService } from "../../../services/userService"
 import { CoverPanel } from "./CoverPanel"
 import { CoverSidePanel } from "./CoverSidePanel"
 import { CollectionSidePanelButton } from "./CollectionSidePanelButton"
@@ -49,6 +48,8 @@ interface PhotoCollectionPanelProps {
   PhotoPathService: PhotoPathService,
   PhotoSetService: PhotoSetService,
   ShareService: ShareService,
+  UserService: UserService,
+  WatermarkService: WatermarkService,
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
   availableTags: UserTag[],
@@ -73,7 +74,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   CollectionService, watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
   updateShareTemplates, coverPath, updateParentCollections, PhotoPathService,
-  PhotoSetService, ShareService,
+  PhotoSetService, ShareService, UserService, WatermarkService,
 }) => {
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
   const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
@@ -103,11 +104,11 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   })
 
   const uploadWatermarks = useMutation({
-    mutationFn: (params: WatermarkUploadParams) => uploadWatermarksMutation(params),
+    mutationFn: (params: WatermarkUploadParams) => WatermarkService.uploadWatermarksMutation(params),
   })
 
   const deleteWatermark = useMutation({
-    mutationFn: (params: DeleteWatermarkParams) => deleteWatermarkMutation(params), 
+    mutationFn: (params: DeleteWatermarkParams) => WatermarkService.deleteWatermarkMutation(params), 
   })
 
   const deleteShareTemplate = useMutation({
@@ -145,7 +146,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     }
   })
 
-  const participants = useQuery(getAllParticipantsQueryOptions({ 
+  const participants = useQuery(UserService.getAllParticipantsQueryOptions({ 
     siTags: {
       siCollections: true
     },
@@ -832,6 +833,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
           activeConsole === 'watermarks' ? (
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
             <WatermarkPanel 
+              WatermarkService={WatermarkService}
               collection={collection}
               updateCollection={updateParentCollection}
               updateCollections={updateParentCollections}
@@ -845,6 +847,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
           activeConsole === 'share' ? (
             <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
               <SharePanel 
+                UserService={UserService}
                 CollectionService={CollectionService}
                 ShareService={ShareService}
                 collection={collection}

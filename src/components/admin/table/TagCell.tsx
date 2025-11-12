@@ -3,11 +3,12 @@ import { Participant, Table, UserData, UserProfile, UserTag } from "../../../typ
 import { Checkbox } from "flowbite-react";
 import { HiOutlineXMark } from "react-icons/hi2";
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
-import { updateParticipantMutation, UpdateParticipantMutationParams } from "../../../services/userService";
+import { UserService, UpdateParticipantMutationParams } from "../../../services/userService";
 import { formatParticipantName } from "../../../functions/clientFunctions";
 
 interface TagCellProps extends ComponentProps<'td'> {
   value: string,
+  UserService: UserService,
   updateValue: (text: string) => void,
   linkedParticipantId?: string
   tags: UseQueryResult<UserTag[] | undefined, Error>,
@@ -84,7 +85,7 @@ export const TagCell = (props: TagCellProps) => {
   }, [props.tags])
 
   const updateParticipant = useMutation({
-    mutationFn: (params: UpdateParticipantMutationParams) => updateParticipantMutation(params)
+    mutationFn: (params: UpdateParticipantMutationParams) => props.UserService.updateParticipantMutation(params)
   })
 
   const cellTags = (value.split(',') ?? []).map((tagId) => {

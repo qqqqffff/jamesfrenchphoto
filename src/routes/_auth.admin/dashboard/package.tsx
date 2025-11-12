@@ -2,12 +2,12 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { BuilderPanel } from '../../../components/admin/package/BuilderPanel'
 import { Package, PackageItem, UserTag } from '../../../types'
-import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { PackageService } from '../../../services/packageService'
 import { CollectionService } from '../../../services/collectionService'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
+import { TagService } from '../../../services/tagService'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/package')({
   component: RouteComponent,
@@ -17,6 +17,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/package')({
     return {
       CollectionService: new CollectionService(client),
       PackageService: new PackageService(client),
+      TagService: new TagService(client),
     }
   }
 })
@@ -27,7 +28,7 @@ function RouteComponent() {
   const [tags, setTags] = useState<UserTag[]>([])
   const [allPackageItems, setAllPackageItems] = useState<PackageItem[]>([])
 
-  const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
+  const tagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({ 
     siCollections: true, 
     siNotifications: false, 
     siTimeslots: true,
@@ -76,6 +77,7 @@ function RouteComponent() {
   return (
     <>
       <BuilderPanel 
+        TagService={data.TagService}
         PackageService={data.PackageService}
         packages={packages}
         packagesQuery={packagesQuery}

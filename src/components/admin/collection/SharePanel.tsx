@@ -14,11 +14,12 @@ import { HiOutlineX } from 'react-icons/hi'
 import { HiOutlineCheckBadge, HiOutlineExclamationTriangle } from "react-icons/hi2";
 import validator from 'validator'
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea";
-import { createAccessTokenMutation, CreateAccessTokenMutationParams } from "../../../services/userService";
+import { UserService, CreateAccessTokenMutationParams } from "../../../services/userService";
 import { CollectionService } from "../../../services/collectionService";
 
 interface SharePanelProps {
   CollectionService: CollectionService,
+  UserService: UserService,
   ShareService: ShareService,
   collection: PhotoCollection,
   selectedTemplate?: ShareTemplate,
@@ -116,7 +117,7 @@ export const SharePanel = (props: SharePanelProps) => {
   })
 
   const createAccessToken = useMutation({
-    mutationFn: (params: CreateAccessTokenMutationParams) => createAccessTokenMutation(params),
+    mutationFn: (params: CreateAccessTokenMutationParams) => props.UserService.createAccessTokenMutation(params),
     onSuccess: (data) => {
       if(data){
         const finalLink = link + `?temporaryToken=${data}`

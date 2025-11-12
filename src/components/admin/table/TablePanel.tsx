@@ -10,11 +10,13 @@ import { TableComponent } from "./TableComponent"
 import Loading from "../../common/Loading"
 import { PhotoPathService } from "../../../services/photoPathService"
 import { TimeslotService } from "../../../services/timeslotService"
+import { UserService } from "../../../services/userService"
 
 interface TablePanelProps {
   TableService: TableService,
   PhotoPathService: PhotoPathService,
   TimeslotService: TimeslotService,
+  UserService: UserService,
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   selectedTable: Table
@@ -164,6 +166,7 @@ export const TablePanel = (props: TablePanelProps) => {
               </div>
               <div className="w-full border border-gray-200 my-2"></div>
               <TableComponent 
+                UserService={props.UserService}
                 TableService={props.TableService}
                 TimeslotService={props.TimeslotService}
                 table={{

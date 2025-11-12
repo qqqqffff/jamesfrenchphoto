@@ -6,9 +6,11 @@ import { BuilderForm } from "./BuilderForm"
 import { UseInfiniteQueryResult, InfiniteData, UseQueryResult } from "@tanstack/react-query"
 import { GetInfinitePackageItemsData, PackageService } from "../../../services/packageService"
 import Loading from "../../common/Loading"
+import { TagService } from "../../../services/tagService"
 
 interface BuilderPanelProps {
   PackageService: PackageService
+  TagService: TagService,
   packages: Package[]
   packagesQuery: UseQueryResult<Package[] | undefined, Error>
   parentUpdatePackages: Dispatch<SetStateAction<Package[]>>
@@ -92,6 +94,7 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
       <div className="w-full border border-gray-400 flex flex-col rounded-2xl">
         {selectedPackage ? (
           <BuilderForm 
+            TagService={props.TagService}
             PackageService={props.PackageService}
             selectedPackage={selectedPackage}
             queriedPackage={props.packagesQuery.data?.find((pack) => pack.id === selectedPackage.id)}

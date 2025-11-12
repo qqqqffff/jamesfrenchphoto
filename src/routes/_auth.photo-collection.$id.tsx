@@ -14,6 +14,7 @@ import { Schema } from '../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { PhotoPathService } from '../services/photoPathService'
 import { PhotoSetService } from '../services/photoSetService'
+import { UserService } from '../services/userService'
 
 interface PhotoCollectionParams {
   set?: string,
@@ -59,6 +60,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
       CollectionService: collectionService,
       PhotoPathService: new PhotoPathService(client),
       PhotoSetService: new PhotoSetService(client),
+      UserService: new UserService(client),
       collection: collection,
       auth: context.auth,
       coverPath: coverUrl,
@@ -122,6 +124,7 @@ function RouteComponent() {
     <>
       {/* TODO: update this modal please and thank you */}
       <UnauthorizedEmailModal 
+        UserService={data.UserService}
         onClose={() => {
           setEmailInputVisible(false)
           throw redirect({ to: '/login', search: { unauthorized: true }})

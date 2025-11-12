@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getTemporaryUserQueryOptions } from '../services/userService'
+import { UserService } from '../services/userService'
 import { RegisterForm } from '../components/register/RegisterForm';
 import { useQuery } from '@tanstack/react-query';
+import { Schema } from '../../amplify/data/resource';
+import { V6Client } from '@aws-amplify/api-graphql'
+
 
 interface RegisterParams {
   token?: string,
@@ -16,8 +19,11 @@ export const Route = createFileRoute('/register')({
     return search
   },
   loader: async ({ context }) => {
+    const client = context.client as V6Client<Schema>
+    const userService = new UserService(client)
+
     const profile = await context.queryClient.ensureQueryData(
-      getTemporaryUserQueryOptions(context.token, { logging: true })
+      userService.getTemporaryUserQueryOptions(context.token, { logging: true })
     )
 
     if(profile !== null) {
@@ -25,6 +31,7 @@ export const Route = createFileRoute('/register')({
     }
 
     return {
+      UserService: userService,
       profile: profile,
       auth: context.auth,
       token: context.token,
@@ -35,15 +42,16 @@ export const Route = createFileRoute('/register')({
 
 
 export function RouteComponent(){
-  const { auth, token } = Route.useLoaderData()
+  const { UserService, auth, token } = Route.useLoaderData()
 
   const profile = useQuery(
-    getTemporaryUserQueryOptions(token, { logging: true })
+    UserService.getTemporaryUserQueryOptions(token, { logging: true })
   )
 
   return (
     <>
       <RegisterForm 
+        UserService={UserService}
         logout={auth.logout}
         temporaryProfile={profile.data ? {
             ...profile.data,

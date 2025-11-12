@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react'
 import { UserTag } from '../../../types'
 import { useQuery } from '@tanstack/react-query'
 import { CollectionService } from '../../../services/collectionService'
-import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
+import { UserService } from '../../../services/userService'
 import { TimeslotService } from '../../../services/timeslotService'
 import { BuilderPanel } from '../../../components/admin/tagging/BuilderPanel'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
+import { TagService } from '../../../services/tagService'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/tagging')({
   component: RouteComponent,
@@ -16,6 +17,8 @@ export const Route = createFileRoute('/_auth/admin/dashboard/tagging')({
     return {
       CollectionService: new CollectionService(client),
       TimeslotService: new TimeslotService(client),
+      UserService: new UserService(client),
+      TagService: new TagService(client),
     }
   }
 })
@@ -25,7 +28,7 @@ function RouteComponent() {
   const [tags, setTags] = useState<UserTag[]>([])
 
   //si will be performed on the selected tag
-  const tagsQuery = useQuery(getAllUserTagsQueryOptions({
+  const tagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({
     siCollections: false,
     siNotifications: false,
     siPackages: {
@@ -52,7 +55,7 @@ function RouteComponent() {
     })
   )
 
-  const participantQuery = useQuery(getAllParticipantsQueryOptions({
+  const participantQuery = useQuery(data.UserService.getAllParticipantsQueryOptions({
     siCollections: false,
     siNotifications: false,
     siTags: { 
@@ -75,6 +78,7 @@ function RouteComponent() {
       <BuilderPanel 
         CollectionService={data.CollectionService}
         TimeslotService={data.TimeslotService}
+        TagService={data.TagService}
         tags={tags}
         tagsQuery={tagsQuery}
         parentUpdateTagList={setTags}

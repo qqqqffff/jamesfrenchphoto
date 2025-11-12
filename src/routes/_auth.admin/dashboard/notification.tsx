@@ -3,12 +3,13 @@ import { NotificationService } from '../../../services/notificationService'
 import { useEffect, useState } from 'react'
 import { NotificationPanel } from '../../../components/admin/notification/NotificationPanel'
 import { Notification, Participant, UserTag } from '../../../types'
-import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
+import { UserService } from '../../../services/userService'
 import { NotificationSidePanel } from '../../../components/admin/notification/NotificationSidePanel'
 import { useQuery } from '@tanstack/react-query'
 import { v4 } from 'uuid'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from '../../../../amplify/data/resource'
+import { TagService } from '../../../services/tagService'
 
 interface NotificationSearchParams {
   notificationId?: string,
@@ -23,7 +24,9 @@ export const Route = createFileRoute('/_auth/admin/dashboard/notification')({
 
     return {
       NotificationService: new NotificationService(client),
-      notificationId: context.notificationId
+      UserService: new UserService(client),
+      TagService: new TagService(client),
+      notificationId: context.notificationId,
     }
   },
   component: RouteComponent,
@@ -38,7 +41,7 @@ function RouteComponent() {
     siTags: true 
   }))
   //TODO: convert me to infinite query
-  const participantsQuery = useQuery(getAllParticipantsQueryOptions({ 
+  const participantsQuery = useQuery(data.UserService.getAllParticipantsQueryOptions({ 
     siNotifications: true, 
     siTags: { 
       siChildren: false,
@@ -48,7 +51,7 @@ function RouteComponent() {
     } 
   }))
   //TODO: convert me to infinite query
-  const userTagsQuery = useQuery(getAllUserTagsQueryOptions({ siCollections: false, siTimeslots: false, siNotifications: true }))
+  const userTagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({ siCollections: false, siTimeslots: false, siNotifications: true }))
   
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [selectedNotification, setSelectedNotification] = useState<Notification>()

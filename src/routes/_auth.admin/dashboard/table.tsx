@@ -5,11 +5,12 @@ import { Table, TableGroup } from '../../../types'
 import { TableSidePanel } from '../../../components/admin/table/TableSidePanel'
 import { TablePanel } from '../../../components/admin/table/TablePanel'
 import { useQuery } from '@tanstack/react-query'
-import { getAuthUsersQueryOptions, getAllUserTagsQueryOptions, getAllTemporaryUsersQueryOptions } from '../../../services/userService'
+import { UserService } from '../../../services/userService'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from '../../../../amplify/data/resource'
 import { PhotoPathService } from '../../../services/photoPathService'
 import { TimeslotService } from '../../../services/timeslotService'
+import { TagService } from '../../../services/tagService'
 
 interface ManagementTablesSearchParams {
   table?: string,
@@ -28,6 +29,8 @@ export const Route = createFileRoute('/_auth/admin/dashboard/table')({
       PhotoPathService: new PhotoPathService(client),
       TableService: new TableService(client),
       TimeslotService: new TimeslotService(client),
+      UserService: new UserService(client),
+      TagService: new TagService(client),
       searchTable: context.table,
     }
   }
@@ -38,6 +41,8 @@ function RouteComponent() {
     PhotoPathService,
     TableService,
     TimeslotService,
+    UserService,
+    TagService,
     searchTable,
   } = Route.useLoaderData()
   const [tableGroups, setTableGroups] = useState<TableGroup[]>([])
@@ -46,11 +51,11 @@ function RouteComponent() {
 
   const tableGroupsQuery = useQuery(TableService.getAllTableGroupsQueryOptions({ metrics: true }))
 
-  const usersQuery = useQuery(getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
+  const usersQuery = useQuery(UserService.getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
   
-  const tagsQuery = useQuery(getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: false }))
+  const tagsQuery = useQuery(TagService.getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: false }))
 
-  const tempUsersQuery = useQuery(getAllTemporaryUsersQueryOptions({ siTags: true }))
+  const tempUsersQuery = useQuery(UserService.getAllTemporaryUsersQueryOptions({ siTags: true }))
 
   useEffect(() => {
     if(tableGroupsQuery.data && tableGroupsQuery.data.length > 0) {
@@ -79,6 +84,7 @@ function RouteComponent() {
         />
         { selectedTable ? (
           <TablePanel
+            UserService={UserService}
             TableService={TableService}
             TimeslotService={TimeslotService}
             PhotoPathService={PhotoPathService}

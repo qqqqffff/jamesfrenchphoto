@@ -42,7 +42,7 @@ import { v4 } from 'uuid'
 import { validateMapField } from "../../../functions/tableFunctions"
 import { TimeslotService } from "../../../services/timeslotService"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
-import { inviteUserMutation, InviteUserParams } from "../../../services/userService"
+import { UserService, InviteUserParams } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 // import { createParticipantMutation, CreateParticipantParams, updateParticipantMutation, UpdateParticipantMutationParams, updateUserAttributeMutation, UpdateUserAttributesMutationParams, updateUserProfileMutation, UpdateUserProfileParams } from "../../../services/userService"
 
@@ -51,6 +51,7 @@ import { PhotoPathService } from "../../../services/photoPathService"
 interface TableComponentProps {
   TableService: TableService,
   TimeslotService: TimeslotService,
+  UserService: UserService,
   table: Table,
   PhotoPathService: PhotoPathService,
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
@@ -116,7 +117,7 @@ export const TableComponent = (props: TableComponentProps) => {
   })
 
   const inviteUser = useMutation({
-    mutationFn: (params: InviteUserParams) => inviteUserMutation(params),
+    mutationFn: (params: InviteUserParams) => props.UserService.inviteUserMutation(params),
   })
 
   const link = window.location.href
@@ -821,6 +822,7 @@ export const TableComponent = (props: TableComponentProps) => {
                         case 'tag': {
                           return (
                             <TagCell
+                              UserService={props.UserService}
                               key={j}
                               value={v}
                               updateValue={(text) => updateValue(id, text, i)}

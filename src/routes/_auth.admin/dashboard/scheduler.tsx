@@ -10,17 +10,20 @@ import { HiOutlinePencil, HiOutlinePlusCircle } from 'react-icons/hi2'
 import { SlotComponent } from '../../../components/timeslot/Slot'
 import { CreateTimeslotModal, EditTimeslotModal } from '../../../components/modals'
 import { CustomDatePicker } from '../../../components/common/CustomDatePicker'
-import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
+import { UserService } from '../../../services/userService'
 import { TagNavigator } from '../../../components/timeslot/TagNavigator'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
+import { TagService } from '../../../services/tagService'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
   component: RouteComponent,
   loader: ({ context }) => {
     const client = context.client as V6Client<Schema>
     return {
-      TimeslotService: new TimeslotService(client)
+      TimeslotService: new TimeslotService(client),
+      UserService: new UserService(client),
+      TagService: new TagService(client),
     }
   }
 })
@@ -35,7 +38,7 @@ function RouteComponent() {
 
   const timeslotQuery = useQuery(data.TimeslotService.getAllTimeslotsByDateQueryOptions(activeDate))
   
-  const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
+  const tagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({ 
     siCollections: false,
     siNotifications: false,
     siPackages: undefined,
@@ -43,7 +46,7 @@ function RouteComponent() {
     siTimeslots: true
   }))
 
-  const participantQuery = useQuery(getAllParticipantsQueryOptions({
+  const participantQuery = useQuery(data.UserService.getAllParticipantsQueryOptions({
     siCollections: false,
     siNotifications: false,
     siTags: {
@@ -101,6 +104,7 @@ function RouteComponent() {
       />
       {editTimeslotVisible && (
         <EditTimeslotModal 
+          UserService={data.UserService}
           TimeslotService={data.TimeslotService}
           open={editTimeslotVisible !== undefined} 
           onClose={() => {
