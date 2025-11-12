@@ -1,6 +1,6 @@
 import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlinePlusCircle } from "react-icons/hi2"
-import { createTableGroupMutation, CreateTableGroupParams, createTableMutation, CreateTableParams, deleteTableGroupMutation, DeleteTableGroupParams, updateTableGroupMutation, UpdateTableGroupParams } from "../../../services/tableService"
+import { TableService, CreateTableGroupParams, CreateTableParams, DeleteTableGroupParams, UpdateTableGroupParams } from "../../../services/tableService"
 import { Table, TableGroup } from "../../../types"
 import { Dispatch, SetStateAction, useRef, useState } from "react"
 import { EditableTextField } from "../../common/EditableTextField"
@@ -12,13 +12,14 @@ import Loading from "../../common/Loading"
 import { v4 } from 'uuid'
 
 interface TableSidePanelParams {
+  TableService: TableService,
   tableGroups: TableGroup[],
   tableGroupsQuery: UseQueryResult<TableGroup[] | undefined, Error>,
-  parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
+  parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>,
   selectedTableGroups: TableGroup[],
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>,
   selectedTable?: Table,
-  parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>> 
+  parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>>,
 }
 
 export const TableSidePanel = (props: TableSidePanelParams) => {
@@ -27,19 +28,19 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
   const navigate = useNavigate()
 
   const createTableGroup = useMutation({
-    mutationFn: (params: CreateTableGroupParams) => createTableGroupMutation(params)
+    mutationFn: (params: CreateTableGroupParams) => props.TableService.createTableGroupMutation(params)
   })
   
   const updateTableGroup = useMutation({
-    mutationFn: (params: UpdateTableGroupParams) => updateTableGroupMutation(params)
+    mutationFn: (params: UpdateTableGroupParams) => props.TableService.updateTableGroupMutation(params)
   })
 
   const deleteTableGroup = useMutation({
-    mutationFn: (params: DeleteTableGroupParams) => deleteTableGroupMutation(params)
+    mutationFn: (params: DeleteTableGroupParams) => props.TableService.deleteTableGroupMutation(params)
   })
 
   const createTable = useMutation({
-    mutationFn: (params: CreateTableParams) => createTableMutation(params),
+    mutationFn: (params: CreateTableParams) => props.TableService.createTableMutation(params),
   })
 
   return (

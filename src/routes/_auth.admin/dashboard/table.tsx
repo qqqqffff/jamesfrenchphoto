@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getAllTableGroupsQueryOptions } from '../../../services/tableService'
+import { TableService } from '../../../services/tableService'
 import { useEffect, useState } from 'react'
 import { Table, TableGroup } from '../../../types'
 import { TableSidePanel } from '../../../components/admin/table/TableSidePanel'
@@ -25,6 +25,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/table')({
 
     return {
       PhotoPathService: new PhotoPathService(client),
+      TableService: new TableService(client),
       searchTable: context.table,
     }
   }
@@ -33,13 +34,14 @@ export const Route = createFileRoute('/_auth/admin/dashboard/table')({
 function RouteComponent() {
   const {
     PhotoPathService,
+    TableService,
     searchTable,
   } = Route.useLoaderData()
   const [tableGroups, setTableGroups] = useState<TableGroup[]>([])
   const [selectedGroups, setSelectedGroups] = useState<TableGroup[]>([])
   const [selectedTable, setSelectedTable] = useState<Table | undefined>()
 
-  const tableGroupsQuery = useQuery(getAllTableGroupsQueryOptions({ metrics: true }))
+  const tableGroupsQuery = useQuery(TableService.getAllTableGroupsQueryOptions({ metrics: true }))
 
   const usersQuery = useQuery(getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
   
@@ -63,6 +65,7 @@ function RouteComponent() {
     <>
       <div className='flex flex-row mx-4 gap-4 h-[98vh] my-[1vh]'>
         <TableSidePanel 
+          TableService={TableService}
           tableGroups={tableGroups}
           tableGroupsQuery={tableGroupsQuery}
           parentUpdateTableGroups={setTableGroups} 
@@ -73,6 +76,7 @@ function RouteComponent() {
         />
         { selectedTable ? (
           <TablePanel
+            TableService={TableService}
             PhotoPathService={PhotoPathService}
             parentUpdateSelectedTableGroups={setSelectedGroups}
             parentUpdateTableGroups={setTableGroups}

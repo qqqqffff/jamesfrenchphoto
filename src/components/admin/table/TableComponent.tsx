@@ -20,18 +20,13 @@ import {
 import { Dropdown } from "flowbite-react"
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { 
-  appendTableRowMutation,
+  TableService,
   AppendTableRowParams,
-  createChoiceMutation,
-  CreateChoiceParams,
-  createTableColumnMutation, 
+  CreateChoiceParams, 
   CreateTableColumnParams, 
-  deleteTableColumnMutation, 
   DeleteTableColumnParams, 
-  deleteTableRowMutation, 
   DeleteTableRowParams, 
-  UpdateTableColumnParams, 
-  updateTableColumnsMutation 
+  UpdateTableColumnParams 
 } from "../../../services/tableService"
 import { EditableTextField } from "../../common/EditableTextField"
 import { ValueCell } from "./ValueCell"
@@ -54,6 +49,7 @@ import { PhotoPathService } from "../../../services/photoPathService"
 
 
 interface TableComponentProps {
+  TableService: TableService,
   table: Table,
   PhotoPathService: PhotoPathService,
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
@@ -95,27 +91,27 @@ export const TableComponent = (props: TableComponentProps) => {
   }
 
   const createColumn = useMutation({
-    mutationFn: (params: CreateTableColumnParams) => createTableColumnMutation(params),
+    mutationFn: (params: CreateTableColumnParams) => props.TableService.createTableColumnMutation(params),
   })
 
   const updateColumn = useMutation({
-    mutationFn: (params: UpdateTableColumnParams) => updateTableColumnsMutation(params),
+    mutationFn: (params: UpdateTableColumnParams) => props.TableService.updateTableColumnsMutation(params),
   })
 
   const appendRow = useMutation({
-    mutationFn: (params: AppendTableRowParams) => appendTableRowMutation(params)
+    mutationFn: (params: AppendTableRowParams) => props.TableService.appendTableRowMutation(params)
   })
 
   const deleteRow = useMutation({
-    mutationFn: (params: DeleteTableRowParams) => deleteTableRowMutation(params)
+    mutationFn: (params: DeleteTableRowParams) => props.TableService.deleteTableRowMutation(params)
   })
 
   const deleteColumn = useMutation({
-    mutationFn: (params: DeleteTableColumnParams) => deleteTableColumnMutation(params)
+    mutationFn: (params: DeleteTableColumnParams) => props.TableService.deleteTableColumnMutation(params)
   })
 
   const createChoice = useMutation({
-    mutationFn: (params: CreateChoiceParams) => createChoiceMutation(params),
+    mutationFn: (params: CreateChoiceParams) => props.TableService.createChoiceMutation(params),
   })
 
   const inviteUser = useMutation({
@@ -881,6 +877,7 @@ export const TableComponent = (props: TableComponentProps) => {
                         case 'file': {
                           return (
                             <FileCell
+                              TableService={props.TableService}
                               PhotoPathService={props.PhotoPathService}
                               key={j}
                               value={v}

@@ -1,7 +1,7 @@
 import { ComponentProps, useEffect, useRef, useState } from "react";
 import { ConfirmationModal } from "../../modals";
 import { useMutation } from "@tanstack/react-query";
-import { uploadColumnFileMutation, UploadColumnFileParams } from "../../../services/tableService";
+import { TableService, UploadColumnFileParams } from "../../../services/tableService";
 import { TableColumn } from "../../../types";
 import { parsePathName } from "../../../utils";
 import { HiOutlineXCircle } from "react-icons/hi2";
@@ -10,11 +10,12 @@ import { DownloadImageMutationParams, PhotoPathService } from "../../../services
 import { CgSpinner } from "react-icons/cg";
 
 interface FileCellProps extends ComponentProps<'td'> {
+  TableService: TableService,
   value: string,
   updateValue: (text: string) => void,
   column: TableColumn,
   rowIndex: number,
-  PhotoPathService: PhotoPathService
+  PhotoPathService: PhotoPathService,
 }
 
 export const FileCell = (props: FileCellProps) => {
@@ -30,7 +31,7 @@ export const FileCell = (props: FileCellProps) => {
   }, [props.value])
 
   const uploadFile = useMutation({
-    mutationFn: (params: UploadColumnFileParams) => uploadColumnFileMutation(params),
+    mutationFn: (params: UploadColumnFileParams) => props.TableService.uploadColumnFileMutation(params),
     onSuccess: (data) => {
       props.updateValue(data)
       setValue(data)
