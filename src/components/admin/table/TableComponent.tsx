@@ -1,4 +1,4 @@
-import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react"
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
 import { 
   ColumnColor, 
   Participant, 
@@ -10,12 +10,7 @@ import {
   UserTag 
 } from "../../../types"
 import { 
-  HiOutlineCalendar, 
-  HiOutlineDocumentText, 
-  HiOutlineListBullet, 
-  HiOutlinePencil, 
   HiOutlinePlusCircle, 
-  HiOutlineTag, 
 } from 'react-icons/hi2'
 import { Dropdown } from "flowbite-react"
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
@@ -29,16 +24,14 @@ import {
   UpdateTableColumnParams, 
   ReorderTableColumnsParams
 } from "../../../services/tableService"
-import { EditableTextField } from "../../common/EditableTextField"
 import { ValueCell } from "./ValueCell"
-import { currentDate, defaultColumnColors, getColumnTypeColor } from "../../../utils"
+import { currentDate, defaultColumnColors } from "../../../utils"
 import { ConfirmationModal, CreateUserModal } from "../../modals"
 import { DateCell } from "./DateCell"
 import { ChoiceCell } from "./ChoiceCell"
 import { TagCell } from "./TagCell"
 import { FileCell } from "./FileCell"
 import { AggregateCell } from "./AggregateCell"
-import { ColorComponent } from "../../common/ColorComponent"
 import { v4 } from 'uuid'
 import { validateMapField } from "../../../functions/tableFunctions"
 import { TimeslotService } from "../../../services/timeslotService"
@@ -47,47 +40,13 @@ import { UserService, InviteUserParams } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { getTableColumnData, isDraggingTableColumn, isTableColumnData } from "./TableColumnData"
+import { isDraggingTableColumn, isTableColumnData } from "./TableColumnData"
 import { flushSync } from "react-dom"
 import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
-import {
-  draggable,
-  dropTargetForElements,
-} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import {
-  attachClosestEdge,
-  type Edge,
-  extractClosestEdge,
-} from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
-import type { CleanupFn } from '@atlaskit/pragmatic-drag-and-drop/types';
-import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
-import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview';
-import { DropIndicator } from "../../common/DropIndicator"
+import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
+import { TableHeaderComponent } from "./TableHeaderComponent"
 
 // import { createParticipantMutation, CreateParticipantParams, updateParticipantMutation, UpdateParticipantMutationParams, updateUserAttributeMutation, UpdateUserAttributesMutationParams, updateUserProfileMutation, UpdateUserProfileParams } from "../../../services/userService"
-
-
-type TableColumnState = 
-  | {
-      type: 'idle';
-    }
-  | {
-      type: 'preview';
-      container: HTMLElement;
-    }
-  | {
-      type: 'is-dragging';
-    }
-  | {
-      type: 'is-dragging-over';
-      closestEdge: Edge | null
-    };
-
-const stateStyles: { [Key in TableColumnState['type']]?: HTMLAttributes<HTMLDivElement>['className'] } = {
-  'is-dragging': 'opacity-40',
-}
-
-const idle: TableColumnState = { type: 'idle' }
 
 interface TableComponentProps {
   TableService: TableService,
@@ -111,7 +70,6 @@ export const TableComponent = (props: TableComponentProps) => {
   const [selectedDate, setSelectedDate] = useState<Date>(currentDate)
   const [selectedTag, setSelectedTag] = useState<UserTag | undefined>()
   const [createUser, setCreateUser] = useState(false)
-  const [tableColumnState, setTableColumnState] = useState<Map<TableColumn, TableColumnState>>(new Map(props.table.columns.map((column) => ([column, idle]))))
 
   const timeslotsQuery = useQuery(props.TimeslotService.getAllTimeslotsByDateQueryOptions(selectedDate))
   const tagTimeslotQuery = useQuery({
@@ -120,8 +78,7 @@ export const TableComponent = (props: TableComponentProps) => {
   })
  
   const tableRef = useRef<HTMLTableElement | null>(null)
-  const tableColumnRef = useRef<Map<TableColumn, HTMLTableCellElement | null>>(new Map())
-  const refColumn = useRef<TableColumn | null>()
+  const refColumn = useRef<TableColumn | null>(null)
   const refRow = useRef<number>(-1)
 
   const tableRows: [string, TableColumn['type'], string][][] = []
@@ -199,17 +156,7 @@ export const TableComponent = (props: TableComponentProps) => {
     }
   }, [props.userData.data])
 
-  console.log(tableColumnState)
-
   useEffect(() => {
-    if(
-      Array.from(tableColumnState.keys()).some((key) => !props.table.columns.some((column) => column.id === key.id)) ||
-      props.table.columns.some((column) => !Array.from(tableColumnState.keys()).some((key) => key.id === column.id))
-    ) {
-      const temp = new Map(props.table.columns.map((column) => ([column, idle])))
-      setTableColumnState(temp)
-    }
-
     const element = tableRef.current
 
     if(!element) {
@@ -232,8 +179,10 @@ export const TableComponent = (props: TableComponentProps) => {
             return
           }
 
-          const indexOfSource = props.table.columns.find((tableColumn) => tableColumn.id === sourceData.columnId)?.order ?? -1
-          const indexOfTarget = props.table.columns.find((tableColumn) => tableColumn.id === targetData.columnId)?.order ?? -1
+          const tableColumns = props.table.columns.sort((a, b) => a.order - b.order)
+
+          const indexOfSource = tableColumns.findIndex((tableColumn) => tableColumn.id === sourceData.columnId)
+          const indexOfTarget = tableColumns.findIndex((tableColumn) => tableColumn.id === targetData.columnId)
 
           if(indexOfTarget < 0 || indexOfSource < 0) {
             return
@@ -262,9 +211,9 @@ export const TableComponent = (props: TableComponentProps) => {
             )
           }
 
+          const newTableColumns = updatedTableColumns.filter((column) => column.order !== indexOfSource).map((column, index) => ({ ...column, order: index }))
+          
           flushSync(() => {
-            const newTableColumns = updatedTableColumns.filter((column) => column.order !== indexOfSource).map((column, index) => ({ ...column, order: index }))
-
             const updateGroup = (prev: TableGroup[]): TableGroup[] => {
               return prev.map((group) => group.tables.some((table) => table.id === props.table.id) ? ({
                 ...group,
@@ -297,151 +246,6 @@ export const TableComponent = (props: TableComponentProps) => {
       })
     )
   }, [props.table])
-
-  useEffect(() => {
-    const functions: CleanupFn[] = []
-
-    const elementsArray = Array.from(tableColumnRef.current.entries())
-    for(let i = 0; i < elementsArray.length; i++) {
-      const entry = elementsArray[i]
-      if(entry[1] === null) continue
-      const element = entry[1]
-
-      functions.push(draggable({
-        element,
-        getInitialData(){
-          return getTableColumnData(entry[0])
-        },
-        canDrag: () => true,
-        onGenerateDragPreview({ nativeSetDragImage }) {
-          setCustomNativeDragPreview({
-            nativeSetDragImage,
-            getOffset: pointerOutsideOfPreview({
-              x: '16px',
-              y: '8px'
-            }),
-            render({ container }) {
-              const temp = new Map(tableColumnState)
-              temp.set(entry[0], { type: 'preview', container })
-              setTableColumnState(temp)
-            }
-          })
-        },
-        onDragStart() {
-          const temp = new Map(tableColumnState)
-          temp.set(entry[0], { type: 'is-dragging' })
-          setTableColumnState(temp)
-        },
-        onDrop() {
-          const temp = new Map(tableColumnState)
-          temp.set(entry[0], { type: 'idle' })
-          setTableColumnState(temp)
-        }
-      }))
-
-      functions.push(dropTargetForElements({
-        element,
-        canDrop({ source }) {
-          if(source.element === element) {
-            return false
-          }
-          return isTableColumnData(source.data)
-        },
-        getData({ input }) {
-          const data = getTableColumnData(entry[0])
-          return attachClosestEdge(data, {
-            element,
-            input,
-            allowedEdges: ['left', 'right']
-          })
-        },
-        getIsSticky() {
-          return true
-        },
-        onDragEnter({ self }) {
-          const closestEdge = extractClosestEdge(self.data)
-          const temp = new Map(tableColumnState)
-          temp.set(entry[0], { type: 'is-dragging-over', closestEdge })
-          setTableColumnState(temp)
-        },
-        onDrag({ self }) {
-          const closestEdge = extractClosestEdge(self.data)
-          const currentColumn = tableColumnState.get(entry[0])
-
-          if(
-            currentColumn && 
-            currentColumn.type === 'is-dragging-over' && 
-            currentColumn.closestEdge !== closestEdge
-          ) {
-            const temp = new Map(tableColumnState)
-            temp.set(entry[0], { type: 'is-dragging-over', closestEdge })
-            setTableColumnState(temp)
-          }
-        },
-        onDragLeave() {
-          const temp = new Map(tableColumnState)
-          temp.set(entry[0], idle)
-          setTableColumnState(temp)
-        },
-        onDrop() {
-          const temp = new Map(tableColumnState)
-          temp.set(entry[0], idle)
-          setTableColumnState(temp)
-        }
-      }))
-    }
-
-    return combine(
-      ...functions
-    )
-  }, [tableColumnRef.current])
-
-  const pushColumn = (type: TableColumn['type']) => {
-    const temp: TableColumn = {
-      id: v4(),
-      values: [],
-      choices: [],
-      display: true,
-      header: '',
-      type: type,
-      tags: [],
-      order: props.table.columns.length,
-      tableId: props.table.id,
-      temporary: true
-    }
-
-    for(let i = 0; i < props.table.columns[0].values.length; i++) {
-      temp.values.push('')
-      if(temp.choices) {
-        temp.choices.push('')
-      }
-    }
-
-    const table: Table = {
-      ...props.table,
-      columns: [...props.table.columns, temp]
-    }
-
-    const updateGroup = (prev: TableGroup[]) => {
-      const pTemp = [...prev]
-        .map((group) => {
-          if(group.id === table.tableGroupId){
-            return {
-              ...group,
-              tables: group.tables.map((pTable) => (pTable.id === table.id ? table : pTable))
-            }
-          }
-          return group
-        })
-
-      return pTemp
-    }
-
-    props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-    props.parentUpdateTableGroups((prev) => updateGroup(prev))
-    props.parentUpdateTable(table)
-    props.parentUpdateTableColumns(table.columns)
-  }
 
   const updateValue = (id: string, text: string, i: number) => {
     const column = props.table.columns.find((column) => column.id === id)
@@ -688,314 +492,17 @@ export const TableComponent = (props: TableComponentProps) => {
       {/* overflow-x-auto overflow-y-auto */}
       <div className="relative shadow-md overflow-scroll max-w-[60vw] max-h-[85vh]">
         <table className="w-full text-sm text-left text-gray-600" ref={tableRef}>
-          <thead className="text-xs text-gray-700 bg-gray-50 sticky">
-            <tr>
-              {props.table.columns
-              .map((column) => {
-                const state = tableColumnState.get(column)
-                // if(state === undefined) return (<></>)
-                return (
-                  <>
-                    <th
-                      data-table-column-id={column.id}
-                      ref={el => tableColumnRef.current.set(column, el)}
-                      // onMouseEnter={() => {}}
-                      key={column.id}
-                      className={`
-                        relative border-x border-x-gray-300 border-b border-b-gray-300 
-                        min-w-[150px] max-w-[150px] whitespace-normal break-words place-items-center
-                        items-center ${stateStyles[state?.type ?? 'idle'] ?? ''}
-                      `}
-                    >
-                      {state !== undefined && state.type === 'is-dragging-over' && state.closestEdge && state.closestEdge === 'left' && (
-                        <DropIndicator edge={state.closestEdge} gap={'8px'} />
-                      )}
-                      {column.temporary || column.edit ? (
-                        <div className="w-full pe-10">
-                          <EditableTextField 
-                            className="text-xs border-b-black focus:ring-0 focus:border-transparent focus:border-b-black min-w-full bg-transparent"
-                            text={column.header ?? ''}
-                            placeholder="Enter Column Name..."
-                            onSubmitText={(text) => {
-                              if(column.temporary && text !== ''){
-                                const valuesArray = []
-                                for(let i = 0; i < props.table.columns[0].values.length; i++) {
-                                  valuesArray.push('')
-                                }
-                                const tempColumn: TableColumn = {
-                                  id: column.id,
-                                  display: true,
-                                  tags: [],
-                                  header: text,
-                                  tableId: props.table.id,
-                                  type: column.type,
-                                  values: valuesArray,
-                                  order: props.table.columns.length,
-                                }
-                                createColumn.mutate({
-                                  column: tempColumn,
-                                  options: {
-                                    logging: true
-                                  }
-                                })
-                                const temp: Table = {
-                                  ...props.table,
-                                  columns: props.table.columns
-                                    .map((pColumn) => (pColumn.id === tempColumn.id ? tempColumn : pColumn))
-                                }
-
-                                const updateGroup = (prev: TableGroup[]) => {
-                                  const pTemp: TableGroup[] = [...prev]
-                                    .map((group) => {
-                                      if(group.id === props.table.tableGroupId){
-                                        return {
-                                          ...group,
-                                          tables: group.tables.map((table) => {
-                                            if(table.id === props.table.id){
-                                              return temp
-                                            }
-                                            return table
-                                          })
-                                        }
-                                      }
-                                      return group
-                                    })
-
-                                  return pTemp
-                                }
-
-                                props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-                                props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                                props.parentUpdateTable(temp)
-                                props.parentUpdateTableColumns(temp.columns)
-                              }
-                              else if(column.edit && text !== column.header && text !== '') {
-                                updateColumn.mutate({
-                                  column: column,
-                                  values: column.values,
-                                  header: text,
-                                  options: {
-                                    logging: true
-                                  }
-                                })
-
-                                const temp: Table = {
-                                  ...props.table,
-                                  columns: props.table.columns
-                                    .map((parentColumn) => ({
-                                      ...parentColumn, 
-                                      header: parentColumn.id === column.id ? text : parentColumn.header,
-                                      edit: parentColumn.id === column.id ? false : parentColumn.edit,
-                                    }))
-                                }
-
-                                const updateGroup = (prev: TableGroup[]) => {
-                                  const pTemp = [...prev]
-                                    .map((group) => {
-                                      if(group.id === temp.tableGroupId){
-                                        return {
-                                          ...group,
-                                          tables: group.tables.map((table) => {
-                                            if(table.id === temp.id){
-                                              return temp
-                                            }
-                                            return table
-                                          })
-                                        }
-                                      }
-                                      return group
-                                    })
-
-                                  return pTemp
-                                }
-      
-                                props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-                                props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                                props.parentUpdateTable(temp)
-                                props.parentUpdateTableColumns(temp.columns)
-                              }
-                            }}
-                            onCancel={() => {
-                              const temp: Table = {
-                                ...props.table,
-                                columns: props.table.columns
-                                  .filter((col) => col.temporary === undefined || col.temporary === false)
-                                  .map((col) => (col.id === column.id ? ({
-                                    ...col,
-                                    edit: false
-                                  }) : col))
-                              }
-
-                              const updateGroup = (prev: TableGroup[]) => {
-                                const pTemp = [...prev]
-                                  .map((group) => group.id === props.table.tableGroupId ? ({
-                                      ...group,
-                                      tables: group.tables.map((table) => table.id === temp.id ? temp : table)
-                                    }) : group
-                                  )
-
-                                return pTemp
-                              }
-
-                              props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-                              props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                              props.parentUpdateTable(temp)
-                              props.parentUpdateTableColumns(temp.columns)
-                            }}
-                            editting
-                          />
-                        </div>
-                      ) : (
-                        <Dropdown 
-                          className="min-w-max"
-                          label={(<span className="hover:underline underline-offset-2">{column.header}</span>)}
-                          arrowIcon={false}
-                          placement="bottom"
-                          inline
-                        >
-                          <div className="w-max flex flex-col">
-                            <span className="whitespace-nowrap px-4 border-b pb-0.5 font-semibold text-base text-center w-full">
-                              <span>Type:</span>
-                              <ColorComponent 
-                                customText={' ' + column.type[0].toUpperCase() + column.type.substring(1)} 
-                                activeColor={getColumnTypeColor(column.type)}
-                              />
-                            </span>
-                            <Dropdown.Item 
-                              className="justify-center"
-                              onClick={() => {
-                                const temp: Table = {
-                                  ...props.table,
-                                  columns: props.table.columns.map((parentColumn) => {
-                                    if(parentColumn.id === column.id){
-                                      return {
-                                        ...parentColumn,
-                                        edit: true
-                                      }
-                                    }
-                                    return parentColumn
-                                  })
-                                }
-
-                                const updateGroup = (prev: TableGroup[]) => {
-                                  const pTemp = [...prev]
-                                    .map((group) => {
-                                      if(group.id === temp.tableGroupId){
-                                        return {
-                                          ...group,
-                                          tables: group.tables.map((table) => {
-                                            if(table.id === temp.id){
-                                              return temp
-                                            }
-                                            return table
-                                          })
-                                        }
-                                      }
-                                      return group
-                                    })
-
-                                  return pTemp
-                                }
-
-                                props.parentUpdateTable(temp)
-                                props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-                                props.parentUpdateTableGroups((prev) => updateGroup(prev))
-                                props.parentUpdateTableColumns(temp.columns)
-                              }}
-                            >Rename</Dropdown.Item>
-                            <Dropdown.Item 
-                              className="justify-center"
-                              onClick={() => {
-                                refColumn.current = column
-                                setDeleteColumnConfirmation(true)
-                              }}
-                            >Delete</Dropdown.Item>
-                          </div>
-                        </Dropdown>
-                      )}
-                      {state !== undefined && state.type === 'is-dragging-over' && state.closestEdge && state.closestEdge === 'right' && (
-                        <DropIndicator edge={state.closestEdge} gap={'8px'} />
-                      )}
-                    </th>
-                  </>
-                )
-              })}
-              <th
-                className="
-                  relative px-6 py-3 border-e border-e-gray-300 border-b border-b-gray-300
-                  min-w-[50px] max-w-[50px] whitespace-normal break-words place-items-center
-                  items-center
-                "
-              >
-                <Dropdown
-                  inline
-                  arrowIcon={false}
-                  label={(<HiOutlinePlusCircle className="text-gray-600 hover:fill-gray-200 hover:text-gray-900" size={24}/>)}
-                >
-                  <div className="w-max">
-                    <span className="whitespace-nowrap px-4 border-b pb-0.5 text-base w-full flex justify-center">Add a Column</span>
-                    <div className="grid grid-cols-2 p-1 gap-x-2">
-                      <Dropdown.Item 
-                        as='button'
-                        className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
-                        onClick={() => pushColumn('value')}
-                      >
-                        <HiOutlinePencil size={32} className="bg-orange-400 border-4 border-orange-400 rounded-lg"/>
-                        <div className="flex flex-col">
-                          <span className="whitespace-nowrap">Value Column</span>
-                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds simple values</span>
-                        </div>
-                      </Dropdown.Item>
-                      <Dropdown.Item  
-                        as='button'
-                        className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
-                        onClick={() => pushColumn('choice')}
-                      >
-                        <HiOutlineListBullet size={32} className="bg-blue-500 border-4 border-blue-500 rounded-lg"/>
-                        <div className="flex flex-col">
-                          <span className="whitespace-nowrap">Choice Column</span>
-                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column can have different choices to pick.</span>
-                        </div>
-                      </Dropdown.Item >
-                      <Dropdown.Item  
-                        as='button'
-                        className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
-                        onClick={() => pushColumn('date')}
-                      >
-                        <HiOutlineCalendar size={32} className="bg-pink-400 border-4 border-pink-400 rounded-lg"/>
-                        <div className="flex flex-col">
-                          <span className="whitespace-nowrap">Timeslot Column</span>
-                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column hold timeslots available to participants.</span>
-                        </div>
-                      </Dropdown.Item >
-                      <Dropdown.Item  
-                        as='button'
-                        className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
-                        onClick={() => pushColumn('file')}
-                      >
-                        <HiOutlineDocumentText size={32} className="bg-red-500 border-4 border-red-500 rounded-lg"/>
-                        <div className="flex flex-col">
-                          <span className="whitespace-nowrap">File Column</span>
-                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds files uploaded by the user.</span>
-                        </div>
-                      </Dropdown.Item>
-                      <Dropdown.Item  
-                        as='button'
-                        className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
-                        onClick={() => pushColumn('tag')}
-                      >
-                        <HiOutlineTag size={32} className="bg-fuchsia-600 border-4 border-fuchsia-600 rounded-lg"/>
-                        <div className="flex flex-col">
-                          <span className="whitespace-nowrap">Tag Column</span>
-                          <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds tags associated with participants.</span>
-                        </div>
-                      </Dropdown.Item >
-                    </div>
-                  </div>
-                </Dropdown>
-              </th>
-            </tr>
-          </thead>
+          <TableHeaderComponent 
+            table={props.table}
+            refColumn={refColumn}
+            createColumn={createColumn}
+            updateColumn={updateColumn}
+            setDeleteColumnConfirmation={setDeleteColumnConfirmation}
+            parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
+            parentUpdateTableGroups={props.parentUpdateTableGroups}
+            parentUpdateTable={props.parentUpdateTable}
+            parentUpdateTableColumns={props.parentUpdateTableColumns}
+          />
           <tbody>
             {tableRows.length > 0 && tableRows.map((row: [string, TableColumn['type'], string][], i: number) => {
                 return (
