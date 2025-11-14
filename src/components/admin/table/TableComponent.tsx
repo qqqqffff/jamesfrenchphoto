@@ -16,7 +16,8 @@ import {
   DeleteTableColumnParams, 
   DeleteTableRowParams, 
   UpdateTableColumnParams, 
-  ReorderTableColumnsParams
+  ReorderTableColumnsParams,
+  ReorderTableRowsParams
 } from "../../../services/tableService"
 import { currentDate } from "../../../utils"
 import { ConfirmationModal, CreateUserModal } from "../../modals"
@@ -110,6 +111,10 @@ export const TableComponent = (props: TableComponentProps) => {
 
   const reorderTableColumns = useMutation({
     mutationFn: (params: ReorderTableColumnsParams) => props.TableService.reorderTableColumnsMutation(params)
+  })
+
+  const reorderTableRows = useMutation({
+    mutationFn: (params: ReorderTableRowsParams) => props.TableService.reorderTableRowsMutation(params)
   })
 
   const link = window.location.href
@@ -366,6 +371,7 @@ export const TableComponent = (props: TableComponentProps) => {
             appendRow={appendRow}
             updateColumn={updateColumn}
             createChoice={createChoice}
+            reorderTableRows={reorderTableRows}
             setTempUsers={setTempUsers}
             setUsers={setUsers}
             setSelectedDate={setSelectedDate}

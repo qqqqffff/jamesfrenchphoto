@@ -310,8 +310,12 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
   return (
     <>
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'top' && (
-        <tr className="h-1">
-          {/* TODO: better indicators */}
+        <tr className="h-2">
+          {props.row.map((_, index) => {
+            return (
+              <td className="bg-blue-700" key={index} />
+            )
+          })}
         </tr>
       )}
       <tr className="bg-white border-b" ref={ref}>
@@ -597,8 +601,12 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         </td>
       </tr>
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'bottom' && (
-        <tr className="h-1">
-          {/* TODO: better indicators */}
+        <tr className="h-2">
+          {props.row.map((_, index) => {
+            return (
+              <td className="bg-blue-700" key={index} />
+            )
+          })}
         </tr>
       )}
     </>

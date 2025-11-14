@@ -204,6 +204,8 @@ export interface ReorderTableColumnsParams {
   }
 }
 
+export interface ReorderTableRowsParams extends ReorderTableColumnsParams { }
+
 export class TableService {
   private client: V6Client<Schema>
   constructor(client: V6Client<Schema>) {
@@ -480,6 +482,16 @@ export class TableService {
       return this.client.models.TableColumn.update({
         id: tableColumn.id,
         order: tableColumn.order,
+      })
+    }))
+    if(params.options?.logging) console.log(updatedTableColumns)
+  }
+
+  async reorderTableRowsMutation(params: ReorderTableRowsParams) {
+    const updatedTableColumns = await Promise.all(params.tableColumns.map((tableColumn) => {
+      return this.client.models.TableColumn.update({
+        id: tableColumn.id,
+        values: tableColumn.values
       })
     }))
     if(params.options?.logging) console.log(updatedTableColumns)

@@ -3,7 +3,7 @@ import { AggregateCell } from "./AggregateCell"
 import { TimeslotService } from "../../../services/timeslotService"
 import { Dispatch, SetStateAction, useEffect } from "react"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
-import { AppendTableRowParams, CreateChoiceParams, DeleteTableRowParams, TableService, UpdateTableColumnParams } from "../../../services/tableService"
+import { AppendTableRowParams, CreateChoiceParams, DeleteTableRowParams, ReorderTableRowsParams, TableService, UpdateTableColumnParams } from "../../../services/tableService"
 import { UserService } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 import { HiOutlinePlusCircle } from "react-icons/hi2"
@@ -35,6 +35,7 @@ interface TableBodyComponentProps {
   appendRow: UseMutationResult<void, Error, AppendTableRowParams, unknown>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   createChoice: UseMutationResult<[string, string] | undefined, Error, CreateChoiceParams, unknown>
+  reorderTableRows: UseMutationResult<void, Error, ReorderTableRowsParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
@@ -68,7 +69,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
         const indexOfSource = sourceData.rowIndex
         const indexOfTarget = targetData.rowIndex
 
-        if(indexOfSource < 0 || indexOfTarget < 0) {
+        if(indexOfSource < 0 || indexOfTarget < 0 || indexOfSource === indexOfTarget) {
           return
         }
 
@@ -77,7 +78,6 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
         //id, values[]
         const updatedValues: Map<string, string[]> = new Map()
 
-        //TODO: edge case when putting row at the top (deletes top row)
         for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
           if(i === indexOfSource) continue
           for(let j = 0; j < props.table.columns.length; j++){
@@ -93,7 +93,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
             [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[indexOfSource]]
           )
         }
-        for(let i = indexOfTarget + 1; i < props.table.columns[0].values.length; i++) {
+        for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < props.table.columns[0].values.length; i++) {
           if(i === indexOfSource) continue
           for(let j = 0; j < props.table.columns.length; j++) {
             updatedValues.set(
@@ -102,8 +102,6 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
             )
           }
         }
-
-        
 
         flushSync(() => {
           const temp: Table = {
@@ -117,7 +115,6 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
             })
           }
 
-          console.log(updatedValues.entries())
           const updateGroup = (prev: TableGroup[]) => {
             return prev.map((group) => group.tables.some((table) => table.id === temp.id) ? ({
               ...group,
@@ -126,7 +123,12 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
           }
 
           //TODO: build out api call
-          
+          props.reorderTableRows.mutate({
+            tableColumns: temp.columns,
+            options: {
+              logging: true
+            }
+          })
 
           props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
           props.parentUpdateTableGroups((prev) => updateGroup(prev))
