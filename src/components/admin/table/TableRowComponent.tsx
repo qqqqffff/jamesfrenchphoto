@@ -311,6 +311,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     <>
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'top' && (
         <tr className="h-1">
+          {/* TODO: better indicators */}
         </tr>
       )}
       <tr className="bg-white border-b" ref={ref}>
@@ -597,6 +598,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       </tr>
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'bottom' && (
         <tr className="h-1">
+          {/* TODO: better indicators */}
         </tr>
       )}
     </>
