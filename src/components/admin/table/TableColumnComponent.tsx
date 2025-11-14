@@ -364,7 +364,7 @@ export const TableColumnComponent = (props: TableColumnProps) => {
 function DragPreview({ column }: { column: TableColumn}) {
   return (
     <table className="w-full text-sm text-left text-gray-600">
-      <thead className="text-xs text-gray-700 bg-gray-50 sticky">
+      <thead className="text-xs text-gray-700 bg-gray-50">
         <tr>
           <th
             className={`
@@ -382,9 +382,9 @@ function DragPreview({ column }: { column: TableColumn}) {
         {column.values.map((value, index) => {
           if(index > 6) return null 
           return (
-            <tr className="bg-white border-b" key={index}>
-              <td className='text-ellipsis border py-3 px-3 max-w-[150px]'>
-                <span className='font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 border py-0.5'>{value}</span>
+            <tr className="bg-white border-b w-full" key={index}>
+              <td className='text-ellipsis border py-3 px-3 max-w-[150px] w-full'>
+                <span className='font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 border py-0.5'>{value === '' ? 'Enter Value...' : value}</span>
               </td>
             </tr>
           )

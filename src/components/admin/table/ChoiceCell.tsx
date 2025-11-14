@@ -1,9 +1,9 @@
-import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { ComponentProps, useEffect, useRef, useState } from "react";
 import { BiSolidSquareRounded } from "react-icons/bi";
 import { HiOutlinePlusCircle, HiOutlineXMark } from 'react-icons/hi2'
 import { defaultColors, defaultColumnColors } from "../../../utils";
 import { Label } from "flowbite-react";
-import { ColumnColor, Table, TableColumn } from "../../../types";
+import { ColumnColor, TableColumn } from "../../../types";
 import { ColorComponent } from "../../common/ColorComponent";
 
 
@@ -11,7 +11,6 @@ interface ChoiceCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void,
   column: TableColumn,
-  updateParentTable: Dispatch<SetStateAction<Table | undefined>>
   createChoice: (choice: string, color: string) => void,
 }
 

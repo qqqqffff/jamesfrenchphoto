@@ -1,6 +1,6 @@
 import { Dropdown } from "flowbite-react"
 import { Table, TableColumn, TableGroup } from "../../../types"
-import { TableColumnComponent } from "./TableColumn"
+import { TableColumnComponent } from "./TableColumnComponent"
 import { UseMutationResult } from "@tanstack/react-query"
 import { MutableRefObject, Dispatch, SetStateAction } from "react"
 import { CreateTableColumnParams, UpdateTableColumnParams } from "../../../services/tableService"
@@ -68,7 +68,7 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
   }
 
   return (
-    <thead className="text-xs text-gray-700 bg-gray-50 sticky">
+    <thead className="text-xs text-gray-700 bg-gray-50 sticky top-0 z-10">
       <tr>
         {props.table.columns
         .map((column) => {
