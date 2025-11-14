@@ -45,6 +45,7 @@ const outerStyles: { [Key in PictureState['type']]?: HTMLAttributes<HTMLDivEleme
 
 const idle: PictureState = { type: 'idle' }
 
+//TODO: validate dnd is implemented properly
 interface PictureProps {
   PhotoPathService: PhotoPathService,
   PhotoSetService: PhotoSetService,

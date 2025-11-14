@@ -1,13 +1,18 @@
 import { Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
 import { AggregateCell } from "./AggregateCell"
 import { TimeslotService } from "../../../services/timeslotService"
-import { Dispatch, SetStateAction } from "react"
+import { Dispatch, SetStateAction, useEffect } from "react"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { AppendTableRowParams, CreateChoiceParams, DeleteTableRowParams, TableService, UpdateTableColumnParams } from "../../../services/tableService"
 import { UserService } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 import { HiOutlinePlusCircle } from "react-icons/hi2"
 import { TableRowComponent } from "./TableRowComponent"
+import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
+import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
+import { isTableRowData } from "./TableRowData"
+import { flushSync } from "react-dom"
 
 interface TableBodyComponentProps {
   TimeslotService: TimeslotService,
@@ -42,6 +47,101 @@ interface TableBodyComponentProps {
 }
 
 export const TableBodyComponent = (props: TableBodyComponentProps) => {
+  useEffect(() => {
+    return monitorForElements({
+      canMonitor({ source }) {
+        return isTableRowData(source.data)
+      },
+      onDrop({ location, source }) {
+        const target = location.current.dropTargets[0]
+        if(!target) {
+          return
+        }
+
+        const sourceData = source.data
+        const targetData = target.data
+
+        if(!isTableRowData(sourceData) || !isTableRowData(targetData)) {
+          return
+        }
+        
+        const indexOfSource = sourceData.rowIndex
+        const indexOfTarget = targetData.rowIndex
+
+        if(indexOfSource < 0 || indexOfTarget < 0) {
+          return
+        }
+
+        const closestEdgeOfTarget = extractClosestEdge(targetData)
+
+        //id, values[]
+        const updatedValues: Map<string, string[]> = new Map()
+
+        //TODO: edge case when putting row at the top (deletes top row)
+        for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
+          if(i === indexOfSource) continue
+          for(let j = 0; j < props.table.columns.length; j++){
+            updatedValues.set(
+              props.table.columns[j].id, 
+              [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[i]]
+            )
+          }
+        }
+        for(let j = 0; j < props.table.columns.length; j++) {
+          updatedValues.set(
+            props.table.columns[j].id,
+            [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[indexOfSource]]
+          )
+        }
+        for(let i = indexOfTarget + 1; i < props.table.columns[0].values.length; i++) {
+          if(i === indexOfSource) continue
+          for(let j = 0; j < props.table.columns.length; j++) {
+            updatedValues.set(
+              props.table.columns[j].id, 
+              [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[i]]
+            )
+          }
+        }
+
+        
+
+        flushSync(() => {
+          const temp: Table = {
+            ...props.table,
+            columns: props.table.columns.map((column) => {
+              const newValues = updatedValues.get(column.id)
+              return newValues ? ({
+                ...column,
+                values: newValues
+              }) : column
+            })
+          }
+
+          console.log(updatedValues.entries())
+          const updateGroup = (prev: TableGroup[]) => {
+            return prev.map((group) => group.tables.some((table) => table.id === temp.id) ? ({
+              ...group,
+              tables: group.tables.map((table) => table.id === temp.id ? temp : table)
+            }) : group)
+          }
+
+          //TODO: build out api call
+          
+
+          props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+          props.parentUpdateTableGroups((prev) => updateGroup(prev))
+          props.parentUpdateTable(temp)
+          props.parentUpdateTableColumns(temp.columns)
+        })
+
+        const element = document.querySelector(`[data-table-row-index="${sourceData.rowIndex}"]`);
+        if(element instanceof HTMLElement) {
+          triggerPostMoveFlash(element)
+        }
+      }
+    })
+  }, [props.tableRows])
+
   return (
     <tbody>
       {props.tableRows.length > 0 && props.tableRows.map((row: [string, TableColumn['type'], string][], i: number) => {

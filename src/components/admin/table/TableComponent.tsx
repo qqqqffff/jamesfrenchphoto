@@ -67,6 +67,7 @@ export const TableComponent = (props: TableComponentProps) => {
   const refColumn = useRef<TableColumn | null>(null)
   const refRow = useRef<number>(-1)
 
+  //value, type, id
   const tableRows: [string, TableColumn['type'], string][][] = []
 
   if(props.table.columns.length > 0) { 
