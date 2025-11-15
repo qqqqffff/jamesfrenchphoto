@@ -84,6 +84,7 @@ export async function mapParticipant(client: V6Client<Schema>, participantRespon
   console.log(options?.siTags)
   if(options?.siTags !== undefined) {
     let tagsResponse = await participantResponse.tags({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    //TODO: next token parsing
     console.log(tagsResponse)
     if(tagsResponse.data.length === 0) {
       tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: participantResponse.id }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
@@ -110,6 +111,7 @@ export async function mapParticipant(client: V6Client<Schema>, participantRespon
 
             if(options.siTags?.siChildren && !options.unauthenticated) {
               //assume that a parent's children are unique and will not show up in a different tag therefore memoization will make no difference
+              //TODO: next tokening, preform all operations simultaneously, children, notifications, collections and timeslots instead of synchronously in order
               children.push(...(
                 await Promise.all((await tagResponse.data.childTags()).data.map(async (child) => {
                   const packageResponse = (await child.package()).data
