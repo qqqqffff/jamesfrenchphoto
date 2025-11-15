@@ -1,17 +1,25 @@
 import { Dropdown } from "flowbite-react"
-import { Table, TableColumn, TableGroup } from "../../../types"
+import { Table, TableColumn, TableGroup, UserTag } from "../../../types"
 import { TableColumnComponent } from "./TableColumnComponent"
-import { UseMutationResult } from "@tanstack/react-query"
-import { MutableRefObject, Dispatch, SetStateAction } from "react"
-import { CreateTableColumnParams, UpdateTableColumnParams } from "../../../services/tableService"
+import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
+import { MutableRefObject, Dispatch, SetStateAction, useRef, useEffect } from "react"
+import { CreateTableColumnParams, ReorderTableColumnsParams, UpdateTableColumnParams } from "../../../services/tableService"
 import { HiOutlineCalendar, HiOutlineDocumentText, HiOutlineListBullet, HiOutlinePencil, HiOutlinePlusCircle, HiOutlineTag } from 'react-icons/hi2'
 import { v4 } from 'uuid'
+import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
+import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { isDraggingTableColumn, isTableColumnData } from "./TableColumnData"
+import { flushSync } from "react-dom"
+import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
+import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 
 interface TableHeaderComponentProps {
   table: Table
   refColumn: MutableRefObject<TableColumn | null>
+  tagData: UseQueryResult<UserTag[] | undefined, Error>
   createColumn: UseMutationResult<void, Error, CreateTableColumnParams, unknown>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
+  reorderTableColumns: UseMutationResult<void, Error, ReorderTableColumnsParams, unknown>
   setDeleteColumnConfirmation: Dispatch<SetStateAction<boolean>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
@@ -20,6 +28,97 @@ interface TableHeaderComponentProps {
 }
 
 export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
+  const tableHeadRef = useRef<HTMLTableSectionElement | null>(null)
+
+  useEffect(() => {
+    const element = tableHeadRef.current
+
+    if(!element) {
+      return
+    }
+
+    return combine(
+      monitorForElements({
+        canMonitor: isDraggingTableColumn,
+        onDrop({ location, source }) {
+          const target = location.current.dropTargets[0]
+          if(!target){
+            return
+          }
+
+          const sourceData = source.data
+          const targetData = target.data
+
+          if(!isTableColumnData(sourceData) || !isTableColumnData(targetData)) {
+            return
+          }
+
+          const tableColumns = props.table.columns.sort((a, b) => a.order - b.order)
+
+          const indexOfSource = tableColumns.findIndex((tableColumn) => tableColumn.id === sourceData.columnId)
+          const indexOfTarget = tableColumns.findIndex((tableColumn) => tableColumn.id === targetData.columnId)
+
+          if(indexOfTarget < 0 || indexOfSource < 0 || indexOfSource === indexOfTarget) {
+            return
+          }
+
+          const closestEdgeOfTarget = extractClosestEdge(targetData)
+
+          const updatedTableColumns: TableColumn[] = []
+
+          for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'left' ? 0 : 1); i++) {
+            if(i === indexOfSource) continue
+            updatedTableColumns.push({
+              ...props.table.columns[i],
+              order: i
+            })
+          }
+          updatedTableColumns.push({
+            ...props.table.columns[indexOfSource],
+            order: indexOfTarget
+          })
+          for(let i = indexOfTarget + (closestEdgeOfTarget === 'left' ? 0 : 1); i < props.table.columns.length; i++) {
+            if(i === indexOfSource) continue
+            updatedTableColumns.push({
+              ...props.table.columns[i],
+              order: i
+            })
+          }
+          
+          flushSync(() => {
+            const updateGroup = (prev: TableGroup[]): TableGroup[] => {
+              return prev.map((group) => group.tables.some((table) => table.id === props.table.id) ? ({
+                ...group,
+                tables: group.tables.map((table) => table.id === props.table.id ? ({
+                  ...table,
+                  columns: updatedTableColumns,
+                }) : table)
+              }) : group)
+            }
+            props.reorderTableColumns.mutate({
+              tableColumns: updatedTableColumns,
+              options: {
+                logging: true
+              }
+            })
+            props.parentUpdateTableColumns(updatedTableColumns)
+            props.parentUpdateSelectedTableGroups(prev => updateGroup(prev))
+            props.parentUpdateTableGroups(prev => updateGroup(prev))
+            props.parentUpdateTable({
+              ...props.table,
+              columns: updatedTableColumns
+            })
+          })
+
+          const element = document.querySelector(`[data-table-column-id="${sourceData.columnId}"]`);
+          if(element instanceof HTMLElement) {
+            triggerPostMoveFlash(element)
+          }
+        }
+      })
+    )
+  }, [props.table])
+
   const pushColumn = (type: TableColumn['type']) => {
     const temp: TableColumn = {
       id: v4(),
@@ -68,17 +167,17 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
   }
 
   return (
-    <thead className="text-xs text-gray-700 bg-gray-50 sticky top-0 z-10">
+    <thead className="text-xs text-gray-700 bg-gray-50 sticky top-0 z-10" ref={tableHeadRef}>
       <tr>
         {props.table.columns
         .map((column) => {
-          // if(state === undefined) return (<></>)
           return (
             <TableColumnComponent 
               key={column.id}
               table={props.table}
               column={column}
               refColumn={props.refColumn}
+              tags={props.tagData.data ?? []}
               createColumn={props.createColumn}
               updateColumn={props.updateColumn}
               setDeleteColumnConfirmation={props.setDeleteColumnConfirmation}

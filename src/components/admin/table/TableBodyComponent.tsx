@@ -122,7 +122,6 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
             }) : group)
           }
 
-          //TODO: build out api call
           props.reorderTableRows.mutate({
             tableColumns: temp.columns,
             options: {

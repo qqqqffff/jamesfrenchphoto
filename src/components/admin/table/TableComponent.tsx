@@ -24,12 +24,6 @@ import { ConfirmationModal, CreateUserModal } from "../../modals"
 import { TimeslotService } from "../../../services/timeslotService"
 import { UserService, InviteUserParams } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
-import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
-import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { isDraggingTableColumn, isTableColumnData } from "./TableColumnData"
-import { flushSync } from "react-dom"
-import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
-import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { TableHeaderComponent } from "./TableHeaderComponent"
 import { TableBodyComponent } from "./TableBodyComponent"
 
@@ -64,7 +58,6 @@ export const TableComponent = (props: TableComponentProps) => {
     enabled: selectedTag !== undefined
   })
  
-  const tableRef = useRef<HTMLTableElement | null>(null)
   const refColumn = useRef<TableColumn | null>(null)
   const refRow = useRef<number>(-1)
 
@@ -148,115 +141,6 @@ export const TableComponent = (props: TableComponentProps) => {
     }
   }, [props.userData.data])
 
-  useEffect(() => {
-    const element = tableRef.current
-
-    if(!element) {
-      return
-    }
-
-    return combine(
-      monitorForElements({
-        canMonitor: isDraggingTableColumn,
-        onDrop({ location, source }) {
-          const target = location.current.dropTargets[0]
-          if(!target){
-            return
-          }
-
-          const sourceData = source.data
-          const targetData = target.data
-
-          if(!isTableColumnData(sourceData) || !isTableColumnData(targetData)) {
-            return
-          }
-
-          const tableColumns = props.table.columns.sort((a, b) => a.order - b.order)
-
-          const indexOfSource = tableColumns.findIndex((tableColumn) => tableColumn.id === sourceData.columnId)
-          const indexOfTarget = tableColumns.findIndex((tableColumn) => tableColumn.id === targetData.columnId)
-
-          if(indexOfTarget < 0 || indexOfSource < 0) {
-            return
-          }
-
-          const closestEdgeOfTarget = extractClosestEdge(targetData)
-
-          const updatedTableColumns: TableColumn[] = []
-          //TODO: fix dnd formula
-
-          if(closestEdgeOfTarget === 'left') {
-            updatedTableColumns.push(
-              ...props.table.columns.slice(0, indexOfTarget)
-            )
-            updatedTableColumns.push({...props.table.columns[indexOfSource], order: indexOfTarget })
-            updatedTableColumns.push(
-              ...props.table.columns.slice(indexOfTarget)
-            )
-          }
-          else if(closestEdgeOfTarget === 'right') {
-            updatedTableColumns.push(
-              ...props.table.columns.slice(0, indexOfTarget + 1)
-            )
-            updatedTableColumns.push({ ...props.table.columns[indexOfSource], order: indexOfTarget })
-            updatedTableColumns.push(
-              ...props.table.columns.slice(indexOfTarget + 1)
-            )
-          }
-
-          const newTableColumns = updatedTableColumns.filter((column) => column.order !== indexOfSource).map((column, index) => ({ ...column, order: index }))
-          
-          flushSync(() => {
-            const updateGroup = (prev: TableGroup[]): TableGroup[] => {
-              return prev.map((group) => group.tables.some((table) => table.id === props.table.id) ? ({
-                ...group,
-                tables: group.tables.map((table) => table.id === props.table.id ? ({
-                  ...table,
-                  columns: newTableColumns,
-                }) : table)
-              }) : group)
-            }
-            reorderTableColumns.mutate({
-              tableColumns: newTableColumns,
-              options: {
-                logging: true
-              }
-            })
-            props.parentUpdateTableColumns(newTableColumns)
-            props.parentUpdateSelectedTableGroups(prev => updateGroup(prev))
-            props.parentUpdateTableGroups(prev => updateGroup(prev))
-            props.parentUpdateTable({
-              ...props.table,
-              columns: newTableColumns
-            })
-          })
-
-          const element = document.querySelector(`[data-table-column-id="${sourceData.columnId}"]`);
-          if(element instanceof HTMLElement) {
-            triggerPostMoveFlash(element)
-          }
-        }
-      })
-    )
-  }, [props.table])
-
-  //TODO: implement me
-  // const linkUserProfile = (
-  //   userProfile: UserProfile, 
-  //   rowIndex: number,
-  //   linkedColumns: { 
-  //     columnId: string, 
-  //     field: 'first' | 'last' | 'middle' | 'email' | 'sitting' | 'preferred', 
-  //     participant: boolean
-  //   }[]
-  // ) => {
-  //   // only value, tag or date columns will be affected by linked participant
-  //   //append [*participantId*<id>, field] to values columns
-  //   //append [*participantId*<id>] to tag or date columns
-  // }
-
-  console.log(props.table.columns)
-
   return (
     <>
       <ConfirmationModal
@@ -339,12 +223,14 @@ export const TableComponent = (props: TableComponentProps) => {
       />
       {/* overflow-x-auto overflow-y-auto */}
       <div className="relative shadow-md ">
-        <table className="w-full text-sm text-left text-gray-600" ref={tableRef}>
+        <table className="w-full text-sm text-left text-gray-600">
           <TableHeaderComponent 
             table={props.table}
             refColumn={refColumn}
+            tagData={props.tagData}
             createColumn={createColumn}
             updateColumn={updateColumn}
+            reorderTableColumns={reorderTableColumns}
             setDeleteColumnConfirmation={setDeleteColumnConfirmation}
             parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
             parentUpdateTableGroups={props.parentUpdateTableGroups}

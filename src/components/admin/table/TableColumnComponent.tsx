@@ -7,7 +7,7 @@ import {
   draggable,
   dropTargetForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { Table, TableColumn, TableGroup } from '../../../types';
+import { Table, TableColumn, TableGroup, UserTag } from '../../../types';
 import { Dispatch, HTMLAttributes, MutableRefObject, SetStateAction, useEffect, useRef, useState } from 'react';
 import { Dropdown } from 'flowbite-react';
 import { getColumnTypeColor } from '../../../utils';
@@ -28,6 +28,7 @@ interface TableColumnProps {
   table: Table
   column: TableColumn
   refColumn: MutableRefObject<TableColumn | null>
+  tags: UserTag[]
   createColumn: UseMutationResult<void, Error, CreateTableColumnParams, unknown>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   setDeleteColumnConfirmation: Dispatch<SetStateAction<boolean>>
@@ -356,12 +357,12 @@ export const TableColumnComponent = (props: TableColumnProps) => {
       {columnState.type === 'is-dragging-over' && columnState.closestEdge && columnState.closestEdge === 'right' && (
         <DropIndicator edge={columnState.closestEdge} gap={'8px'} />
       )}
-      {columnState.type === 'preview' && createPortal(<DragPreview column={props.column} />, columnState.container)}
+      {columnState.type === 'preview' && createPortal(<DragPreview column={props.column} tags={props.tags} />, columnState.container)}
     </th>
   )
 }
 
-function DragPreview({ column }: { column: TableColumn}) {
+function DragPreview({ column, tags }: { column: TableColumn, tags: UserTag[]}) {
   return (
     <table className="w-full text-sm text-left text-gray-600">
       <thead className="text-xs text-gray-700 bg-gray-50">
@@ -378,13 +379,20 @@ function DragPreview({ column }: { column: TableColumn}) {
         </tr>
       </thead>
       <tbody>
-        {/* TODO: special logic for date/tag/file cell types */}
+        {/* TODO: special logic for date/file cell types */}
         {column.values.map((value, index) => {
+          let displayValue = value
           if(index > 6) return null 
+          if(column.type === 'tag') {
+            displayValue = tags.find((tag) => tag.id === value)?.name ?? ''
+          }
           return (
             <tr className="bg-white border-b w-full" key={index}>
               <td className='text-ellipsis border py-3 px-3 max-w-[150px] w-full'>
-                <span className='font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 border py-0.5'>{value === '' ? 'Enter Value...' : value}</span>
+                <span className={`
+                  font-thin p-0 text-sm border-transparent ring-transparent w-full 
+                  border-b-gray-400 border py-0.5 ${column.type === 'tag' ? `text-${tags.find((tag) => tag.id === value)?.color ?? 'black'}`: ''}
+                `}>{displayValue === '' ? 'Enter Value...' : displayValue}</span>
               </td>
             </tr>
           )

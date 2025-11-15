@@ -29,6 +29,7 @@ import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/eleme
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import invariant from 'tiny-invariant';
 import { getTableRowData, isTableRowData } from "./TableRowData"
+import { createPortal } from "react-dom"
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
@@ -318,7 +319,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           })}
         </tr>
       )}
-      <tr className="bg-white border-b" ref={ref}>
+      <tr className={`bg-white border-b ${stateStyles[rowState.type]}`} ref={ref}>
         {props.row.map(([v, t, id], j) => {
           switch(t){
             case 'date': {
@@ -608,6 +609,13 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           </Dropdown>
 
         </td>
+        {rowState.type === 'preview' && createPortal(
+          <DragPreview 
+            index={props.i} 
+            columns={props.table.columns.sort((a, b) => a.order - b.order)} 
+            tags={props.tagData.data ?? []}
+          />, rowState.container
+        )}
       </tr>
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'bottom' && (
         <tr className="h-2">
@@ -619,5 +627,39 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         </tr>
       )}
     </>
+  )
+}
+
+function DragPreview({ index, columns, tags } : { index: number, columns: TableColumn[], tags: UserTag[]}) {
+  const formattedRow: Map<TableColumn, string> = new Map()
+
+  for(let i = 0; i < columns.length; i++) {
+    if(i > 6) break;
+    formattedRow.set(columns[i], columns[i].values[index] ?? '')
+  }
+
+  console.log(formattedRow)
+  
+  return (
+    <table>
+      <tbody>
+        <tr className="bg-white border-b">
+          {Array.from(formattedRow.entries()).map((entry, i) => {
+            let displayValue = entry[1]
+            if(entry[0].type === 'tag') {
+              displayValue = tags.find((tag) => tag.id === entry[1])?.name ?? ''
+            }
+            return (
+              <td className='text-ellipsis border py-3 px-3 w-[150px]' key={i}>
+                <span className={`
+                  font-thin p-0 text-sm border-transparent ring-transparent w-full 
+                  border-b-gray-400 border py-0.5 ${entry[0].type === 'tag' ? `text-${tags.find((tag) => tag.id === entry[1])?.color ?? 'black'}`: ''}
+                `}>{displayValue === '' ? 'Enter Value...' : displayValue}</span>
+              </td>
+            )
+          })}
+        </tr>
+      </tbody>
+    </table>
   )
 }
