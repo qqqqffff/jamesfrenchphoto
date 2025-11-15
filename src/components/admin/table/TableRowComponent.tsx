@@ -518,7 +518,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         })}
         <td 
           className={`
-            flex flex-row items-center justify-center py-3 sticky right-0 z-10 hover:cursor-grab
+            flex flex-row items-center justify-center py-3 sticky right-0 hover:cursor-grab
             ${stateStyles[rowState.type] ?? ''}
           `}
           onMouseEnter={() => setAllowDragging(true)}
@@ -531,7 +531,9 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             inline
             arrowIcon={false}
           >
+            <div className="bg-white">
             <Dropdown.Item
+              className="whitespace-nowrap"
               onClick={() => {
                 props.setCreateUser(true)
                 props.refRow.current = props.i
@@ -597,6 +599,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 props.parentUpdateTableColumns(temp.columns)
               }}
             >Delete Row</Dropdown.Item>
+            </div>
           </Dropdown>
         </td>
       </tr>

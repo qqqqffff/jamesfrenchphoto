@@ -101,7 +101,7 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
             arrowIcon={false}
             label={(<HiOutlinePlusCircle className="text-gray-600 hover:fill-gray-200 hover:text-gray-900" size={24}/>)}
           >
-            <div className="w-max">
+            <div className="w-max bg-white z-20">
               <span className="whitespace-nowrap px-4 border-b pb-0.5 text-base w-full flex justify-center">Add a Column</span>
               <div className="grid grid-cols-2 p-1 gap-x-2">
                 <Dropdown.Item 
