@@ -53,8 +53,14 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
     // auto populating / multiple participants not supported
     if(props.tableColumns.length > 0 && props.tableColumns[0].values[props.rowNumber] !== undefined) {
       for(let i = 0; i < props.tableColumns.length; i++) {
+        const normalizedHeader = props.tableColumns[i].header.toLocaleLowerCase()
         if(props.tableColumns[i].type === 'value') {
-          if(props.tableColumns[i].header.toLocaleLowerCase().includes('participant')) {
+          if(
+            normalizedHeader.includes('participant') || 
+            normalizedHeader.includes('duchess') || 
+            normalizedHeader.includes('deb') || 
+            normalizedHeader.includes('escort') 
+          ) {
             if(props.tableColumns[i].header.toLocaleLowerCase().includes('first')) {
               const updatedParticipant = validateMapField('first', { 
                 participant: tempParticipants[0], 
@@ -210,76 +216,78 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
       <Modal.Header className="pb-2">Create a new User</Modal.Header>
       <Modal.Body className="pb-2">
         <div className="flex flex-col px-2 pb-1 gap-4 max-h-[68vh] min-h-[68vh]">
-          <div className="flex flex-col gap-2 border rounded-lg p-4">
-            <span className="text-lg underline italic">User Fields:</span>
-            <div className="flex flex-row gap-2 items-center text-nowrap">
-              <span>Email:</span>
-              <input
-                className={`
-                  font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-xs
-                  border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
-                `}
-                placeholder="User Email..."
-                value={email}
-                onChange={(event) => {
-                  setEmail(event.target.value)
-                  setParticipants((prev) => prev.map((participant) => ({ ...participant, userEmail: event.target.value })))
-                }}
-              />
-            </div>
-            <div className="flex flex-row gap-2 items-center text-nowrap">
-              <span>Sitting Number:</span>
-              <input
-                className={`
-                  font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-[200px]
-                  border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
-                `}
-                placeholder="Sitting Number..."
-                onChange={(event) => {
-                  const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
+          <div className="grid grid-cols-3 grid-flow-col border rounded-lg p-4">
+            <div className="flex flex-col gap-2 col-span-2">
+              <span className="text-lg underline italic">User Fields:</span>
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Email:</span>
+                <input
+                  className={`
+                    font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-xs
+                    border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
+                  `}
+                  placeholder="User Email..."
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.target.value)
+                    setParticipants((prev) => prev.map((participant) => ({ ...participant, userEmail: event.target.value })))
+                  }}
+                />
+              </div>
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Sitting Number:</span>
+                <input
+                  className={`
+                    font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-[200px]
+                    border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
+                  `}
+                  placeholder="Sitting Number..."
+                  onChange={(event) => {
+                    const input = event.target.value.charAt(0) === '0' ? event.target.value.slice(1) : event.target.value
 
-                  if(!/^\d*$/g.test(input)) {
-                    return
-                  }
+                    if(!/^\d*$/g.test(input)) {
+                      return
+                    }
 
-                  const numValue = parseInt(input)
-                  
-                  if(numValue <= -1) {
-                    return
-                  }
+                    const numValue = parseInt(input)
+                    
+                    if(numValue <= -1) {
+                      return
+                    }
 
-                  setSittingNumber(String(isNaN(numValue) ? 0 : numValue));
-                }}
-                value={sittingNumber}
-              />
-            </div>
-            <div className="flex flex-row gap-2 items-center text-nowrap">
-              <span>First Name:</span>
-              <input
-                className={`
-                  font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-[200px]
-                  border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
-                `}
-                placeholder="First Name..."
-                onChange={(event) => {
-                  setFirstName(event.target.value)
-                }}
-                value={firstName}
-              />
-            </div>
-            <div className="flex flex-row gap-2 items-center text-nowrap">
-              <span>Last Name:</span>
-              <input
-                className={`
-                  font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-[200px]
-                  border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
-                `}
-                placeholder="Last Name..."
-                onChange={(event) => {
-                  setLastName(event.target.value)
-                }}
-                value={lastName}
-              />
+                    setSittingNumber(String(isNaN(numValue) ? 0 : numValue));
+                  }}
+                  value={sittingNumber}
+                />
+              </div>
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>First Name:</span>
+                <input
+                  className={`
+                    font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-[200px]
+                    border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
+                  `}
+                  placeholder="First Name..."
+                  onChange={(event) => {
+                    setFirstName(event.target.value)
+                  }}
+                  value={firstName}
+                />
+              </div>
+              <div className="flex flex-row gap-2 items-center text-nowrap">
+                <span>Last Name:</span>
+                <input
+                  className={`
+                    font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 max-w-[200px]
+                    border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
+                  `}
+                  placeholder="Last Name..."
+                  onChange={(event) => {
+                    setLastName(event.target.value)
+                  }}
+                  value={lastName}
+                />
+              </div>
             </div>
           </div>
           <div className="flex flex-col gap-2 border rounded-lg p-4">

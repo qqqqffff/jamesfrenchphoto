@@ -518,7 +518,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         })}
         <td 
           className={`
-            flex flex-row items-center justify-center py-3 sticky right-0 hover:cursor-grab
+            flex flex-row items-center justify-center py-3 
             ${stateStyles[rowState.type] ?? ''}
           `}
           onMouseEnter={() => setAllowDragging(true)}
@@ -527,27 +527,32 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           {/* TODO: put linked user icon with dropdown to view details */}
           {/* TODO: implement revoke for temp users */}
           <Dropdown
-            label={(<HiOutlineDotsHorizontal className="text-gray-600 hover:fill-gray-200 hover:text-gray-900 hover:cursor-pointer" size={26} />)}
+            label={(<HiOutlineDotsHorizontal className="relative text-gray-600 hover:fill-gray-200 hover:text-gray-900 hover:cursor-pointer" size={26} />)}
             inline
             arrowIcon={false}
+            placement="bottom-end"
           >
-            <div className="bg-white">
+            {/* <div className="bg-black z-[100]"> */}
             <Dropdown.Item
-              className="whitespace-nowrap"
+              className="whitespace-nowrap flex flex-row justify-center w-full"
               onClick={() => {
                 props.setCreateUser(true)
                 props.refRow.current = props.i
               }}
             >Create User</Dropdown.Item>
             <Dropdown.Item
+              className="whitespace-nowrap flex flex-row justify-center w-full"
               // onClick={() => setCreateUser(true)}
               // TODO: implement me please :)
             >Link Participant</Dropdown.Item>
             {/* TODO: implement me please */}
-            <Dropdown.Item>
+            <Dropdown.Item
+              className="whitespace-nowrap flex flex-row justify-center w-full"
+            >
               Notify User
             </Dropdown.Item>
             <Dropdown.Item 
+              className="whitespace-nowrap flex flex-row justify-center w-full"
               onClick={() => {
                 props.deleteRow.mutate({
                   table: props.table,
@@ -599,8 +604,9 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 props.parentUpdateTableColumns(temp.columns)
               }}
             >Delete Row</Dropdown.Item>
-            </div>
+            {/* </div> */}
           </Dropdown>
+
         </td>
       </tr>
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'bottom' && (

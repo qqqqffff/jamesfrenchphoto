@@ -183,6 +183,7 @@ export const TableComponent = (props: TableComponentProps) => {
           const closestEdgeOfTarget = extractClosestEdge(targetData)
 
           const updatedTableColumns: TableColumn[] = []
+          //TODO: fix dnd formula
 
           if(closestEdgeOfTarget === 'left') {
             updatedTableColumns.push(
@@ -337,54 +338,52 @@ export const TableComponent = (props: TableComponentProps) => {
         }}
       />
       {/* overflow-x-auto overflow-y-auto */}
-      <div className='relative'>
-        <div className="relative shadow-md overflow-x-auto overflow-y-visible">
-          <table className="w-full text-sm text-left text-gray-600" ref={tableRef}>
-            <TableHeaderComponent 
-              table={props.table}
-              refColumn={refColumn}
-              createColumn={createColumn}
-              updateColumn={updateColumn}
-              setDeleteColumnConfirmation={setDeleteColumnConfirmation}
-              parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
-              parentUpdateTableGroups={props.parentUpdateTableGroups}
-              parentUpdateTable={props.parentUpdateTable}
-              parentUpdateTableColumns={props.parentUpdateTableColumns}
-            />
-            <TableBodyComponent 
-              TimeslotService={props.TimeslotService}
-              UserService={props.UserService}
-              TableService={props.TableService}
-              PhotoPathService={props.PhotoPathService}
-              table={props.table}
-              tableRows={tableRows}
-              users={users}
-              tempUsers={tempUsers}
-              selectedTag={selectedTag}
-              selectedDate={selectedDate}
-              refRow={refRow}
-              timeslotsQuery={timeslotsQuery}
-              tagTimeslotQuery={tagTimeslotQuery}
-              tagData={props.tagData}
-              userData={props.userData}
-              tempUsersData={props.tempUsersData}
-              deleteRow={deleteRow}
-              appendRow={appendRow}
-              updateColumn={updateColumn}
-              createChoice={createChoice}
-              reorderTableRows={reorderTableRows}
-              setTempUsers={setTempUsers}
-              setUsers={setUsers}
-              setSelectedDate={setSelectedDate}
-              setSelectedTag={setSelectedTag}
-              setCreateUser={setCreateUser}
-              parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
-              parentUpdateTableGroups={props.parentUpdateTableGroups}
-              parentUpdateTable={props.parentUpdateTable}
-              parentUpdateTableColumns={props.parentUpdateTableColumns}
-            />
-          </table>
-        </div>
+      <div className="relative shadow-md ">
+        <table className="w-full text-sm text-left text-gray-600" ref={tableRef}>
+          <TableHeaderComponent 
+            table={props.table}
+            refColumn={refColumn}
+            createColumn={createColumn}
+            updateColumn={updateColumn}
+            setDeleteColumnConfirmation={setDeleteColumnConfirmation}
+            parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
+            parentUpdateTableGroups={props.parentUpdateTableGroups}
+            parentUpdateTable={props.parentUpdateTable}
+            parentUpdateTableColumns={props.parentUpdateTableColumns}
+          />
+          <TableBodyComponent 
+            TimeslotService={props.TimeslotService}
+            UserService={props.UserService}
+            TableService={props.TableService}
+            PhotoPathService={props.PhotoPathService}
+            table={props.table}
+            tableRows={tableRows}
+            users={users}
+            tempUsers={tempUsers}
+            selectedTag={selectedTag}
+            selectedDate={selectedDate}
+            refRow={refRow}
+            timeslotsQuery={timeslotsQuery}
+            tagTimeslotQuery={tagTimeslotQuery}
+            tagData={props.tagData}
+            userData={props.userData}
+            tempUsersData={props.tempUsersData}
+            deleteRow={deleteRow}
+            appendRow={appendRow}
+            updateColumn={updateColumn}
+            createChoice={createChoice}
+            reorderTableRows={reorderTableRows}
+            setTempUsers={setTempUsers}
+            setUsers={setUsers}
+            setSelectedDate={setSelectedDate}
+            setSelectedTag={setSelectedTag}
+            setCreateUser={setCreateUser}
+            parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
+            parentUpdateTableGroups={props.parentUpdateTableGroups}
+            parentUpdateTable={props.parentUpdateTable}
+            parentUpdateTableColumns={props.parentUpdateTableColumns}
+          />
+        </table>
       </div>
     </>
   )
