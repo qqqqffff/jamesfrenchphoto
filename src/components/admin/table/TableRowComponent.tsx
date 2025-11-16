@@ -13,7 +13,7 @@ import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState }
 import { defaultColumnColors } from "../../../utils"
 import { UpdateTableColumnParams, CreateChoiceParams, TableService, DeleteTableRowParams } from "../../../services/tableService"
 import { v4 } from 'uuid'
-import { UserService } from "../../../services/userService"
+import { CreateParticipantParams, UpdateParticipantMutationParams, UpdateUserAttributesMutationParams, UpdateUserProfileParams, UserService } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 import {
   attachClosestEdge,
@@ -30,6 +30,7 @@ import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import invariant from 'tiny-invariant';
 import { getTableRowData, isTableRowData } from "./TableRowData"
 import { createPortal } from "react-dom"
+import validator from 'validator'
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
@@ -52,6 +53,10 @@ interface TableRowComponentProps {
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   deleteRow: UseMutationResult<void, Error, DeleteTableRowParams, unknown>
   createChoice: UseMutationResult<[string, string] | undefined, Error, CreateChoiceParams, unknown>
+  updateUserAttribute: UseMutationResult<unknown, Error, UpdateUserAttributesMutationParams, unknown>
+  updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
+  updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
+  createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
@@ -307,6 +312,175 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       props.parentUpdateTableColumns(temp.columns)
     }
   }
+
+  //user means that the user has been created and columns have been linked
+  //temp means that invite user has been called and columns have been linked
+  //potential means that a potential user can be created
+  //unlinked means that a user exists but the columns have not been linked
+  //false means none of the above are applicable
+  /* finding participant code
+  const choice = ((column.choices ?? [])?.[props.i] ?? '')
+  const foundParticipant = choice.includes('participantId:')
+  if(foundParticipant) {
+    const participantId = choice.substring(choice.indexOf(':') + 1)
+    return [
+      ...props.users.flatMap((user) => user.profile?.participant).filter((participant) => participant !== undefined),
+      ...props.tempUsers.flatMap((user) => user.participant)
+    ].some((participant) => participant.id === participantId)
+  }
+  */
+  const userDetection: ['user' | 'temp' | 'potential' | 'unlinked' | 'false', string] = (() => {
+    //determine if the row already has a link
+    for(let i = 0; i < props.table.columns.length; i++) {
+      const choice = ((props.table.columns[i].choices ?? [])?.[props.i] ?? '')
+        
+      const foundUser = choice.includes('userEmail:')
+      if(foundUser) {
+        const userEmail = choice.substring(choice.indexOf(':') + 1)
+        const foundTemp = props.tempUsers.find((user) => user.email === userEmail)
+        if(foundTemp) {
+          return ['temp', foundTemp.email]
+        }
+        const foundUser = props.users.find((user) => user.email === userEmail)
+        if(foundUser) {
+          return ['user', foundUser.email]
+        }
+      }
+    }
+    for(let i = 0; i < props.row.length; i++) {
+      const foundColumn = props.table.columns.find((column) => column.id == props.row[i][2])
+      if(!foundColumn) continue
+      const normalHeader = foundColumn.header.toLocaleLowerCase()
+      const normalizedValue = props.row[i][0].toLocaleLowerCase()
+      if(
+        validator.isEmail(normalizedValue) && 
+        !normalHeader.includes('participant') &&
+        !normalHeader.includes('duchess') &&
+        !normalHeader.includes('deb') &&
+        !normalHeader.includes('escort')
+      ) {
+        //comparision check against normalized values but return visual value for display purposes
+        if(
+          props.users.some((user) => user.email.toLocaleLowerCase() === normalizedValue) ||
+          props.tempUsers.some((temp) => temp.email.toLocaleLowerCase() === normalizedValue)
+        ) {
+          return ['unlinked', props.row[i][0]]
+        }
+        return ['potential', props.row[i][0]]
+      }
+    }
+    return ['false', '']
+  })()
+
+  //can only link to temp, user, or unlinked (user must exist to link a participant)
+  const linkParticipantAvailable: Participant | undefined = (() => {
+    if(
+      (
+        userDetection[0] === 'temp' || 
+        userDetection[0] === 'unlinked' ||
+        userDetection[0] === 'user'
+      ) &&
+      validator.isEmail(userDetection[1]) &&
+      //below means that the row already has a mapped participant
+      !props.table.columns.some((column) => (
+        ((column.choices ?? [])?.[props.i] ?? '').includes('participantId:')
+      ))
+    ) {
+      let foundFirst: string | undefined = undefined
+      let foundLast: string | undefined = undefined
+      let foundMiddle: string | undefined = undefined
+      let foundPreferred: string | undefined = undefined
+      let foundEmail: string | undefined = undefined
+      let foundTags: UserTag[] = []
+      //TODO: implement found timeslot
+
+      for(let i = 0; i < props.row.length; i++) {
+        const foundColumn = props.table.columns.find((column) => column.id == props.row[i][2])
+        if(!foundColumn) continue
+        const normalHeader = foundColumn.header.toLocaleLowerCase()
+        if(
+          foundColumn.type === 'value' &&
+          (
+            normalHeader.includes('participant') || 
+            normalHeader.includes('duchess') || 
+            normalHeader.includes('deb') || 
+            normalHeader.includes('escort') 
+          )
+        ) {
+          if(
+            normalHeader.includes('first') &&
+            props.row[i][0] !== ''
+          ) {
+            foundFirst = props.row[i][0]
+          }
+          else if(
+            normalHeader.includes('last') &&
+            props.row[i][0] !== ''
+          ) {
+            foundLast = props.row[i][0]
+          }
+          else if(
+            normalHeader.includes('middle') &&
+            props.row[i][0] !== ''
+          ) {
+            foundMiddle = props.row[i][0]
+          }
+          else if(
+            normalHeader.includes('prefer') &&
+            props.row[i][0] !== ''
+          ) {
+            foundPreferred = props.row[i][0]
+          }
+          else if(
+            normalHeader.includes('email') &&
+            props.row[i][0] !== ''
+          ) {
+            foundEmail = props.row[i][0]
+          }
+        }
+        
+        if(foundColumn.type === 'tag') {
+          const value = foundColumn.values[props.i]
+          const cellTags = (value.split(',') ?? [])
+          .filter((tag) => tag !== '')
+          .reduce((prev, tag) => {
+            const foundTag = (props.tagData.data ?? []).find((uTag) => tag === uTag.id)
+            if(foundTag !== undefined && !foundTags.some((uTag) => uTag.id === tag)) {
+              prev.push(foundTag)
+            }
+            return prev
+          }, [] as UserTag[])
+
+          foundTags.push(...cellTags)
+        }
+      }
+
+      if(
+        foundFirst !== undefined && 
+        foundLast !== undefined
+      ) {
+        const participant: Participant = {
+          id: v4(),
+          firstName: foundFirst,
+          lastName: foundLast,
+          middleName: foundMiddle,
+          preferredName: foundPreferred,
+          email: foundEmail,
+          userEmail: userDetection[1],
+          userTags: foundTags,
+          contact: false,
+          //not required
+          notifications: [],
+          collections: [],
+        }
+
+        return participant
+      }
+    }
+    return undefined
+  })()
+  
+  console.log(userDetection, linkParticipantAvailable)
   
   return (
     <>
@@ -512,6 +686,12 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   key={j} 
                   value={v}
                   updateValue={(text) => updateValue(id, text, props.i)}
+                  column={props.table.columns.find((column) => column.id === id)!}
+                  tempUsersData={props.tempUsersData}
+                  userData={props.userData}
+                  updateUserAttribute={props.updateUserAttribute}
+                  updateUserProfile={props.updateUserProfile}
+                  updateParticipant={props.updateParticipant}
                 />
               )
             }

@@ -58,11 +58,11 @@ export interface Participant {
 }
 
 export interface ParticipantFields {
-    type: 'first' | 'preferred' | 'middle' | 'last'
+    type: 'first' | 'preferred' | 'middle' | 'last' | 'email'
 }
 
 export interface UserFields {
-    type: 'first' | 'last' | 'sitting'
+    type: 'first' | 'last' | 'sitting' | 'email'
 }
 
 export type Notification = {

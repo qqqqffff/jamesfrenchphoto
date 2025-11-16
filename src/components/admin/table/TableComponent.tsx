@@ -22,12 +22,10 @@ import {
 import { currentDate } from "../../../utils"
 import { ConfirmationModal, CreateUserModal } from "../../modals"
 import { TimeslotService } from "../../../services/timeslotService"
-import { UserService, InviteUserParams } from "../../../services/userService"
+import { UserService, InviteUserParams, CreateParticipantParams, UpdateParticipantMutationParams, UpdateUserAttributesMutationParams, UpdateUserProfileParams } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 import { TableHeaderComponent } from "./TableHeaderComponent"
 import { TableBodyComponent } from "./TableBodyComponent"
-
-// import { createParticipantMutation, CreateParticipantParams, updateParticipantMutation, UpdateParticipantMutationParams, updateUserAttributeMutation, UpdateUserAttributesMutationParams, updateUserProfileMutation, UpdateUserProfileParams } from "../../../services/userService"
 
 interface TableComponentProps {
   TableService: TableService,
@@ -113,21 +111,21 @@ export const TableComponent = (props: TableComponentProps) => {
   const link = window.location.href
     .replace(new RegExp(/admin.*/g), 'register')
 
-  // const updateUserAttribute = useMutation({
-  //   mutationFn: (params: UpdateUserAttributesMutationParams) => updateUserAttributeMutation(params)
-  // })
+  const updateUserAttribute = useMutation({
+    mutationFn: (params: UpdateUserAttributesMutationParams) => props.UserService.updateUserAttributeMutation(params)
+  })
 
-  // const updateUserProfile = useMutation({
-  //   mutationFn: (params: UpdateUserProfileParams) => updateUserProfileMutation(params)
-  // })
+  const updateUserProfile = useMutation({
+    mutationFn: (params: UpdateUserProfileParams) => props.UserService.updateUserProfileMutation(params)
+  })
 
-  // const updateParticipant = useMutation({
-  //   mutationFn: (params: UpdateParticipantMutationParams) => updateParticipantMutation(params)
-  // })
+  const updateParticipant = useMutation({
+    mutationFn: (params: UpdateParticipantMutationParams) => props.UserService.updateParticipantMutation(params)
+  })
 
-  // const createParticipant = useMutation({
-  //   mutationFn: (params: CreateParticipantParams) => createParticipantMutation(params)
-  // })
+  const createParticipant = useMutation({
+    mutationFn: (params: CreateParticipantParams) => props.UserService.createParticipantMutation(params)
+  })
 
   useEffect(() => {
     if(props.tempUsersData.data && props.tempUsersData.data.length > 0) {
@@ -259,6 +257,10 @@ export const TableComponent = (props: TableComponentProps) => {
             updateColumn={updateColumn}
             createChoice={createChoice}
             reorderTableRows={reorderTableRows}
+            updateUserAttribute={updateUserAttribute}
+            updateUserProfile={updateUserProfile}
+            updateParticipant={updateParticipant}
+            createParticipant={createParticipant}
             setTempUsers={setTempUsers}
             setUsers={setUsers}
             setSelectedDate={setSelectedDate}

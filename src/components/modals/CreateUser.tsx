@@ -61,7 +61,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
             normalizedHeader.includes('deb') || 
             normalizedHeader.includes('escort') 
           ) {
-            if(props.tableColumns[i].header.toLocaleLowerCase().includes('first')) {
+            if(normalizedHeader.includes('first')) {
               const updatedParticipant = validateMapField('first', { 
                 participant: tempParticipants[0], 
                 value: props.tableColumns[i].values[props.rowNumber] 
@@ -71,7 +71,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                 tempParticipants[0] = updatedParticipant
               }
             }
-            if(props.tableColumns[i].header.toLocaleLowerCase().includes('last')) {
+            if(normalizedHeader.includes('last')) {
               const updatedParticipant = validateMapField('last', { 
                 participant: tempParticipants[0], 
                 value: props.tableColumns[i].values[props.rowNumber] 
@@ -81,7 +81,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                 tempParticipants[0] = updatedParticipant
               }
             }
-            if(props.tableColumns[i].header.toLocaleLowerCase().includes('middle')) {
+            if(normalizedHeader.includes('middle')) {
               const updatedParticipant = validateMapField('middle', { 
                 participant: tempParticipants[0], 
                 value: props.tableColumns[i].values[props.rowNumber] 
@@ -91,7 +91,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                 tempParticipants[0] = updatedParticipant
               }
             }
-            if(props.tableColumns[i].header.toLocaleLowerCase().includes('preferred')) {
+            if(normalizedHeader.includes('prefer')) {
               const updatedParticipant = validateMapField('preferred', { 
                 participant: tempParticipants[0], 
                 value: props.tableColumns[i].values[props.rowNumber] 
@@ -101,7 +101,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                 tempParticipants[0] = updatedParticipant
               }
             }
-            if(props.tableColumns[i].header.toLocaleLowerCase().includes('middle')) {
+            if(normalizedHeader.includes('middle')) {
               const updatedParticipant = validateMapField('middle', { 
                 participant: tempParticipants[0], 
                 value: props.tableColumns[i].values[props.rowNumber] 
@@ -112,7 +112,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
               }
             }
             if(
-              props.tableColumns[i].header.toLocaleLowerCase().includes('email') &&
+              normalizedHeader.includes('email') &&
               validator.isEmail(props.tableColumns[i].values[props.rowNumber])
             ) {
               tempParticipants[0] = {
@@ -121,20 +121,20 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
               }
             }
           }
-          else if(props.tableColumns[i].header.toLocaleLowerCase().includes('first')) {
+          else if(normalizedHeader.includes('first')) {
             tempFirst = props.tableColumns[i].values[props.rowNumber]
           }
-          else if(props.tableColumns[i].header.toLocaleLowerCase().includes('last')) {
+          else if(normalizedHeader.includes('last')) {
             tempLast = props.tableColumns[i].values[props.rowNumber]
           }
           else if(
-            props.tableColumns[i].header.toLocaleLowerCase().includes('sitting') &&
+            normalizedHeader.includes('sitting') &&
             !isNaN(Number(props.tableColumns[i].values[props.rowNumber]))
           ) {
             tempSitting = props.tableColumns[i].values[props.rowNumber]
           }
           else if(
-            props.tableColumns[i].header.toLocaleLowerCase().includes('email') &&
+            normalizedHeader.includes('email') &&
             validator.isEmail(props.tableColumns[i].values[props.rowNumber])
           ) {
             tempEmail = props.tableColumns[i].values[props.rowNumber]
@@ -158,7 +158,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
             return userTag
           })
 
-          tempParticipants[0].userTags = cellTags
+          tempParticipants[0].userTags.push(...cellTags)
         }
         else if(props.tableColumns[i].type === 'date') {
           //TODO: implement me please

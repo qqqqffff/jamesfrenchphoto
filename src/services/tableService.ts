@@ -197,6 +197,7 @@ export interface UploadColumnFileParams {
   }
 }
 
+//TODO: add previous table columns to decrease api calls
 export interface ReorderTableColumnsParams {
   tableColumns: TableColumn[],
   options?: {

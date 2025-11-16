@@ -954,7 +954,7 @@ export class UserService {
         middleName: params.middleName,
         contact: params.contact
       })
-      return response
+      if(params.options?.logging) console.log(response)
     }
   }
 

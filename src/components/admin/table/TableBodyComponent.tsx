@@ -4,7 +4,7 @@ import { TimeslotService } from "../../../services/timeslotService"
 import { Dispatch, SetStateAction, useEffect } from "react"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { AppendTableRowParams, CreateChoiceParams, DeleteTableRowParams, ReorderTableRowsParams, TableService, UpdateTableColumnParams } from "../../../services/tableService"
-import { UserService } from "../../../services/userService"
+import { CreateParticipantParams, UpdateParticipantMutationParams, UpdateUserAttributesMutationParams, UpdateUserProfileParams, UserService } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 import { HiOutlinePlusCircle } from "react-icons/hi2"
 import { TableRowComponent } from "./TableRowComponent"
@@ -36,6 +36,10 @@ interface TableBodyComponentProps {
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   createChoice: UseMutationResult<[string, string] | undefined, Error, CreateChoiceParams, unknown>
   reorderTableRows: UseMutationResult<void, Error, ReorderTableRowsParams, unknown>
+  updateUserAttribute: UseMutationResult<unknown, Error, UpdateUserAttributesMutationParams, unknown>
+  updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
+  updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
+  createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
@@ -169,6 +173,10 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               updateColumn={props.updateColumn}
               deleteRow={props.deleteRow}
               createChoice={props.createChoice}
+              updateUserAttribute={props.updateUserAttribute}
+              updateUserProfile={props.updateUserProfile}
+              updateParticipant={props.updateParticipant}
+              createParticipant={props.createParticipant}
               setTempUsers={props.setTempUsers}
               setUsers={props.setUsers}
               setSelectedDate={props.setSelectedDate}

@@ -1,8 +1,17 @@
 import { ComponentProps, useEffect, useRef, useState } from "react"
+import { TableColumn, UserData, UserProfile } from "../../../types"
+import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
+import { UpdateParticipantMutationParams, UpdateUserAttributesMutationParams, UpdateUserProfileParams } from "../../../services/userService"
 
 interface ValueCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void,
+  column: TableColumn
+  tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
+  userData: UseQueryResult<UserData[] | undefined, Error>
+  updateUserAttribute: UseMutationResult<unknown, Error, UpdateUserAttributesMutationParams, unknown>
+  updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
+  updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
 }
 
 export const ValueCell = (props: ValueCellProps) => {
