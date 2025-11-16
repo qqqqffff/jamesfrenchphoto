@@ -96,6 +96,21 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
   const ref = useRef<HTMLTableRowElement | null>(null)
   const [rowState, setRowState] = useState<TableRowState>(idle)
   const [allowDragging, setAllowDragging] = useState(false)
+  const [linkedUserFields, setLinkedUserFields] = useState<{
+    email: [string, string],
+    first: [boolean, string],
+    last: [boolean, string],
+    sitting: [boolean, string],
+  } | undefined>()
+  const [linkedParticipantFields, setLinkedParticipantFields] = useState<{
+    id: string
+    first: [boolean, string], 
+    last: [boolean, string],
+    middle: [boolean, string] | null,
+    preferred: [boolean, string] | null,
+    email: [boolean, string] | null,
+    tags: [boolean, string] | null,
+  }[]>([])
 
   useEffect(() => {
     const element = ref.current
@@ -318,6 +333,9 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
   //overriding means that what is from the database gets put into the columns
   //update means that the database gets updated from whats in the table
   //method field 2 is the column id
+  //linking structure uses the choice array with the indexed value being a comma delimitted string of the following format:
+  //participantId:--id--,field or userEmail:--email--,field
+  //with field being any of the potentially mappable 
   const linkUser = (userProfile: UserProfile, method: ['override' | 'update', string]) => {
 
   }
@@ -386,6 +404,26 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     }
     return ['false', '']
   })()
+  const participantDetection: Participant[] = (() => {
+    const participants: Participant[] = []
+    for(let i = 0; i < props.table.columns.length; i++) {
+      const column = props.table.columns[i]
+      const choice = ((column.choices ?? [])?.[props.i] ?? '')
+      const participantMapping = choice.includes('participantId:')
+      const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
+      if(participantMapping) {
+        const participantId = choice.substring(choice.indexOf(':') + 1, endIndex)
+        const foundParticipant = [
+          ...props.users.flatMap((user) => user.profile?.participant).filter((participant) => participant !== undefined),
+          ...props.tempUsers.flatMap((user) => user.participant)
+        ].find((participant) => participant.id === participantId)
+        if(foundParticipant && !participants.some((participant) => participant.id === foundParticipant.id)) {
+          participants.push(foundParticipant)
+        }
+      }
+    }
+    return participants
+  })()
 
   //can only link to temp, user, or unlinked (user must exist to link a participant)
   const linkParticipantAvailable: Participant | undefined = (() => {
@@ -395,11 +433,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         userDetection[0] === 'unlinked' ||
         userDetection[0] === 'user'
       ) &&
-      validator.isEmail(userDetection[1]) &&
-      //below means that the row already has a mapped participant
-      !props.table.columns.some((column) => (
-        ((column.choices ?? [])?.[props.i] ?? '').includes('participantId:')
-      ))
+      validator.isEmail(userDetection[1])
     ) {
       let foundFirst: string | undefined = undefined
       let foundLast: string | undefined = undefined
@@ -411,7 +445,11 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
 
       for(let i = 0; i < props.row.length; i++) {
         const foundColumn = props.table.columns.find((column) => column.id == props.row[i][2])
-        if(!foundColumn) continue
+        //below means that the column's field already has a mapped participant
+        if(
+          !foundColumn || 
+          ((foundColumn.choices ?? [])?.[props.i] ?? '').includes('participantId:')
+        ) continue
         const normalHeader = foundColumn.header.toLocaleLowerCase()
         if(
           foundColumn.type === 'value' &&
@@ -500,6 +538,93 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     ...props.users.flatMap((data) => data.profile).filter((profile) => profile !== undefined),
     ...props.tempUsers
   ].find((profile) => profile.email === userDetection[1])
+
+  useEffect(() => {
+    const linkedParticipants = [...linkedParticipantFields]
+    const linkedUser = linkedUserFields ? {...linkedUserFields} : {
+      email: ['' , ''] as [string, string],
+      first: [false, ''] as [boolean, string],
+      last: [false, ''] as [boolean, string],
+      sitting: [false, ''] as [boolean, string],
+    }
+    if(
+      participantDetection.length > 0 ||
+      userDetection[0] === 'temp' ||
+      userDetection[0] === 'user'
+    ) {
+      for(let i = 0; i < props.table.columns.length; i++) {
+        const column = props.table.columns[i]
+        const choice = (column.choices ?? [])?.[props.i]
+        const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
+        if(choice.includes('participantId:')) {
+          const mappedParticipant = choice.substring(choice.indexOf(':') + 1, endIndex)
+          const foundParticipant = participantDetection.some((participant) => participant.id === mappedParticipant)
+          if(!foundParticipant) continue
+          const linkedIndex = linkedParticipants.findIndex((participant) => participant.id === mappedParticipant)
+          if(linkedIndex === -1) {
+            linkedParticipants.push({
+              id: mappedParticipant,
+              first: [false, ''],
+              last: [false, ''],
+              middle: null,
+              preferred: null,
+              email: null,
+              tags: null
+            })
+          }
+          const field = choice.substring(endIndex + 1)
+          if(field === 'first') {
+            linkedParticipants[linkedParticipants.length].first = [true, column.id]
+          }
+          else if(field === 'last') {
+            linkedParticipants[linkedParticipants.length].last = [true, column.id]
+          }
+          else if(field === 'middle') {
+            linkedParticipants[linkedParticipants.length].middle = [true, column.id]
+          }
+          else if(field === 'preferred') {
+            linkedParticipants[linkedParticipants.length].preferred = [true, column.id]
+          }
+          else if(field === 'email') {
+            linkedParticipants[linkedParticipants.length].last = [true, column.id]
+          }
+          else if(field === 'tags') {
+            linkedParticipants[linkedParticipants.length].last = [true, column.id]
+          }
+        }
+        else if(choice.includes('userEmail:')) {
+          const mappedUser = choice.substring(choice.indexOf(':') + 1, endIndex)
+          if(userDetection[1] !== mappedUser && linkedUser.email[0] !== '') {
+            //TODO: invalid mapping (two different users mapped in the same row) -> handle this event
+            continue
+          }
+          else if(linkedUser.email[0] === '' && userDetection[1] === mappedUser) {
+            linkedUser.email[0] = mappedUser
+          }
+
+          const field = choice.substring(endIndex + 1)
+          if(field === 'first') {
+            linkedUser.first = [true, column.id]
+          }
+          else if(field === 'last') {
+            linkedUser.last = [true, column.id]
+          }
+          else if(field === 'sitting') {
+            linkedUser.sitting = [true, column.id]
+          }
+          else if(field === 'email') {
+            linkedUser.email = [linkedUser.email[0], column.id]
+          }
+        }
+      }
+    }
+    
+    setLinkedParticipantFields(linkedParticipants)
+    setLinkedUserFields(linkedUser)
+  }, [
+    userDetection,
+    participantDetection,
+  ])
 
   return (
     <>
@@ -777,13 +902,12 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   .map((participant, index) => {
                     // TODO: implement admin options to delete participants
                     return (
-                      <>
+                      <div key={index}>
                         <ParticipantPanel 
-                          key={index}
                           participant={participant}
                         />
                         <div className="border"/>
-                      </>
+                      </div>
                     )
                   })}
                 </div>
