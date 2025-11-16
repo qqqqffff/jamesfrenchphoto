@@ -43,19 +43,17 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
             <span className="italic truncate max-w-[200px]">{props.participant.userEmail}</span>
           </div>
         )}
-        {/* TODO: better conditional rendering for no tags */}
         {!props.hiddenOptions?.tags && (
           <div className="flex flex-row gap-2 justify-start flex-wrap pt-2 max-w-[200px]">
-            {/* <span className="pt-1">Tags:</span> */}
-            {/* <span className="italic flex flex-col gap-1"> */}
-              {props.participant.userTags.length > 0 ? (
-                props.participant.userTags.map((tag, index) => {
-                  return (
-                    <span className={`text-${tag.color ?? 'black'} border rounded-full px-2 py-1 text-center flex max-w-min text-nowrap`} key={index}>{tag.name}</span>
-                  )
-                })
-              ) : <span className="pt-1">No Tags</span>}
-            {/* </span> */}
+            {props.participant.userTags.length > 0 ? (
+              props.participant.userTags.map((tag, index) => {
+                return (
+                  <span className={`text-${tag.color ?? 'black'} border rounded-full px-2 py-1 text-center flex max-w-min text-nowrap`} key={index}>{tag.name}</span>
+                )
+              })
+            ) : (
+              <span className="pt-1 border rounded-full px-2 py-1 text-center flex max-w-min text-nowrap">No Tags</span>
+            )}
           </div>
         )}
         {props.showOptions?.timeslot && (

@@ -47,6 +47,7 @@ export interface Participant {
     firstName: string,
     lastName: string,
     userTags: UserTag[],
+    createdAt: string,
     middleName?: string,
     preferredName?: string,
     email?: string,

@@ -665,6 +665,7 @@ export class UserService {
           preferredName: profileResponse.data.participantPreferredName ?? undefined,
           contact: profileResponse.data.participantContact ?? false,
           email: profileResponse.data.participantEmail ?? undefined,
+          createdAt: new Date().toISOString(),
           userTags: (profileResponse.data.userTags ?? []).map((tagString) => {
             if(!tagString) return
             const mappedTag: UserTag = {

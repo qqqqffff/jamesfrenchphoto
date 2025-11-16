@@ -25,6 +25,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
   const emptyParticipant = (): Participant => {
     return {
       id: v4(),
+      createdAt: new Date().toISOString(),
       firstName: '',
       lastName: '',
       userTags: [],

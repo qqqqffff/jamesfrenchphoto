@@ -31,6 +31,8 @@ import invariant from 'tiny-invariant';
 import { getTableRowData, isTableRowData } from "./TableRowData"
 import { createPortal } from "react-dom"
 import validator from 'validator'
+import { HiOutlineUserCircle } from "react-icons/hi2";
+import { ParticipantPanel } from "../../common/ParticipantPanel"
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
@@ -313,6 +315,17 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     }
   }
 
+  //overriding means that what is from the database gets put into the columns
+  //update means that the database gets updated from whats in the table
+  //method field 2 is the column id
+  const linkUser = (userProfile: UserProfile, method: ['override' | 'update', string]) => {
+
+  }
+  //added create method for participant -> creates new participant
+  const linkParticipant = (participant: Participant, method: ['override' | 'update' | 'create', string]) => {
+
+  }
+
   //user means that the user has been created and columns have been linked
   //temp means that invite user has been called and columns have been linked
   //potential means that a potential user can be created
@@ -321,8 +334,9 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
   /* finding participant code
   const choice = ((column.choices ?? [])?.[props.i] ?? '')
   const foundParticipant = choice.includes('participantId:')
+  const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
   if(foundParticipant) {
-    const participantId = choice.substring(choice.indexOf(':') + 1)
+    const participantId = choice.substring(choice.indexOf(':') + 1, endIndex)
     return [
       ...props.users.flatMap((user) => user.profile?.participant).filter((participant) => participant !== undefined),
       ...props.tempUsers.flatMap((user) => user.participant)
@@ -335,8 +349,9 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       const choice = ((props.table.columns[i].choices ?? [])?.[props.i] ?? '')
         
       const foundUser = choice.includes('userEmail:')
+      const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
       if(foundUser) {
-        const userEmail = choice.substring(choice.indexOf(':') + 1)
+        const userEmail = choice.substring(choice.indexOf(':') + 1, endIndex)
         const foundTemp = props.tempUsers.find((user) => user.email === userEmail)
         if(foundTemp) {
           return ['temp', foundTemp.email]
@@ -463,6 +478,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           id: v4(),
           firstName: foundFirst,
           lastName: foundLast,
+          createdAt: new Date().toISOString(),
           middleName: foundMiddle,
           preferredName: foundPreferred,
           email: foundEmail,
@@ -479,11 +495,15 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     }
     return undefined
   })()
-  
-  console.log(userDetection, linkParticipantAvailable)
-  
+
+  const detectedUser = [
+    ...props.users.flatMap((data) => data.profile).filter((profile) => profile !== undefined),
+    ...props.tempUsers
+  ].find((profile) => profile.email === userDetection[1])
+
   return (
     <>
+      
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'top' && (
         <tr className="h-2">
           {props.row.map((_, index) => {
@@ -687,6 +707,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   value={v}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   column={props.table.columns.find((column) => column.id === id)!}
+                  rowIndex={props.i}
                   tempUsersData={props.tempUsersData}
                   userData={props.userData}
                   updateUserAttribute={props.updateUserAttribute}
@@ -700,20 +721,113 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         <td 
           className={`
             flex flex-row items-center justify-center py-3 
-            ${stateStyles[rowState.type] ?? ''}
+            ${stateStyles[rowState.type] ?? ''} px-2 gap-2
           `}
           onMouseEnter={() => setAllowDragging(true)}
           onMouseLeave={() => setAllowDragging(false)}
         >
           {/* TODO: put linked user icon with dropdown to view details */}
           {/* TODO: implement revoke for temp users */}
+          {(userDetection[0] === 'user' || userDetection[0] === 'temp' || userDetection[0] === 'unlinked') && detectedUser !== undefined && (
+            <Dropdown
+              label={(
+                <HiOutlineUserCircle 
+                  className={`
+                    ${userDetection[0] === 'temp' ? 'text-orange-300' : userDetection[0] === 'unlinked' ? 'text-red-400' : 'text-black'} 
+                    hover:fill-gray-400 hover:cursor-pointer
+                  `} size={26} 
+                />
+              )}
+              inline
+              arrowIcon={false}
+              placement="bottom-end"
+            >
+              <div className="px-4 py-2 flex flex-col">
+                <span className="font-medium whitespace-nowrap text-lg text-blue-400">User Info{
+                userDetection[0] === 'temp' ? (
+                  ' - Temporary'
+                ) : (
+                  userDetection[0] === 'unlinked' ? (
+                    ' - Unlinked'
+                  ) : (
+                    ''
+                  )
+                )}
+                </span>
+                <div className="flex flex-col px-2 text-xs">
+                  <div className="flex flex-row gap-2 items-center text-nowrap">
+                    <span>Sitting Number:</span>
+                    <span className="italic">{detectedUser.sittingNumber}</span>
+                  </div>
+                  <div className="flex flex-row gap-2 items-center text-nowrap">
+                    <span>First Name:</span>
+                    <span className="italic">{detectedUser.firstName}</span>
+                  </div>
+                  <div className="flex flex-row gap-2 items-center text-nowrap">
+                    <span>Last Name:</span>
+                    <span className="italic">{detectedUser.lastName}</span>
+                  </div>
+                  <div className="flex flex-row gap-2 items-center text-nowrap">
+                    <span>Email:</span>
+                    <span className="italic">{detectedUser.email}</span>
+                  </div>
+                  <div className="border mt-2"/>
+                  {detectedUser.participant
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((participant, index) => {
+                    // TODO: implement admin options to delete participants
+                    return (
+                      <>
+                        <ParticipantPanel 
+                          key={index}
+                          participant={participant}
+                        />
+                        <div className="border"/>
+                      </>
+                    )
+                  })}
+                </div>
+                <div className="flex flex-row justify-end mt-2 me-1">
+                  {userDetection[0] === 'unlinked' && (
+                    <button 
+                      className="border px-2 py-1 rounded-lg text-sm hover:bg-gray-200 bg-white"
+                      onClick={() => {
+                        //TODO: implement me
+                      }}
+                    >
+                      <span>Link User</span>
+                    </button>
+                  )}
+                  {userDetection[0] === 'temp' && (
+                    <>
+                      <button 
+                        className="border px-2 py-1 rounded-lg text-sm hover:bg-gray-200 bg-white"
+                        onClick={() => {
+                          //TODO: implement me
+                        }}
+                      >
+                        <span>Send Invite</span>
+                      </button>
+                      <button 
+                        className="border px-2 py-1 rounded-lg text-sm hover:bg-gray-200 bg-white"
+                        onClick={() => {
+                          //TODO: implement me
+                        }}
+                      >
+                        <span>Copy Invite Link</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </Dropdown>
+          )}
           <Dropdown
-            label={(<HiOutlineDotsHorizontal className="relative text-gray-600 hover:fill-gray-200 hover:text-gray-900 hover:cursor-pointer" size={26} />)}
+            label={(<HiOutlineDotsHorizontal className="text-gray-600 hover:fill-gray-200 hover:text-gray-900 hover:cursor-pointer" size={26} />)}
             inline
             arrowIcon={false}
             placement="bottom-end"
           >
-            {/* <div className="bg-black z-[100]"> */}
             <Dropdown.Item
               className="whitespace-nowrap flex flex-row justify-center w-full"
               onClick={() => {
@@ -721,11 +835,19 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 props.refRow.current = props.i
               }}
             >Create User</Dropdown.Item>
-            <Dropdown.Item
-              className="whitespace-nowrap flex flex-row justify-center w-full"
-              // onClick={() => setCreateUser(true)}
-              // TODO: implement me please :)
-            >Link Participant</Dropdown.Item>
+            {linkParticipantAvailable !== undefined && (
+              <Dropdown.Item
+                className="whitespace-nowrap flex flex-row justify-center w-full"
+                // onClick={() => setCreateUser(true)}
+                // TODO: implement me please :)
+              >Link Participant</Dropdown.Item>
+            )}
+            {userDetection[0] === 'unlinked' && (
+              <Dropdown.Item
+                className="whitespace-nowrap flex flex-row justify-center w-full"
+                //TODO: implement me please
+              >Link User</Dropdown.Item>
+            )}
             {/* TODO: implement me please */}
             <Dropdown.Item
               className="whitespace-nowrap flex flex-row justify-center w-full"
@@ -785,9 +907,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 props.parentUpdateTableColumns(temp.columns)
               }}
             >Delete Row</Dropdown.Item>
-            {/* </div> */}
           </Dropdown>
-
         </td>
         {rowState.type === 'preview' && createPortal(
           <DragPreview 

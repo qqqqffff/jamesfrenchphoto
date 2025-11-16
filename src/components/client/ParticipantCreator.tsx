@@ -72,6 +72,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                 participant = {
                     id: v4(),
                     userEmail: userEmail,
+                    createdAt: new Date().toISOString(),
                     userTags: tags,
                     email: email,
                     firstName: firstName,

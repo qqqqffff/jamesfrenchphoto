@@ -6,7 +6,8 @@ import { UpdateParticipantMutationParams, UpdateUserAttributesMutationParams, Up
 interface ValueCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void,
-  column: TableColumn
+  column: TableColumn,
+  rowIndex: number,
   tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
   userData: UseQueryResult<UserData[] | undefined, Error>
   updateUserAttribute: UseMutationResult<unknown, Error, UpdateUserAttributesMutationParams, unknown>
@@ -18,6 +19,7 @@ export const ValueCell = (props: ValueCellProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [value, setValue] = useState('')
 
+  //TODO: add conditional rendering for the border if the cell is linked
   useEffect(() => {
     if(props.value !== value){
       setValue(props.value)
@@ -25,7 +27,9 @@ export const ValueCell = (props: ValueCellProps) => {
   }, [props.value])
 
   return (
-    <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
+    <td className={`
+      text-ellipsis border py-3 px-3 max-w-[150px]
+    `}>
       <input
         ref={inputRef}
         placeholder="Enter Value..."
