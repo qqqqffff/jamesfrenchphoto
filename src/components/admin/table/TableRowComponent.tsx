@@ -33,6 +33,7 @@ import { createPortal } from "react-dom"
 import validator from 'validator'
 import { HiOutlineUserCircle } from "react-icons/hi2";
 import { ParticipantPanel } from "../../common/ParticipantPanel"
+import { LinkUserModal } from "../../modals/LinkUser"
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
@@ -111,6 +112,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     email: [boolean, string] | null,
     tags: [boolean, string] | null,
   }[]>([])
+  const [linkUserVisible, setLinkUserVisible] = useState(false)
 
   useEffect(() => {
     const element = ref.current
@@ -586,10 +588,10 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             linkedParticipants[linkedParticipants.length].preferred = [true, column.id]
           }
           else if(field === 'email') {
-            linkedParticipants[linkedParticipants.length].last = [true, column.id]
+            linkedParticipants[linkedParticipants.length].email = [true, column.id]
           }
           else if(field === 'tags') {
-            linkedParticipants[linkedParticipants.length].last = [true, column.id]
+            linkedParticipants[linkedParticipants.length].tags = [true, column.id]
           }
         }
         else if(choice.includes('userEmail:')) {
@@ -619,16 +621,36 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       }
     }
     
-    setLinkedParticipantFields(linkedParticipants)
-    setLinkedUserFields(linkedUser)
+    setLinkedParticipantFields(prev => 
+      JSON.stringify(prev) !== JSON.stringify(linkedParticipants) ? linkedParticipants : prev
+    )
+    setLinkedUserFields(prev => 
+      JSON.stringify(prev) !== JSON.stringify(linkedUser) ? linkedUser : prev
+    )
   }, [
     userDetection,
     participantDetection,
+    linkedParticipantFields,  
+    linkedUserFields,  
+    props.table.columns, 
+    props.i  
   ])
 
   return (
     <>
-      
+      {userDetection[0] === 'unlinked' && detectedUser !== undefined && (
+        <LinkUserModal 
+          open={linkUserVisible}
+          onClose={() => setLinkUserVisible(false)}
+          userProfile={detectedUser}
+          rowIndex={props.i}
+          tags={props.tagData}
+          tableColumns={props.table.columns.filter((column) => {
+            const choice = (column.choices ?? [])?.[props.i]
+            return choice === undefined || (!choice.includes('userEmail') && !choice.includes('participantId'))
+          })}
+        />
+      )}
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'top' && (
         <tr className="h-2">
           {props.row.map((_, index) => {
@@ -916,13 +938,13 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     <button 
                       className="border px-2 py-1 rounded-lg text-sm hover:bg-gray-200 bg-white"
                       onClick={() => {
-                        //TODO: implement me
+                        setLinkUserVisible(true)
                       }}
                     >
                       <span>Link User</span>
                     </button>
                   )}
-                  {userDetection[0] === 'temp' && (
+                  {(userDetection[0] === 'temp' || props.tempUsers.some((user) => user.email === userDetection[1])) && (
                     <>
                       <button 
                         className="border px-2 py-1 rounded-lg text-sm hover:bg-gray-200 bg-white"
@@ -952,13 +974,15 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             arrowIcon={false}
             placement="bottom-end"
           >
-            <Dropdown.Item
-              className="whitespace-nowrap flex flex-row justify-center w-full"
-              onClick={() => {
-                props.setCreateUser(true)
-                props.refRow.current = props.i
-              }}
-            >Create User</Dropdown.Item>
+            {userDetection[0] === 'potential' && (
+              <Dropdown.Item
+                className="whitespace-nowrap flex flex-row justify-center w-full"
+                onClick={() => {
+                  props.setCreateUser(true)
+                  props.refRow.current = props.i
+                }}
+              >Create User</Dropdown.Item>
+            )}
             {linkParticipantAvailable !== undefined && (
               <Dropdown.Item
                 className="whitespace-nowrap flex flex-row justify-center w-full"

@@ -38,8 +38,6 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
   const [participants, setParticipants] = useState<Participant[]>([emptyParticipant()])
   const [availableTags, setAvailableTags] = useState<UserTag[]>([])
 
-  
-
   useEffect(() => {
     const tempParticipants = [...participants]
     let tempFirst = ''

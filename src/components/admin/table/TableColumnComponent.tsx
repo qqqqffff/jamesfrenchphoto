@@ -144,8 +144,9 @@ export const TableColumnComponent = (props: TableColumnProps) => {
       ref={tableColumnRef}
       className={`
         relative border-x border-x-gray-300 border-b border-b-gray-300 
-        min-w-[150px] max-w-[150px] whitespace-normal break-words place-items-center
-        items-center ${stateStyles[columnState.type] ?? ''}
+        min-w-[150px] max-w-[150px] whitespace-normal break-words 
+        text-center align-middle bg-gray-50
+        ${stateStyles[columnState.type] ?? ''}
       `}
     >
       {columnState.type === 'is-dragging-over' && columnState.closestEdge && columnState.closestEdge === 'left' && (

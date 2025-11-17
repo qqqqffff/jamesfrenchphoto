@@ -168,7 +168,7 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
 
   return (
     <thead className="text-xs text-gray-700 bg-gray-50 sticky top-0 z-10" ref={tableHeadRef}>
-      <tr>
+      <tr className="bg-gray-50">
         {props.table.columns
         .map((column) => {
           return (
@@ -190,9 +190,10 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
         })}
         <th
           className="
+            bg-gray-50
             relative px-6 py-3 border-e border-e-gray-300 border-b border-b-gray-300
-            min-w-[50px] max-w-[50px] whitespace-normal break-words place-items-center
-            items-center
+            min-w-[50px] max-w-[50px] whitespace-normal break-words
+            text-center
           "
         >
           <Dropdown
