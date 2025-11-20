@@ -1,6 +1,6 @@
 import { Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
 import { AggregateCell } from "./AggregateCell"
-import { TimeslotService } from "../../../services/timeslotService"
+import { AdminRegisterTimeslotMutationParams, TimeslotService } from "../../../services/timeslotService"
 import { Dispatch, SetStateAction, useEffect } from "react"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { AppendTableRowParams, CreateChoiceParams, DeleteTableRowParams, ReorderTableRowsParams, TableService, UpdateTableColumnParams } from "../../../services/tableService"
@@ -40,6 +40,7 @@ interface TableBodyComponentProps {
   updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
   updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
   createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
+  registerTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
@@ -177,6 +178,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               updateUserProfile={props.updateUserProfile}
               updateParticipant={props.updateParticipant}
               createParticipant={props.createParticipant}
+              registerTimeslot={props.registerTimeslot}
               setTempUsers={props.setTempUsers}
               setUsers={props.setUsers}
               setSelectedDate={props.setSelectedDate}

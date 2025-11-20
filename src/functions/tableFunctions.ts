@@ -8,6 +8,8 @@ export const mapParticipantField = (props: { field: ParticipantFields['type'], p
       return props.participant.preferredName ?? ''
     case "middle":
       return props.participant.middleName ?? ''
+    case 'email':
+      return props.participant.email ?? ''
     case "last":
       return props.participant.lastName
     default:

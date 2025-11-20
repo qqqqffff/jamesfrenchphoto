@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Timeslot, UserTag } from "../types";
+import validator from 'validator'
 
 //TODO: add metricing
 interface MapTimeslotOptions {
@@ -223,6 +224,16 @@ export interface RegisterTimeslotMutationParams {
   }
 }
 
+export interface AdminRegisterTimeslotMutationParams {
+  timeslotId: string,
+  userEmail: string,
+  participantId: string,
+  notify: boolean,
+  options?: {
+    logging: boolean
+  }
+}
+
 export class TimeslotService {
   private client: V6Client<Schema>
   constructor(client: V6Client<Schema>) {
@@ -396,7 +407,7 @@ export class TimeslotService {
     if (!response.data) return false
     if (params.notify && params.timeslot.register) {
       const response = await this.client.queries.SendTimeslotConfirmation({
-        email: params.timeslot.register,
+        email: params.timeslot.register.toLowerCase(),
         start: params.timeslot.start.toISOString(),
         end: params.timeslot.end.toISOString()
       }, {
@@ -405,6 +416,32 @@ export class TimeslotService {
       if (params.options?.logging) console.log(response)
     }
     return true
+  }
+
+  async adminRegisterTimeslotMutation(params: AdminRegisterTimeslotMutationParams): Promise<Timeslot | null> {
+    const getTimeslotResponse = await this.client.models.Timeslot.get({ id: params.timeslotId })
+    if(
+      getTimeslotResponse.data !== null && 
+      getTimeslotResponse.data.participantId !== params.participantId &&
+      getTimeslotResponse.data.register !== params.userEmail
+    ) {
+      const registerResponse = await this.client.models.Timeslot.update({
+        id: params.timeslotId,
+        register: params.userEmail,
+        participantId: params.participantId,
+      })
+      if(params.options?.logging) console.log(registerResponse)
+      if(params.notify && validator.isEmail(params.userEmail)) {
+        const emailResponse = await this.client.queries.SendTimeslotConfirmation({
+          email: params.userEmail,
+          start: getTimeslotResponse.data.start,
+          end: getTimeslotResponse.data.end
+        })
+        if(params.options?.logging) console.log(emailResponse)
+      }
+      return mapTimeslot(getTimeslotResponse.data, { siTag: undefined })
+    }
+    return null
   }
 
   getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({

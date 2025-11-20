@@ -6,8 +6,7 @@ import { DateCell } from "./DateCell"
 import { FileCell } from "./FileCell"
 import { TagCell } from "./TagCell"
 import { ValueCell } from "./ValueCell"
-import { TimeslotService } from "../../../services/timeslotService"
-import { validateMapField } from "../../../functions/tableFunctions"
+import { AdminRegisterTimeslotMutationParams, TimeslotService } from "../../../services/timeslotService"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react"
 import { defaultColumnColors } from "../../../utils"
@@ -61,6 +60,7 @@ interface TableRowComponentProps {
   updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
   updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
   createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
+  registerTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
@@ -192,33 +192,463 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
 
   const updateValue = (id: string, text: string, i: number) => {
     const column = props.table.columns.find((column) => column.id === id)
-    let newValue: string | undefined
 
     if(!column) {
       //TODO: handle error
       return
     }
 
-    const updatedColumns: TableColumn[] = []
-    if(
-      column.type === 'value' && 
-      column.choices?.[0] !== undefined && 
-      props.table.columns.some((col) => column.choices?.[0] === col.id) &&
-      column.choices?.[1] !== undefined &&
-      validateMapField(column.choices[1])[0] !== null
-    ) {
-      const foundColumn = props.table.columns.find((col) => col.id === column.choices?.[0])
+    const userLink = ((column.choices ?? [])[i] ?? '').includes('userEmail')
+    const participantLink = ((column.choices ?? [])[i] ?? '').includes('participantId')
 
-      if(!foundColumn){
-        //TODO: handle error
-        return
-      } 
+    const field: 'first' | 'last' | 'sitting' | 'email' | 'preferred' | 'middle' | undefined = (column.type === 'value' && (participantLink || userLink)) ? (() => {
+      const foundChoice = column.choices?.[i]
+      if(foundChoice === undefined) return undefined
+      const foundField = foundChoice.substring(foundChoice.indexOf(',') + 1)
+      switch(foundField) {
+        case 'first':
+          return 'first'
+        case 'last':
+          return 'last'
+        case 'sitting':
+          return 'sitting'
+        case 'email':
+          return 'email'
+        case 'preferred':
+          return 'preferred'
+        case 'middle':
+          return 'middle'
+        default:
+          return undefined
+      }
+    })(): undefined 
+
+    //processing the link
+    if(
+      (
+        props.tempUsers.some((profile) => profile.email.toLowerCase() === linkedUserFields?.email[0].toLowerCase()) ||
+        props.users.some((user) => user.email.toLowerCase() === linkedUserFields?.email[0].toLowerCase())
+      ) &&
+      userLink &&
+      field !== undefined
+    ) {
+      const foundUser: UserProfile & { temp: boolean } | undefined = [
+        ...props.tempUsers.map((profile) => ({...profile, temp: true})),
+        ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).map((profile) => ({...profile, temp: true}))
+      ].find((user) => user.email.toLowerCase() === linkedUserFields?.email[0].toLowerCase())
+      if(foundUser !== undefined) {
+        if(column.id === linkedUserFields?.email[1]) {
+          //TODO: investigate how to handle this, since cognito email needs to be changed as well with the attribute update: for now disabled
+        }
+        else if(linkedUserFields?.first[0] && column.id === linkedUserFields.first[1] && field === 'first') {
+          props.updateUserProfile.mutate({
+            profile: foundUser,
+            first: text,
+            options: {
+              logging: true
+            }
+          })
+          if(foundUser.temp) {
+            props.setTempUsers(prev => prev.map((profile) => profile.email === foundUser.email ? ({
+              ...profile,
+              first: text
+            }) : profile))
+          }
+          else {
+            props.setUsers(prev => prev.map((data) => data.email === foundUser.email ? ({
+              ...data,
+              profile: ({
+                ...foundUser,
+                first: text
+              })
+            }) : data))
+          }
+        }
+        else if(linkedUserFields?.last[0] && column.id === linkedUserFields.last[1] && field === 'last') {
+          props.updateUserProfile.mutate({
+            profile: foundUser,
+            last: text,
+            options: {
+              logging: true
+            }
+          })
+          if(foundUser.temp) {
+            props.setTempUsers(prev => prev.map((profile) => profile.email === foundUser.email ? ({
+              ...profile,
+              last: text
+            }) : profile))
+          }
+          else {
+            props.setUsers(prev => prev.map((data) => data.email === foundUser.email ? ({
+              ...data,
+              profile: ({
+                ...foundUser,
+                last: text
+              })
+            }) : data))
+          }
+        }
+        else if(linkedUserFields?.sitting[0] && column.id === linkedUserFields.sitting[1] && !isNaN(Number(text)) && field === 'sitting') {
+          props.updateUserProfile.mutate({
+            profile: foundUser,
+            sitting: Number(text)
+          })
+          if(foundUser.temp) {
+            props.setTempUsers(prev => prev.map((profile) => profile.email === foundUser.email ? ({
+              ...profile,
+              sittingNumber: Number(text)
+            }) : profile))
+          }
+          else {
+            props.setUsers(prev => prev.map((data) => data.email === foundUser.email ? ({
+              ...data,
+              profile: ({
+                ...foundUser,
+                sittingNumber: Number(text)
+              })
+            }) : data))
+          }
+        }
+      }
+    }
+    
+    if(participantLink) {
+      if(linkedParticipantFields.some((link) => link.first[0] && link.first[1] === column.id) && field === 'first') {
+        linkedParticipantFields.forEach((link) => {
+          const foundParticipant: Participant & { temp: boolean } | undefined = [
+            ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+          ].find((participant) => participant.id === link.id)
+          console.log(foundParticipant)
+          if(foundParticipant !== undefined) {
+            props.updateParticipant.mutate({
+              participant: foundParticipant,
+              firstName: text,
+              lastName: foundParticipant.lastName,
+              contact: foundParticipant.contact,
+              userTags: foundParticipant.userTags,
+              options: {
+                logging: true
+              }
+            })
+            if(foundParticipant.temp) {
+              props.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+                ...profile,
+                participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                  ...participant,
+                  firstName: text
+                }) : participant)
+              }) : profile))
+            }
+            else {
+              props.setUsers(prev => prev.map((data) => (
+                data.profile && 
+                (data.profile?.participant ?? [])
+                .some((participant) => participant.id === foundParticipant.id)) 
+              ? ({
+                ...data,
+                profile: ({
+                  ...data.profile,
+                  participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                    ...participant,
+                    firstName: text
+                  }) : participant)
+                })
+              }) : data))
+            }
+          }
+        })
+      }
+      else if(linkedParticipantFields.some((link) => link.last[0] && link.last[1] === column.id) && field === 'last') {
+        linkedParticipantFields.forEach((link) => {
+          const foundParticipant: Participant & { temp: boolean } | undefined = [
+            ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+          ].find((participant) => participant.id === link.id)
+          if(foundParticipant !== undefined) {
+            props.updateParticipant.mutate({
+              participant: foundParticipant,
+              lastName: text,
+              firstName: foundParticipant.firstName,
+              contact: foundParticipant.contact,
+              userTags: foundParticipant.userTags,
+            })
+            if(foundParticipant.temp) {
+              props.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+                ...profile,
+                participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                  ...participant,
+                  lastName: text
+                }) : participant)
+              }) : profile))
+            }
+            else {
+              props.setUsers(prev => prev.map((data) => (
+                data.profile && 
+                (data.profile?.participant ?? [])
+                .some((participant) => participant.id === foundParticipant.id)) 
+              ? ({
+                ...data,
+                profile: ({
+                  ...data.profile,
+                  participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                    ...participant,
+                    lastName: text
+                  }) : participant)
+                })
+              }) : data))
+            }
+          }
+        })
+      }
+      else if(linkedParticipantFields.some((link) => link.preferred?.[0] && link.preferred[1] === column.id) && field === 'preferred') {
+        linkedParticipantFields.forEach((link) => {
+          const foundParticipant: Participant & { temp: boolean } | undefined = [
+            ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+          ].find((participant) => participant.id === link.id)
+          if(foundParticipant !== undefined) {
+            props.updateParticipant.mutate({
+              participant: foundParticipant,
+              preferredName: text,
+              firstName: foundParticipant.firstName,
+              lastName: foundParticipant.lastName,
+              contact: foundParticipant.contact,
+              userTags: foundParticipant.userTags,
+            })
+            if(foundParticipant.temp) {
+              props.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+                ...profile,
+                participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                  ...participant,
+                  preferredName: text
+                }) : participant)
+              }) : profile))
+            }
+            else {
+              props.setUsers(prev => prev.map((data) => (
+                data.profile && 
+                (data.profile?.participant ?? [])
+                .some((participant) => participant.id === foundParticipant.id)) 
+              ? ({
+                ...data,
+                profile: ({
+                  ...data.profile,
+                  participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                    ...participant,
+                    preferredName: text
+                  }) : participant)
+                })
+              }) : data))
+            }
+          }
+        })
+      }
+      else if(linkedParticipantFields.some((link) => link.middle?.[0] && link.middle[1] === column.id) && field === 'middle') {
+        linkedParticipantFields.forEach((link) => {
+          const foundParticipant: Participant & { temp: boolean } | undefined = [
+            ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+          ].find((participant) => participant.id === link.id)
+          if(foundParticipant !== undefined) {
+            props.updateParticipant.mutate({
+              participant: foundParticipant,
+              firstName: foundParticipant.firstName,
+              lastName: foundParticipant.lastName,
+              middleName: text,
+              contact: foundParticipant.contact,
+              userTags: foundParticipant.userTags,
+            })
+            if(foundParticipant.temp) {
+              props.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+                ...profile,
+                participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                  ...participant,
+                  middleName: text
+                }) : participant)
+              }) : profile))
+            }
+            else {
+              props.setUsers(prev => prev.map((data) => (
+                data.profile && 
+                (data.profile?.participant ?? [])
+                .some((participant) => participant.id === foundParticipant.id)) 
+              ? ({
+                ...data,
+                profile: ({
+                  ...data.profile,
+                  participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                    ...participant,
+                    middleName: text
+                  }) : participant)
+                })
+              }) : data))
+            }
+          }
+        })
+      }
+      else if(linkedParticipantFields.some((link) => link.email?.[0] && link.email[1] === column.id) && field === 'email') {
+        linkedParticipantFields.forEach((link) => {
+          const foundParticipant: Participant & { temp: boolean } | undefined = [
+            ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+          ].find((participant) => participant.id === link.id)
+          if(foundParticipant !== undefined && validator.isEmail(text)) {
+            props.updateParticipant.mutate({
+              participant: foundParticipant,
+              email: text.toLowerCase(),
+              firstName: foundParticipant.firstName,
+              lastName: foundParticipant.lastName,
+              contact: foundParticipant.contact,
+              userTags: foundParticipant.userTags,
+            })
+            if(foundParticipant.temp) {
+              props.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+                ...profile,
+                participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                  ...participant,
+                  email: text.toLowerCase()
+                }) : participant)
+              }) : profile))
+            }
+            else {
+              props.setUsers(prev => prev.map((data) => (
+                data.profile && 
+                (data.profile?.participant ?? [])
+                .some((participant) => participant.id === foundParticipant.id)) 
+              ? ({
+                ...data,
+                profile: ({
+                  ...data.profile,
+                  participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                    ...participant,
+                    email: text.toLowerCase()
+                  }) : participant)
+                })
+              }) : data))
+            }
+          }
+        })
+      }
+      else if(linkedParticipantFields.some((link) => link.tags?.[0] && link.tags[1] === column.id) && column.type === 'tag') {
+        linkedParticipantFields.forEach((link) => {
+          const foundParticipant: Participant & { temp: boolean } | undefined = [
+            ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+          ].find((participant) => participant.id === link.id)
+          if(foundParticipant !== undefined) {
+            const filteredTags = text.split(',')
+            .map((tagId) => (props.tagData.data ?? []).find((tag) => tag.id === tagId))
+            .filter((tag) => tag !== undefined)
+            props.updateParticipant.mutate({
+              participant: foundParticipant,
+              firstName: foundParticipant.firstName,
+              lastName: foundParticipant.lastName,
+              userTags: filteredTags,
+              contact: foundParticipant.contact,
+            })
+            if(foundParticipant.temp) {
+              props.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+                ...profile,
+                participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                  ...participant,
+                  userTags: filteredTags
+                }) : participant)
+              }) : profile))
+            }
+            else {
+              props.setUsers(prev => prev.map((data) => (
+                data.profile && 
+                (data.profile?.participant ?? [])
+                .some((participant) => participant.id === foundParticipant.id)) 
+              ? ({
+                ...data,
+                profile: ({
+                  ...data.profile,
+                  participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                    ...participant,
+                    tags: filteredTags
+                  }) : participant)
+                })
+              }) : data))
+            }
+          }
+        })
+      }
+      else if(linkedParticipantFields.some((link) => link.timeslot?.[0] && link.timeslot[1] === column.id) && column.type === 'date') {
+        linkedParticipantFields.forEach((link) => {
+          const foundParticipant: Participant & { temp: boolean } | undefined = [
+            ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+          ].find((participant) => participant.id === link.id)
+          if(foundParticipant !== undefined) {
+            Promise.all(
+              text.split(',')
+              .filter((timeslotId) => (foundParticipant.timeslot ?? [])
+              .some((timeslot) => timeslot.id === timeslotId))
+              .map(async (timeslotId) => {
+                return props.registerTimeslot.mutateAsync({
+                  timeslotId: timeslotId,
+                  userEmail: foundParticipant.userEmail,
+                  participantId: foundParticipant.id,
+                  notify: false,
+                  options: {
+                    logging: true
+                  }
+                })
+              })
+            ).then((value) => {
+              if(foundParticipant.temp) {
+                props.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+                  ...profile,
+                  participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                    ...participant,
+                    timeslot: [
+                      ...(foundParticipant.timeslot ?? []),
+                      ...value.filter((timeslot) => timeslot !== null)
+                    ].reduce((prev, cur) => {
+                      if(!prev.some((timeslot) => timeslot.id === cur.id)) {
+                        prev.push(cur)
+                      }
+                      return prev
+                    }, [] as Timeslot[])
+                  }) : participant)
+                }) : profile))
+              }
+              else {
+                props.setUsers(prev => prev.map((data) => (
+                  data.profile && 
+                  (data.profile?.participant ?? [])
+                  .some((participant) => participant.id === foundParticipant.id)) 
+                ? ({
+                  ...data,
+                  profile: ({
+                    ...data.profile,
+                    participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                      ...participant,
+                      timeslot: [
+                        ...(foundParticipant.timeslot ?? []),
+                        ...value.filter((timeslot) => timeslot !== null)
+                      ].reduce((prev, cur) => {
+                        if(!prev.some((timeslot) => timeslot.id === cur.id)) {
+                          prev.push(cur)
+                        }
+                        return prev
+                      }, [] as Timeslot[])
+                    }) : participant)
+                  })
+                }) : data))
+              }
+            })
+          }
+        })
+      }
     }
 
     props.updateColumn.mutate({
       column: column,
       values: column.values.map((value, index) => {
-        if(index === i) return newValue ? newValue : text
+        if(index === i) return text
         return value
       }),
       options: {
@@ -229,11 +659,9 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     const temp: Table = {
       ...props.table,
       columns: props.table.columns.map((column) => {
-        const updatedColumn = updatedColumns.find((col) => col.id === column.id)
-        if(updatedColumn) return updatedColumn
-        else if(column.id === id){
+        if(column.id === id){
           const values = [...column.values]
-          values[i] = newValue ? newValue : text
+          values[i] = text
           return {
             ...column,
             values: values
@@ -619,6 +1047,8 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     props.table.columns, 
     props.i  
   ])
+
+  console.log(linkedUserFields, linkedParticipantFields)
 
   return (
     <>

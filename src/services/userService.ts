@@ -1140,7 +1140,7 @@ export class UserService {
             }
           }
         }
-        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0] + ',email'
+        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0].toLowerCase() + ',email'
         const response = this.client.models.TableColumn.update({
           id: column.id,
           choices: choices
@@ -1165,7 +1165,7 @@ export class UserService {
             }
           }
         }
-        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0] + ',first'
+        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0].toLowerCase() + ',first'
         if(
           params.userFieldLinks.first[1] === 'update' && 
           column.values[params.rowIndex] !== undefined && 
@@ -1208,7 +1208,7 @@ export class UserService {
             }
           }
         }
-        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0] + ',last'
+        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0].toLowerCase() + ',last'
         if(
           params.userFieldLinks.last[1] === 'update' && 
           column.values[params.rowIndex] !== undefined && 
@@ -1251,7 +1251,7 @@ export class UserService {
             }
           }
         }
-        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0] + ',sitting'
+        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0].toLowerCase() + ',sitting'
         if(
           params.userFieldLinks.sitting[1] === 'update' && 
           column.values[params.rowIndex] !== undefined && 
@@ -1667,7 +1667,7 @@ export class UserService {
         const column = params.tableColumns.find((column) => params.participantFieldLinks.email?.[0] === column.id)
         return column !== undefined && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== ''
       })() ? params.tableColumns.find((column) => column.id === params.participantFieldLinks.email?.[0])!.values[params.rowIndex] : params.participant.email,
-      userEmail: params.participant.userEmail
+      userEmail: params.participant.userEmail.toLowerCase()
     })
 
     if(params.options?.logging) console.log(createParticipantResponse)

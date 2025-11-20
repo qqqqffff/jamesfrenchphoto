@@ -21,7 +21,7 @@ import {
 } from "../../../services/tableService"
 import { currentDate } from "../../../utils"
 import { ConfirmationModal, CreateUserModal } from "../../modals"
-import { TimeslotService } from "../../../services/timeslotService"
+import { AdminRegisterTimeslotMutationParams, TimeslotService } from "../../../services/timeslotService"
 import { UserService, InviteUserParams, CreateParticipantParams, UpdateParticipantMutationParams, UpdateUserAttributesMutationParams, UpdateUserProfileParams } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 import { TableHeaderComponent } from "./TableHeaderComponent"
@@ -125,6 +125,10 @@ export const TableComponent = (props: TableComponentProps) => {
 
   const createParticipant = useMutation({
     mutationFn: (params: CreateParticipantParams) => props.UserService.createParticipantMutation(params)
+  })
+
+  const registerTimeslot = useMutation({
+    mutationFn: (params: AdminRegisterTimeslotMutationParams) => props.TimeslotService.adminRegisterTimeslotMutation(params)
   })
 
   useEffect(() => {
@@ -261,6 +265,7 @@ export const TableComponent = (props: TableComponentProps) => {
             updateUserProfile={updateUserProfile}
             updateParticipant={updateParticipant}
             createParticipant={createParticipant}
+            registerTimeslot={registerTimeslot}
             setTempUsers={setTempUsers}
             setUsers={setUsers}
             setSelectedDate={setSelectedDate}
