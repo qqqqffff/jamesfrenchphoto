@@ -640,6 +640,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     <>
       {userDetection[0] === 'unlinked' && detectedUser !== undefined && (
         <LinkUserModal 
+          UserService={props.UserService}
           open={linkUserVisible}
           onClose={() => setLinkUserVisible(false)}
           userProfile={detectedUser}

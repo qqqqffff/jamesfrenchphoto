@@ -1,5 +1,5 @@
 import { Schema } from "../../amplify/data/resource";
-import { Notification, Package, Participant, PhotoCollection, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { Notification, Package, Participant, PhotoCollection, TableColumn, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
 import { queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
@@ -517,6 +517,12 @@ export interface RevokeUserInviteMutationParams {
   }
 }
 
+export interface LinkUserMutationParams {
+  tableColumns: TableColumn[],
+  rowIndex: number,
+  
+}
+
 export class UserService {
   private client: V6Client<Schema>
   constructor(client: V6Client<Schema>) {
@@ -986,6 +992,7 @@ export class UserService {
     }
   }
 
+  //TODO: improve me with getting existing participants? and checking for existing userprofile
   async inviteUserMutation(params: InviteUserParams) {
     const participantResponses: [
       Schema['Participant']['type'] | null, 
@@ -998,7 +1005,7 @@ export class UserService {
         preferredName: participant.preferredName,
         middleName: participant.middleName,
         lastName: participant.lastName,
-        email: (participant.email ?? '').toLocaleLowerCase()
+        email: participant.email ? participant.email.toLocaleLowerCase() : undefined,
       })
       return [
         response.data,
@@ -1086,6 +1093,10 @@ export class UserService {
     const deleteTemporaryToken = await this.client.models.TemporaryCreateUsersTokens.delete({ id: profile.temporary })
     if(params.options?.logging) console.log(deleteTemporaryToken)
     if(params.options?.metric) console.log(`REVOKEUSERINVITE:${new Date().getTime() - start.getTime()}ms`)
+  }
+
+  async linkUserMutation(params: LinkUserMutationParams) {
+
   }
 
   getUserProfileByEmailQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({
