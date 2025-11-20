@@ -27,87 +27,95 @@ interface ParticipantPanelProps {
 }
 
 export const ParticipantPanel = (props: ParticipantPanelProps) => {
+  console.log(props.participant)
   return (
     <div className="flex flex-col">
       <span className='text-purple-400'>Participant</span>
       <div className="flex flex-col text-xs px-2 pb-1 max-h-80 overflow-y-auto gap-0.5">
         <div className="flex flex-row gap-2 items-center text-nowrap">
-            <span>First Name:</span>
-            <span className="italic">{
-            props.showOptions?.linkedFields?.participantLinks.first !== null &&
-            props.showOptions?.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0]) &&
-            props.showOptions.linkedFields.participantLinks.first[1] === 'update' ? (
-              props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0])?.values[props.showOptions.linkedFields.rowIndex]
-            ) : (
-              props.participant.firstName
-            )}</span>
-            {props.showOptions?.linkedFields !== undefined && (
-              <>
-                <Dropdown
-                  inline
-                  arrowIcon={false}
-                  label={props.showOptions.linkedFields.participantLinks.first !== null ? (
-                    <HiOutlineLockClosed size={16} className="hover:text-gray-300" />
-                  ) : (
-                    <HiOutlineLockOpen size={16} className="hover:text-gray-300" />
-                  )}
-                >
-                  {props.showOptions.linkedFields.participantLinks.first !== null && 
-                  props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0]) && (
-                      <Dropdown.Item 
-                        className="bg-gray-200 hover:bg-transparent" 
-                        onClick={() => {
-                          props.showOptions?.linkedFields?.toggleField((prev) => prev.map((linkedFields) => linkedFields.id === props.participant.id ? ({
-                            ...linkedFields,
-                            first: null
-                          }) : linkedFields))
-                        }}>{props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0])?.header}</Dropdown.Item>
-                  )}
-                  {props.showOptions.linkedFields.availableOptions
-                  .filter((column) => column.type === 'value')
-                  .map((column, index) => {
-                    return (
-                      <Dropdown.Item 
-                        key={index}
-                        onClick={() => {
-                          props.showOptions?.linkedFields?.toggleField((prev) => prev.map((linkedFields) => linkedFields.id === props.participant.id ? ({
-                            ...linkedFields,
-                            first: linkedFields.first === null || linkedFields.first[0] !== column.id ? [
-                            column.id, linkedFields.last === null ? 'update' : linkedFields.last[1]
-                          ] : null
-                          }) : linkedFields))
-                        }}
-                      >{column.header}</Dropdown.Item>
-                    )
-                  })}
-                </Dropdown>
-                {props.showOptions.linkedFields !== undefined && 
-                props.showOptions.linkedFields.participantLinks.first !== null &&
-                props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0]) && (
-                  <button
-                    className="px-2 py-1 rounded-sm border hover:bg-gray-200"
-                    onClick={() => {
-                      if(props.showOptions?.linkedFields?.participantLinks.first !== null) {
-                        props.showOptions?.linkedFields?.toggleField((prev) => prev.map((participant) => participant.id === props.showOptions?.linkedFields?.participantLinks.id ? ({
-                          ...props.showOptions.linkedFields.participantLinks,
-                          first: [
-                            props.showOptions.linkedFields.participantLinks.first![0], 
-                            props.showOptions.linkedFields.participantLinks.first![1] === 'override' ? 'update' : 'override'
-                          ]
-                        }) : participant))
-                      }
-                    }}
-                  >
-                    {props.showOptions.linkedFields.participantLinks.first[1] === 'override' ? 'Override' : 'Update'}
-                  </button>
+          <span>First Name:</span>
+          <span className="italic">{
+          props.showOptions?.linkedFields?.participantLinks.first !== null &&
+          props.showOptions?.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0]) &&
+          props.showOptions.linkedFields.participantLinks.first[1] === 'update' ? (
+            props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0])?.values[props.showOptions.linkedFields.rowIndex]
+          ) : (
+            props.participant.firstName
+          )}</span>
+          {props.showOptions?.linkedFields !== undefined && (
+            <>
+              <Dropdown
+                inline
+                arrowIcon={false}
+                label={props.showOptions.linkedFields.participantLinks.first !== null ? (
+                  <HiOutlineLockClosed size={16} className="hover:text-gray-300" />
+                ) : (
+                  <HiOutlineLockOpen size={16} className="hover:text-gray-300" />
                 )}
-              </>
-            )}
-          </div>
-        {props.participant.preferredName && (
+              >
+                {props.showOptions.linkedFields.participantLinks.first !== null && 
+                props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0]) && (
+                    <Dropdown.Item 
+                      className="bg-gray-200 hover:bg-transparent" 
+                      onClick={() => {
+                        props.showOptions?.linkedFields?.toggleField((prev) => prev.map((linkedFields) => linkedFields.id === props.participant.id ? ({
+                          ...linkedFields,
+                          first: null
+                        }) : linkedFields))
+                      }}>{props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0])?.header}</Dropdown.Item>
+                )}
+                {props.showOptions.linkedFields.availableOptions
+                .filter((column) => column.type === 'value')
+                .map((column, index) => {
+                  return (
+                    <Dropdown.Item 
+                      key={index}
+                      onClick={() => {
+                        props.showOptions?.linkedFields?.toggleField((prev) => prev.map((linkedFields) => linkedFields.id === props.participant.id ? ({
+                          ...linkedFields,
+                          first: linkedFields.first === null || linkedFields.first[0] !== column.id ? [
+                          column.id, linkedFields.last === null ? 'update' : linkedFields.last[1]
+                        ] : null
+                        }) : linkedFields))
+                      }}
+                    >{column.header}</Dropdown.Item>
+                  )
+                })}
+              </Dropdown>
+              {props.showOptions.linkedFields !== undefined && 
+              props.showOptions.linkedFields.participantLinks.first !== null &&
+              props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0]) && (
+                <button
+                  className="px-2 py-1 rounded-sm border hover:bg-gray-200"
+                  onClick={() => {
+                    if(props.showOptions?.linkedFields?.participantLinks.first !== null) {
+                      props.showOptions?.linkedFields?.toggleField((prev) => prev.map((participant) => participant.id === props.showOptions?.linkedFields?.participantLinks.id ? ({
+                        ...props.showOptions.linkedFields.participantLinks,
+                        first: [
+                          props.showOptions.linkedFields.participantLinks.first![0], 
+                          props.showOptions.linkedFields.participantLinks.first![1] === 'override' ? 'update' : 'override'
+                        ]
+                      }) : participant))
+                    }
+                  }}
+                >
+                  {props.showOptions.linkedFields.participantLinks.first[1] === 'override' ? 'Override' : 'Update'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+        {props.participant.preferredName !== undefined && (
           <div className="flex flex-row gap-2 items-center text-nowrap">
             <span>Preferred Name:</span>
-            <span className="italic">{props.participant.preferredName}</span>
+            <span className="italic">{
+            props.showOptions?.linkedFields?.participantLinks.preferred !== null &&
+            props.showOptions?.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.preferred?.[0]) &&
+            props.showOptions.linkedFields.participantLinks.preferred[1] === 'update' ? (
+              props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.preferred?.[0])?.values[props.showOptions.linkedFields.rowIndex]
+            ) : (
+              props.participant.preferredName
+            )}</span>
             {props.showOptions?.linkedFields !== undefined && (
               <>
                 <Dropdown
@@ -173,10 +181,17 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
             )}
           </div>
         )}
-        {props.participant.middleName && (
+        {props.participant.middleName !== undefined && (
           <div className="flex flex-row gap-2 items-center text-nowrap">
             <span>Middle Name:</span>
-            <span className="italic">{props.participant.middleName}</span>
+            <span className="italic">{
+            props.showOptions?.linkedFields?.participantLinks.middle !== null &&
+            props.showOptions?.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.middle?.[0]) &&
+            props.showOptions.linkedFields.participantLinks.middle[1] === 'update' ? (
+              props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.middle?.[0])?.values[props.showOptions.linkedFields.rowIndex]
+            ) : (
+              props.participant.middleName
+            )}</span>
             {props.showOptions?.linkedFields !== undefined && (
               <>
                 <Dropdown
@@ -244,7 +259,14 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
         )}
         <div className="flex flex-row gap-2 items-center text-nowrap">
           <span>Last Name:</span>
-          <span className="italic">{props.participant.lastName}</span>
+          <span className="italic">{
+          props.showOptions?.linkedFields?.participantLinks.last !== null &&
+          props.showOptions?.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.last?.[0]) &&
+          props.showOptions.linkedFields.participantLinks.last[1] === 'update' ? (
+            props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.last?.[0])?.values[props.showOptions.linkedFields.rowIndex]
+          ) : (
+            props.participant.lastName
+          )}</span>
           {props.showOptions?.linkedFields !== undefined && (
             <>
               <Dropdown
@@ -308,10 +330,17 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
             </>
           )}
         </div>
-        {props.participant.email && (
+        {props.participant.email !== undefined && (
           <div className="flex flex-row gap-2 items-center text-nowrap">
             <span>Email:</span>
-            <span className="italic truncate max-w-[200px]">{props.participant.email}</span>
+            <span className="italic truncate max-w-[200px]">{
+            props.showOptions?.linkedFields?.participantLinks.email !== null &&
+            props.showOptions?.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.email?.[0]) &&
+            props.showOptions.linkedFields.participantLinks.email[1] === 'update' ? (
+              props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.email?.[0])?.values[props.showOptions.linkedFields.rowIndex]
+            ) : (
+              props.participant.email
+            )}</span>
             {props.showOptions?.linkedFields !== undefined && (
               <>
                 <Dropdown

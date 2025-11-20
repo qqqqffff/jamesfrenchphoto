@@ -532,6 +532,18 @@ export interface LinkUserMutationParams {
   }
 }
 
+export interface LinkParticipantMutationParams {
+  tableColumns: TableColumn[],
+  rowIndex: number,
+  participantFieldLinks: ParticipantFieldLinks,
+  participant: Participant,
+  availableTags: UserTag[]
+  options?: {
+    logging?: boolean
+  }
+}
+
+
 export class UserService {
   private client: V6Client<Schema>
   constructor(client: V6Client<Schema>) {
@@ -1625,6 +1637,330 @@ export class UserService {
         }
       }
     }))
+
+    return updatedColumns
+  }
+
+  async linkParticipantMutation(params: LinkParticipantMutationParams): Promise<TableColumn[]> {
+    const updatedColumns = [...params.tableColumns]
+
+    //creating the user
+    const createParticipantResponse = await this.client.models.Participant.create({
+      id: params.participant.id,
+      firstName: (() => {
+        const column = params.tableColumns.find((column) => params.participantFieldLinks.first?.[0] === column.id)
+        return column !== undefined && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== ''
+      })() ? params.tableColumns.find((column) => column.id === params.participantFieldLinks.first?.[0])!.values[params.rowIndex] : params.participant.firstName, 
+      lastName: (() => {
+        const column = params.tableColumns.find((column) => params.participantFieldLinks.last?.[0] === column.id)
+        return column !== undefined && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== ''
+      })() ? params.tableColumns.find((column) => column.id === params.participantFieldLinks.last?.[0])!.values[params.rowIndex] : params.participant.lastName,
+      middleName: (() => {
+        const column = params.tableColumns.find((column) => params.participantFieldLinks.middle?.[0] === column.id)
+        return column !== undefined && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== ''
+      })() ? params.tableColumns.find((column) => column.id === params.participantFieldLinks.middle?.[0])!.values[params.rowIndex] : params.participant.middleName,
+      preferredName: (() => {
+        const column = params.tableColumns.find((column) => params.participantFieldLinks.preferred?.[0] === column.id)
+        return column !== undefined && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== ''
+      })() ? params.tableColumns.find((column) => column.id === params.participantFieldLinks.preferred?.[0])!.values[params.rowIndex] : params.participant.preferredName,
+      email: (() => {
+        const column = params.tableColumns.find((column) => params.participantFieldLinks.email?.[0] === column.id)
+        return column !== undefined && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== ''
+      })() ? params.tableColumns.find((column) => column.id === params.participantFieldLinks.email?.[0])!.values[params.rowIndex] : params.participant.email,
+      userEmail: params.participant.userEmail
+    })
+
+    if(params.options?.logging) console.log(createParticipantResponse)
+
+    if(params.participantFieldLinks.tags !== null || params.participant.userTags) {
+      if(params.participantFieldLinks.tags !== null) {
+        const column = params.tableColumns.find((column) => params.participantFieldLinks.tags?.[0] === column.id)
+        if(column && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== '') {
+          const createTagResponse = await Promise.all(column.values[params.rowIndex].split(',').map(async (tagId) => {
+            const getResponse = await this.client.models.UserTag.get({ id: tagId })
+            if(getResponse.data !== null) {
+              return this.client.models.ParticipantUserTag.create({
+                tagId: tagId,
+                participantId: params.participant.id
+              })
+            }
+          }))
+          if(params.options?.logging) console.log(createTagResponse)
+        } else {
+          const createTagResponse = await Promise.all(params.participant.userTags.map(async (tag) => {
+            const getResponse = await this.client.models.UserTag.get({ id: tag.id })
+            if(getResponse.data !== null) {
+              return this.client.models.ParticipantUserTag.create({
+                tagId: tag.id,
+                participantId: params.participant.id
+              })
+            }
+          }))
+          if(params.options?.logging) console.log(createTagResponse)
+        }
+      }
+      else {
+        const createTagResponse = await Promise.all(params.participant.userTags.map(async (tag) => {
+          const getResponse = await this.client.models.UserTag.get({ id: tag.id })
+          if(getResponse.data !== null) {
+            return this.client.models.ParticipantUserTag.create({
+              tagId: tag.id,
+              participantId: params.participant.id
+            })
+          }
+        }))
+        if(params.options?.logging) console.log(createTagResponse)
+      }
+    }
+
+    if(params.participantFieldLinks.timeslot !== null || params.participant.timeslot) {
+      if(params.participantFieldLinks.timeslot !== null) {
+        const column = params.tableColumns.find((column) => params.participantFieldLinks.timeslot?.[0] === column.id)
+        if(column && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== '') {
+          const createTimeslotResponse = await Promise.all(column.values[params.rowIndex].split(',').map(async (timeslotId) => {
+            const getResponse = await this.client.models.Timeslot.get({ id: timeslotId })
+            if(getResponse.data !== null) {
+              return this.client.models.Timeslot.update({
+                id: timeslotId,
+                register: params.participant.userEmail,
+                participantId: params.participant.id
+              })
+            }
+          }))
+          if(params.options?.logging) console.log(createTimeslotResponse)
+        } else {
+          const createTimeslotResponse = await Promise.all((params.participant.timeslot ?? []).map(async (timeslot) => {
+            const getResponse = await this.client.models.Timeslot.get({ id: timeslot.id })
+            if(getResponse.data !== null) {
+              return this.client.models.Timeslot.update({
+                id: timeslot.id,
+                register: params.participant.userEmail,
+                participantId: params.participant.id
+              })
+            }
+          }))
+          if(params.options?.logging) console.log(createTimeslotResponse)
+        }
+      }
+      else {
+        const createTimeslotResponse = await Promise.all((params.participant.timeslot ?? []).map(async (timeslot) => {
+          const getResponse = await this.client.models.Timeslot.get({ id: timeslot.id })
+          if(getResponse.data !== null) {
+            return this.client.models.Timeslot.update({
+              id: timeslot.id,
+              register: params.participant.userEmail,
+              participantId: params.participant.id
+            })
+          }
+        }))
+        if(params.options?.logging) console.log(createTimeslotResponse)
+      }
+    }
+
+    //doing the links
+    if(
+      params.participantFieldLinks.first !== null && 
+      params.tableColumns.some((column) => column.id === params.participantFieldLinks.first?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.participantFieldLinks.first?.[0])
+      const column = params.tableColumns[columnIndex]
+      
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'participantId:' + params.participantFieldLinks.id + ',first'
+
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
+    if(
+      params.participantFieldLinks.last !== null && 
+      params.tableColumns.some((column) => column.id === params.participantFieldLinks.last?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.participantFieldLinks.last?.[0])
+      const column = params.tableColumns[columnIndex]
+      
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'participantId:' + params.participantFieldLinks.id + ',last'
+        
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
+    if(
+      params.participantFieldLinks.preferred !== null && 
+      params.tableColumns.some((column) => column.id === params.participantFieldLinks.preferred?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.participantFieldLinks.preferred?.[0])
+      const column = params.tableColumns[columnIndex]
+      
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'participantId:' + params.participantFieldLinks.id + ',preferred'
+        
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
+    if(
+      params.participantFieldLinks.middle !== null && 
+      params.tableColumns.some((column) => column.id === params.participantFieldLinks.middle?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.participantFieldLinks.middle?.[0])
+      const column = params.tableColumns[columnIndex]
+      
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'participantId:' + params.participantFieldLinks.id + ',middle'
+        
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
+    if(
+      params.participantFieldLinks.email !== null && 
+      params.tableColumns.some((column) => column.id === params.participantFieldLinks.email?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.participantFieldLinks.email?.[0])
+      const column = params.tableColumns[columnIndex]
+      
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'participantId:' + params.participantFieldLinks.id + ',email'
+        
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
+    if(
+      params.participantFieldLinks.tags !== null && 
+      params.tableColumns.some((column) => column.id === params.participantFieldLinks.tags?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.participantFieldLinks.tags?.[0])
+      const column = params.tableColumns[columnIndex]
+      
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'participantId:' + params.participantFieldLinks.id
+        
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
+    if(
+      params.participantFieldLinks.timeslot !== null && 
+      params.tableColumns.some((column) => column.id === params.participantFieldLinks.timeslot?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.participantFieldLinks.timeslot?.[0])
+      const column = params.tableColumns[columnIndex]
+      
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'participantId:' + params.participantFieldLinks.id
+        
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
 
     return updatedColumns
   }

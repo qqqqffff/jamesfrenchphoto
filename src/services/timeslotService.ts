@@ -181,6 +181,7 @@ interface GetTimeslotByIdOptions {
   metric?: boolean,
 }
 async function getTimeslotById(client: V6Client<Schema>, timeslotId: string, options?: GetTimeslotByIdOptions): Promise<Timeslot | null> {
+  if(timeslotId === '') return null
   const start = new Date()
   const timeslotResponse = await client.models.Timeslot.get({ id: timeslotId })
   if (!timeslotResponse.data) return null

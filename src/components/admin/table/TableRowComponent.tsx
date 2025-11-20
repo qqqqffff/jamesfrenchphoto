@@ -34,6 +34,7 @@ import validator from 'validator'
 import { HiOutlineUserCircle } from "react-icons/hi2";
 import { ParticipantPanel } from "../../common/ParticipantPanel"
 import { LinkUserModal } from "../../modals/LinkUser"
+import { LinkParticipantModal } from "../../modals/LinkParticipant"
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
@@ -111,8 +112,10 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     preferred: [boolean, string] | null,
     email: [boolean, string] | null,
     tags: [boolean, string] | null,
+    timeslot: [boolean, string] | null
   }[]>([])
   const [linkUserVisible, setLinkUserVisible] = useState(false)
+  const [linkParticipantVisible, setLinkParticipantVisible] = useState(false)
 
   useEffect(() => {
     const element = ref.current
@@ -332,10 +335,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     }
   }
 
-  //added create method for participant -> creates new participant
-  const linkParticipant = (participant: Participant, method: ['override' | 'update' | 'create', string]) => {
-
-  }
 
   //user means that the user has been created and columns have been linked
   //temp means that invite user has been called and columns have been linked
@@ -551,7 +550,8 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
               middle: null,
               preferred: null,
               email: null,
-              tags: null
+              tags: null,
+              timeslot: null,
             })
           }
           const field = choice.substring(endIndex + 1)
@@ -570,8 +570,11 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           else if(field === 'email') {
             linkedParticipants[linkedParticipants.length].email = [true, column.id]
           }
-          else if(field === 'tags') {
+          else if(column.type === 'tag') {
             linkedParticipants[linkedParticipants.length].tags = [true, column.id]
+          }
+          else if(column.type === 'date') {
+            linkedParticipants[linkedParticipants.length].timeslot = [true, column.id]
           }
         }
         else if(choice.includes('userEmail:')) {
@@ -625,6 +628,25 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           open={linkUserVisible}
           onClose={() => setLinkUserVisible(false)}
           userProfile={detectedUser}
+          rowIndex={props.i}
+          tags={props.tagData}
+          tableColumns={props.table.columns.filter((column) => {
+            const choice = (column.choices ?? [])?.[props.i]
+            return choice === undefined || (!choice.includes('userEmail') && !choice.includes('participantId'))
+          })}
+          parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
+          parentUpdateTableGroups={props.parentUpdateTableGroups}
+          parentUpdateTable={props.parentUpdateTable}
+          parentUpdateTableColumns={props.parentUpdateTableColumns}
+        />
+      )}
+      {linkParticipantAvailable !== undefined && (
+        <LinkParticipantModal
+          UserService={props.UserService}
+          TimeslotService={props.TimeslotService}
+          open={linkParticipantVisible}
+          onClose={() => setLinkParticipantVisible(false)}
+          participant={linkParticipantAvailable}
           rowIndex={props.i}
           tags={props.tagData}
           tableColumns={props.table.columns.filter((column) => {
@@ -922,10 +944,10 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     )
                   })}
                 </div>
-                <div className="flex flex-row justify-end mt-2 me-1">
+                <div className="flex flex-row justify-end mt-2 me-1 gap-2">
                   {userDetection[0] === 'unlinked' && (
                     <button 
-                      className="border px-2 py-1 rounded-lg text-sm hover:bg-gray-200 bg-white"
+                      className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
                       onClick={() => {
                         setLinkUserVisible(true)
                       }}
@@ -936,7 +958,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   {(userDetection[0] === 'temp' || props.tempUsers.some((user) => user.email === userDetection[1])) && (
                     <>
                       <button 
-                        className="border px-2 py-1 rounded-lg text-sm hover:bg-gray-200 bg-white"
+                        className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
                         onClick={() => {
                           //TODO: implement me
                         }}
@@ -944,7 +966,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                         <span>Send Invite</span>
                       </button>
                       <button 
-                        className="border px-2 py-1 rounded-lg text-sm hover:bg-gray-200 bg-white"
+                        className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
                         onClick={() => {
                           //TODO: implement me
                         }}
@@ -975,14 +997,13 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             {linkParticipantAvailable !== undefined && (
               <Dropdown.Item
                 className="whitespace-nowrap flex flex-row justify-center w-full"
-                // onClick={() => setCreateUser(true)}
-                // TODO: implement me please :)
+                onClick={() => setLinkParticipantVisible(true)}
               >Link Participant</Dropdown.Item>
             )}
-            {userDetection[0] === 'unlinked' && (
+            {userDetection[0] === 'unlinked' && detectedUser !== undefined && (
               <Dropdown.Item
                 className="whitespace-nowrap flex flex-row justify-center w-full"
-                //TODO: implement me please
+                onClick={() => setLinkUserVisible(true)}
               >Link User</Dropdown.Item>
             )}
             {/* TODO: implement me please */}

@@ -277,7 +277,7 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
     }} size='xl'>
       <Modal.Header>Link User</Modal.Header>
       <Modal.Body className="pb-2">
-        <div className="flex flex-col px-2 pb-1 max-h-[68vh] min-h-[68vh]">
+        <div className="flex flex-col px-2 pb-1 max-h-[68vh] overflow-auto">
           <span className="font-medium whitespace-nowrap text-lg text-blue-400">User Info</span>
           <div className="flex flex-col px-2 text-xs">
             <div className="flex flex-row gap-2 items-center text-nowrap">
