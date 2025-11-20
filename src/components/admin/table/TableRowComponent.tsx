@@ -332,15 +332,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     }
   }
 
-  //overriding means that what is from the database gets put into the columns
-  //update means that the database gets updated from whats in the table
-  //method field 2 is the column id
-  //linking structure uses the choice array with the indexed value being a comma delimitted string of the following format:
-  //participantId:--id--,field or userEmail:--email--,field
-  //with field being any of the potentially mappable 
-  const linkUser = (userProfile: UserProfile, method: ['override' | 'update', string]) => {
-
-  }
   //added create method for participant -> creates new participant
   const linkParticipant = (participant: Participant, method: ['override' | 'update' | 'create', string]) => {
 
@@ -351,18 +342,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
   //potential means that a potential user can be created
   //unlinked means that a user exists but the columns have not been linked
   //false means none of the above are applicable
-  /* finding participant code
-  const choice = ((column.choices ?? [])?.[props.i] ?? '')
-  const foundParticipant = choice.includes('participantId:')
-  const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
-  if(foundParticipant) {
-    const participantId = choice.substring(choice.indexOf(':') + 1, endIndex)
-    return [
-      ...props.users.flatMap((user) => user.profile?.participant).filter((participant) => participant !== undefined),
-      ...props.tempUsers.flatMap((user) => user.participant)
-    ].some((participant) => participant.id === participantId)
-  }
-  */
+  
   const userDetection: ['user' | 'temp' | 'potential' | 'unlinked' | 'false', string] = (() => {
     //determine if the row already has a link
     for(let i = 0; i < props.table.columns.length; i++) {
@@ -641,6 +621,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       {userDetection[0] === 'unlinked' && detectedUser !== undefined && (
         <LinkUserModal 
           UserService={props.UserService}
+          TimeslotService={props.TimeslotService}
           open={linkUserVisible}
           onClose={() => setLinkUserVisible(false)}
           userProfile={detectedUser}
@@ -650,6 +631,10 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             const choice = (column.choices ?? [])?.[props.i]
             return choice === undefined || (!choice.includes('userEmail') && !choice.includes('participantId'))
           })}
+          parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
+          parentUpdateTableGroups={props.parentUpdateTableGroups}
+          parentUpdateTable={props.parentUpdateTable}
+          parentUpdateTableColumns={props.parentUpdateTableColumns}
         />
       )}
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'top' && (
@@ -928,6 +913,9 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                       <div key={index}>
                         <ParticipantPanel 
                           participant={participant}
+                          showOptions={{
+                            timeslot: true
+                          }}
                         />
                         <div className="border"/>
                       </div>

@@ -9,6 +9,9 @@ import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/m
 import { RegistrationProfile } from "../components/register/RegisterForm";
 import { v4 } from 'uuid'
 import { V6Client } from '@aws-amplify/api-graphql'
+import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
+import validator from 'validator'
+import { mapTimeslot } from "./timeslotService";
 
 interface GetUserProfileByEmailOptions {
   siTags?: boolean,
@@ -520,7 +523,13 @@ export interface RevokeUserInviteMutationParams {
 export interface LinkUserMutationParams {
   tableColumns: TableColumn[],
   rowIndex: number,
-  
+  participantFieldLinks: ParticipantFieldLinks[],
+  userFieldLinks: UserFieldLinks,
+  userProfile: UserProfile,
+  availableTags: UserTag[]
+  options?: {
+    logging?: boolean
+  }
 }
 
 export class UserService {
@@ -1095,8 +1104,529 @@ export class UserService {
     if(params.options?.metric) console.log(`REVOKEUSERINVITE:${new Date().getTime() - start.getTime()}ms`)
   }
 
-  async linkUserMutation(params: LinkUserMutationParams) {
+  /**
+   * Link user follows the following operations
+   * overriding means that what is from the database gets put into the columns
+   * update means that the database gets updated from whats in the table
+   * null means no link
+   * linking structure uses the choice array with the indexed value being a comma delimitted string of the following format:
+   * participantId:--id--,field or userEmail:--email--,field
+   * with field being any of the potentially mappable 
+   * field is not applicable to tags or timeslots (not necessary for those col types)
+   */
+  async linkUserMutation(params: LinkUserMutationParams): Promise<TableColumn[]> {
+    const updatedColumns = [...params.tableColumns]
+    if(params.tableColumns.some((column) => column.id === params.userFieldLinks.email[1])) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.userFieldLinks.email[1])
+      const column = params.tableColumns[columnIndex]
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0] + ',email'
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].choices = choices
+      } 
+    }
+    if(
+      params.userFieldLinks.first !== null && 
+      params.tableColumns.some((column) => column.id === params.userFieldLinks.first?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.userFieldLinks.first?.[0])
+      const column = params.tableColumns[columnIndex]
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0] + ',first'
+        if(
+          params.userFieldLinks.first[1] === 'update' && 
+          column.values[params.rowIndex] !== undefined && 
+          column.values[params.rowIndex] !== ''
+        ) {
+          const response = await this.client.models.UserProfile.update({
+            email: params.userFieldLinks.email[0],
+            firstName: column.values[params.rowIndex]
+          })
+          if(params.options?.logging) console.log(response)
+        }
+        else if(
+          params.userFieldLinks.first[1] === 'override'
+        ) {
+          values[params.rowIndex] = params.userProfile.firstName ?? ''
+        }
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
+    if(
+      params.userFieldLinks.last !== null && 
+      params.tableColumns.some((column) => column.id === params.userFieldLinks.last?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.userFieldLinks.last?.[0])
+      const column = params.tableColumns[columnIndex]
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0] + ',last'
+        if(
+          params.userFieldLinks.last[1] === 'update' && 
+          column.values[params.rowIndex] !== undefined && 
+          column.values[params.rowIndex] !== ''
+        ) {
+          const response = await this.client.models.UserProfile.update({
+            email: params.userFieldLinks.email[0],
+            lastName: column.values[params.rowIndex]
+          })
+          if(params.options?.logging) console.log(response)
+        }
+        else if(
+          params.userFieldLinks.last[1] === 'override'
+        ) {
+          values[params.rowIndex] = params.userProfile.lastName ?? ''
+        }
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
+    if(
+      params.userFieldLinks.sitting !== null && 
+      params.tableColumns.some((column) => column.id === params.userFieldLinks.sitting?.[0])
+    ) {
+      const columnIndex = params.tableColumns.findIndex((column) => column.id === params.userFieldLinks.sitting?.[0])
+      const column = params.tableColumns[columnIndex]
+      if(column !== undefined) {
+        const choices = (column.choices ?? [])
+        const values = column.values
+        if(choices[params.rowIndex] === undefined) {
+          for(let i = 0; i <= params.rowIndex; i++) {
+            if(choices[i] === undefined) {
+              choices[i] === ''
+            }
+          }
+        }
+        choices[params.rowIndex] = 'userEmail:' + params.userFieldLinks.email[0] + ',sitting'
+        if(
+          params.userFieldLinks.sitting[1] === 'update' && 
+          column.values[params.rowIndex] !== undefined && 
+          column.values[params.rowIndex] !== '' &&
+          !isNaN(Number(column.values[params.rowIndex]))
+        ) {
+          const response = await this.client.models.UserProfile.update({
+            email: params.userFieldLinks.email[0],
+            sittingNumber: Number(column.values[params.rowIndex])
+          })
+          if(params.options?.logging) console.log(response)
+        }
+        else if(
+          params.userFieldLinks.sitting[1] === 'override'
+        ) {
+          values[params.rowIndex] = String(params.userProfile.sittingNumber)
+        }
+        const response = this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices,
+          values: values
+        })
+        if(params.options?.logging) console.log(response)
+        updatedColumns[columnIndex].values = values
+        updatedColumns[columnIndex].choices = choices
+      }
+    }
 
+    await Promise.all(params.participantFieldLinks.map(async (link) => {
+      const participant = params.userProfile.participant.find((participant) => participant.id === link.id)
+      if(participant === undefined) return null
+      if(
+        link.first !== null && 
+        params.tableColumns.some((column) => column.id === link.first?.[0])
+      ) {
+        const columnIndex = params.tableColumns.findIndex((column) => column.id === link.first?.[0])
+        const column = params.tableColumns[columnIndex]
+        
+        if(column !== undefined) {
+          const choices = (column.choices ?? [])
+          const values = column.values
+          if(choices[params.rowIndex] === undefined) {
+            for(let i = 0; i <= params.rowIndex; i++) {
+              if(choices[i] === undefined) {
+                choices[i] === ''
+              }
+            }
+          }
+          choices[params.rowIndex] = 'participantId:' + link.id + ',first'
+          if(
+            link.first[1] === 'update' && 
+            column.values[params.rowIndex] !== undefined && 
+            column.values[params.rowIndex] !== ''
+          ) {
+            const response = await this.client.models.Participant.update({
+              id: link.id,
+              firstName: column.values[params.rowIndex]
+            })
+            if(params.options?.logging) console.log(response)
+          }
+          else if(
+            link.first[1] === 'override'
+          ) {
+            values[params.rowIndex] = participant.firstName
+          }
+          const response = this.client.models.TableColumn.update({
+            id: column.id,
+            choices: choices,
+            values: values
+          })
+          if(params.options?.logging) console.log(response)
+          updatedColumns[columnIndex].values = values
+          updatedColumns[columnIndex].choices = choices
+        }
+      }
+      if(
+        link.last !== null && 
+        params.tableColumns.some((column) => column.id === link.last?.[0])
+      ) {
+        const columnIndex = params.tableColumns.findIndex((column) => column.id === link.last?.[0])
+        const column = params.tableColumns[columnIndex]
+        
+        if(column !== undefined) {
+          const choices = (column.choices ?? [])
+          const values = column.values
+          if(choices[params.rowIndex] === undefined) {
+            for(let i = 0; i <= params.rowIndex; i++) {
+              if(choices[i] === undefined) {
+                choices[i] === ''
+              }
+            }
+          }
+          choices[params.rowIndex] = 'participantId:' + link.id + ',last'
+          if(
+            link.last[1] === 'update' && 
+            column.values[params.rowIndex] !== undefined && 
+            column.values[params.rowIndex] !== ''
+          ) {
+            const response = await this.client.models.Participant.update({
+              id: link.id,
+              lastName: column.values[params.rowIndex]
+            })
+            if(params.options?.logging) console.log(response)
+          }
+          else if(
+            link.last[1] === 'override'
+          ) {
+            values[params.rowIndex] = participant.lastName
+          }
+          const response = this.client.models.TableColumn.update({
+            id: column.id,
+            choices: choices,
+            values: values
+          })
+          if(params.options?.logging) console.log(response)
+          updatedColumns[columnIndex].values = values
+          updatedColumns[columnIndex].choices = choices
+        }
+      }
+      if(
+        link.preferred !== null && 
+        params.tableColumns.some((column) => column.id === link.preferred?.[0])
+      ) {
+        const columnIndex = params.tableColumns.findIndex((column) => column.id === link.preferred?.[0])
+        const column = params.tableColumns[columnIndex]
+        
+        if(column !== undefined) {
+          const choices = (column.choices ?? [])
+          const values = column.values
+          if(choices[params.rowIndex] === undefined) {
+            for(let i = 0; i <= params.rowIndex; i++) {
+              if(choices[i] === undefined) {
+                choices[i] === ''
+              }
+            }
+          }
+          choices[params.rowIndex] = 'participantId:' + link.id + ',preferred'
+          if(
+            link.preferred[1] === 'update' && 
+            column.values[params.rowIndex] !== undefined && 
+            column.values[params.rowIndex] !== ''
+          ) {
+            const response = await this.client.models.Participant.update({
+              id: link.id,
+              preferredName: column.values[params.rowIndex]
+            })
+            if(params.options?.logging) console.log(response)
+          }
+          else if(
+            link.preferred[1] === 'override'
+          ) {
+            values[params.rowIndex] = participant.preferredName ?? ''
+          }
+          const response = this.client.models.TableColumn.update({
+            id: column.id,
+            choices: choices,
+            values: values
+          })
+          if(params.options?.logging) console.log(response)
+          updatedColumns[columnIndex].values = values
+          updatedColumns[columnIndex].choices = choices
+        }
+      }
+      if(
+        link.middle !== null && 
+        params.tableColumns.some((column) => column.id === link.middle?.[0])
+      ) {
+        const columnIndex = params.tableColumns.findIndex((column) => column.id === link.middle?.[0])
+        const column = params.tableColumns[columnIndex]
+        
+        if(column !== undefined) {
+          const choices = (column.choices ?? [])
+          const values = column.values
+          if(choices[params.rowIndex] === undefined) {
+            for(let i = 0; i <= params.rowIndex; i++) {
+              if(choices[i] === undefined) {
+                choices[i] === ''
+              }
+            }
+          }
+          choices[params.rowIndex] = 'participantId:' + link.id + ',middle'
+          if(
+            link.middle[1] === 'update' && 
+            column.values[params.rowIndex] !== undefined && 
+            column.values[params.rowIndex] !== ''
+          ) {
+            const response = await this.client.models.Participant.update({
+              id: link.id,
+              middleName: column.values[params.rowIndex]
+            })
+            if(params.options?.logging) console.log(response)
+          }
+          else if(
+            link.middle[1] === 'override'
+          ) {
+            values[params.rowIndex] = participant.middleName ?? ''
+          }
+          const response = this.client.models.TableColumn.update({
+            id: column.id,
+            choices: choices,
+            values: values
+          })
+          if(params.options?.logging) console.log(response)
+          updatedColumns[columnIndex].values = values
+          updatedColumns[columnIndex].choices = choices
+        }
+      }
+      if(
+        link.email !== null && 
+        params.tableColumns.some((column) => column.id === link.email?.[0])
+      ) {
+        const columnIndex = params.tableColumns.findIndex((column) => column.id === link.email?.[0])
+        const column = params.tableColumns[columnIndex]
+        
+        if(column !== undefined) {
+          const choices = (column.choices ?? [])
+          const values = column.values
+          if(choices[params.rowIndex] === undefined) {
+            for(let i = 0; i <= params.rowIndex; i++) {
+              if(choices[i] === undefined) {
+                choices[i] === ''
+              }
+            }
+          }
+          choices[params.rowIndex] = 'participantId:' + link.id + ',email'
+          if(
+            link.email[1] === 'update' && 
+            column.values[params.rowIndex] !== undefined && 
+            column.values[params.rowIndex] !== '' &&
+            validator.isEmail(column.values[params.rowIndex])
+          ) {
+            const response = await this.client.models.Participant.update({
+              id: link.id,
+              email: column.values[params.rowIndex].toLocaleLowerCase()
+            })
+            if(params.options?.logging) console.log(response)
+          }
+          else if(
+            link.email[1] === 'override'
+          ) {
+            values[params.rowIndex] = participant.email ?? ''
+          }
+          const response = this.client.models.TableColumn.update({
+            id: column.id,
+            choices: choices,
+            values: values
+          })
+          if(params.options?.logging) console.log(response)
+          updatedColumns[columnIndex].values = values
+          updatedColumns[columnIndex].choices = choices
+        }
+      }
+      if(
+        link.tags !== null && 
+        params.tableColumns.some((column) => column.id === link.tags?.[0])
+      ) {
+        const columnIndex = params.tableColumns.findIndex((column) => column.id === link.tags?.[0])
+        const column = params.tableColumns[columnIndex]
+        
+        if(column !== undefined) {
+          const choices = (column.choices ?? [])
+          const values = column.values
+          if(choices[params.rowIndex] === undefined) {
+            for(let i = 0; i <= params.rowIndex; i++) {
+              if(choices[i] === undefined) {
+                choices[i] === ''
+              }
+            }
+          }
+          choices[params.rowIndex] = 'participantId:' + link.id
+          if(
+            link.tags[1] === 'update' && 
+            column.values[params.rowIndex] !== undefined && 
+            column.values[params.rowIndex] !== ''
+          ) {
+            let participantTagsResponse = await this.client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({
+              participantId: link.id
+            })
+            const participantTagsData = participantTagsResponse.data
+            while(participantTagsResponse.nextToken) {
+              participantTagsResponse = await this.client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({
+                participantId: link.id
+              }, {
+                nextToken: participantTagsResponse.nextToken
+              })
+              participantTagsData.push(...participantTagsResponse.data)
+            }
+
+            const parsedTags = column.values[params.rowIndex].split(',')
+            .map((tag) => params.availableTags.find((uTag) => uTag.id === tag))
+            .filter((tag) => tag !== undefined)
+
+            const taggingResponse = await Promise.all(parsedTags.map(async (tag) => {
+              if(!participantTagsData.some((pTag) => pTag.tagId === tag.id)) {
+                return this.client.models.ParticipantUserTag.create({
+                  participantId: link.id,
+                  tagId: tag.id
+                })
+              }
+            }))
+
+            if(params.options?.logging) console.log(taggingResponse)
+            
+            const taggingRemovalResponse = await Promise.all(participantTagsData.map(async (tag) => {
+              if(!parsedTags.some((pTag) => tag.id === pTag.id)) {
+                return this.client.models.ParticipantUserTag.delete({
+                  id: tag.id
+                })
+              }
+            }))
+
+            if(params.options?.logging) console.log(taggingRemovalResponse)
+          }
+          else if(
+            link.tags[1] === 'override'
+          ) {
+            values[params.rowIndex] = participant.userTags.reduce((prev, cur) => prev + ',' + cur.id, '').substring(1)
+          }
+          const response = this.client.models.TableColumn.update({
+            id: column.id,
+            choices: choices,
+            values: values
+          })
+          if(params.options?.logging) console.log(response)
+          updatedColumns[columnIndex].values = values
+          updatedColumns[columnIndex].choices = choices
+        }
+      }
+      if(
+        link.timeslot !== null && 
+        params.tableColumns.some((column) => column.id === link.timeslot?.[0])
+      ) {
+        const columnIndex = params.tableColumns.findIndex((column) => column.id === link.timeslot?.[0])
+        const column = params.tableColumns[columnIndex]
+        
+        if(column !== undefined) {
+          const choices = (column.choices ?? [])
+          const values = column.values
+          if(choices[params.rowIndex] === undefined) {
+            for(let i = 0; i <= params.rowIndex; i++) {
+              if(choices[i] === undefined) {
+                choices[i] === ''
+              }
+            }
+          }
+          choices[params.rowIndex] = 'participantId:' + link.id
+          if(
+            link.timeslot[1] === 'update' && 
+            column.values[params.rowIndex] !== undefined && 
+            column.values[params.rowIndex] !== ''
+          ) {
+            const columnTimeslots = await Promise.all((await Promise.all(column.values[params.rowIndex].split(',')
+            //done for validation of existance
+            .map(async (timeslotId) => {
+              const response = await this.client.models.Timeslot.get({ id: timeslotId })
+              if(response.data !== null) {
+                return mapTimeslot(response.data, { siTag: undefined })
+              }
+            }))).filter((response) => response !== undefined)
+            .map((timeslot) => {
+              return this.client.models.Timeslot.update({
+                id: timeslot.id,
+                register: params.userProfile.email,
+                participantId: link.id,
+              })
+            }))
+
+            if(params.options?.logging) console.log(columnTimeslots)
+          }
+          else if(
+            link.timeslot[1] === 'override'
+          ) {
+            values[params.rowIndex] = (participant.timeslot ?? []).reduce((prev, cur) => prev + ',' + cur.id, '').substring(1)
+          }
+          const response = this.client.models.TableColumn.update({
+            id: column.id,
+            choices: choices,
+            values: values
+          })
+          if(params.options?.logging) console.log(response)
+          updatedColumns[columnIndex].values = values
+          updatedColumns[columnIndex].choices = choices
+        }
+      }
+    }))
+
+    return updatedColumns
   }
 
   getUserProfileByEmailQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({

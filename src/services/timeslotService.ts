@@ -9,7 +9,7 @@ interface MapTimeslotOptions {
     memo: UserTag[]
   } //only allow shallow mapping
 }
-async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], options?: MapTimeslotOptions): Promise<Timeslot> {
+export async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], options?: MapTimeslotOptions): Promise<Timeslot> {
   let mappedTag: UserTag | undefined
 
   if (options?.siTag !== undefined) {

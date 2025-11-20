@@ -1,10 +1,11 @@
 import { Dispatch, SetStateAction } from "react"
-import { Participant, TableColumn, UserTag } from "../../types"
+import { Participant, TableColumn, Timeslot, UserTag } from "../../types"
 import { formatTime } from "../../utils"
 import { createTimeString } from "../timeslot/Slot"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
 import { Dropdown } from "flowbite-react";
 import { ParticipantFieldLinks } from "../modals/LinkUser";
+import { DefinedUseQueryResult, QueryObserverLoadingErrorResult, QueryObserverLoadingResult, QueryObserverPendingResult, QueryObserverPlaceholderResult } from "@tanstack/react-query";
 
 interface ParticipantPanelProps {
   participant: Participant
@@ -19,6 +20,7 @@ interface ParticipantPanelProps {
       availableOptions: TableColumn[],
       allColumns: TableColumn[],
       tags: UserTag[],
+      timeslotQueries: (DefinedUseQueryResult<Timeslot | null, Error> | QueryObserverLoadingErrorResult<Timeslot | null, Error> | QueryObserverLoadingResult<Timeslot | null, Error> | QueryObserverPendingResult<Timeslot | null, Error> | QueryObserverPlaceholderResult<Timeslot | null, Error>)[]
       rowIndex: number
     }
   }
@@ -406,7 +408,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                 <span className="pt-1 border rounded-full px-2 py-1 text-center flex max-w-min text-nowrap">No Tags</span>
               )
             )}
-            {props.showOptions?.linkedFields !== undefined &&  (
+            {props.showOptions?.linkedFields !== undefined && (
               <>
                 <Dropdown
                   inline
@@ -468,21 +470,99 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
             )}
           </div>
         )}
+       
         {props.showOptions?.timeslot && (
-          (props.participant.timeslot ?? []).length > 0 ? (
-            props.participant.timeslot?.map((timelsot, index) => {
-              return (
-                <div className="flex flex-col border w-full rounded-lg items-center py-1" key={index}>
-                  <span className="whitespace-nowrap text-nowrap">{formatTime(timelsot.start, {timeString: false})}</span>
-                  <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timelsot)}</span>
-                </div>
-              )
-            })
-          ) : (
-            <div>
-              <span>No Timeslots Found.</span>
-            </div>
-          )
+          <div className="flex flex-row gap-2">
+            {props.showOptions.linkedFields?.participantLinks.timeslot !== null &&
+            props.showOptions.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0]) &&
+            props.showOptions.linkedFields.participantLinks.timeslot[1] === 'update' ? (
+              props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0])
+              ?.values[props.showOptions.linkedFields.rowIndex].split(',')
+              .map((timeslotId) => props.showOptions?.linkedFields?.timeslotQueries.map((query) => query.data).find((timeslot) => timeslot?.id === timeslotId))
+              .filter((timeslot) => timeslot !== null && timeslot !== undefined)
+              .map((timeslot, index) => {
+                return (
+                  <div className="flex flex-col border w-full rounded-lg items-center py-1" key={index}>
+                    <span className="whitespace-nowrap text-nowrap">{formatTime(timeslot.start, {timeString: false})}</span>
+                    <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timeslot)}</span>
+                  </div>
+                )
+              })
+            ) : (props.participant.timeslot ?? []).length > 0 ? (
+              props.participant.timeslot?.map((timeslot, index) => {
+                return (
+                  <div className="flex flex-col border w-full rounded-lg items-center py-1" key={index}>
+                    <span className="whitespace-nowrap text-nowrap">{formatTime(timeslot.start, {timeString: false})}</span>
+                    <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timeslot)}</span>
+                  </div>
+                )
+              })
+            ) : (
+              <div>
+                <span>No Timeslots Found.</span>
+              </div>
+            )}
+            {props.showOptions.linkedFields !== undefined && (
+              <>
+                <Dropdown
+                  inline
+                  arrowIcon={false}
+                  label={props.showOptions.linkedFields.participantLinks.timeslot !== null ? (
+                    <HiOutlineLockClosed size={16} className="hover:text-gray-300" />
+                  ) : (
+                    <HiOutlineLockOpen size={16} className="hover:text-gray-300" />
+                  )}
+                >
+                  {props.showOptions.linkedFields.participantLinks.timeslot !== null && 
+                  props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0]) && (
+                      <Dropdown.Item 
+                        className="bg-gray-200 hover:bg-transparent" 
+                        onClick={() => {
+                          props.showOptions?.linkedFields?.toggleField((prev) => prev.map((linkedFields) => linkedFields.id === props.participant.id ? ({
+                            ...linkedFields,
+                            timeslot: null
+                          }) : linkedFields))
+                        }}
+                      >{props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0])?.header}</Dropdown.Item>
+                  )}
+                  {props.showOptions.linkedFields.availableOptions.filter((column) => column.type === 'date').map((column, index) => {
+                    return (
+                      <Dropdown.Item 
+                        key={index}
+                        onClick={() => {
+                          props.showOptions?.linkedFields?.toggleField((prev) => prev.map((linkedFields) => linkedFields.id === props.participant.id ? ({
+                            ...linkedFields,
+                            timeslot: linkedFields.timeslot === null || linkedFields.timeslot[0] !== column.id ? [
+                              column.id, linkedFields.timeslot === null ? 'update' : linkedFields.timeslot[1]
+                            ] : null
+                          }) : linkedFields))
+                        }}
+                      >{column.header}</Dropdown.Item>
+                    )
+                  })}
+                </Dropdown>
+                {props.showOptions.linkedFields.participantLinks.timeslot !== null && 
+                props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0]) && (
+                  <button
+                    className="px-2 py-1 rounded-sm border hover:bg-gray-200"
+                    onClick={() => {
+                      if(props.showOptions?.linkedFields?.participantLinks.timeslot !== null) {
+                        props.showOptions?.linkedFields?.toggleField((prev) => prev.map((participant) => participant.id === props.showOptions?.linkedFields?.participantLinks.id ? ({
+                          ...props.showOptions.linkedFields.participantLinks,
+                          timeslot: [
+                            props.showOptions.linkedFields.participantLinks.timeslot![0], 
+                            props.showOptions.linkedFields.participantLinks.timeslot![1] === 'override' ? 'update' : 'override'
+                          ]
+                        }) : participant))
+                      }
+                    }}
+                  >
+                    {props.showOptions.linkedFields.participantLinks.timeslot[1] === 'override' ? 'Override' : 'Update'}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
     </div>
