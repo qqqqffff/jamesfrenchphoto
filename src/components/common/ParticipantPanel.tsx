@@ -28,7 +28,6 @@ interface ParticipantPanelProps {
 }
 
 export const ParticipantPanel = (props: ParticipantPanelProps) => {
-  console.log(props.participant)
   return (
     <div className="flex flex-col">
       <span className='text-purple-400'>Participant</span>

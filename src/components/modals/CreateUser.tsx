@@ -211,7 +211,10 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
   )
 
   return (
-    <Modal show={props.open} onClose={() => props.onClose()} size="xl">
+    <Modal show={props.open} onClose={() => {
+      props.onClose()
+      clearStates()
+    }} size="xl">
       <Modal.Header className="pb-2">Create a new User</Modal.Header>
       <Modal.Body className="pb-2">
         <div className="flex flex-col px-2 pb-1 gap-4 max-h-[68vh] min-h-[68vh]">
@@ -302,7 +305,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                 <HiOutlinePlusCircle size={20} className="text-gray-400 hover:text-gray-600 hover:fill-gray-100"/>
               </button>
             </div>
-            <div className="flex flex-col px-2 pb-1 gap-1">
+            <div className="flex flex-col px-2 pb-1 gap-4 max-h-[300px] overflow-auto">
               {participants.map((participant, index) => {
                 return (
                   <div className="flex flex-row gap-4 justify-between rounded-lg border p-2" key={index} >

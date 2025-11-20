@@ -536,6 +536,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       for(let i = 0; i < props.table.columns.length; i++) {
         const column = props.table.columns[i]
         const choice = (column.choices ?? [])?.[props.i]
+        if(choice === undefined) continue
         const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
         if(choice.includes('participantId:')) {
           const mappedParticipant = choice.substring(choice.indexOf(':') + 1, endIndex)
@@ -556,25 +557,25 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           }
           const field = choice.substring(endIndex + 1)
           if(field === 'first') {
-            linkedParticipants[linkedParticipants.length].first = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].first = [true, column.id]
           }
           else if(field === 'last') {
-            linkedParticipants[linkedParticipants.length].last = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].last = [true, column.id]
           }
           else if(field === 'middle') {
-            linkedParticipants[linkedParticipants.length].middle = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].middle = [true, column.id]
           }
           else if(field === 'preferred') {
-            linkedParticipants[linkedParticipants.length].preferred = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].preferred = [true, column.id]
           }
           else if(field === 'email') {
-            linkedParticipants[linkedParticipants.length].email = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].email = [true, column.id]
           }
           else if(column.type === 'tag') {
-            linkedParticipants[linkedParticipants.length].tags = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].tags = [true, column.id]
           }
           else if(column.type === 'date') {
-            linkedParticipants[linkedParticipants.length].timeslot = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].timeslot = [true, column.id]
           }
         }
         else if(choice.includes('userEmail:')) {

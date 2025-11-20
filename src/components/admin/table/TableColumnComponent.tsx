@@ -145,7 +145,7 @@ export const TableColumnComponent = (props: TableColumnProps) => {
       className={`
         relative border-x border-x-gray-300 border-b border-b-gray-300 
         min-w-[150px] max-w-[150px] whitespace-normal break-words 
-        text-center align-middle bg-gray-50
+        place-items-center bg-gray-50
         ${stateStyles[columnState.type] ?? ''}
       `}
     >
@@ -290,7 +290,7 @@ export const TableColumnComponent = (props: TableColumnProps) => {
       ) : (
         <Dropdown 
           className="min-w-max"
-          label={(<span className="hover:underline underline-offset-2">{props.column.header}</span>)}
+          label={(<span className="hover:underline underline-offset-2 whitespace-normal break-words min-w-[145px] max-w-[145px]">{props.column.header}</span>)}
           arrowIcon={false}
           placement="bottom"
           inline
