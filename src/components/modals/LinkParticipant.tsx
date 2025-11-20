@@ -204,7 +204,8 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
                 timeslotQueries: timeslotQueries,
                 availableOptions: filteredUserFields,
                 allColumns: props.tableColumns,
-                toggleField: setLinkedParticipantFields
+                toggleField: setLinkedParticipantFields,
+                noColumnModification: true
               }
             }}
           />

@@ -21,7 +21,8 @@ interface ParticipantPanelProps {
       allColumns: TableColumn[],
       tags: UserTag[],
       timeslotQueries: (DefinedUseQueryResult<Timeslot | null, Error> | QueryObserverLoadingErrorResult<Timeslot | null, Error> | QueryObserverLoadingResult<Timeslot | null, Error> | QueryObserverPendingResult<Timeslot | null, Error> | QueryObserverPlaceholderResult<Timeslot | null, Error>)[]
-      rowIndex: number
+      rowIndex: number,
+      noColumnModification?: boolean
     }
   }
 }
@@ -82,7 +83,8 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   )
                 })}
               </Dropdown>
-              {props.showOptions.linkedFields !== undefined && 
+              {props.showOptions.linkedFields.noColumnModification !== true &&
+              props.showOptions.linkedFields !== undefined && 
               props.showOptions.linkedFields.participantLinks.first !== null &&
               props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.first?.[0]) && (
                 <button
@@ -157,7 +159,8 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                     )
                   })}
                 </Dropdown>
-                {props.showOptions.linkedFields !== undefined && 
+                {props.showOptions.linkedFields.noColumnModification !== true &&
+                props.showOptions.linkedFields !== undefined && 
                 props.showOptions.linkedFields.participantLinks.preferred !== null && 
                 props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.preferred?.[0]) && (
                   <button
@@ -233,7 +236,8 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                     )
                   })}
                 </Dropdown>
-                {props.showOptions.linkedFields !== undefined && 
+                {props.showOptions.linkedFields.noColumnModification !== true &&
+                props.showOptions.linkedFields !== undefined && 
                 props.showOptions.linkedFields.participantLinks.middle !== null && 
                 props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.middle?.[0]) && (
                   <button
@@ -307,7 +311,8 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   )
                 })}
               </Dropdown>
-              {props.showOptions.linkedFields !== undefined && 
+              {props.showOptions.linkedFields.noColumnModification !== true &&
+              props.showOptions.linkedFields !== undefined && 
               props.showOptions.linkedFields.participantLinks.last !== null && 
               props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.last?.[0]) && (
                 <button
@@ -382,7 +387,8 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                     )
                   })}
                 </Dropdown>
-                {props.showOptions.linkedFields !== undefined && 
+                {props.showOptions.linkedFields.noColumnModification !== true &&
+                props.showOptions.linkedFields !== undefined && 
                 props.showOptions.linkedFields.participantLinks.email !== null && 
                 props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.email?.[0]) && (
                   <button
@@ -476,7 +482,8 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                     )
                   })}
                 </Dropdown>
-                {props.showOptions.linkedFields.participantLinks.tags !== null && 
+                {props.showOptions.linkedFields.noColumnModification !== true &&
+                props.showOptions.linkedFields.participantLinks.tags !== null && 
                 props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.tags?.[0]) && (
                   <button
                     className="px-2 py-1 rounded-sm border hover:bg-gray-200"
@@ -570,7 +577,8 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                     )
                   })}
                 </Dropdown>
-                {props.showOptions.linkedFields.participantLinks.timeslot !== null && 
+                {props.showOptions.linkedFields.noColumnModification !== true &&
+                props.showOptions.linkedFields.participantLinks.timeslot !== null && 
                 props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0]) && (
                   <button
                     className="px-2 py-1 rounded-sm border hover:bg-gray-200"
