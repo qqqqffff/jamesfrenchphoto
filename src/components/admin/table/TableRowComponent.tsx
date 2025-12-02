@@ -94,26 +94,30 @@ const stateStyles: { [Key in TableRowState['type']]?: HTMLAttributes<HTMLDivElem
 
 const idle: TableRowState = { type: 'idle' };
 
+export type UserRowFieldLinks = {
+  email: [string, string],
+  first: [boolean, string],
+  last: [boolean, string],
+  sitting: [boolean, string]
+}
+
+export type ParticipantRowFieldLinks = {
+  id: string
+  first: [boolean, string], 
+  last: [boolean, string],
+  middle: [boolean, string] | null,
+  preferred: [boolean, string] | null,
+  email: [boolean, string] | null,
+  tags: [boolean, string] | null,
+  timeslot: [boolean, string] | null
+}
+
 export const TableRowComponent = (props: TableRowComponentProps) => {
   const ref = useRef<HTMLTableRowElement | null>(null)
   const [rowState, setRowState] = useState<TableRowState>(idle)
   const [allowDragging, setAllowDragging] = useState(false)
-  const [linkedUserFields, setLinkedUserFields] = useState<{
-    email: [string, string],
-    first: [boolean, string],
-    last: [boolean, string],
-    sitting: [boolean, string],
-  } | undefined>()
-  const [linkedParticipantFields, setLinkedParticipantFields] = useState<{
-    id: string
-    first: [boolean, string], 
-    last: [boolean, string],
-    middle: [boolean, string] | null,
-    preferred: [boolean, string] | null,
-    email: [boolean, string] | null,
-    tags: [boolean, string] | null,
-    timeslot: [boolean, string] | null
-  }[]>([])
+  const [linkedUserFields, setLinkedUserFields] = useState<UserRowFieldLinks>()
+  const [linkedParticipantFields, setLinkedParticipantFields] = useState<ParticipantRowFieldLinks[]>([])
   const [linkUserVisible, setLinkUserVisible] = useState(false)
   const [linkParticipantVisible, setLinkParticipantVisible] = useState(false)
 
@@ -1114,12 +1118,16 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   linkedParticipantId={(() => {
                     const foundColumn = props.table.columns.find((col) => col.id === id)
                     if(!foundColumn) return undefined
-                    const foundParticipantChoice = foundColumn.choices?.[props.i]
-                    if(
-                      !props.users.flatMap((data) => data.profile?.participant).filter((participant) => participant !== undefined).some((participant) => participant.id === foundParticipantChoice) &&
-                      !props.tempUsers.flatMap((data) => data.participant).some((participant) => participant.id === foundParticipantChoice)
-                    ) return undefined
-                    return foundParticipantChoice
+                    const foundParticipantChoice = (foundColumn.choices?.[props.i] ?? '')
+
+                    if(foundParticipantChoice !== '') {
+                      const searchString = foundParticipantChoice.substring(foundParticipantChoice.indexOf(':') + 1)
+                      if(
+                        !props.users.flatMap((data) => data.profile?.participant).filter((participant) => participant !== undefined).some((participant) => participant.id === searchString) &&
+                        !props.tempUsers.flatMap((data) => data.participant).some((participant) => participant.id === searchString)
+                      ) return undefined
+                      return searchString
+                    }
                   })()}
                   timeslotsQuery={props.selectedTag !== undefined ? props.tagTimeslotQuery : props.timeslotsQuery}
                   tagsQuery={props.tagData}
@@ -1188,12 +1196,16 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   linkedParticipantId={(() => {
                     const foundColumn = props.table.columns.find((col) => col.id === id)
                     if(!foundColumn) return undefined
-                    const foundParticipantChoice = foundColumn.choices?.[props.i]
-                    if(
-                      !props.users.flatMap((data) => data.profile?.participant).filter((participant) => participant !== undefined).some((participant) => participant.id === foundParticipantChoice) &&
-                      !props.tempUsers.flatMap((data) => data.participant).some((participant) => participant.id === foundParticipantChoice)
-                    ) return undefined
-                    return foundParticipantChoice
+                    const foundParticipantChoice = (foundColumn.choices?.[props.i] ?? '')
+
+                    if(foundParticipantChoice !== '') {
+                      const searchString = foundParticipantChoice.substring(foundParticipantChoice.indexOf(':') + 1)
+                      if(
+                        !props.users.flatMap((data) => data.profile?.participant).filter((participant) => participant !== undefined).some((participant) => participant.id === searchString) &&
+                        !props.tempUsers.flatMap((data) => data.participant).some((participant) => participant.id === searchString)
+                      ) return undefined
+                      return searchString
+                    }
                   })()}
                   userData={{
                     users: props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
@@ -1293,12 +1305,8 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   value={v}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   column={props.table.columns.find((column) => column.id === id)!}
-                  rowIndex={props.i}
-                  tempUsersData={props.tempUsersData}
-                  userData={props.userData}
-                  updateUserAttribute={props.updateUserAttribute}
-                  updateUserProfile={props.updateUserProfile}
-                  updateParticipant={props.updateParticipant}
+                  participantRowFieldLinks={linkedParticipantFields}
+                  userRowFieldLinks={linkedUserFields}
                 />
               )
             }

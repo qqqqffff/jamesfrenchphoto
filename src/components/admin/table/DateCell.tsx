@@ -282,7 +282,10 @@ export const DateCell = (props: DateCellProps) => {
         />
       )
       )}
-      <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
+      <td className={`
+        text-ellipsis border py-3 px-3 max-w-[150px]
+        ${foundParticipant !== undefined ? 'bg-yellow-50 bg-opacity-40' : ''}
+      `}>
         <input
           placeholder="Pick Timeslots..."
           className="

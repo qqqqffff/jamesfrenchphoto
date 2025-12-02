@@ -1,18 +1,19 @@
 import { ComponentProps, useEffect, useRef, useState } from "react"
-import { TableColumn, UserData, UserProfile } from "../../../types"
-import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
-import { UpdateParticipantMutationParams, UpdateUserAttributesMutationParams, UpdateUserProfileParams } from "../../../services/userService"
+import { TableColumn } from "../../../types"
+import { ParticipantRowFieldLinks, UserRowFieldLinks } from "./TableRowComponent"
 
 interface ValueCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void,
   column: TableColumn,
-  rowIndex: number,
-  tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
-  userData: UseQueryResult<UserData[] | undefined, Error>
-  updateUserAttribute: UseMutationResult<unknown, Error, UpdateUserAttributesMutationParams, unknown>
-  updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
-  updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
+  // TODO: handle on the parent side
+  // tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
+  // userData: UseQueryResult<UserData[] | undefined, Error>
+  // updateUserAttribute: UseMutationResult<unknown, Error, UpdateUserAttributesMutationParams, unknown>
+  // updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
+  // updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
+  userRowFieldLinks?: UserRowFieldLinks,
+  participantRowFieldLinks: ParticipantRowFieldLinks[]
 }
 
 export const ValueCell = (props: ValueCellProps) => {
@@ -26,16 +27,32 @@ export const ValueCell = (props: ValueCellProps) => {
     }
   }, [props.value])
 
+  const specialField = 
+    props.column.id === props.userRowFieldLinks?.email[1] ||
+    props.column.id === props.userRowFieldLinks?.first[1] ||
+    props.column.id === props.userRowFieldLinks?.sitting[1] ||
+    props.column.id === props.userRowFieldLinks?.last[1] ||
+    props.participantRowFieldLinks.some((link) => (
+      link.first[1] === props.column.id ||
+      link.last[1] === props.column.id ||
+      link.email?.[1] === props.column.id ||
+      link.middle?.[1] === props.column.id ||
+      link.preferred?.[1] === props.column.id
+    ))
+
+  //TODO: handle special case for sitting number (accept only numbers)
+
   return (
     <td className={`
       text-ellipsis border py-3 px-3 max-w-[150px]
+      ${specialField ? 'bg-yellow-50 bg-opacity-40' : ''}
     `}>
       <input
         ref={inputRef}
         placeholder="Enter Value..."
         className="
           font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
-          border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
+          border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic bg-transparent
         "
         
         onChange={(event) => {
