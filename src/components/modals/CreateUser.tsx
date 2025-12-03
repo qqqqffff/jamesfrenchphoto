@@ -40,6 +40,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
   }
   const [participants, setParticipants] = useState<Participant[]>([emptyParticipant()])
   const [availableTags, setAvailableTags] = useState<UserTag[]>([])
+  const [loading, setLoading] = useState(false)
 
   const [participantFieldLinks, setParticipantFieldLinks] = useState<ParticipantFieldLinks[]>([])
   const [userFieldLinks, setUserFieldLinks] = useState<UserFieldLinks>({
@@ -272,7 +273,11 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
   )
 
   const linkUser = useMutation({
-    mutationFn: (params: LinkUserMutationParams) => props.UserService.linkUserMutation(params)
+    mutationFn: (params: LinkUserMutationParams) => props.UserService.linkUserMutation(params),
+    onSuccess: () => {
+      props.onClose()
+      clearStates()
+    }
   })
 
   return (
@@ -581,8 +586,9 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
         <Button 
           disabled={allValid}
           size="sm"
+          isProcessing={loading}
           onClick={() => {
-            props.createUser({
+            const profile: UserProfile = {
               sittingNumber: Number(sittingNumber),
               email: email,
               userTags: [],
@@ -590,9 +596,35 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
               firstName: firstName,
               lastName: lastName,
               preferredContact: 'EMAIL'
-            })
-            props.onClose()
-            clearStates()
+            }
+            props.createUser(profile)
+
+            if(userFieldLinks.email[0] !== '' || participantFieldLinks.some((link) => (
+              link.first !== null ||
+              link.last !== null ||
+              link.middle !== null ||
+              link.preferred !== null ||
+              link.email !== null ||
+              link.tags !== null ||
+              link.timeslot !== null
+            ))) {
+              setLoading(true)
+              linkUser.mutate({
+                tableColumns: props.tableColumns,
+                rowIndex: props.rowNumber,
+                participantFieldLinks: participantFieldLinks,
+                userFieldLinks: userFieldLinks,
+                userProfile: profile,
+                availableTags: props.tags.data ?? [],
+                options: {
+                  logging: true
+                }
+              })
+            }
+            else {
+              props.onClose()
+              clearStates()
+            }
           }}
         >Create User</Button>
       </Modal.Footer>
