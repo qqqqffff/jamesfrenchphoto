@@ -965,6 +965,15 @@ export class UserService {
 
     if(params.options?.logging) console.log(addedTagsResponse)
 
+    console.log(
+      params.email !== params.participant.email || 
+      params.firstName !== params.participant.firstName || 
+      params.lastName !== params.participant.lastName || 
+      params.preferredName !== params.participant.preferredName || 
+      params.middleName !== params.participant.middleName || 
+      params.contact !== params.participant.contact
+    )
+    
     if(
       params.email !== params.participant.email || 
       params.firstName !== params.participant.firstName || 

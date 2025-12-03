@@ -321,9 +321,8 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
-            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: false}))
           ].find((participant) => participant.id === link.id)
-          console.log(foundParticipant)
           if(foundParticipant !== undefined) {
             props.updateParticipant.mutate({
               participant: foundParticipant,
@@ -367,7 +366,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
-            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: false}))
           ].find((participant) => participant.id === link.id)
           if(foundParticipant !== undefined) {
             props.updateParticipant.mutate({
@@ -409,7 +408,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
-            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: false}))
           ].find((participant) => participant.id === link.id)
           if(foundParticipant !== undefined) {
             props.updateParticipant.mutate({
@@ -452,7 +451,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
-            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: false}))
           ].find((participant) => participant.id === link.id)
           if(foundParticipant !== undefined) {
             props.updateParticipant.mutate({
@@ -495,7 +494,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
-            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: false}))
           ].find((participant) => participant.id === link.id)
           if(foundParticipant !== undefined && validator.isEmail(text)) {
             props.updateParticipant.mutate({
@@ -538,7 +537,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
-            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: false}))
           ].find((participant) => participant.id === link.id)
           if(foundParticipant !== undefined) {
             const filteredTags = text.split(',')
@@ -583,7 +582,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
-            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true}))
+            ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: false}))
           ].find((participant) => participant.id === link.id)
           if(foundParticipant !== undefined) {
             Promise.all(
@@ -1055,8 +1054,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     props.i  
   ])
 
-  console.log(linkedUserFields, linkedParticipantFields)
-
   return (
     <>
       {userDetection[0] === 'unlinked' && detectedUser !== undefined && (
@@ -1386,19 +1383,31 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     )
                   })}
                 </div>
-                <div className="flex flex-row justify-end mt-2 me-1 gap-2">
+                <div className="flex flex-col mt-2 gap-2">
                   {userDetection[0] === 'unlinked' && (
-                    <button 
-                      className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
-                      onClick={() => {
-                        setLinkUserVisible(true)
-                      }}
-                    >
-                      <span>Link User</span>
-                    </button>
+                    <div className="flex flex-row justify-end gap-2">
+                      <button 
+                        className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
+                        onClick={() => {
+                          setLinkUserVisible(true)
+                        }}
+                      >
+                        <span>Link User</span>
+                      </button>
+                      {linkParticipantAvailable && (
+                        <button 
+                          className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
+                          onClick={() => {
+                            setLinkParticipantVisible(true)
+                          }}
+                        >
+                          <span>Link Participant</span>
+                        </button>
+                      )}
+                    </div>
                   )}
                   {(userDetection[0] === 'temp' || props.tempUsers.some((user) => user.email === userDetection[1])) && (
-                    <>
+                    <div className="flex flex-row gap-2 justify-end">
                       <button 
                         className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
                         onClick={() => {
@@ -1415,7 +1424,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                       >
                         <span>Copy Invite Link</span>
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1537,8 +1546,6 @@ function DragPreview({ index, columns, tags } : { index: number, columns: TableC
     if(i > 6) break;
     formattedRow.set(columns[i], columns[i].values[index] ?? '')
   }
-
-  console.log(formattedRow)
   
   return (
     <table>

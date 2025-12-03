@@ -188,8 +188,8 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
       props.onClose()
       setLinkedParticipantFields([])
     }} size='xl'>
-      <Modal.Header>Link Participant</Modal.Header>
-      <Modal.Body className="pb-2">
+      <Modal.Header className="px-4 py-3">Link Participant</Modal.Header>
+      <Modal.Body className="px-2 py-2">
         <div className="flex flex-col px-2 pb-1 max-h-[68vh] overflow-auto">
           <ParticipantPanel 
             participant={{
@@ -213,9 +213,14 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
             }}
           />
         </div>
+        <div className="border"/>
+        <div className="pt-1">
+          <span className="text-sm italic text-gray-500 ps-4">Note: if this participant already exists it will create a duplicate!</span>
+        </div>
       </Modal.Body>
-      <Modal.Footer className="flex flex-row justify-end gap-4">
+      <Modal.Footer className="flex flex-row justify-end gap-2 px-2 py-2">
         <Button 
+          size="xs"
           color="light"
           onClick={() => {
             props.onClose()
@@ -223,6 +228,7 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
           }}
         >Cancel</Button>
         <Button 
+          size='xs'
           isProcessing={linkParticipant.isPending}
           disabled={linkedParticipantFields[0] === undefined}
           onClick={() => {

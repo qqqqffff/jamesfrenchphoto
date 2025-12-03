@@ -1,19 +1,22 @@
 import { FC, useEffect, useState } from "react";
 import { ModalProps } from ".";
 import { Button, Modal } from "flowbite-react";
-import { Participant, TableColumn, UserProfile, UserTag } from "../../types";
+import { Participant, TableColumn, Timeslot, UserProfile, UserTag } from "../../types";
 import { v4 } from 'uuid'
 import { validateMapField } from "../../functions/tableFunctions";
 import validator from 'validator'
-import { UseQueryResult } from "@tanstack/react-query";
+import { useMutation, UseQueryResult } from "@tanstack/react-query";
 import { HiOutlinePlusCircle } from "react-icons/hi2";
 import { TagPicker } from "../admin/package/TagPicker";
+import { ParticipantFieldLinks, UserFieldLinks } from "./LinkUser";
+import { LinkUserMutationParams, UserService } from "../../services/userService";
 
 interface CreateUserModalProps extends ModalProps {
   createUser: (userProfile: UserProfile) => void
   tableColumns: TableColumn[]
   rowNumber: number,
   tags: UseQueryResult<UserTag[] | undefined, Error>
+  UserService: UserService
 }
 
 //TODO: validations for non-currently existing user email required
@@ -38,7 +41,22 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
   const [participants, setParticipants] = useState<Participant[]>([emptyParticipant()])
   const [availableTags, setAvailableTags] = useState<UserTag[]>([])
 
+  const [participantFieldLinks, setParticipantFieldLinks] = useState<ParticipantFieldLinks[]>([])
+  const [userFieldLinks, setUserFieldLinks] = useState<UserFieldLinks>({
+    email: ['', ''],
+    first: null,
+    last: null,
+    sitting: null
+  })
+
   useEffect(() => {
+    const tempUserFieldLinks: UserFieldLinks = {
+      email: ['', ''],
+      first: null,
+      last: null,
+      sitting: null
+    }
+
     const tempParticipants = [...participants]
     let tempFirst = ''
     let tempLast = ''
@@ -47,6 +65,17 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
     if(tempParticipants.length === 0) {
       tempParticipants.push(emptyParticipant())
     }
+
+    const participantFieldLinks: ParticipantFieldLinks[] = tempParticipants.map((participant) => ({
+      id: participant.id,
+      first: null,
+      last: null,
+      middle: null,
+      preferred: null,
+      email: null,
+      tags: null,
+      timeslot: null,
+    }))
     
     
     // auto populating / multiple participants not supported
@@ -71,6 +100,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
 
               if(updatedParticipant && updatedParticipant.firstName === props.tableColumns[i].values[props.rowNumber]) {
                 tempParticipants[0] = updatedParticipant
+                participantFieldLinks[0].first = [props.tableColumns[i].id, 'override']
               }
             }
             if(normalizedHeader.includes('last')) {
@@ -81,6 +111,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
 
               if(updatedParticipant && updatedParticipant.lastName === props.tableColumns[i].values[props.rowNumber]) {
                 tempParticipants[0] = updatedParticipant
+                participantFieldLinks[0].last = [props.tableColumns[i].id, 'override']
               }
             }
             if(normalizedHeader.includes('middle')) {
@@ -91,6 +122,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
 
               if(updatedParticipant && updatedParticipant.middleName === props.tableColumns[i].values[props.rowNumber]) {
                 tempParticipants[0] = updatedParticipant
+                participantFieldLinks[0].middle = [props.tableColumns[i].id, 'override']
               }
             }
             if(normalizedHeader.includes('prefer')) {
@@ -101,6 +133,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
 
               if(updatedParticipant && updatedParticipant.preferredName === props.tableColumns[i].values[props.rowNumber]) {
                 tempParticipants[0] = updatedParticipant
+                participantFieldLinks[0].preferred = [props.tableColumns[i].id, 'override']
               }
             }
             if(normalizedHeader.includes('middle')) {
@@ -111,6 +144,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
 
               if(updatedParticipant && updatedParticipant.middleName === props.tableColumns[i].values[props.rowNumber]) {
                 tempParticipants[0] = updatedParticipant
+                participantFieldLinks[0].middle = [props.tableColumns[i].id, 'override']
               }
             }
             if(
@@ -121,19 +155,23 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                 ...tempParticipants[0],
                 email: props.tableColumns[i].values[props.rowNumber]
               }
+              participantFieldLinks[0].email = [props.tableColumns[i].id, 'override']
             }
           }
           else if(normalizedHeader.includes('first')) {
             tempFirst = props.tableColumns[i].values[props.rowNumber]
+            tempUserFieldLinks.first = [props.tableColumns[i].id, 'override']
           }
           else if(normalizedHeader.includes('last')) {
             tempLast = props.tableColumns[i].values[props.rowNumber]
+            tempUserFieldLinks.last = [props.tableColumns[i].id, 'override']
           }
           else if(
             normalizedHeader.includes('sitting') &&
             !isNaN(Number(props.tableColumns[i].values[props.rowNumber]))
           ) {
             tempSitting = props.tableColumns[i].values[props.rowNumber]
+            tempUserFieldLinks.sitting = [props.tableColumns[i].id, 'override']
           }
           else if(
             normalizedHeader.includes('email') &&
@@ -141,6 +179,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
           ) {
             tempEmail = props.tableColumns[i].values[props.rowNumber]
             tempParticipants[0].userEmail = props.tableColumns[i].values[props.rowNumber]
+            tempUserFieldLinks.email = [props.tableColumns[i].values[props.rowNumber].toLowerCase(), props.tableColumns[i].id]
           }
         }
         else if(props.tableColumns[i].type === 'tag') {
@@ -161,9 +200,26 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
           })
 
           tempParticipants[0].userTags.push(...cellTags)
+          participantFieldLinks[0].tags = [props.tableColumns[i].id, 'override']
         }
         else if(props.tableColumns[i].type === 'date') {
-          //TODO: implement me please
+          const value = props.tableColumns[i].values[props.rowNumber]
+          const cellTimeslots = (value.split(',') ?? [])
+          .filter((timeslot) => timeslot !== '')
+          .map((timeslot) => {
+            //only shallow depth required
+            const shallowTimeslots: Timeslot = {
+              id: timeslot,
+              start: new Date(),
+              end: new Date(),
+            }
+
+            return shallowTimeslots
+          })
+
+          tempParticipants[0].timeslot = tempParticipants[0].timeslot ? [...tempParticipants[0].timeslot, ...cellTimeslots] : cellTimeslots
+
+          participantFieldLinks[0].timeslot = [props.tableColumns[i].id, 'override']
         }
       }
     }
@@ -173,6 +229,8 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
     setLastName(tempLast)
     setSittingNumber(tempSitting)
     setEmail(tempEmail)
+    setParticipantFieldLinks(participantFieldLinks)
+    setUserFieldLinks(userFieldLinks)
   }, [props.tableColumns, props.open])
 
   useEffect(() => {
@@ -212,6 +270,10 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
       )
     })
   )
+
+  const linkUser = useMutation({
+    mutationFn: (params: LinkUserMutationParams) => props.UserService.linkUserMutation(params)
+  })
 
   return (
     <Modal show={props.open} onClose={() => {

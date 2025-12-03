@@ -278,8 +278,8 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
       setLinkedUserFields(undefined)
       setLinkedParticipantFields([])
     }} size='xl'>
-      <Modal.Header>Link User</Modal.Header>
-      <Modal.Body className="pb-2">
+      <Modal.Header className="px-4 py-3">Link User</Modal.Header>
+      <Modal.Body className="px-2 py-2">
         <div className="flex flex-col px-2 pb-1 max-h-[68vh] overflow-auto">
           <span className="font-medium whitespace-nowrap text-lg text-blue-400">User Info</span>
           <div className="flex flex-col px-2 text-xs">
@@ -558,8 +558,9 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
           </div>
         </div>
       </Modal.Body>
-      <Modal.Footer className="flex flex-row justify-end gap-4">
+      <Modal.Footer className="flex flex-row justify-end gap-2  px-2 py-2">
         <Button 
+          size='xs'
           color="light"
           onClick={() => {
             props.onClose()
@@ -568,6 +569,7 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
           }}
         >Cancel</Button>
         <Button 
+          size='xs'
           isProcessing={linkUser.isPending}
           disabled={linkedUserFields === undefined}
           onClick={() => {

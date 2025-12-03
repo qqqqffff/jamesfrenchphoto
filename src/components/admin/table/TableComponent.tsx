@@ -197,6 +197,7 @@ export const TableComponent = (props: TableComponentProps) => {
         open={deleteColumnConfirmation}
       />
       <CreateUserModal 
+        UserService={props.UserService}
         createUser={(userProfile) => {
           //TODO: retroactively register the participant for the selected timeslots
           //TODO: also handle errors too
