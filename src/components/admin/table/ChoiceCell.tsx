@@ -5,6 +5,7 @@ import { defaultColors, defaultColumnColors } from "../../../utils";
 import { Label } from "flowbite-react";
 import { ColumnColor, TableColumn } from "../../../types";
 import { ColorComponent } from "../../common/ColorComponent";
+import { ColorWheelPicker } from "../../common/ColorWheel";
 
 
 interface ChoiceCellProps extends ComponentProps<'td'> {
@@ -20,6 +21,7 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
   const [isFocused, setIsFocused] = useState(false)
   const [creatingOption, setCreatingOption] = useState(false)
   const [activeColor, setActiveColor] = useState<string>('black')
+  const [customColor, setCustomColor] = useState<[string, string]>()
   const [choiceName, setChoiceName] = useState<string>('')
   
   useEffect(() => {
@@ -44,7 +46,9 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
         placeholder="Pick An Option"
         readOnly
         onBlur={() => {
-          setTimeout(() => setIsFocused(false), 200)
+          if(!creatingOption) {
+            setTimeout(() => setIsFocused(false), 200)
+          }
         }}
       />
       {isFocused && (
@@ -54,6 +58,7 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
             <div className="grid grid-cols-2 py-2 p-1 gap-x-2 min-w-max">
               {props.column.choices?.map((choice, index) => {
                 const color: ColumnColor | undefined = props.column.color?.find((color) => color.value === choice)
+                //TODO: special handling for custom colors
                 return (
                   <button 
                     key={index}
@@ -91,14 +96,13 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
               className=""
               onClick={() => {
                 setCreatingOption(false)
+                setIsFocused(true)
               }}
             >
               <HiOutlineXMark size={16} className="text-gray-400"/>
             </button>
           </div>
-          <div
-            className="px-2 py-2 flex flex-col gap-1"
-          >
+          <div className="px-2 py-2 flex flex-col gap-1">
             <div className="flex flex-row gap-2 items-center text-nowrap">
               <span className="text-sm">Choice:</span>
               <input
@@ -112,7 +116,18 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
                 value={choiceName}
               />
             </div>
-            <Label className="text-sm mt-2">Color: <ColorComponent activeColor={activeColor} /></Label>
+            <Label className="text-sm mt-2">Color: {customColor !== undefined ? (
+              <span
+                className="px-2 py-1"
+                style={{
+                  color: customColor[0],
+                  backgroundColor: customColor[1] + 'bb'
+                }}
+              >Custom</span>
+            ) : (
+              <ColorComponent activeColor={activeColor} />
+            )}
+            </Label>
             <div className="grid grid-cols-5 gap-1">
               {defaultColors
                 .filter((color) => !props.column.color?.some((colColor) => {
@@ -128,25 +143,43 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
                       onClick={() => {
                         if(color !== activeColor) { 
                           setActiveColor(color) 
+                          setCustomColor(undefined)
                         } else {
                           setActiveColor('black')
+                          setCustomColor(undefined)
                         }
                       }}
                     />
                   )
                 })}
             </div>
-            <button 
-              className="self-end me-2 border rounded-md px-2 py-0.5 mt-2 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={props.column.choices?.some((choice) => choice === choiceName)}
-              onClick={() => {
-                props.createChoice(choiceName, activeColor)
-                setChoiceName('')
-                setActiveColor('black')
-                setCreatingOption(false)
-                if(inputRef.current) inputRef.current.focus()
+            <ColorWheelPicker 
+              size={200}
+              displaySelected
+              binding={{
+                setSelectedColor: setCustomColor
               }}
-            >Create</button>
+            />
+            <div className="flex flex-row justify-end gap-2 me-2 mt-2">
+              <button
+                className="border rounded-md px-2 py-0.5 hover:bg-gray-100"
+                onClick={() => {
+                  setCreatingOption(false)
+                  setIsFocused(true)
+                }}
+              >Back</button>
+              <button 
+                className="border rounded-md px-2 py-0.5 disabled:cursor-not-allowed disabled:opacity-50 enabled:hover:bg-gray-100"
+                disabled={!props.column.choices?.some((choice) => choice === choiceName)}
+                onClick={() => {
+                  props.createChoice(choiceName, activeColor)
+                  setChoiceName('')
+                  setActiveColor('black')
+                  setCreatingOption(false)
+                  if(inputRef.current) inputRef.current.focus()
+                }}
+              >Create</button>
+            </div>
           </div>
         </div>
       )}
