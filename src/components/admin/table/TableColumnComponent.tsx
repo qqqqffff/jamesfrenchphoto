@@ -160,10 +160,24 @@ export const TableColumnComponent = (props: TableColumnProps) => {
             placeholder="Enter Column Name..."
             onSubmitText={(text) => {
               if(props.column.temporary && text !== ''){
-                const valuesArray = []
-                for(let i = 0; i < props.table.columns[0].values.length; i++) {
-                  valuesArray.push('')
+                const valuesArray = props.column.values ?? []
+                if(valuesArray.length !== props.table.columns[0].values.length) {
+                  for(let i = 0; i < props.table.columns[0].values.length; i++) {
+                    valuesArray.push('')
+                  }
                 }
+                else {
+                  for(let i = 0; i < valuesArray.length; i++) {
+                    //search other columns for potential ids at the same row index
+                    for(let j = 0; j < props.table.columns.length; j++) {
+                      const foundChoice = props.table.columns[j].choices?.[i] ?? ''
+                      if(foundChoice.includes('')) {
+                        
+                      }
+                    }
+                  }
+                }
+                
                 const tempColumn: TableColumn = {
                   id: props.column.id,
                   display: true,
@@ -174,6 +188,8 @@ export const TableColumnComponent = (props: TableColumnProps) => {
                   values: valuesArray,
                   order: props.table.columns.length,
                 }
+
+
                 props.createColumn.mutate({
                   column: tempColumn,
                   options: {
