@@ -58,7 +58,10 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
             normalizedHeader.includes('participant') || 
             normalizedHeader.includes('duchess') || 
             normalizedHeader.includes('deb') || 
-            normalizedHeader.includes('escort') 
+            normalizedHeader.includes('escort') ||
+            normalizedHeader.includes('daughter') ||
+            normalizedHeader.includes('son') ||
+            normalizedHeader.includes('child')
           ) {
             if(normalizedHeader.includes('first')) {
               const updatedParticipant = validateMapField('first', { 

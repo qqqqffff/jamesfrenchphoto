@@ -803,7 +803,10 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         !normalHeader.includes('participant') &&
         !normalHeader.includes('duchess') &&
         !normalHeader.includes('deb') &&
-        !normalHeader.includes('escort')
+        !normalHeader.includes('escort') &&
+        !normalHeader.includes('daughter') &&
+        !normalHeader.includes('son') &&
+        !normalHeader.includes('child')
       ) {
         //comparision check against normalized values but return visual value for display purposes
         if(

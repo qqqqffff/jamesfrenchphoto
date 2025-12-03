@@ -66,6 +66,9 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
             normalHeader.includes('duchess') || 
             normalHeader.includes('deb') || 
             normalHeader.includes('escort') ||
+            normalHeader.includes('daughter') ||
+            normalHeader.includes('son') ||
+            normalHeader.includes('child') ||
             column.type === 'tag' ||
             column.type === 'date'
           ) &&

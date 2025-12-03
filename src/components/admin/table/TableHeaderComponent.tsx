@@ -1,5 +1,5 @@
 import { Dropdown } from "flowbite-react"
-import { Table, TableColumn, TableGroup, UserTag } from "../../../types"
+import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from "../../../types"
 import { TableColumnComponent } from "./TableColumnComponent"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { MutableRefObject, Dispatch, SetStateAction, useRef, useEffect } from "react"
@@ -16,6 +16,8 @@ import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/clo
 interface TableHeaderComponentProps {
   table: Table
   refColumn: MutableRefObject<TableColumn | null>
+  users: UserData[]
+  tempUsers: UserProfile[]
   tagData: UseQueryResult<UserTag[] | undefined, Error>
   createColumn: UseMutationResult<void, Error, CreateTableColumnParams, unknown>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
@@ -178,6 +180,8 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
               column={column}
               refColumn={props.refColumn}
               tags={props.tagData.data ?? []}
+              users={props.users}
+              tempUsers={props.tempUsers}
               createColumn={props.createColumn}
               updateColumn={props.updateColumn}
               setDeleteColumnConfirmation={props.setDeleteColumnConfirmation}

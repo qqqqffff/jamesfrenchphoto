@@ -230,6 +230,8 @@ export const TableComponent = (props: TableComponentProps) => {
             table={props.table}
             refColumn={refColumn}
             tagData={props.tagData}
+            users={users}
+            tempUsers={tempUsers}
             createColumn={createColumn}
             updateColumn={updateColumn}
             reorderTableColumns={reorderTableColumns}

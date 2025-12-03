@@ -99,7 +99,10 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
             normalHeader.includes('participant') || 
             normalHeader.includes('duchess') || 
             normalHeader.includes('deb') || 
-            normalHeader.includes('escort') 
+            normalHeader.includes('escort') ||
+            normalHeader.includes('daughter') ||
+            normalHeader.includes('son') ||
+            normalHeader.includes('child')
           )
         ) {
           if(
