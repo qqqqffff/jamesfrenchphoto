@@ -4,7 +4,7 @@ import invariant from 'tiny-invariant';
 
 interface ColorWheelPickerProps {
   size: number;
-  displaySelected: boolean
+  displaySelected?: boolean
   binding?: {
     setSelectedColor: Dispatch<SetStateAction<[string, string] | undefined>>
   }
@@ -169,37 +169,35 @@ export const ColorWheelPicker = (props: ColorWheelPickerProps) => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-8">
-      <div className="flex flex-col items-center gap-6">
-        <canvas
-          ref={canvasRef}
-          width={size}
-          height={size}
-          onMouseDown={(e) => {
-            updateColor(e.clientX, e.clientY)
-            e.currentTarget
-          }}
-          className="cursor-crosshair rounded-lg shadow-md"
-          style={{ touchAction: 'none' }}
-        />
-        
-        {props.displaySelected && (
-          <div className="flex flex-col gap-4 w-full max-w-md">
-            <div className="flex items-center gap-4">
-              <div
-                className="w-10 h-10 rounded-lg shadow-md border-2 border-gray-200"
-                style={{ backgroundColor: selectedColor }}
-              />
-              <div className="flex flex-col">
-                <p className="text-sm text-gray-600">Selected Color</p>
-                <p className="text-lg font-mono font-bold text-gray-800">
-                  {selectedColor}
-                </p>
-              </div>
+    <div className="flex flex-col items-center gap-6">
+      <canvas
+        ref={canvasRef}
+        width={size}
+        height={size}
+        onMouseDown={(e) => {
+          updateColor(e.clientX, e.clientY)
+          e.currentTarget
+        }}
+        className="cursor-crosshair rounded-lg shadow-md"
+        style={{ touchAction: 'none' }}
+      />
+      
+      {props.displaySelected && (
+        <div className="flex flex-col gap-4 w-full max-w-md">
+          <div className="flex items-center gap-4">
+            <div
+              className="w-10 h-10 rounded-lg shadow-md border-2 border-gray-200"
+              style={{ backgroundColor: selectedColor }}
+            />
+            <div className="flex flex-col">
+              <p className="text-sm text-gray-600">Selected Color</p>
+              <p className="text-lg font-mono font-bold text-gray-800">
+                {selectedColor}
+              </p>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

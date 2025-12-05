@@ -12,7 +12,7 @@ interface ChoiceCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void,
   column: TableColumn,
-  createChoice: (choice: string, color: string) => void,
+  createChoice: (choice: string, color: string, customColor?: [string, string]) => void,
 }
 
 export const ChoiceCell = (props: ChoiceCellProps) => {
@@ -33,14 +33,29 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
   const valueColor: ColumnColor | undefined = props.column.color?.find((color) => color.value === value)
 
   return (
-    <td className={`text-ellipsis border py-3 px-3 max-w-[150px] ${valueColor ? `bg-${valueColor.bgColor ?? 'transparent'}` : ''}`}>
+    <td 
+      className={`
+        text-ellipsis border py-3 px-3 max-w-[150px] 
+        ${valueColor && (!valueColor.bgColor || !valueColor.bgColor.includes('#')) ? `bg-${valueColor.bgColor ?? 'transparent'}` : ''}
+      `}
+      style={{
+        backgroundColor: valueColor?.bgColor && valueColor.bgColor.includes('#') ? valueColor.bgColor : undefined,
+      }}
+    >
       <input 
         ref={inputRef}
         className={`
           font-thin w-full border-b-gray-400 border-b py-0.5 flex flex-row 
           placeholder:italic focus:outline-none hover:cursor-pointer
-          ${valueColor ? `bg-${valueColor.bgColor ?? 'transparent'} text-${valueColor.textColor ?? 'black'}` : ''}
+          ${valueColor && 
+            (!valueColor.bgColor || !valueColor.bgColor.includes('#')) &&
+            (!valueColor.textColor || !valueColor.textColor.includes('#'))
+          ? `bg-${valueColor.bgColor ?? 'transparent'} text-${valueColor.textColor ?? 'black'}` : ''}
         `}
+        style={{
+          backgroundColor: valueColor?.bgColor && valueColor.bgColor.includes('#') ? valueColor.bgColor : undefined,
+          color: valueColor?.textColor && valueColor.textColor.includes('#') ? valueColor.textColor + 'bb' : undefined
+        }}
         onFocus={() => setIsFocused(true)}
         value={value}
         placeholder="Pick An Option"
@@ -68,9 +83,15 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
                     }}
                     className={`
                       opacity-75 hover:opacity-100 border-transparent border hover:border-gray-500 
-                      rounded-md flex flex-row items-center ${color ? `text-${color.textColor ?? 'black'} bg-${color.bgColor ?? 'white'}` : ''}
+                      rounded-md flex flex-row items-center ${color && 
+                        (!color.bgColor || !color.bgColor.includes('#')) &&
+                        (!color.textColor || !color.textColor.includes('#')) ? `text-${color.textColor ?? 'black'} bg-${color.bgColor ?? 'white'}` : ''}
                       px-4 text-nowrap justify-center
                     `}
+                    style={{
+                      backgroundColor: color?.bgColor && color.bgColor.includes('#') ? color.bgColor : undefined,
+                      color: color?.textColor && color.textColor.includes('#') ? color.textColor + 'bb' : undefined
+                    }}
                   >
                     <span>{choice}</span>
                   </button>
@@ -97,6 +118,7 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
               onClick={() => {
                 setCreatingOption(false)
                 setIsFocused(true)
+                if(inputRef.current) inputRef.current.focus()
               }}
             >
               <HiOutlineXMark size={16} className="text-gray-400"/>
@@ -111,6 +133,9 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
                   border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
                   ${activeColor ? `text-${activeColor}` : 'text-black'}
                 `}
+                style={{
+                  color: customColor ? customColor[0] : undefined
+                }}
                 placeholder="Choice..."
                 onChange={(event) => setChoiceName(event.target.value)}
                 value={choiceName}
@@ -128,34 +153,35 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
               <ColorComponent activeColor={activeColor} />
             )}
             </Label>
-            <div className="grid grid-cols-5 gap-1">
-              {defaultColors
-                .filter((color) => !props.column.color?.some((colColor) => {
-                  return colColor.bgColor === defaultColumnColors[color].bg
-                }))
-                .map((color, index) => {
-                  const className = 'fill-' + color + ' cursor-pointer'
-                  return (
-                    <BiSolidSquareRounded 
-                      key={index} 
-                      size={24} 
-                      className={className} 
-                      onClick={() => {
-                        if(color !== activeColor) { 
-                          setActiveColor(color) 
-                          setCustomColor(undefined)
-                        } else {
-                          setActiveColor('black')
-                          setCustomColor(undefined)
-                        }
-                      }}
-                    />
-                  )
-                })}
+            <div className="flex flex-row w-full justify-center py-2">
+              <div className="grid grid-cols-5 gap-y-2 gap-x-4">
+                {defaultColors
+                  .filter((color) => !props.column.color?.some((colColor) => {
+                    return colColor.bgColor === defaultColumnColors[color].bg
+                  }))
+                  .map((color, index) => {
+                    const className = 'fill-' + color + ' cursor-pointer'
+                    return (
+                      <BiSolidSquareRounded 
+                        key={index} 
+                        size={24} 
+                        className={className} 
+                        onClick={() => {
+                          if(color !== activeColor) { 
+                            setActiveColor(color) 
+                            setCustomColor(undefined)
+                          } else {
+                            setActiveColor('black')
+                            setCustomColor(undefined)
+                          }
+                        }}
+                      />
+                    )
+                  })}
+              </div>
             </div>
             <ColorWheelPicker 
               size={200}
-              displaySelected
               binding={{
                 setSelectedColor: setCustomColor
               }}
@@ -166,13 +192,14 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
                 onClick={() => {
                   setCreatingOption(false)
                   setIsFocused(true)
+                  if(inputRef.current) inputRef.current.focus()
                 }}
               >Back</button>
               <button 
                 className="border rounded-md px-2 py-0.5 disabled:cursor-not-allowed disabled:opacity-50 enabled:hover:bg-gray-100"
-                disabled={!props.column.choices?.some((choice) => choice === choiceName)}
+                disabled={props.column.choices?.some((choice) => choice === choiceName) || choiceName === ''}
                 onClick={() => {
-                  props.createChoice(choiceName, activeColor)
+                  props.createChoice(choiceName, activeColor, customColor)
                   setChoiceName('')
                   setActiveColor('black')
                   setCreatingOption(false)

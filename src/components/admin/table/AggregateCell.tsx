@@ -29,12 +29,13 @@ export const AggregateCell = (props: AggregateCellProps) => {
               <div 
                 key={index}
                 className={`
-                  h-full ${segment.color?.bgColor ? `bg-${segment.color.bgColor}` : ''}
+                  h-full ${segment.color?.bgColor && !segment.color.bgColor.includes('#') ? `bg-${segment.color.bgColor}` : ''}
                   ${!segment.color ? 'border border-gray-400' : ''}
                 `}
                 style={{ 
                   width: `${(segment.count / props.column.values.length) * 100}%`,
-                  background: !segment.color ? 'repeating-linear-gradient(45deg, #ffffff, #ffffff 10px, #d1d5db 10px, #d1d5db 20px)' : ''
+                  background: !segment.color ? 'repeating-linear-gradient(45deg, #ffffff, #ffffff 10px, #d1d5db 10px, #d1d5db 20px)' : '',
+                  backgroundColor: segment.color?.bgColor && segment.color.bgColor.includes('#') ? segment.color.bgColor : undefined
                 }}
                 onMouseEnter={() => setHoveredSegment(index)}
                 onMouseLeave={() => setHoveredSegment(undefined)}
@@ -55,9 +56,12 @@ export const AggregateCell = (props: AggregateCellProps) => {
                     <div
                       className={`
                         absolute top-0 left-1/2 transform -translate-x-1/2 bg-white 
-                        text-${segment.color?.textColor ?? 'black'} text-xs mt-1
-                        px-2 py-1 rounded whitespace-nowrap border border-black
+                        text-${segment.color?.textColor && !segment.color.textColor.includes('#') ? segment.color.textColor : 'black'} 
+                        text-xs mt-1 px-2 py-1 rounded whitespace-nowrap border border-black
                       `}
+                      style={{
+                        color: segment.color?.textColor && segment.color.textColor.includes('#') ? segment.color.textColor : undefined
+                      }}
                     >
                       {segment.count}/{props.column.values.length} ({Number((segment.count / props.column.values.length) * 100).toFixed(1)}%)
                     </div>

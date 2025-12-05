@@ -699,7 +699,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
   }
 
   //TODO: handle custom colors -> split colors with hashtags into text and bg colors
-  const updateChoices = (id: string, data: {choice: string, color: string}, mode: 'create' | 'delete') => {
+  const updateChoices = (id: string, data: { choice: string, color: string, customColor?: [string, string] }, mode: 'create' | 'delete') => {
     const column = props.table.columns.find((column) => column.id === id)
     
     if(!column){
@@ -710,8 +710,8 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     if(mode === 'create') {
       const tempColor: ColumnColor = {
         id: v4(),
-        textColor: defaultColumnColors[data.color].text,
-        bgColor: defaultColumnColors[data.color].bg,
+        textColor: data.customColor !== undefined ? data.customColor[0] : defaultColumnColors[data.color].text,
+        bgColor: data.customColor !== undefined ? data.customColor[1] : defaultColumnColors[data.color].bg,
         value: data.choice,
         columnId: column.id,
       }
@@ -721,6 +721,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         colorId: tempColor.id,
         choice: data.choice,
         color: data.color,
+        customColor: data.customColor,
         options: {
           logging: true
         }
@@ -1278,7 +1279,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   value={v}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   column={props.table.columns.find((col) => col.id === id)!}
-                  createChoice={(choice, color) => updateChoices(id, {choice: choice, color: color}, "create")}
+                  createChoice={(choice, color, customColor) => updateChoices(id, {choice: choice, color: color, customColor: customColor}, "create")}
                 />
               )
             }

@@ -158,6 +158,7 @@ export interface CreateChoiceParams {
   colorId: string,
   choice: string,
   color: string,
+  customColor?: [string, string],
   options?: {
     logging?: boolean
   }
@@ -354,8 +355,8 @@ export class TableService {
     const createColor = await this.client.models.ColumnColorMapping.create({
       id: params.colorId,
       columnId: params.column.id,
-      textColor: defaultColumnColors[params.color].text,
-      bgColor: defaultColumnColors[params.color].bg,
+      textColor: params.customColor ? params.customColor[0] : defaultColumnColors[params.color].text,
+      bgColor: params.customColor ? params.customColor[1] : defaultColumnColors[params.color].bg,
       value: params.choice
     })
 
