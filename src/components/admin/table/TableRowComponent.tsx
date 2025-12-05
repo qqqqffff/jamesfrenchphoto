@@ -32,7 +32,7 @@ import { createPortal } from "react-dom"
 import validator from 'validator'
 import { HiOutlineUserCircle } from "react-icons/hi2";
 import { ParticipantPanel } from "../../common/ParticipantPanel"
-import { LinkUserModal } from "../../modals/LinkUser"
+import { LinkUserModal, ParticipantFieldLinks, UserFieldLinks } from "../../modals/LinkUser"
 import { LinkParticipantModal } from "../../modals/LinkParticipant"
 
 interface TableRowComponentProps {
@@ -94,30 +94,12 @@ const stateStyles: { [Key in TableRowState['type']]?: HTMLAttributes<HTMLDivElem
 
 const idle: TableRowState = { type: 'idle' };
 
-export type UserRowFieldLinks = {
-  email: [string, string],
-  first: [boolean, string],
-  last: [boolean, string],
-  sitting: [boolean, string]
-}
-
-export type ParticipantRowFieldLinks = {
-  id: string
-  first: [boolean, string], 
-  last: [boolean, string],
-  middle: [boolean, string] | null,
-  preferred: [boolean, string] | null,
-  email: [boolean, string] | null,
-  tags: [boolean, string] | null,
-  timeslot: [boolean, string] | null
-}
-
 export const TableRowComponent = (props: TableRowComponentProps) => {
   const ref = useRef<HTMLTableRowElement | null>(null)
   const [rowState, setRowState] = useState<TableRowState>(idle)
   const [allowDragging, setAllowDragging] = useState(false)
-  const [linkedUserFields, setLinkedUserFields] = useState<UserRowFieldLinks>()
-  const [linkedParticipantFields, setLinkedParticipantFields] = useState<ParticipantRowFieldLinks[]>([])
+  const [linkedUserFields, setLinkedUserFields] = useState<UserFieldLinks>()
+  const [linkedParticipantFields, setLinkedParticipantFields] = useState<ParticipantFieldLinks[]>([])
   const [linkUserVisible, setLinkUserVisible] = useState(false)
   const [linkParticipantVisible, setLinkParticipantVisible] = useState(false)
 
@@ -244,7 +226,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         if(column.id === linkedUserFields?.email[1]) {
           //TODO: investigate how to handle this, since cognito email needs to be changed as well with the attribute update: for now disabled
         }
-        else if(linkedUserFields?.first[0] && column.id === linkedUserFields.first[1] && field === 'first') {
+        else if(linkedUserFields?.first && column.id === linkedUserFields.first[0] && field === 'first') {
           props.updateUserProfile.mutate({
             profile: foundUser,
             first: text,
@@ -268,7 +250,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             }) : data))
           }
         }
-        else if(linkedUserFields?.last[0] && column.id === linkedUserFields.last[1] && field === 'last') {
+        else if(linkedUserFields?.last && column.id === linkedUserFields.last[0] && field === 'last') {
           props.updateUserProfile.mutate({
             profile: foundUser,
             last: text,
@@ -292,7 +274,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             }) : data))
           }
         }
-        else if(linkedUserFields?.sitting[0] && column.id === linkedUserFields.sitting[1] && !isNaN(Number(text)) && field === 'sitting') {
+        else if(linkedUserFields?.sitting && column.id === linkedUserFields.sitting[0] && !isNaN(Number(text)) && field === 'sitting') {
           props.updateUserProfile.mutate({
             profile: foundUser,
             sitting: Number(text)
@@ -317,7 +299,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     }
     
     if(participantLink) {
-      if(linkedParticipantFields.some((link) => link.first[0] && link.first[1] === column.id) && field === 'first') {
+      if(linkedParticipantFields.some((link) => link.first && link.first[0] === column.id) && field === 'first') {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
@@ -362,7 +344,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           }
         })
       }
-      else if(linkedParticipantFields.some((link) => link.last[0] && link.last[1] === column.id) && field === 'last') {
+      else if(linkedParticipantFields.some((link) => link.last && link.last[0] === column.id) && field === 'last') {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
@@ -404,7 +386,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           }
         })
       }
-      else if(linkedParticipantFields.some((link) => link.preferred?.[0] && link.preferred[1] === column.id) && field === 'preferred') {
+      else if(linkedParticipantFields.some((link) => link.preferred && link.preferred[0] === column.id) && field === 'preferred') {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
@@ -447,7 +429,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           }
         })
       }
-      else if(linkedParticipantFields.some((link) => link.middle?.[0] && link.middle[1] === column.id) && field === 'middle') {
+      else if(linkedParticipantFields.some((link) => link.middle && link.middle[0] === column.id) && field === 'middle') {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
@@ -490,7 +472,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           }
         })
       }
-      else if(linkedParticipantFields.some((link) => link.email?.[0] && link.email[1] === column.id) && field === 'email') {
+      else if(linkedParticipantFields.some((link) => link.email && link.email[0] === column.id) && field === 'email') {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
@@ -533,7 +515,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           }
         })
       }
-      else if(linkedParticipantFields.some((link) => link.tags?.[0] && link.tags[1] === column.id) && column.type === 'tag') {
+      else if(linkedParticipantFields.some((link) => link.tags && link.tags[0] === column.id) && column.type === 'tag') {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
@@ -578,7 +560,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           }
         })
       }
-      else if(linkedParticipantFields.some((link) => link.timeslot?.[0] && link.timeslot[1] === column.id) && column.type === 'date') {
+      else if(linkedParticipantFields.some((link) => link.timeslot && link.timeslot[0] === column.id) && column.type === 'date') {
         linkedParticipantFields.forEach((link) => {
           const foundParticipant: Participant & { temp: boolean } | undefined = [
             ...props.tempUsers.flatMap((profile) => profile.participant).map((participant) => ({...participant, temp: true})),
@@ -700,6 +682,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     props.parentUpdateTableColumns(temp.columns)
   }
 
+  //TODO: handle custom colors -> split colors with hashtags into text and bg colors
   const updateChoices = (id: string, data: {choice: string, color: string}, mode: 'create' | 'delete') => {
     const column = props.table.columns.find((column) => column.id === id)
     
@@ -955,12 +938,12 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
   ].find((profile) => profile.email === userDetection[1])
 
   useEffect(() => {
-    const linkedParticipants = [...linkedParticipantFields]
-    const linkedUser = linkedUserFields ? {...linkedUserFields} : {
+    const linkedParticipants: ParticipantFieldLinks[] = [...linkedParticipantFields]
+    const linkedUser: UserFieldLinks = linkedUserFields ? {...linkedUserFields} : {
       email: ['' , ''] as [string, string],
-      first: [false, ''] as [boolean, string],
-      last: [false, ''] as [boolean, string],
-      sitting: [false, ''] as [boolean, string],
+      first: null,
+      last: null,
+      sitting: null,
     }
     if(
       participantDetection.length > 0 ||
@@ -980,8 +963,8 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           if(linkedIndex === -1) {
             linkedParticipants.push({
               id: mappedParticipant,
-              first: [false, ''],
-              last: [false, ''],
+              first: null,
+              last: null,
               middle: null,
               preferred: null,
               email: null,
@@ -991,25 +974,25 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           }
           const field = choice.substring(endIndex + 1)
           if(field === 'first') {
-            linkedParticipants[linkedParticipants.length - 1].first = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].first = [column.id, 'update']
           }
           else if(field === 'last') {
-            linkedParticipants[linkedParticipants.length - 1].last = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].last = [column.id, 'update']
           }
           else if(field === 'middle') {
-            linkedParticipants[linkedParticipants.length - 1].middle = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].middle = [column.id, 'update']
           }
           else if(field === 'preferred') {
-            linkedParticipants[linkedParticipants.length - 1].preferred = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].preferred = [column.id, 'update']
           }
           else if(field === 'email') {
-            linkedParticipants[linkedParticipants.length - 1].email = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].email = [column.id, 'update']
           }
           else if(column.type === 'tag') {
-            linkedParticipants[linkedParticipants.length - 1].tags = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].tags = [column.id, 'update']
           }
           else if(column.type === 'date') {
-            linkedParticipants[linkedParticipants.length - 1].timeslot = [true, column.id]
+            linkedParticipants[linkedParticipants.length - 1].timeslot = [column.id, 'update']
           }
         }
         else if(choice.includes('userEmail:')) {
@@ -1024,13 +1007,13 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
 
           const field = choice.substring(endIndex + 1)
           if(field === 'first') {
-            linkedUser.first = [true, column.id]
+            linkedUser.first = [column.id, 'update']
           }
           else if(field === 'last') {
-            linkedUser.last = [true, column.id]
+            linkedUser.last = [column.id, 'update']
           }
           else if(field === 'sitting') {
-            linkedUser.sitting = [true, column.id]
+            linkedUser.sitting = [column.id, 'update']
           }
           else if(field === 'email') {
             linkedUser.email = [linkedUser.email[0], column.id]
@@ -1054,6 +1037,29 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     props.i  
   ])
 
+  const filteredColumns = props.table.columns.filter((column) => {
+    if(column.type !== 'tag' && column.type !== 'date' && column.type !== 'value') return false
+    if(column.type === 'tag' || column.type === 'date') return true
+    return (
+      linkedUserFields === undefined || (
+        (linkedUserFields.first === null || linkedUserFields.first[0] !== column.id) &&
+        (linkedUserFields.last === null || linkedUserFields.last[0] !== column.id) &&
+        (linkedUserFields.sitting === null || linkedUserFields.sitting[0] !== column.id) &&
+        (linkedUserFields.email[1] !== column.id) &&
+        linkedParticipantFields.every((participantLink) => {
+          return (
+            (participantLink.first === null || participantLink.first[0] !== column.id) &&
+            (participantLink.last === null || participantLink.last[0] !== column.id) &&
+            (participantLink.email === null || participantLink.email[0] !== column.id) &&
+            (participantLink.middle === null || participantLink.middle[0] !== column.id) &&
+            (participantLink.preferred === null || participantLink.preferred[0] !== column.id) &&
+            (participantLink.tags === null || participantLink.tags[0] !== column.id)
+          )
+        })
+      )
+    )
+  })
+
   return (
     <>
       {userDetection[0] === 'unlinked' && detectedUser !== undefined && (
@@ -1062,7 +1068,10 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           TimeslotService={props.TimeslotService}
           open={linkUserVisible}
           onClose={() => setLinkUserVisible(false)}
-          userProfile={detectedUser}
+          userProfile={{
+            ...detectedUser,
+            temp: props.tempUsers.some((temp) => temp.email === detectedUser.email)
+          }}
           rowIndex={props.i}
           tags={props.tagData}
           tableColumns={props.table.columns.filter((column) => {
@@ -1305,8 +1314,8 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   value={v}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   column={props.table.columns.find((column) => column.id === id)!}
-                  participantRowFieldLinks={linkedParticipantFields}
-                  userRowFieldLinks={linkedUserFields}
+                  participantFieldLinks={linkedParticipantFields}
+                  userFieldLinks={linkedUserFields}
                 />
               )
             }
@@ -1348,22 +1357,42 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   )
                 )}
                 </span>
-                <div className="flex flex-col px-2 text-xs">
-                  <div className="flex flex-row gap-2 items-center text-nowrap">
-                    <span>Sitting Number:</span>
-                    <span className="italic">{detectedUser.sittingNumber}</span>
-                  </div>
-                  <div className="flex flex-row gap-2 items-center text-nowrap">
-                    <span>First Name:</span>
-                    <span className="italic">{detectedUser.firstName}</span>
-                  </div>
-                  <div className="flex flex-row gap-2 items-center text-nowrap">
-                    <span>Last Name:</span>
-                    <span className="italic">{detectedUser.lastName}</span>
-                  </div>
-                  <div className="flex flex-row gap-2 items-center text-nowrap">
-                    <span>Email:</span>
-                    <span className="italic">{detectedUser.email}</span>
+                <div className="border mb-2"/>
+                <div className="flex flex-col text-xs">
+                  <div className="px-3">
+                    <div className="flex flex-row items-center text-nowrap justify-between w-full border-y py-1 px-2 min-h-[36px]">
+                      <div className="flex flex-row gap-2 items-center">
+                        <span>Sitting Number:</span>
+                        <span className="italic">{detectedUser.sittingNumber}</span>
+                      </div>
+                      {linkedUserFields !== undefined && 
+                      linkedUserFields.sitting !== null && 
+                      props.table.columns.some((column) => column.id === linkedUserFields.sitting?.[0]) && (
+                        <Dropdown
+                          inline
+                        >
+
+                        </Dropdown>
+                      )}
+                    </div>
+                    <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+                      <div className="flex flex-row gap-2 items-center">
+                        <span>First Name:</span>
+                        <span className="italic">{detectedUser.firstName}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+                      <div className="flex flex-row gap-2 items-center">
+                        <span>Last Name:</span>
+                        <span className="italic">{detectedUser.lastName}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+                      <div className="flex flex-row gap-2 items-center">
+                        <span>Email:</span>
+                        <span className="italic">{detectedUser.email}</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="border mt-2"/>
                   {detectedUser.participant
@@ -1372,12 +1401,15 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     // TODO: implement admin options to delete participants
                     return (
                       <div key={index}>
-                        <ParticipantPanel 
-                          participant={participant}
-                          showOptions={{
-                            timeslot: true
-                          }}
-                        />
+                        <div className="px-3">
+                          <ParticipantPanel 
+                            //removing redundant userEmail
+                            participant={{ ...participant, userEmail: ''}}
+                            showOptions={{
+                              timeslot: true
+                            }}
+                          />
+                        </div>
                         <div className="border"/>
                       </div>
                     )

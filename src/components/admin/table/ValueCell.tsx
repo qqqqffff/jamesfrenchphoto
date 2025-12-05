@@ -1,26 +1,19 @@
 import { ComponentProps, useEffect, useRef, useState } from "react"
 import { TableColumn } from "../../../types"
-import { ParticipantRowFieldLinks, UserRowFieldLinks } from "./TableRowComponent"
+import { ParticipantFieldLinks, UserFieldLinks } from "../../modals/LinkUser"
 
 interface ValueCellProps extends ComponentProps<'td'> {
   value: string,
   updateValue: (text: string) => void,
   column: TableColumn,
-  // TODO: handle on the parent side
-  // tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
-  // userData: UseQueryResult<UserData[] | undefined, Error>
-  // updateUserAttribute: UseMutationResult<unknown, Error, UpdateUserAttributesMutationParams, unknown>
-  // updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
-  // updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
-  userRowFieldLinks?: UserRowFieldLinks,
-  participantRowFieldLinks: ParticipantRowFieldLinks[]
+  userFieldLinks?: UserFieldLinks,
+  participantFieldLinks: ParticipantFieldLinks[]
 }
 
 export const ValueCell = (props: ValueCellProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [value, setValue] = useState('')
 
-  //TODO: add conditional rendering for the border if the cell is linked
   useEffect(() => {
     if(props.value !== value){
       setValue(props.value)
@@ -28,16 +21,16 @@ export const ValueCell = (props: ValueCellProps) => {
   }, [props.value])
 
   const specialField = 
-    props.column.id === props.userRowFieldLinks?.email[1] ||
-    props.column.id === props.userRowFieldLinks?.first[1] ||
-    props.column.id === props.userRowFieldLinks?.sitting[1] ||
-    props.column.id === props.userRowFieldLinks?.last[1] ||
-    props.participantRowFieldLinks.some((link) => (
-      link.first[1] === props.column.id ||
-      link.last[1] === props.column.id ||
-      link.email?.[1] === props.column.id ||
-      link.middle?.[1] === props.column.id ||
-      link.preferred?.[1] === props.column.id
+    props.column.id === props.userFieldLinks?.email[1] ||
+    props.column.id === props.userFieldLinks?.first?.[0] ||
+    props.column.id === props.userFieldLinks?.sitting?.[0] ||
+    props.column.id === props.userFieldLinks?.last?.[0] ||
+    props.participantFieldLinks.some((link) => (
+      link.first?.[0] === props.column.id ||
+      link.last?.[0] === props.column.id ||
+      link.email?.[0] === props.column.id ||
+      link.middle?.[0] === props.column.id ||
+      link.preferred?.[0] === props.column.id
     ))
 
   //TODO: handle special case for sitting number (accept only numbers)

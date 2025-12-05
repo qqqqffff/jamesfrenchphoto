@@ -82,6 +82,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
 
         //id, values[]
         const updatedValues: Map<string, string[]> = new Map()
+        const updatedChoices: Map<string, string[]> = new Map()
 
         for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
           if(i === indexOfSource) continue
@@ -90,12 +91,20 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               props.table.columns[j].id, 
               [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[i]]
             )
+            updatedChoices.set(
+              props.table.columns[j].id, 
+              [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
+            )
           }
         }
         for(let j = 0; j < props.table.columns.length; j++) {
           updatedValues.set(
             props.table.columns[j].id,
             [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[indexOfSource]]
+          )
+          updatedChoices.set(
+            props.table.columns[j].id,
+            [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[indexOfSource] ?? '']
           )
         }
         for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < props.table.columns[0].values.length; i++) {
@@ -105,6 +114,10 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               props.table.columns[j].id, 
               [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[i]]
             )
+            updatedChoices.set(
+              props.table.columns[j].id, 
+              [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
+            )
           }
         }
 
@@ -113,10 +126,13 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
             ...props.table,
             columns: props.table.columns.map((column) => {
               const newValues = updatedValues.get(column.id)
-              return newValues ? ({
+              const newChoices = updatedChoices.get(column.id)
+
+              return ({
                 ...column,
-                values: newValues
-              }) : column
+                values: newValues ? newValues : column.values,
+                choices: newChoices ? newChoices : column.choices
+              })
             })
           }
 
