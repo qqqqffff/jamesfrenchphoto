@@ -16,10 +16,12 @@ interface CreateParticipantWindowProps {
   choiceColumn?: TableColumn
 }
 
+//TODO: deprecate me
 export const CreateParticipantWindow = (props: CreateParticipantWindowProps) => {
   const [participant, setParticipant] = useState<Participant>({
     id: v4(),
     firstName: '',
+    createdAt: new Date().toISOString(),
     lastName: '',
     userTags: [],
     contact: false,

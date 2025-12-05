@@ -3,17 +3,20 @@ import { Participant, PhotoCollection, Timeslot, UserTag } from "../../../types"
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Alert, Button, FlowbiteColors } from "flowbite-react";
 import { DynamicStringEnumKeysOf } from "../../../utils";
-import { createTagMutation, CreateTagParams, getAllParticipantsByUserTagQueryOptions, updateTagMutation, UpdateTagParams } from "../../../services/userService";
-import { getAllTimeslotsByUserTagQueryOptions } from "../../../services/timeslotService";
-import { getAllCollectionsFromUserTagIdQueryOptions } from "../../../services/collectionService";
+import { TimeslotService } from "../../../services/timeslotService";
+import { CollectionService } from "../../../services/collectionService";
 import { DetailsPanel } from "./DetailsPanel";
 import { CollectionsPanel } from "./CollectionsPanel";
 import { TimeslotsPanel } from "./TimeslotsPanel";
 import { UsersPanel } from "./UsersPanel";
 import { ReviewPanel } from "./ReviewPanel";
 import { evaluateTagDif } from "../../../functions/tagFunctions";
+import { CreateTagParams, TagService, UpdateTagParams } from "../../../services/tagService";
 
 interface BuilderFormProps {
+  CollectionService: CollectionService,
+  TimeslotService: TimeslotService,
+  TagService: TagService,
   selectedTag: UserTag,
   queriedTag?: UserTag,
   tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
@@ -40,7 +43,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
   let activeTimeout: NodeJS.Timeout | undefined
 
   const updateTag = useMutation({
-    mutationFn: (params: UpdateTagParams) => updateTagMutation(params),
+    mutationFn: (params: UpdateTagParams) => props.TagService.updateTagMutation(params),
     onSuccess: () => {
       clearTimeout(activeTimeout)
       setNotification({ text: 'Successfully Updated Tag', color: 'green' })
@@ -65,7 +68,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
   })
 
   const createTag = useMutation({
-    mutationFn: (params: CreateTagParams) => createTagMutation(params),
+    mutationFn: (params: CreateTagParams) => props.TagService.createTagMutation(params),
     onSuccess: () => {
       clearTimeout(activeTimeout)
       setNotification({ text: 'Successfully Created Tag', color: 'green' })
@@ -89,13 +92,13 @@ export const BuilderForm = (props: BuilderFormProps) => {
 
   //all timeslots ascociated with the tag
   const tagTimeslotsQuery = useQuery({
-    ...getAllTimeslotsByUserTagQueryOptions(props.selectedTag.id),
+    ...props.TimeslotService.getAllTimeslotsByUserTagQueryOptions(props.selectedTag.id),
     enabled: !props.selectedTag.temporary
   })
 
   //only need to know that the tag has these collections to start
   const tagCollectionsQuery = useQuery({
-    ...getAllCollectionsFromUserTagIdQueryOptions(props.selectedTag.id, { 
+    ...props.CollectionService.getAllCollectionsFromUserTagIdQueryOptions(props.selectedTag.id, { 
       siPaths: false, 
       siSets: false, 
       siTags: false
@@ -105,7 +108,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
 
   //all ascociated participants with the tag
   const tagParticipantsQuery = useQuery({
-    ...getAllParticipantsByUserTagQueryOptions(props.selectedTag.id, { 
+    ...props.TagService.getAllParticipantsByUserTagQueryOptions(props.selectedTag.id, { 
       siCollections: false, 
       siNotifications: false, 
       siTags: { }, 

@@ -1,8 +1,8 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { getAllTimeslotsByUserTagListQueryOptions, registerTimeslotMutation, RegisterTimeslotMutationParams } from '../../../services/timeslotService'
+import { TimeslotService, RegisterTimeslotMutationParams } from '../../../services/timeslotService'
 import { useEffect, useState } from 'react'
 import { currentDate, formatTime, normalizeDate, sortDatesAround } from '../../../utils'
-import { Timeslot } from '../../../types'
+import { Timeslot, UserTag } from '../../../types'
 import { ConfirmationModal } from '../../../components/modals'
 import NotificationComponent from '../../../components/timeslot/NotificationComponent'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -11,9 +11,18 @@ import useWindowDimensions from '../../../hooks/windowDimensions'
 import SmallSizeTimeslot from '../../../components/timeslot/SmallSizeTimeslot'
 import FullSizeTimeslot from '../../../components/timeslot/FullSizeTimeslot'
 import { useAuth } from '../../../auth'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 export const Route = createFileRoute('/_auth/client/dashboard/scheduler')({
   component: RouteComponent,
+  loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+
+    return {
+      TimeslotService: new TimeslotService(client)
+    }
+  }
 })
 
 function RouteComponent() {
@@ -21,6 +30,7 @@ function RouteComponent() {
     user,
     updateProfile,
   } = useAuth()
+  const data = Route.useLoaderData()
   const router = useRouter()
 
   const tempProfile = user?.profile
@@ -33,10 +43,16 @@ function RouteComponent() {
   const userTags = participant.userTags
   const userEmail = userProfile.email
 
-  const timeslots = useQuery(getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
+  const timeslots = useQuery(data.TimeslotService.getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
+
+  //getting the most recently created userTag
+  const [activeTag, setActiveTag] = useState<UserTag>(userTags.reduce((prev, cur) => {
+    if(new Date(cur.createdAt).getTime() > new Date(prev.createdAt).getTime()) return cur
+    return prev
+  }))
 
   const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
-    (timeslots.data ?? []).map((timeslot) => {
+    (timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).map((timeslot) => {
       return normalizeDate(timeslot.start)
     }), currentDate)[0] ?? currentDate)
   const [selectedTimeslot, setSelectedTimeslot] = useState<Timeslot>()
@@ -51,7 +67,7 @@ function RouteComponent() {
   useEffect(() => {
     if((timeslots.data ?? []).length > 0) { 
       setActiveDate(sortDatesAround(
-        (timeslots.data ?? []).map((timeslot) => {
+        (timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).map((timeslot) => {
           return normalizeDate(timeslot.start)
         }), currentDate).reduce((prev, cur) => {
           if(prev.getTime() < currentDate.getTime() && cur.getTime() >= currentDate.getTime()) {
@@ -61,10 +77,10 @@ function RouteComponent() {
         })
       )
     }
-  }, [timeslots.data])
+  }, [timeslots.data, activeTag])
 
   const registerTimeslot= useMutation({
-    mutationFn: (params: RegisterTimeslotMutationParams) => registerTimeslotMutation(params)
+    mutationFn: (params: RegisterTimeslotMutationParams) => data.TimeslotService.registerTimeslotMutation(params)
   })
 
   function FormattedTimeslots() {
@@ -72,13 +88,13 @@ function RouteComponent() {
       .filter((timeslot) => {
         return activeDate.toISOString().includes(timeslot.start.toISOString().substring(0, timeslot.start.toISOString().indexOf('T')))
       })
-      .sort((a, b) => a.start.getTime() - b.start.getTime())
       .reduce((prev, cur) => {
         if(!prev.some((timeslot) => timeslot.id === cur.id)) {
           prev.push(cur)
         }
         return prev
       }, [] as Timeslot[])
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
       .map((timeslot, index) => {
         const tag = userProfile.participant
           .find((participant) => participant.id === userProfile.activeParticipant?.id)
@@ -125,12 +141,13 @@ function RouteComponent() {
     return (timeslots.data ?? [])
       .filter((timeslot) => timeslot.participantId === participant.id)
       .map((timeslot, index) => {
-        const color = timeslot.tag?.color ?? 'black'
+        const tag = userTags.find((tag) => tag.id === timeslot.tag?.id)
+        const color = tag?.color ?? 'black'
 
         return (
           <div className={`flex flex-col text-${color} text-sm`} key={index}>
               <span className="underline underline-offset-2">
-                  {timeslot.tag ? timeslot.tag.name : 'Undefined'}
+                  {timeslot.tag ? tag?.name : 'Undefined'}
               </span>
               <button 
                 onClick={() => {
@@ -244,6 +261,9 @@ function RouteComponent() {
           }))}
           activeDate={activeDate}
           setActiveDate={setActiveDate}
+          tags={userTags}
+          activeTag={activeTag}
+          setActiveTag={setActiveTag}
           width={width}
           formatTimeslot={FormattedTimeslots}
           formatRegisteredTimeslot={() => (FormattedRegisteredTimeslots() ?? [])}
@@ -259,6 +279,9 @@ function RouteComponent() {
           }))}
           activeDate={activeDate}
           setActiveDate={setActiveDate}
+          tags={userTags}
+          activeTag={activeTag}
+          setActiveTag={setActiveTag}
           width={width}
           formatTimeslot={FormattedTimeslots}
           formatRegisteredTimeslot={() => (FormattedRegisteredTimeslots() ?? [])}

@@ -1,11 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getAllTableGroupsQueryOptions } from '../../../services/tableService'
+import { TableService } from '../../../services/tableService'
 import { useEffect, useState } from 'react'
 import { Table, TableGroup } from '../../../types'
 import { TableSidePanel } from '../../../components/admin/table/TableSidePanel'
 import { TablePanel } from '../../../components/admin/table/TablePanel'
 import { useQuery } from '@tanstack/react-query'
-import { getAuthUsersQueryOptions, getAllUserTagsQueryOptions, getAllTemporaryUsersQueryOptions } from '../../../services/userService'
+import { UserService } from '../../../services/userService'
+import { V6Client } from '@aws-amplify/api-graphql'
+import { Schema } from '../../../../amplify/data/resource'
+import { PhotoPathService } from '../../../services/photoPathService'
+import { TimeslotService } from '../../../services/timeslotService'
+import { TagService } from '../../../services/tagService'
 
 interface ManagementTablesSearchParams {
   table?: string,
@@ -18,7 +23,14 @@ export const Route = createFileRoute('/_auth/admin/dashboard/table')({
   }),
   beforeLoad: ({ search }) => search,
   loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+
     return {
+      PhotoPathService: new PhotoPathService(client),
+      TableService: new TableService(client),
+      TimeslotService: new TimeslotService(client),
+      UserService: new UserService(client),
+      TagService: new TagService(client),
       searchTable: context.table,
     }
   }
@@ -26,19 +38,24 @@ export const Route = createFileRoute('/_auth/admin/dashboard/table')({
 
 function RouteComponent() {
   const {
+    PhotoPathService,
+    TableService,
+    TimeslotService,
+    UserService,
+    TagService,
     searchTable,
   } = Route.useLoaderData()
   const [tableGroups, setTableGroups] = useState<TableGroup[]>([])
   const [selectedGroups, setSelectedGroups] = useState<TableGroup[]>([])
   const [selectedTable, setSelectedTable] = useState<Table | undefined>()
 
-  const tableGroupsQuery = useQuery(getAllTableGroupsQueryOptions({ metrics: true }))
+  const tableGroupsQuery = useQuery(TableService.getAllTableGroupsQueryOptions({ metrics: true }))
 
-  const usersQuery = useQuery(getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
+  const usersQuery = useQuery(UserService.getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
   
-  const tagsQuery = useQuery(getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: false }))
+  const tagsQuery = useQuery(TagService.getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: false }))
 
-  const tempUsersQuery = useQuery(getAllTemporaryUsersQueryOptions({ siTags: true }))
+  const tempUsersQuery = useQuery(UserService.getAllTemporaryUsersQueryOptions({ siTags: true }))
 
   useEffect(() => {
     if(tableGroupsQuery.data && tableGroupsQuery.data.length > 0) {
@@ -56,6 +73,7 @@ function RouteComponent() {
     <>
       <div className='flex flex-row mx-4 gap-4 h-[98vh] my-[1vh]'>
         <TableSidePanel 
+          TableService={TableService}
           tableGroups={tableGroups}
           tableGroupsQuery={tableGroupsQuery}
           parentUpdateTableGroups={setTableGroups} 
@@ -66,6 +84,10 @@ function RouteComponent() {
         />
         { selectedTable ? (
           <TablePanel
+            UserService={UserService}
+            TableService={TableService}
+            TimeslotService={TimeslotService}
+            PhotoPathService={PhotoPathService}
             parentUpdateSelectedTableGroups={setSelectedGroups}
             parentUpdateTableGroups={setTableGroups}
             parentUpdateSelectedTable={setSelectedTable}

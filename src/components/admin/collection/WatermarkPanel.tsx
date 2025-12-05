@@ -4,10 +4,11 @@ import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import tempImage from '../../../assets/home-carousel/carousel-7.jpg'
 import { Button, Checkbox } from "flowbite-react"
 import { parsePathName } from "../../../utils"
-import { applyWatermarkMutation, ApplyWatermarkParams } from "../../../services/watermarkService"
+import { WatermarkService, ApplyWatermarkParams } from "../../../services/watermarkService"
 import { LazyImage } from "../../common/LazyImage"
 
 interface WatermarkPanelProps {
+  WatermarkService: WatermarkService,
   collection: PhotoCollection
   updateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   updateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
@@ -34,7 +35,7 @@ export const WatermarkPanel = (props: WatermarkPanelProps) => {
   })()
 
   const applyWatermark = useMutation({
-    mutationFn: (params: ApplyWatermarkParams) => applyWatermarkMutation(params),
+    mutationFn: (params: ApplyWatermarkParams) => props.WatermarkService.applyWatermarkMutation(params),
     onSettled: () => setLoading(false)
   })
 

@@ -1,13 +1,17 @@
 import { useInfiniteQuery, useQueries, UseQueryResult } from "@tanstack/react-query"
 import { Dispatch, LegacyRef, SetStateAction, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import useWindowDimensions from "../../hooks/windowDimensions"
-import { getInfinitePathsQueryOptions } from "../../services/photoPathService"
+import { PhotoPathService } from "../../services/photoPathService"
 import { PhotoCollection, PhotoSet, PicturePath, UserProfile } from "../../types"
 import { AuthContext } from "../../auth"
-import { getPathQueryOptions } from "../../services/collectionService"
+import { CollectionService } from "../../services/collectionService"
 import { PhotoControls } from "./PhotoControls"
+import { PhotoSetService } from "../../services/photoSetService"
 
 interface CollectionGridProps {
+  CollectionService: CollectionService,
+  PhotoPathService: PhotoPathService,
+  PhotoSetService: PhotoSetService,
   set: PhotoSet,
   collection: PhotoCollection,
   tempUser?: UserProfile
@@ -37,7 +41,7 @@ export const CollectionGrid = (props: CollectionGridProps) => {
   const currentOffsetIndex = useRef<number | undefined>()
   
   const pathsQuery = useInfiniteQuery(
-    getInfinitePathsQueryOptions(props.set.id, {
+    props.PhotoPathService.getInfinitePathsQueryOptions(props.set.id, {
       unauthenticated: props.data.token !== undefined,
       participantId: props.data.auth.user?.profile.activeParticipant?.id ?? props.tempUser?.activeParticipant?.id,
       maxItems: Math.ceil(3 * (columnMultiplier) * 1.5)
@@ -99,7 +103,7 @@ export const CollectionGrid = (props: CollectionGridProps) => {
         topIndex.current > 0 ? topIndex.current : 0, 
         (bottomIndex.current + 1) > pictures.length ? undefined : bottomIndex.current + 1)
       .map((path) => {
-        return getPathQueryOptions(path.path, path.id)
+        return props.CollectionService.getPathQueryOptions(path.path, path.id)
       })
     }).map((query, index) => [
         pictures[index + (topIndex.current > 0 ? topIndex.current : 0)].id, 
@@ -394,6 +398,8 @@ export const CollectionGrid = (props: CollectionGridProps) => {
                         />
                       </Suspense>
                       <PhotoControls 
+                        PhotoSetService={props.PhotoSetService}
+                        PhotoPathService={props.PhotoPathService}
                         picture={picture}
                         set={props.set}
                         collection={props.collection}

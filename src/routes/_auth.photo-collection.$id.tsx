@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { getPhotoCollectionByIdQueryOptions, getPathQueryOptions } from '../services/collectionService'
+import { CollectionService } from '../services/collectionService'
 import { PhotoSet, UserProfile } from '../types'
 import { useEffect, useRef, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
@@ -10,6 +10,11 @@ import { HiOutlineArrowLeft, HiOutlineArrowRight } from 'react-icons/hi2'
 import { UnauthorizedEmailModal } from '../components/modals'
 import { Cover } from '../components/collection/Cover'
 import { CollectionGrid } from '../components/collection/CollectionGrid'
+import { Schema } from '../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
+import { PhotoPathService } from '../services/photoPathService'
+import { PhotoSetService } from '../services/photoSetService'
+import { UserService } from '../services/userService'
 
 interface PhotoCollectionParams {
   set?: string,
@@ -22,12 +27,14 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
   }),
   beforeLoad: ({ search }) => search,
   loader: async ({ context, params }) => {
+    const client = context.client as V6Client<Schema>
+    const collectionService = new CollectionService(client)
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(!params.id) throw redirect({ to: destination })
     
 
     const collection = await context.queryClient.ensureQueryData(
-      getPhotoCollectionByIdQueryOptions(params.id, { 
+      collectionService.getPhotoCollectionByIdQueryOptions(params.id, { 
         participantId: context.auth.user?.profile.activeParticipant?.id, 
         siSets: true, 
         siPaths: false,
@@ -44,12 +51,16 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     console.log('det')
 
     const coverUrl = (await context.queryClient.ensureQueryData(
-      getPathQueryOptions(collection.coverPath ?? '')
+      collectionService.getPathQueryOptions(collection.coverPath ?? '')
     ))?.[1]
     
     if(!coverUrl && !context.auth.admin) throw redirect({ to: destination })
 
     return {
+      CollectionService: collectionService,
+      PhotoPathService: new PhotoPathService(client),
+      PhotoSetService: new PhotoSetService(client),
+      UserService: new UserService(client),
       collection: collection,
       auth: context.auth,
       coverPath: coverUrl,
@@ -69,7 +80,7 @@ function RouteComponent() {
   const [set, setSet] = useState<PhotoSet>(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
 
   const watermarkQuery = useQuery(
-    getPathQueryOptions(set.watermarkPath ?? collection.watermarkPath, collection.id)
+    data.CollectionService.getPathQueryOptions(set.watermarkPath ?? collection.watermarkPath, collection.id)
   )
 
   const [watermarkPath, setWatermarkPath] = useState<string | undefined>()
@@ -113,6 +124,7 @@ function RouteComponent() {
     <>
       {/* TODO: update this modal please and thank you */}
       <UnauthorizedEmailModal 
+        UserService={data.UserService}
         onClose={() => {
           setEmailInputVisible(false)
           throw redirect({ to: '/login', search: { unauthorized: true }})
@@ -222,7 +234,10 @@ function RouteComponent() {
           </div>
         </div>
         <CollectionGrid 
+          PhotoPathService={data.PhotoPathService}
+          PhotoSetService={data.PhotoSetService}
           set={set}
+          CollectionService={data.CollectionService}
           collection={collection}
           tempUser={tempUser}
           data={{

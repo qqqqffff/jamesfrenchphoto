@@ -4,23 +4,23 @@ import { UserProfile } from "../../types";
 import { Button, Modal, TextInput } from "flowbite-react";
 import { textInputTheme } from "../../utils";
 import { 
-  createTempUserProfileMutation, 
-  CreateTempUserProfileParams, 
-  getUserProfileByEmailQueryOptions 
+  UserService, 
+  CreateTempUserProfileParams 
 } from "../../services/userService";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 interface UnauthorizedEmailModalProps extends ModalProps {
+  UserService: UserService,
   onSubmit: (user: UserProfile | undefined) => void
   onClose: (created: boolean) => void
 }
 
-export const UnauthorizedEmailModal: FC<UnauthorizedEmailModalProps> = ({ open, onClose, onSubmit }) => {
+export const UnauthorizedEmailModal: FC<UnauthorizedEmailModalProps> = ({ open, onClose, onSubmit, UserService }) => {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
 
   const userProfile = useQuery({
-    ...getUserProfileByEmailQueryOptions(email, { 
+    ...UserService.getUserProfileByEmailQueryOptions(email, { 
       siTags: false,
       siCollections: false,
       siSets: false,
@@ -30,7 +30,7 @@ export const UnauthorizedEmailModal: FC<UnauthorizedEmailModalProps> = ({ open, 
   })
 
   const createTempUser = useMutation({
-    mutationFn: (params: CreateTempUserProfileParams) => createTempUserProfileMutation(params),
+    mutationFn: (params: CreateTempUserProfileParams) => UserService.createTempUserProfileMutation(params),
     onSuccess: (data) => {
       onClose(true)
       onSubmit(data)

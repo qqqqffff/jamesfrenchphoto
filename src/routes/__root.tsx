@@ -213,7 +213,7 @@ const RootComponent = () => {
   )
 }
 
-export const Route = createRootRouteWithContext<{queryClient: QueryClient, auth: AuthContext }>()({
+export const Route = createRootRouteWithContext<{client: any, queryClient: QueryClient, auth: AuthContext }>()({
   component: RootComponent,
   notFoundComponent: () => {
     return (
@@ -230,8 +230,10 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient, auth:
     )}
   },
   loader: ({ context }) => {
+    const backendClient = context.client
     return {
-      hidden: context.hidden
+      hidden: context.hidden,
+      client: backendClient
     }
   }
 })

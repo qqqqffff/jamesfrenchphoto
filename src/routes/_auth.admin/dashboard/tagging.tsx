@@ -2,20 +2,33 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { UserTag } from '../../../types'
 import { useQuery } from '@tanstack/react-query'
-import { getAllPhotoCollectionsQueryOptions } from '../../../services/collectionService'
-import { getAllParticipantsQueryOptions, getAllUserTagsQueryOptions } from '../../../services/userService'
-import { getAllUntaggedTimeslotsQueryOptions } from '../../../services/timeslotService'
+import { CollectionService } from '../../../services/collectionService'
+import { UserService } from '../../../services/userService'
+import { TimeslotService } from '../../../services/timeslotService'
 import { BuilderPanel } from '../../../components/admin/tagging/BuilderPanel'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
+import { TagService } from '../../../services/tagService'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/tagging')({
   component: RouteComponent,
+  loader: ({ context }) => {
+    const client = context.client as  V6Client<Schema>
+    return {
+      CollectionService: new CollectionService(client),
+      TimeslotService: new TimeslotService(client),
+      UserService: new UserService(client),
+      TagService: new TagService(client),
+    }
+  }
 })
 
 function RouteComponent() {
+  const data = Route.useLoaderData()
   const [tags, setTags] = useState<UserTag[]>([])
 
   //si will be performed on the selected tag
-  const tagsQuery = useQuery(getAllUserTagsQueryOptions({
+  const tagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({
     siCollections: false,
     siNotifications: false,
     siPackages: {
@@ -28,7 +41,7 @@ function RouteComponent() {
   }))
   
   const collectionsQuery = useQuery(
-    getAllPhotoCollectionsQueryOptions({
+    data.CollectionService.getAllPhotoCollectionsQueryOptions({
       siPaths: false,
       siSets: false,
       siTags: false,
@@ -37,12 +50,12 @@ function RouteComponent() {
   )
 
   const timeslotsQuery = useQuery(
-    getAllUntaggedTimeslotsQueryOptions({
+    data.TimeslotService.getAllUntaggedTimeslotsQueryOptions({
       metric: true
     })
   )
 
-  const participantQuery = useQuery(getAllParticipantsQueryOptions({
+  const participantQuery = useQuery(data.UserService.getAllParticipantsQueryOptions({
     siCollections: false,
     siNotifications: false,
     siTags: { 
@@ -63,6 +76,9 @@ function RouteComponent() {
   return (
     <>
       <BuilderPanel 
+        CollectionService={data.CollectionService}
+        TimeslotService={data.TimeslotService}
+        TagService={data.TagService}
         tags={tags}
         tagsQuery={tagsQuery}
         parentUpdateTagList={setTags}

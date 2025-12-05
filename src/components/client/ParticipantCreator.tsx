@@ -1,16 +1,15 @@
 import { Button, Checkbox, Label, TextInput } from "flowbite-react"
 import { textInputTheme } from "../../utils"
 import { FC, useEffect, useState } from "react"
-import { generateClient } from "aws-amplify/api"
-import { Schema } from "../../../amplify/data/resource"
 import { Participant, UserTag } from "../../types"
 import { useMutation, useQueries } from "@tanstack/react-query"
-import { createParticipantMutation, CreateParticipantParams, getUserTagByIdQueryOptions } from "../../services/userService"
+import { UserService, CreateParticipantParams } from "../../services/userService"
 import { v4 } from 'uuid'
-
-const client = generateClient<Schema>()
+import { TagService } from "../../services/tagService"
 
 interface ParticipantCreatorProps {
+    TagService: TagService,
+    UserService: UserService,
     width: number,
     userEmail?: string,
     taggingCode?: {visible: boolean, code?: string[], editable?: boolean},
@@ -29,7 +28,7 @@ export interface PrefilledParticipantFormElements {
     partialParticipant: Partial<Participant>
 }
 
-const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode, displayRequired, submit, prefilledElements }) => {
+const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode, displayRequired, submit, prefilledElements, UserService, TagService }) => {
     const [formErrors, setFormError] = useState<ParticipantFormError[]>(prefilledElements?.errors ?? [])
     
     const [email, setEmail] = useState<string | undefined>(prefilledElements?.partialParticipant?.email)
@@ -41,9 +40,10 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
 
     const tagQuery = useQueries({
         queries: (taggingCode?.code ?? []).map((code) => 
-            getUserTagByIdQueryOptions(code)
+            TagService.getUserTagByIdQueryOptions(code)
         )
     })
+
     const [tags, setTags] = useState<UserTag[]>(prefilledElements?.partialParticipant?.userTags ?? [])
 
     useEffect(() => {
@@ -54,38 +54,13 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
     }, [tagQuery])
     const [submitting, setSubmitting] = useState(false)
 
-    //TODO: update me please
-    async function tagValidation(): Promise<UserTag[] | undefined>{
-        const userTags: (UserTag | undefined)[] = (await Promise.all(tags
-                .filter((tag) => tag !== undefined)
-                .map(async (tag) => {
-                    const tagResponse = await client.models.UserTag.get({ id: tag.id })
-                    if(!tagResponse || !tagResponse.data || !tagResponse.data.id) return
-                    const userTag: UserTag = {
-                        ...tagResponse.data,
-                        color: tagResponse.data.color ?? undefined,
-                        notifications: undefined,
-                        //TODO: implement children
-                        children: [],
-                        participants: []
-                    }
-                    return userTag
-                }
-            )
-        ))
-
-        if(userTags.findIndex((tag) => tag === undefined) !== -1) return
-        return userTags.filter((tag) => tag !== undefined)
-    }
-
-    const createParticipantMut = useMutation({
-        mutationFn: (params: CreateParticipantParams) => createParticipantMutation(params)
+    const createParticipant = useMutation({
+        mutationFn: (params: CreateParticipantParams) => UserService.createParticipantMutation(params)
     })
 
-    async function createParticipant(){
+    async function CreateParticipantSubmit(){
         let participant: Participant | undefined
         let formErrors: ParticipantFormError[] = []
-        const validateTags = await tagValidation()
         try {
             if(!firstName){
                 formErrors.push({type: 'firstname'})
@@ -93,13 +68,11 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
             if(!lastName){
                 formErrors.push({type: 'lastname'})
             }
-            if(!validateTags){
-                formErrors.push({type: 'tagcode'})
-            }
-            if(firstName && lastName && validateTags && userEmail){
+            if(firstName && lastName && userEmail){
                 participant = {
                     id: v4(),
                     userEmail: userEmail,
+                    createdAt: new Date().toISOString(),
                     userTags: tags,
                     email: email,
                     firstName: firstName,
@@ -110,7 +83,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
                     collections: [],
                     notifications: []
                 }
-                await createParticipantMut.mutateAsync({
+                await createParticipant.mutateAsync({
                     participant: participant,
                     authMode: 'userPool'
                 })
@@ -130,7 +103,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
             submit('Invalid tag code, leave blank to create a participant without a code.', undefined, {
                 errors: formErrors,
                 partialParticipant: {
-                    userTags: validateTags,
+                    userTags: tags,
                     email: email,
                     firstName: firstName,
                     lastName: lastName,
@@ -146,7 +119,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
             submit('Required fields must be filled out.', undefined, {
                 errors: formErrors,
                 partialParticipant: {
-                    userTags: validateTags,
+                    userTags: tags,
                     email: email,
                     firstName: firstName,
                     lastName: lastName,
@@ -217,7 +190,7 @@ const component: FC<ParticipantCreatorProps> = ({ width, userEmail, taggingCode,
             {displayRequired ? (<p className="italic text-sm self-start ms-4"><sup className="italic text-red-600">*</sup> Indicates required fields.</p>) : (<></>)}
             <Button isProcessing={submitting} className="w-[75px] self-end mb-4" onClick={async () => {
                 setSubmitting(true)
-                await createParticipant()
+                await CreateParticipantSubmit()
             }}>Create</Button>
         </>
     )

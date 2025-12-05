@@ -47,6 +47,7 @@ export interface Participant {
     firstName: string,
     lastName: string,
     userTags: UserTag[],
+    createdAt: string,
     middleName?: string,
     preferredName?: string,
     email?: string,
@@ -58,11 +59,11 @@ export interface Participant {
 }
 
 export interface ParticipantFields {
-    type: 'first' | 'preferred' | 'middle' | 'last'
+    type: 'first' | 'preferred' | 'middle' | 'last' | 'email'
 }
 
 export interface UserFields {
-    type: 'first' | 'last' | 'sitting'
+    type: 'first' | 'last' | 'sitting' | 'email'
 }
 
 export type Notification = {

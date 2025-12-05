@@ -3,15 +3,17 @@ import { Package, PackageItem, PhotoCollection, UserTag } from "../../../types";
 import { Alert, Badge, Button, FlowbiteColors } from "flowbite-react";
 import { ItemsPanel } from "./ItemsPanel";
 import { DetailsPanel } from "./DetailsPanel";
-import { createPackageMutation, CreatePackageParams, getAllPackageItemsQueryOptions, GetInfinitePackageItemsData, updatePackageMutation, UpdatePackageParams } from "../../../services/packageService";
+import { PackageService, CreatePackageParams, GetInfinitePackageItemsData, UpdatePackageParams } from "../../../services/packageService";
 import { UseQueryResult, useQuery, useMutation, UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query";
-import { getAllParticipantsByUserTagQueryOptions } from "../../../services/userService";
 import { UsersPanel } from "./UsersPanel";
 import { PackageCard } from "../../common/package/PackageCard";
 import { badgeColorThemeMap, DynamicStringEnumKeysOf } from "../../../utils";
 import { evaluatePackageDif } from "../../../functions/packageFunctions";
+import { TagService } from "../../../services/tagService";
 
 interface BuilderFormProps {
+  PackageService: PackageService,
+  TagService: TagService,
   selectedPackage: Package
   queriedPackage?: Package
   packagesQuery: UseQueryResult<Package[] | undefined, Error>
@@ -35,7 +37,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
   const [formStep, setFormStep] = useState<FormStep>(FormStep.Details)
   const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
 
-  const participantsQuery = useQuery(getAllParticipantsByUserTagQueryOptions(
+  const participantsQuery = useQuery(props.TagService.getAllParticipantsByUserTagQueryOptions(
     props.selectedPackage.tagId, {
       siCollections: false,
       siNotifications: false,
@@ -44,7 +46,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
     }
   ))
 
-  const parentParticipantQuery = useQuery(getAllParticipantsByUserTagQueryOptions(
+  const parentParticipantQuery = useQuery(props.TagService.getAllParticipantsByUserTagQueryOptions(
     props.selectedPackage.parentTagId, {
       siCollections: false,
       siNotifications: false,
@@ -56,7 +58,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
   let activeTimeout: NodeJS.Timeout | undefined
 
   const updatePackage = useMutation({
-    mutationFn: (params: UpdatePackageParams) => updatePackageMutation(params),
+    mutationFn: (params: UpdatePackageParams) => props.PackageService.updatePackageMutation(params),
     onSuccess: () => {
       clearTimeout(activeTimeout)
       setNotification({ text: 'Successfully Updated Package', color: 'green' })
@@ -76,7 +78,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
   })
 
   const createPackage = useMutation({
-    mutationFn: (params: CreatePackageParams) => createPackageMutation(params),
+    mutationFn: (params: CreatePackageParams) => props.PackageService.createPackageMutation(params),
     onSuccess: () => {
       clearTimeout(activeTimeout)
       setNotification({ text: 'Successfully Created Package', color: 'green' })
@@ -98,7 +100,7 @@ export const BuilderForm = (props: BuilderFormProps) => {
 
   //package item api call enabled if package isn't temporary
   const packageItemsQuery = useQuery({
-    ...getAllPackageItemsQueryOptions(props.selectedPackage.id, { siCollectionItems: true }),
+    ...props.PackageService.getAllPackageItemsQueryOptions(props.selectedPackage.id, { siCollectionItems: true }),
     enabled: !props.selectedPackage.temporary
   })
 

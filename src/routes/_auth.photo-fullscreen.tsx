@@ -1,13 +1,15 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { favoriteImageMutation, FavoriteImageMutationParams, getPhotoSetByIdQueryOptions, unfavoriteImageMutation, UnfavoriteImageMutationParams } from '../services/photoSetService'
+import { PhotoSetService, FavoriteImageMutationParams, UnfavoriteImageMutationParams } from '../services/photoSetService'
 import { useMutation, useQueries } from '@tanstack/react-query'
-import { getPathQueryOptions, getPhotoCollectionByIdQueryOptions } from '../services/collectionService'
+import { CollectionService } from '../services/collectionService'
+import { V6Client } from '@aws-amplify/api-graphql'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineHeart, HiOutlineDownload } from "react-icons/hi";
 import { useState } from 'react'
 import { parsePathName } from '../utils'
 import { PhotoCarousel } from '../components/admin/collection/PhotoCarousel'
-import { downloadImageMutation, DownloadImageMutationParams } from '../services/photoPathService'
+import { DownloadImageMutationParams, PhotoPathService } from '../services/photoPathService'
+import { Schema } from '../../amplify/data/resource'
 
 interface PhotoFullScreenParams {
   set: string,
@@ -23,13 +25,16 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
   }),
   beforeLoad: ({ search }) => search,
   loader: async ({ context }) => {
+    const client = context.client as V6Client<Schema>
+    const collectionService = new CollectionService(client)
+    const photoSetService = new PhotoSetService(client)
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if(context.set === '' ||
     context.path === ''
     ) throw redirect({ to: destination })
 
     const set = await context.queryClient.ensureQueryData(
-      getPhotoSetByIdQueryOptions(context.set, { 
+      photoSetService.getPhotoSetByIdQueryOptions(context.set, { 
         resolveUrls: false, 
         participantId: context.auth.user?.profile.activeParticipant?.id 
       })
@@ -40,12 +45,15 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
     if(!set || !path) throw redirect({ to: destination })
 
     const collection = await context.queryClient.ensureQueryData(
-      getPhotoCollectionByIdQueryOptions(set.collectionId, { siPaths: false, siSets: false, siTags: false })
+      collectionService.getPhotoCollectionByIdQueryOptions(set.collectionId, { siPaths: false, siSets: false, siTags: false })
     )
 
     if(!collection) throw redirect({ to: destination })
 
     return {
+      CollectionService: collectionService,
+      PhotoPathService: new PhotoPathService(client),
+      PhotoSetService: photoSetService,
       auth: context.auth,
       path: path,
       set: set,
@@ -63,12 +71,12 @@ function RouteComponent() {
 
   const paths = useQueries({
     queries: data.set.paths.map((path) => (
-      getPathQueryOptions(path.path ?? '', path.id)
+      data.CollectionService.getPathQueryOptions(path.path ?? '', path.id)
     ))
   })
 
   const favorite = useMutation({
-    mutationFn: (params: FavoriteImageMutationParams) => favoriteImageMutation(params),
+    mutationFn: (params: FavoriteImageMutationParams) => data.PhotoSetService.favoriteImageMutation(params),
     onSettled: (favorite) => {
       if(favorite){
         setCurrent({
@@ -80,11 +88,11 @@ function RouteComponent() {
   })
 
   const unfavorite = useMutation({
-    mutationFn: (params: UnfavoriteImageMutationParams) => unfavoriteImageMutation(params),
+    mutationFn: (params: UnfavoriteImageMutationParams) => data.PhotoSetService.unfavoriteImageMutation(params),
   })
 
   const downloadImage = useMutation({
-    mutationFn: (params: DownloadImageMutationParams) => downloadImageMutation(params),
+    mutationFn: (params: DownloadImageMutationParams) => data.PhotoPathService.downloadImageMutation(params),
     onSettled: (file) => {
       if(file){
         try{

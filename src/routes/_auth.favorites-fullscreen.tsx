@@ -1,14 +1,10 @@
 import { useMutation, useQueries } from '@tanstack/react-query'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
+import { CollectionService } from '../services/collectionService'
 import {
-  getPathQueryOptions,
-  getPhotoCollectionByIdQueryOptions,
-} from '../services/collectionService'
-import {
-  downloadImageMutation,
+  PhotoPathService,
   DownloadImageMutationParams,
-  getPathsFromFavoriteIdsQueryOptions,
 } from '../services/photoPathService'
 import { parsePathName } from '../utils'
 import {
@@ -19,6 +15,8 @@ import {
 import { PhotoCarousel } from '../components/admin/collection/PhotoCarousel'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { PicturePath } from '../types'
+import { Schema } from '../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 interface FavoritesFullScreenParams {
   favorites: string[]
@@ -36,20 +34,23 @@ export const Route = createFileRoute('/_auth/favorites-fullscreen')({
   }),
   beforeLoad: ({ search }) => search,
   loader: async ({ context }) => {
+    const client = context.client as V6Client<Schema>
+    const collectionService = new CollectionService(client)
+    const photoPathService = new PhotoPathService(client)
     const destination = `/${context.auth.admin ? 'admin' : 'client'}/dashboard`
     if (context.favorites.length === 0) throw redirect({ to: destination })
 
       
     const filteredFavorites = Array.from(new Set(context.favorites))
     const paths = await context.queryClient.ensureQueryData(
-      getPathsFromFavoriteIdsQueryOptions(filteredFavorites),
+      photoPathService.getPathsFromFavoriteIdsQueryOptions(filteredFavorites),
     )
 
     const firstSubstring = paths[0].path.substring(
       paths[0].path.indexOf('/') + 1,
     )
     const collection = await context.queryClient.ensureQueryData(
-      getPhotoCollectionByIdQueryOptions(
+      collectionService.getPhotoCollectionByIdQueryOptions(
         firstSubstring.substring(0, firstSubstring.indexOf('/'))
       )
     )
@@ -64,6 +65,8 @@ export const Route = createFileRoute('/_auth/favorites-fullscreen')({
 
     //TODO: improved visual for de-duplication
     return {
+      CollectionService: collectionService,
+      PhotoPathService: photoPathService,
       collection: collection,
       favorites: filteredFavorites,
       paths: paths.reduce((prev, cur) => {
@@ -88,14 +91,14 @@ function RouteComponent() {
 
   const paths = useQueries({
     queries: data.paths.map((path) =>
-      getPathQueryOptions(path.path ?? '', path.id),
+      data.CollectionService.getPathQueryOptions(path.path ?? '', path.id),
     ),
   })
 
 
   const downloadImage = useMutation({
     mutationFn: (params: DownloadImageMutationParams) =>
-      downloadImageMutation(params),
+      data.PhotoPathService.downloadImageMutation(params),
     onSettled: (file) => {
       if (file) {
         try {

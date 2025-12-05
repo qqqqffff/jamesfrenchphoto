@@ -3,17 +3,20 @@ import { getClientAdvertiseList } from '../../../functions/packageFunctions'
 import { getUserCollectionList } from '../../../functions/clientFunctions'
 import { PackageItem } from '../../../types'
 import { useQuery, UseQueryResult } from '@tanstack/react-query'
-import { getAllPackageItemsQueryOptions } from '../../../services/packageService'
+import { PackageService } from '../../../services/packageService'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useState } from 'react'
 import { HiOutlineArrowLeftCircle, HiOutlineArrowRightCircle, HiOutlineXMark } from 'react-icons/hi2'
 import { Badge, Carousel } from 'flowbite-react'
 import { badgeColorThemeMap } from '../../../utils'
 import { PackageCard } from '../../../components/common/package/PackageCard'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 export const Route = createFileRoute('/_auth/client/dashboard/advertise')({
   component: RouteComponent,
   loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
     const tags = context.auth.user?.profile.activeParticipant?.userTags ?? []
     const advertiseList = getClientAdvertiseList(tags, true)
 
@@ -33,7 +36,8 @@ export const Route = createFileRoute('/_auth/client/dashboard/advertise')({
     return {
       tags: tags,
       advertiseList: advertiseList,
-      collectionList: collectionList
+      collectionList: collectionList,
+      PackageService: new PackageService(client),
     }
   }
 })
@@ -51,7 +55,7 @@ function RouteComponent() {
       .map((pack) => [
         pack.id,
         useQuery(
-          getAllPackageItemsQueryOptions(pack.id, { siCollectionItems: true })
+          data.PackageService.getAllPackageItemsQueryOptions(pack.id, { siCollectionItems: true })
         )
       ])
   )

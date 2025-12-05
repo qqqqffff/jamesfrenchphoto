@@ -1,5 +1,7 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
-import { getTemporaryAccessTokenQueryOptions } from '../services/userService'
+import { UserService } from '../services/userService'
+import { Schema } from '../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
 
 interface AuthSearchParams {
   temporaryToken?: string,
@@ -22,9 +24,13 @@ export const Route = createFileRoute('/_auth')({
         }
       })
     }
+
+    const client = context.client as V6Client<Schema>
+    const userService = new UserService(client)
+
     if(search.temporaryToken && location.href.includes('photo') && !context.auth.isAuthenticated){
       const validToken = await context.queryClient.ensureQueryData(
-        getTemporaryAccessTokenQueryOptions(search.temporaryToken)
+        userService.getTemporaryAccessTokenQueryOptions(search.temporaryToken)
       ) 
       if(!validToken) {
         throw redirect({

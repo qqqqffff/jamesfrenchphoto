@@ -195,7 +195,7 @@ export const ConfirmPanel = (props: ConfirmPanelProps) => {
             </div>
             {props.userProfile.phone && (
               <div className="flex flex-row gap-2 items-center text-nowrap">
-                <span>First Name:</span>
+                <span>Phone Number:</span>
                 <span className="italic">{props.userProfile.phone}</span>
               </div>
             )}

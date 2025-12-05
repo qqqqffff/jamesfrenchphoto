@@ -4,7 +4,7 @@ import { HiOutlineCalendar, HiOutlineChevronLeft, HiOutlineChevronRight, HiOutli
 import { currentDate, DAY_OFFSET, defaultColumnColors, formatTime, textInputTheme } from "../../../utils";
 import { formatParticipantName } from "../../../functions/clientFunctions";
 import { useMutation, useQueries, UseQueryResult } from "@tanstack/react-query";
-import { getTimeslotByIdQueryOptions, registerTimeslotMutation, RegisterTimeslotMutationParams } from "../../../services/timeslotService";
+import { TimeslotService, RegisterTimeslotMutationParams } from "../../../services/timeslotService";
 import { DateInput } from "../../common/DateInput";
 import { createTimeString } from "../../timeslot/Slot";
 import { Dropdown, Label, Radio, TextInput } from "flowbite-react";
@@ -14,6 +14,7 @@ import Loading from "../../common/Loading";
 import validator from 'validator'
 
 interface DateCellProps extends ComponentProps<'td'> {
+  TimeslotService: TimeslotService
   value: string,
   updateValue: (text: string) => void,
   table: Table,
@@ -113,13 +114,13 @@ export const DateCell = (props: DateCellProps) => {
   // })
 
   const registerTimeslot = useMutation({
-    mutationFn: (params: RegisterTimeslotMutationParams) => registerTimeslotMutation(params)
+    mutationFn: (params: RegisterTimeslotMutationParams) => props.TimeslotService.registerTimeslotMutation(params)
   })
 
   const cellTimeslotIds = (value.split(',') ?? []).filter((timeslotId) => timeslotId !== '')
   const cellTimeslotQueries = useQueries({
     queries: cellTimeslotIds.map((timeslotId) => {
-      return getTimeslotByIdQueryOptions(timeslotId, { siTag: true })
+      return props.TimeslotService.getTimeslotByIdQueryOptions(timeslotId, { siTag: true })
     })
   })
 
@@ -281,7 +282,10 @@ export const DateCell = (props: DateCellProps) => {
         />
       )
       )}
-      <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
+      <td className={`
+        text-ellipsis border py-3 px-3 max-w-[150px]
+        ${foundParticipant !== undefined ? 'bg-yellow-50 bg-opacity-40' : ''}
+      `}>
         <input
           placeholder="Pick Timeslots..."
           className="

@@ -1,17 +1,18 @@
 import { FC, useState } from "react"
 import { UserProfile, UserStorage } from "../../types"
 import { useMutation } from "@tanstack/react-query"
-import { updateUserAttributeMutation, UpdateUserAttributesMutationParams } from "../../services/userService"
+import { UserService, UpdateUserAttributesMutationParams } from "../../services/userService"
 import { Button, Checkbox, Label, TextInput } from "flowbite-react"
 
 interface UserFormProfileParams {
+  UserService: UserService,
   width: number,
   user: UserStorage,
   userProfile: UserProfile,
   submit: (noti: string, user?: UserStorage, profile?: UserProfile) => void
 }
 
-const component: FC<UserFormProfileParams> = ({ width, user, userProfile, submit }) => {
+const component: FC<UserFormProfileParams> = ({ width, user, userProfile, submit, UserService }) => {
   const [userFirstName, setUserFirstName] = useState(user.attributes.given_name)
   const [userLastName, setUserLastName] = useState(user.attributes.family_name)
   const [userPhoneNumber, setUserPhoneNumber] = useState(() => {
@@ -33,7 +34,7 @@ const component: FC<UserFormProfileParams> = ({ width, user, userProfile, submit
 
   const [submitting, setSubmitting] = useState(false)
   const updateUserAttributes = useMutation({
-    mutationFn: (params : UpdateUserAttributesMutationParams) => updateUserAttributeMutation(params)
+    mutationFn: (params : UpdateUserAttributesMutationParams) => UserService.updateUserAttributeMutation(params)
   })
 
   async function updateProfile(){

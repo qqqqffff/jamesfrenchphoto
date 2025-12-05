@@ -4,8 +4,8 @@ import { Participant, Timeslot, UserTag } from "../../types";
 import { Alert, Button, Dropdown, Label, Modal, TextInput, Tooltip } from "flowbite-react";
 import { getTimes, normalizeDate, textInputTheme } from "../../utils";
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
-import { updateTimeslotMutation, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
-import { getUserProfileByEmailQueryOptions } from "../../services/userService";
+import { TimeslotService, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
+import { UserService } from "../../services/userService";
 import { HiOutlineExclamation } from "react-icons/hi";
 import { formatParticipantName } from "../../functions/clientFunctions";
 import { HiOutlineXMark } from "react-icons/hi2";
@@ -14,16 +14,18 @@ import { CustomDatePicker } from "../common/CustomDatePicker";
 import { TagPicker } from "../admin/package/TagPicker";
 
 interface EditTimeslotModalProps extends ModalProps {
-    timeslot: Timeslot,
-    //TODO: do some dynamic rendering while loading participants/timeslots
-    timeslotQuery: UseQueryResult<Timeslot[] | undefined, Error>
-    participantQuery: UseQueryResult<Participant[], Error>
-    existingTimeslots: Timeslot[]
-    tags: UserTag[]
-    participants: Participant[],
-    parentUpdateTimeslots: Dispatch<SetStateAction<Timeslot[]>>
-    parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
-    parentUpdateParticipants: Dispatch<SetStateAction<Participant[]>>
+  TimeslotService: TimeslotService,
+  UserService: UserService,
+  timeslot: Timeslot,
+  //TODO: do some dynamic rendering while loading participants/timeslots
+  timeslotQuery: UseQueryResult<Timeslot[] | undefined, Error>
+  participantQuery: UseQueryResult<Participant[], Error>
+  existingTimeslots: Timeslot[]
+  tags: UserTag[]
+  participants: Participant[],
+  parentUpdateTimeslots: Dispatch<SetStateAction<Timeslot[]>>
+  parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
+  parentUpdateParticipants: Dispatch<SetStateAction<Participant[]>>
 }
 
 export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslotModalProps) => {
@@ -39,7 +41,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
   const [participantSearchFocused, setParticipantSearchFocused] = useState(false)
 
   const userProfile = useQuery({
-    ...getUserProfileByEmailQueryOptions(props.participants.find((participant) => participant.id === participantId)?.userEmail ?? '', {
+    ...props.UserService.getUserProfileByEmailQueryOptions(props.participants.find((participant) => participant.id === participantId)?.userEmail ?? '', {
       siCollections: false,
       siNotifications: false,
       siSets: false,
@@ -60,7 +62,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
     props.timeslot
   ])
   const updateTimeslot = useMutation({
-    mutationFn: (params: UpdateTimeslotsMutationParams) => updateTimeslotMutation(params),
+    mutationFn: (params: UpdateTimeslotsMutationParams) => props.TimeslotService.updateTimeslotMutation(params),
     onSuccess: () => {
       setNotification({type: 'success', message: 'Successfully Updated Timeslot'})
     },

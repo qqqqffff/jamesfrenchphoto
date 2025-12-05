@@ -18,7 +18,7 @@ import { DropIndicator } from '../../common/DropIndicator';
 import { HiOutlineMenu } from 'react-icons/hi';
 import { PhotoSet } from '../../../types';
 import { useMutation } from '@tanstack/react-query';
-import { createSetMutation, CreateSetParams } from '../../../services/photoSetService';
+import { PhotoSetService, CreateSetParams } from '../../../services/photoSetService';
 import { HiOutlineCheckCircle, HiOutlineXCircle } from 'react-icons/hi2';
 
 type SetState =
@@ -44,6 +44,7 @@ const stateStyles: { [Key in SetState['type']]?: HTMLAttributes<HTMLDivElement>[
 const idle: SetState = { type: 'idle' };
 
 interface SetProps {
+  PhotoSetService: PhotoSetService,
   set: PhotoSet, 
   onClick: () => void, 
   selectedSet: boolean
@@ -51,7 +52,7 @@ interface SetProps {
   onCancel: () => void,
 }
 
-export const Set: FC<SetProps> = ({ set, onClick, selectedSet, onSubmit, onCancel }) => {
+export const Set: FC<SetProps> = ({ PhotoSetService, set, onClick, selectedSet, onSubmit, onCancel }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<SetState>(idle);
   const [allowDragging, setAllowDragging] = useState(false)
@@ -138,7 +139,7 @@ export const Set: FC<SetProps> = ({ set, onClick, selectedSet, onSubmit, onCance
   }, [set, allowDragging]);
 
   const createSet = useMutation({
-    mutationFn: (params: CreateSetParams) => createSetMutation(params),
+    mutationFn: (params: CreateSetParams) => PhotoSetService.createSetMutation(params),
     onSettled: () => onSubmit({...set, name: name, creating: false})
   })
 

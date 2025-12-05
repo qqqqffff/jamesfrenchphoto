@@ -3,11 +3,12 @@ import { Participant, Table, UserData, UserProfile, UserTag } from "../../../typ
 import { Checkbox } from "flowbite-react";
 import { HiOutlineXMark } from "react-icons/hi2";
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
-import { updateParticipantMutation, UpdateParticipantMutationParams } from "../../../services/userService";
+import { UserService, UpdateParticipantMutationParams } from "../../../services/userService";
 import { formatParticipantName } from "../../../functions/clientFunctions";
 
 interface TagCellProps extends ComponentProps<'td'> {
   value: string,
+  UserService: UserService,
   updateValue: (text: string) => void,
   linkedParticipantId?: string
   tags: UseQueryResult<UserTag[] | undefined, Error>,
@@ -35,6 +36,8 @@ export const TagCell = (props: TagCellProps) => {
   const [search, setSearch] = useState<string>('')
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile, participant: Participant } | undefined>();
   const [availableTags, setAvailableTags] = useState<UserTag[]>(props.tags.data ?? [])
+
+  console.log(foundParticipant)
   
   useEffect(() => {
     if(props.value !== value){
@@ -84,7 +87,7 @@ export const TagCell = (props: TagCellProps) => {
   }, [props.tags])
 
   const updateParticipant = useMutation({
-    mutationFn: (params: UpdateParticipantMutationParams) => updateParticipantMutation(params)
+    mutationFn: (params: UpdateParticipantMutationParams) => props.UserService.updateParticipantMutation(params)
   })
 
   const cellTags = (value.split(',') ?? []).map((tagId) => {
@@ -111,11 +114,15 @@ export const TagCell = (props: TagCellProps) => {
 
   return (
     <>
-      <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
+      <td className={`
+        text-ellipsis border py-3 px-3 max-w-[150px]
+        ${foundParticipant !== undefined ? 'bg-yellow-50 bg-opacity-40' : ''}
+      `}>
         <input
           placeholder="Pick Tags..."
           className={`
             font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
+            bg-transparent
             border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
             hover:cursor-pointer ${cellTags.length === 1 ? `text-${cellTags[0].color ?? 'black'}` : ''}
           `}

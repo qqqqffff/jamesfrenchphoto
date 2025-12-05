@@ -4,9 +4,10 @@ import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash } from "re
 import { ComponentProps, Dispatch, SetStateAction } from "react";
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types";
 import { useMutation } from "@tanstack/react-query";
-import { deleteImagesMutation, DeleteImagesMutationParams, reorderPathsMutation, ReorderPathsParams } from "../../../services/photoSetService";
+import { DeleteImagesMutationParams, ReorderPathsParams, PhotoSetService } from "../../../services/photoSetService";
 
 interface SetControlsProps extends ComponentProps<'div'> {
+  PhotoSetService: PhotoSetService,
   collection: PhotoCollection,
   set: PhotoSet,
   paths: PicturePath[],
@@ -22,11 +23,11 @@ export const SetControls = (props: SetControlsProps) => {
   const componentClass = 'rounded-xl p-1.5 hover:text-gray-600 hover:border-gray-400 hover:bg-gray-200 border border-transparent'
   
   const deletePhotos = useMutation({
-    mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
+    mutationFn: (params: DeleteImagesMutationParams) => props.PhotoSetService.deleteImagesMutation(params)
   })
 
   const reorderPaths = useMutation({
-    mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+    mutationFn: (params: ReorderPathsParams) => props.PhotoSetService.reorderPathsMutation(params)
   })
 
   return (

@@ -3,15 +3,16 @@ import { Participant } from "../../types"
 import { badgeColorThemeMap } from "../../utils"
 import { Badge, Button, Checkbox, Label, TextInput } from "flowbite-react"
 import { useMutation } from "@tanstack/react-query"
-import { updateParticipantMutation, UpdateParticipantMutationParams } from "../../services/userService"
+import { UserService, UpdateParticipantMutationParams } from "../../services/userService"
 
 interface ParticipantFormParams {
+  UserService: UserService,
   width: number,
   participant: Participant,
   submit: Function,
 }
 
-const component: FC<ParticipantFormParams> = ({width, participant, submit}) => {
+const component: FC<ParticipantFormParams> = ({width, participant, submit, UserService }) => {
   const [email, setEmail] = useState(participant.email)
   const [firstName, setFirstName] = useState(participant.firstName)
   const [lastName, setLastName] = useState(participant.lastName)
@@ -22,7 +23,7 @@ const component: FC<ParticipantFormParams> = ({width, participant, submit}) => {
   const [submitting, setSubmitting] = useState(false)
 
   const updateParticipant = useMutation({
-    mutationFn: (params: UpdateParticipantMutationParams) => updateParticipantMutation(params)
+    mutationFn: (params: UpdateParticipantMutationParams) => UserService.updateParticipantMutation(params)
   })
 
   async function updateProfile(){

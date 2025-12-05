@@ -1,11 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import {
-  getAllPhotoCollectionsQueryOptions,
-  getAllWatermarkObjectsQueryOptions,
-  getPathQueryOptions,
-  getPhotoCollectionByIdQueryOptions,
-} from '../../../services/collectionService'
-import { getAllUserTagsQueryOptions } from '../../../services/userService'
+import { CollectionService } from '../../../services/collectionService'
 import { PhotoCollectionPanel } from '../../../components/admin/collection/PhotoCollectionPanel'
 import { useQueries, useQuery, UseQueryResult, useSuspenseQuery } from '@tanstack/react-query'
 import { CreateCollectionModal, LoadingModal } from '../../../components/modals'
@@ -15,8 +9,15 @@ import { TextInput, Tooltip } from 'flowbite-react'
 import { textInputTheme } from '../../../utils'
 import { HiOutlinePlusCircle } from 'react-icons/hi2'
 import { CollectionThumbnail } from '../../../components/admin/collection/CollectionThumbnail'
-import { getAllShareTemplatesQueryOptions } from '../../../services/shareService'
+import { ShareService } from '../../../services/shareService'
 import Loading from '../../../components/common/Loading'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
+import { PhotoPathService } from '../../../services/photoPathService'
+import { PhotoSetService } from '../../../services/photoSetService'
+import { TagService } from '../../../services/tagService'
+import { WatermarkService } from '../../../services/watermarkService'
+import { UserService } from '../../../services/userService'
 
 interface CollectionSearchParams {
   collection?: string,
@@ -35,7 +36,15 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
   }),
   beforeLoad: ({ search }) => search,
   loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
     return {
+      CollectionService: new CollectionService(client),
+      PhotoPathService: new PhotoPathService(client),
+      PhotoSetService: new PhotoSetService(client),
+      ShareService: new ShareService(client),
+      TagService: new TagService(client),
+      WatermarkService: new WatermarkService(client),
+      UserService: new UserService(client),
       set: context.set,
       collection: context.collection,
       auth: context.auth,
@@ -57,17 +66,17 @@ function RouteComponent() {
   const [search, setSearch] = useState<string>('')
   const [expandedTitle, setExpandedTitle] = useState<string>()
 
-  const tagsPromise = useSuspenseQuery(getAllUserTagsQueryOptions({ siCollections: false }))
-  const watermarkQuery = useQuery(getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
-  const shareTemplatesQuery = useQuery(getAllShareTemplatesQueryOptions())
+  const tagsPromise = useSuspenseQuery(data.TagService.getAllUserTagsQueryOptions({ siCollections: false }))
+  const watermarkQuery = useQuery(data.CollectionService.getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
+  const shareTemplatesQuery = useQuery(data.ShareService.getAllShareTemplatesQueryOptions())
 
   //TODO: convert me to an infinite query and conditional enabling
-  const collectionsQuery = useQuery(getAllPhotoCollectionsQueryOptions({ 
+  const collectionsQuery = useQuery(data.CollectionService.getAllPhotoCollectionsQueryOptions({ 
     siTags: false,
     siPaths: false,
     siSets: false,
   }))
-  const collectionQuery = useQuery(getPhotoCollectionByIdQueryOptions(selectedCollectionId, {
+  const collectionQuery = useQuery(data.CollectionService.getPhotoCollectionByIdQueryOptions(selectedCollectionId, {
       siSets: true,
       siTags: true,
       participantId: data.auth.user?.profile.activeParticipant?.id
@@ -131,7 +140,7 @@ function RouteComponent() {
         queries: photoCollections
           .filter((collection) => collection.id !== selectedCollection?.id)
           .map((collection) => 
-            getPathQueryOptions(collection.coverPath, collection.id)
+            data.CollectionService.getPathQueryOptions(collection.coverPath, collection.id)
           )
       }).map((query, index) => {
         return [
@@ -142,7 +151,7 @@ function RouteComponent() {
     )
 
   const selectedCoverPath = useQuery(
-    getPathQueryOptions(selectedCollection?.coverPath, selectedCollection?.id)
+    data.CollectionService.getPathQueryOptions(selectedCollection?.coverPath, selectedCollection?.id)
   )
 
   return (
@@ -159,6 +168,7 @@ function RouteComponent() {
         }
       >
         <CreateCollectionModal
+          CollectionService={data.CollectionService}
           open={createCollectionVisible}
           onClose={() => setCreateCollectionVisible(false)}
           onSubmit={async (collection) => {
@@ -184,6 +194,12 @@ function RouteComponent() {
           </div>
         ) : (
           <PhotoCollectionPanel 
+            UserService={data.UserService}
+            WatermarkService={data.WatermarkService}
+            CollectionService={data.CollectionService}
+            PhotoPathService={data.PhotoPathService}
+            PhotoSetService={data.PhotoSetService}
+            ShareService={data.ShareService}
             coverPath={selectedCoverPath}
             collection={selectedCollection}
             updateParentCollection={setSelectedCollection}
@@ -261,6 +277,7 @@ function RouteComponent() {
                         const path = coverPaths[collection.id]
                         return (
                           <CollectionThumbnail 
+                            CollectionService={data.CollectionService}
                             collectionId={collection.id}
                             cover={path}
                             onClick={() => {

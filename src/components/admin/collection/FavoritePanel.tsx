@@ -1,18 +1,20 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { DownloadData, PhotoCollection } from "../../../types"
-import { getFavoritesFromPhotoCollectionQueryOptions } from "../../../services/photoSetService"
+import { PhotoSetService } from "../../../services/photoSetService"
 import Loading from "../../common/Loading"
 import { HiOutlineDownload, HiOutlineEye } from "react-icons/hi"
 import { Tooltip } from "flowbite-react"
 import { DownloadToast } from "../../common/DownloadToast"
 import { useState } from "react"
-import { downloadFavoritesMutation, DownloadFavoritesMutationOptions } from "../../../services/photoPathService"
+import { DownloadFavoritesMutationOptions, PhotoPathService } from "../../../services/photoPathService"
 import { v4 } from 'uuid'
 import { useNavigate } from "@tanstack/react-router"
 import { formatTime } from "../../../utils"
 
 interface FavoritePanelProps {
-  collection: PhotoCollection
+  PhotoPathService: PhotoPathService,
+  PhotoSetService: PhotoSetService,
+  collection: PhotoCollection,
 }
 
 export const FavoritePanel = (props: FavoritePanelProps) => {
@@ -20,11 +22,11 @@ export const FavoritePanel = (props: FavoritePanelProps) => {
   const navigate = useNavigate()
 
   const favorites = useQuery(
-    getFavoritesFromPhotoCollectionQueryOptions(props.collection, { metric: true })
+    props.PhotoSetService.getFavoritesFromPhotoCollectionQueryOptions(props.collection, { metric: true })
   )
 
   const download = useMutation({
-    mutationFn: (params: DownloadFavoritesMutationOptions) => downloadFavoritesMutation(params),
+    mutationFn: (params: DownloadFavoritesMutationOptions) => props.PhotoPathService.downloadFavoritesMutation(params),
     onSettled: (file) => {
       if(file) {
         try {

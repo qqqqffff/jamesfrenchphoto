@@ -12,3 +12,4 @@ export function isSetData(data: Record<string | symbol, unknown>): data is Photo
   return data[setDataKey] === true;
 }
 
+//TODO: reference table component for canMonitor code

@@ -4,7 +4,7 @@ import validator from "validator"
 import { Alert, Button, Label, Modal, TextInput } from "flowbite-react"
 import { useMutation, UseQueryResult } from "@tanstack/react-query"
 import useWindowDimensions from "../../hooks/windowDimensions"
-import { RegisterUserMutationParams, registerUserMutation } from "../../services/userService"
+import { RegisterUserMutationParams, UserService } from "../../services/userService"
 import { UserPanel } from "./UserPanel"
 import { ParticipantPanel } from "./ParticipantPanel"
 import { ConfirmPanel } from "./ConfirmPanel"
@@ -21,9 +21,10 @@ export interface RegistrationProfile extends UserProfile {
 }
 
 interface RegisterFormProps {
+  UserService: UserService,
   profileQuery: UseQueryResult<UserProfile | null, Error>,
-  temporaryProfile?: RegistrationProfile
-  logout: () => Promise<void>
+  temporaryProfile?: RegistrationProfile,
+  logout: () => Promise<void>,
 }
 
 export interface FormError {
@@ -378,7 +379,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
   }
 
   const registerUser = useMutation({
-    mutationFn: (params: RegisterUserMutationParams) => registerUserMutation(params),
+    mutationFn: (params: RegisterUserMutationParams) => props.UserService.registerUserMutation(params),
     onSuccess: (event) => {
       if(event.signUpStep === 'DONE') {
         navigate({ to: '/login', search: { createAccount: true }})

@@ -2,39 +2,51 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { BuilderPanel } from '../../../components/admin/package/BuilderPanel'
 import { Package, PackageItem, UserTag } from '../../../types'
-import { getAllUserTagsQueryOptions } from '../../../services/userService'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { getAllPackagesQueryOptions, getInfinitePackageItemsQueryOptions } from '../../../services/packageService'
-import { getAllPhotoCollectionsQueryOptions } from '../../../services/collectionService'
+import { PackageService } from '../../../services/packageService'
+import { CollectionService } from '../../../services/collectionService'
+import { Schema } from '../../../../amplify/data/resource'
+import { V6Client } from '@aws-amplify/api-graphql'
+import { TagService } from '../../../services/tagService'
 
 export const Route = createFileRoute('/_auth/admin/dashboard/package')({
   component: RouteComponent,
+  loader: ({ context }) => {
+    const client = context.client as V6Client<Schema>
+
+    return {
+      CollectionService: new CollectionService(client),
+      PackageService: new PackageService(client),
+      TagService: new TagService(client),
+    }
+  }
 })
 
 function RouteComponent() {
+  const data = Route.useLoaderData()
   const [packages, setPackages] = useState<Package[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
   const [allPackageItems, setAllPackageItems] = useState<PackageItem[]>([])
 
-  const tagsQuery = useQuery(getAllUserTagsQueryOptions({ 
+  const tagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({ 
     siCollections: true, 
     siNotifications: false, 
     siTimeslots: true,
     siPackages: { }
   }))
 
-  const packageItemsInfiniteQuery = useInfiniteQuery(getInfinitePackageItemsQueryOptions({
+  const packageItemsInfiniteQuery = useInfiniteQuery(data.PackageService.getInfinitePackageItemsQueryOptions({
     siCollectionItems: false
   }))
 
   //TODO: focus query based on selected tags and available user's collections
-  const collectionQuery = useQuery(getAllPhotoCollectionsQueryOptions({
+  const collectionQuery = useQuery(data.CollectionService.getAllPhotoCollectionsQueryOptions({
     siPaths: false,
     siSets: false,
     siTags: false
   }))
 
-  const packagesQuery = useQuery(getAllPackagesQueryOptions({
+  const packagesQuery = useQuery(data.PackageService.getAllPackagesQueryOptions({
     siPackageItems: undefined
   }))
 
@@ -65,6 +77,8 @@ function RouteComponent() {
   return (
     <>
       <BuilderPanel 
+        TagService={data.TagService}
+        PackageService={data.PackageService}
         packages={packages}
         packagesQuery={packagesQuery}
         parentUpdatePackages={setPackages}

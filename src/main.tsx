@@ -25,6 +25,7 @@ const queryClient = new QueryClient({
 const router = createRouter({
   routeTree,
   context: {
+    client,
     queryClient,
     auth: undefined!
   },

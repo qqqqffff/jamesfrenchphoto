@@ -1,15 +1,22 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react"
 import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from "../../../types"
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
-import { deleteTableMutation, DeleteTableParams, getTableQueryOptions, updateTableMutation, UpdateTableParams } from "../../../services/tableService"
+import { DeleteTableParams, TableService, UpdateTableParams } from "../../../services/tableService"
 import { EditableTextField } from "../../common/EditableTextField"
 import { textInputTheme } from "../../../utils"
 import { Dropdown, TextInput } from "flowbite-react"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
 import { TableComponent } from "./TableComponent"
 import Loading from "../../common/Loading"
+import { PhotoPathService } from "../../../services/photoPathService"
+import { TimeslotService } from "../../../services/timeslotService"
+import { UserService } from "../../../services/userService"
 
 interface TablePanelProps {
+  TableService: TableService,
+  PhotoPathService: PhotoPathService,
+  TimeslotService: TimeslotService,
+  UserService: UserService,
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   selectedTable: Table
@@ -24,7 +31,7 @@ export const TablePanel = (props: TablePanelProps) => {
   const [searchText, setSearchText] = useState('')
   const [tableColumns, setTableColumns] = useState<TableColumn[]>([])
 
-  const table = useQuery(getTableQueryOptions(props.selectedTable.id, { siUserTags: true, logging: true }))
+  const table = useQuery(props.TableService.getTableQueryOptions(props.selectedTable.id, { siUserTags: true, logging: true }))
 
   useEffect(() => {
     if(table.data?.columns) {
@@ -38,11 +45,11 @@ export const TablePanel = (props: TablePanelProps) => {
   ])
   
   const updateTable = useMutation({
-      mutationFn: (params: UpdateTableParams) => updateTableMutation(params)
+      mutationFn: (params: UpdateTableParams) => props.TableService.updateTableMutation(params)
     })
   
   const deleteTable = useMutation({
-    mutationFn: (params: DeleteTableParams) => deleteTableMutation(params)
+    mutationFn: (params: DeleteTableParams) => props.TableService.deleteTableMutation(params)
   })
 
   return (
@@ -159,10 +166,14 @@ export const TablePanel = (props: TablePanelProps) => {
               </div>
               <div className="w-full border border-gray-200 my-2"></div>
               <TableComponent 
+                UserService={props.UserService}
+                TableService={props.TableService}
+                TimeslotService={props.TimeslotService}
                 table={{
                   ...props.selectedTable,
                   columns: tableColumns,
                 }}
+                PhotoPathService={props.PhotoPathService}
                 parentUpdateTable={props.parentUpdateSelectedTable}
                 parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
                 parentUpdateTableGroups={props.parentUpdateTableGroups}

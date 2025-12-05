@@ -14,15 +14,11 @@ import { SetControls } from "./SetControls";
 import { EditableTextField } from "../../common/EditableTextField";
 import { useInfiniteQuery, useMutation, UseMutationResult } from "@tanstack/react-query";
 import { 
-  deleteImagesMutation, 
+  PhotoSetService, 
   DeleteImagesMutationParams, 
-  deleteSetMutation, 
   DeleteSetMutationParams, 
-  reorderPathsMutation, 
   ReorderPathsParams, 
-  updateSetMutation, 
-  UpdateSetParams, 
-  uploadImagesMutation, 
+  UpdateSetParams,  
   UploadImagesMutationParams
 } from "../../../services/photoSetService";
 import { detectDuplicates } from "./utils";
@@ -30,27 +26,31 @@ import { useDropzone } from "react-dropzone";
 import { UploadData, UploadToast } from "../../modals/UploadImages/UploadToast";
 import { AuthContext } from "../../../auth";
 import { PictureList } from "./picture-table/PictureList";
-import { getInfinitePathsQueryOptions } from "../../../services/photoPathService";
+import { PhotoPathService } from "../../../services/photoPathService";
 import Loading from "../../common/Loading";
-import { PublishCollectionParams, repairItemCountMutation, RepairItemCountsParams, repairPathsMutation, RepairPathsParams } from "../../../services/collectionService";
+import { CollectionService, PublishCollectionParams, RepairItemCountsParams, RepairPathsParams } from "../../../services/collectionService";
 import { CgSpinner } from "react-icons/cg";
 import { Publishable } from "./PhotoCollectionPanel";
 import { PublishableItems } from "./PublishableItems";
 import { useNavigate } from "@tanstack/react-router";
 
 export type PhotoSetPanelProps = {
-  photoCollection: PhotoCollection;
-  photoSet: PhotoSet;
+  PhotoPathService: PhotoPathService,
+  PhotoSetService: PhotoSetService,
+  CollectionService: CollectionService,
+  photoCollection: PhotoCollection,
+  photoSet: PhotoSet,
   deleteParentSet: (setId: string) => void,
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
-  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
+  parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>,
   auth: AuthContext,
-  publishable: Publishable
+  publishable: Publishable,
   publishCollection: UseMutationResult<string | undefined, Error, PublishCollectionParams, unknown>
 }
 
 export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
+  CollectionService, PhotoPathService, PhotoSetService,
   photoCollection, photoSet, publishable, publishCollection,
   deleteParentSet, parentUpdateSet,
   parentUpdateCollection, auth, parentUpdateCollections
@@ -68,7 +68,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const navigate = useNavigate()
 
   const pathsQuery = useInfiniteQuery(
-    getInfinitePathsQueryOptions(photoSet.id, {
+    PhotoPathService.getInfinitePathsQueryOptions(photoSet.id, {
       participantId: auth.user?.profile.activeParticipant?.id,
       maxItems: 16,
       maxWindow: 64
@@ -96,7 +96,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   }, [photoSet])
 
   const updateSet = useMutation({
-    mutationFn: (params: UpdateSetParams) => updateSetMutation(params),
+    mutationFn: (params: UpdateSetParams) => PhotoSetService.updateSetMutation(params),
   })
 
   function pictureStyle(id: string){
@@ -115,11 +115,11 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const duplicates = detectDuplicates(picturePaths)
 
   const deleteImages = useMutation({
-    mutationFn: (params: DeleteImagesMutationParams) => deleteImagesMutation(params)
+    mutationFn: (params: DeleteImagesMutationParams) => PhotoSetService.deleteImagesMutation(params)
   })
 
   const uploadImages = useMutation({
-    mutationFn: (params: UploadImagesMutationParams) => uploadImagesMutation(params),
+    mutationFn: (params: UploadImagesMutationParams) => PhotoSetService.uploadImagesMutation(params),
     onSettled: () => {
       const temp: PhotoCollection = {
         ...photoCollection,
@@ -152,11 +152,11 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   })
 
   const deleteSet = useMutation({
-    mutationFn: (params: DeleteSetMutationParams) => deleteSetMutation(params)
+    mutationFn: (params: DeleteSetMutationParams) => PhotoSetService.deleteSetMutation(params)
   })
 
   const repairPaths = useMutation({
-    mutationFn: (params: RepairPathsParams) => repairPathsMutation(params),
+    mutationFn: (params: RepairPathsParams) => CollectionService.repairPathsMutation(params),
     onSuccess: (data) => {
       if(data) {
         const temp: PhotoSet = {
@@ -195,11 +195,11 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   })
 
   const reorderPaths = useMutation({
-    mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+    mutationFn: (params: ReorderPathsParams) => PhotoSetService.reorderPathsMutation(params)
   })
 
   const repairItemCounts = useMutation({
-    mutationFn: (params: RepairItemCountsParams) => repairItemCountMutation(params),
+    mutationFn: (params: RepairItemCountsParams) => CollectionService.repairItemCountMutation(params),
     onSuccess: (data) => {
       if(data) {
         parentUpdateCollection(data)
@@ -324,6 +324,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   <>
     {filesUploading && 
       <UploadImagesModal 
+        CollectionService={CollectionService}
         collection={photoCollection}
         set={photoSet}
         files={filesUploading}
@@ -374,6 +375,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
     />
     {selectedPhotos.length > 0 && (
       <SetControls 
+        PhotoSetService={PhotoSetService}
         collection={photoCollection}
         set={photoSet}
         paths={picturePaths}
@@ -754,6 +756,9 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           </div>
         ) : (
           <PictureList 
+            PhotoSetService={PhotoSetService}
+            CollectionService={CollectionService}
+            PhotoPathService={PhotoPathService}
             collection={photoCollection}
             set={photoSet}
             paths={filteredPhotos

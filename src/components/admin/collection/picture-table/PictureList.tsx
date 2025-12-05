@@ -10,16 +10,19 @@ import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
 import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
 import { InfiniteData, UseInfiniteQueryResult, useMutation, UseMutationResult, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
-import { getPathQueryOptions, RepairItemCountsParams } from '../../../../services/collectionService';
-import { reorderPathsMutation, ReorderPathsParams } from '../../../../services/photoSetService';
+import { CollectionService, RepairItemCountsParams } from '../../../../services/collectionService';
+import { PhotoSetService, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
-import { GetInfinitePathsData } from '../../../../services/photoPathService';
+import { GetInfinitePathsData, PhotoPathService } from '../../../../services/photoPathService';
 import Loading from '../../../common/Loading';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import useWindowDimensions from '../../../../hooks/windowDimensions';
 
 interface PictureListProps extends ComponentProps<'div'> {
+  CollectionService: CollectionService,
+  PhotoPathService: PhotoPathService,
+  PhotoSetService: PhotoSetService,
   set: PhotoSet,
   collection: PhotoCollection
   paths: PicturePath[],
@@ -54,11 +57,11 @@ export const PictureList = (props: PictureListProps) => {
   const listRef = useRef<HTMLDivElement | null>(null)
 
   const reorderPaths = useMutation({
-    mutationFn: (params: ReorderPathsParams) => reorderPathsMutation(params)
+    mutationFn: (params: ReorderPathsParams) => props.PhotoSetService.reorderPathsMutation(params)
   })
 
   const watermarkQuery = useQuery(
-    getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
+    props.CollectionService.getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
   )
 
   const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): {
@@ -108,13 +111,15 @@ export const PictureList = (props: PictureListProps) => {
             return
           }
 
+          //TODO: update with revamped algo from setlist.tsx
           //if the dnd-ed object is the single selected photo or if it is not a selected photo
           const draggingSelected = props.selectedPhotos.some((picture) => picture.id === sourceData.picture.id)
           if(props.selectedPhotos.length == 1 && !draggingSelected) {
             const indexOfSource = pictures.findIndex((picture) => picture.id === sourceData.picture.id)
             const indexOfTarget = pictures.findIndex((picture) => picture.id === targetData.picture.id)
   
-            if(indexOfTarget < 0 || indexOfTarget < 0) {
+            //should be a reorder with edge instead of a swap
+            if(indexOfSource < 0 || indexOfTarget < 0) {
               return
             }
   
@@ -346,7 +351,7 @@ export const PictureList = (props: PictureListProps) => {
       queries: pictures
         .slice(topIndex.current > 0 ? topIndex.current : 0, bottomIndex.current + 1)
         .map((path) => {
-          return getPathQueryOptions(path.path, path.id)
+          return props.CollectionService.getPathQueryOptions(path.path, path.id)
         })
     })
     .map((query, index) => {
@@ -375,6 +380,8 @@ export const PictureList = (props: PictureListProps) => {
               key={index}
             >
               <Picture 
+                PhotoSetService={props.PhotoSetService}
+                PhotoPathService={props.PhotoPathService}
                 index={index}
                 set={props.set}
                 collection={props.collection}
