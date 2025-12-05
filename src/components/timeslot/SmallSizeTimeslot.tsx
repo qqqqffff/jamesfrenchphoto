@@ -1,9 +1,11 @@
-import { Button, ButtonGroup, Dropdown, Label } from "flowbite-react"
+import { Button, ButtonGroup, Label } from "flowbite-react"
 import { FC, useState } from "react"
 import { TimeslotDisplayProps } from "./Timeslot"
 import { HiOutlineArrowLeft, HiOutlineArrowRight } from 'react-icons/hi'
 import { normalizeDate } from "../../utils"
 import { Timeslot } from "../../types"
+import { Badge } from "flowbite-react"
+import { badgeColorThemeMap, defaultColumnColors } from "../../utils"
 
 const component: FC<TimeslotDisplayProps> = (params) => {
   const [activeConsole, setActiveConsole] = useState('timeslots')
@@ -36,88 +38,79 @@ const component: FC<TimeslotDisplayProps> = (params) => {
   )
 }
 
-const TimeslotConsole: FC<TimeslotDisplayProps> = ({ timeslots, activeDate, setActiveDate, width, formatTimeslot }) => {
-  const dateMap = new Map<number, Timeslot>()
-
-  timeslots.forEach((timeslot) => {
-    dateMap.set(normalizeDate(timeslot.start).getTime(), timeslot)
-  })
-
-  const normalDates = timeslots
-    .map((timeslot) => normalizeDate(timeslot.start).getTime())
-    .reduce((prev, cur) => {
-      if(!prev.includes(cur)){
-        prev.push(cur)
-      }
-      return prev
-    }, [] as number[])
-    .map((time) => new Date(time))
+const TimeslotConsole: FC<TimeslotDisplayProps> = ({ timeslots, tags, activeDate, setActiveDate, setActiveTag, activeTag, width, formatTimeslot }) => {
   
   return (
     <div className="flex flex-col px-4 w-full justify-center items-center">
-      <div className="flex flex-row gap-4">
-        {normalDates.length > 1 && (
-          <button 
-            className="border p-2 rounded-full border-black bg-white hover:bg-gray-300" 
-            onClick={() => {
-              const currentTimeslotIndex = normalDates.findIndex((date) => date.getTime() === activeDate.getTime())
-              const currentDate = currentTimeslotIndex - 1 < 0 ? normalDates[normalDates.length - 1] : normalDates[currentTimeslotIndex - 1]
-              
-              setActiveDate(currentDate)
-            }}
-          >
-              <HiOutlineArrowLeft className="text-xl"/>
-          </button>
-        )}
-        <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}>
-        {
-          timeslots.length > 0 ? (
-            timeslots
-              .reduce((prev, cur) => {
-                const found = prev.find((timeslot) => timeslot.tag === cur.tag)
-                if(!found) prev.push(cur)
-                return prev
-              }, [] as Timeslot[])
-              .map((timeslot) => {
-                const color = timeslot.tag?.color ?? 'black'
-                const dates = timeslots
-                  .map((timeslot) => normalizeDate(timeslot.start).getTime())
-                  .reduce((prev, cur) => {
-                    if(!prev.includes(cur)) {
-                      prev.push(cur)
-                    }
-                    return prev
-                  }, [] as number[])
-                  .sort((a, b) => a - b)
-                  .map((time) => new Date(time))
-                
-                const objects = dates.map((date, index) => {
-                    return (
-                      <Dropdown.Item key={index} className={`text-${color}`} onClick={() => setActiveDate(date)}>{date.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}</Dropdown.Item>
-                    )
-                })
-                return objects
-              })
-          ) : (
-            <Dropdown.Item>No Dates available</Dropdown.Item>
-          )
-        }
-        </Dropdown>
-        {normalDates.length > 1 && (
-          <button 
-            className="border p-2 rounded-full border-black bg-white hover:bg-gray-300" 
-            onClick={() => {
-              const currentTimeslotIndex = normalDates.findIndex((date) => date.getTime() === activeDate.getTime())
-              const currentDate = currentTimeslotIndex + 1 >= normalDates.length ? normalDates[0] : normalDates[currentTimeslotIndex + 1]
-              
-              setActiveDate(currentDate)
-            }} 
-          >
-            <HiOutlineArrowRight className="text-xl"/>
-          </button>
+      <div className="flex flex-col items-center justify-center px-8 border border-gray-500 rounded-lg mb-4">
+        <span className="mb-1">Dates for:</span>
+        <div className="flex flex-row gap-2 items-center mb-2">
+          {tags.length > 1 && (
+            <button
+              className="rounded-full border p-1"
+              onClick={() => {
+                const index = tags.findIndex((tag) => tag.id === activeTag.id)
+                const newTag = index === -1 ? tags[0] : index - 1 < 0 ? tags[tags.length - 1] : tags[index - 1]
+                setActiveTag(newTag)
+              }}
+            >
+              <HiOutlineArrowLeft />
+            </button>
+          )}
+          <Badge theme={badgeColorThemeMap} color={activeTag.color ? activeTag.color : 'light'} className="py-1">{activeTag.name}</Badge>
+          {tags.length > 1 && (
+            <button
+              className="rounded-full border p-1"
+              onClick={() => {
+                const index = tags.findIndex((tag) => tag.id === activeTag.id)
+                const newTag = index === -1 ? tags[0] : index + 1 >= tags.length ? tags[0] : tags[index + 1]
+                setActiveTag(newTag)
+              }}
+            >
+              <HiOutlineArrowRight />
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-row gap-4 flex-wrap px-8 py-2 border border-gray-500 rounded-lg w-full justify-center items-center">
+        {timeslots
+          .filter((timeslot) => timeslot.tag !== undefined && timeslot.tag.id === activeTag.id)
+          //filtering only timeslots with this id
+          .reduce((prev, cur) => {
+            if(!prev.some((timeslot) => (
+              new Date(timeslot.start).getDate() === new Date(cur.start).getDate() &&
+              new Date(timeslot.start).getMonth() === new Date(cur.start).getMonth() &&
+              new Date(timeslot.start).getFullYear() === new Date(cur.start).getFullYear()
+            ))) {
+              prev.push(cur)
+            }
+            return prev
+          }, [] as Timeslot[])
+          .sort((a, b) => a.start.getTime() - b.start.getTime())
+          .map((timeslot) => {
+            const formattedDateString = timeslot.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
+            const badgeColor = activeTag.color ? defaultColumnColors[activeTag.color] : { text: 'black', bg: 'transparent', hover: 'bg-gray-100' }
+            const selected = normalizeDate(timeslot.start).getTime() === normalizeDate(activeDate).getTime()
+            const selectedClass = selected ? `${badgeColor.hover.substring(badgeColor.hover.indexOf(':') + 1)}` : ''
+
+            return (
+              <button
+                key={timeslot.id}
+                className={`
+                  rounded-lg px-8 py-2
+                  bg-${badgeColor.bg} text-${badgeColor.text} ${badgeColor.hover}
+                  ${selectedClass}
+                `}
+                onClick={() => {
+                  setActiveDate(normalizeDate(timeslot.start))
+                }}
+              >
+                {formattedDateString}
+              </button>
+            )
+          }
         )}
       </div>
-      
       <div className={`grid ${width > 600 ? 'grid-cols-2' : 'grid-cols-1'} border-gray-500 border rounded-lg px-4 py-2 w-full my-4 items-center justify-center gap-4`}>
           {formatTimeslot().length > 0 ? (
             formatTimeslot()

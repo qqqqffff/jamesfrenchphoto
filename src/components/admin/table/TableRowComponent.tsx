@@ -970,7 +970,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       for(let i = 0; i < props.table.columns.length; i++) {
         const column = props.table.columns[i]
         const choice = (column.choices ?? [])?.[props.i]
-        if(choice === undefined) continue
+        if(choice === undefined || choice === null) continue
         const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
         if(choice.includes('participantId:')) {
           const mappedParticipant = choice.substring(choice.indexOf(':') + 1, endIndex)

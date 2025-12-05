@@ -551,7 +551,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                 .filter((timeslot) => timeslot !== null && timeslot !== undefined)
                 .map((timeslot, index) => {
                   return (
-                    <div className="flex flex-col border w-full rounded-lg items-center py-1" key={index}>
+                    <div className="flex flex-col border w-full rounded-lg items-center py-1 px-2" key={index}>
                       <span className="whitespace-nowrap text-nowrap">{formatTime(timeslot.start, {timeString: false})}</span>
                       <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timeslot)}</span>
                     </div>
@@ -560,7 +560,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
               ) : (props.participant.timeslot ?? []).length > 0 ? (
                 props.participant.timeslot?.map((timeslot, index) => {
                   return (
-                    <div className="flex flex-col border w-full rounded-lg items-center py-1" key={index}>
+                    <div className="flex flex-col border w-full rounded-lg items-center py-1 px-2" key={index}>
                       <span className="whitespace-nowrap text-nowrap">{formatTime(timeslot.start, {timeString: false})}</span>
                       <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timeslot)}</span>
                     </div>

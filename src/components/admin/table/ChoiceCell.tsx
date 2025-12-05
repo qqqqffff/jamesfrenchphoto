@@ -70,7 +70,7 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
         <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col">
           <span className="whitespace-nowrap px-4 border-b pb-0.5 text-base self-center">Column Choices</span>
           {!creatingOption && (
-            <div className="grid grid-cols-2 py-2 p-1 gap-x-2 min-w-max">
+            <div className="grid grid-cols-2 py-2 p-1 gap-x-2  gap-y-2 min-w-max">
               {props.column.choices?.map((choice, index) => {
                 const color: ColumnColor | undefined = props.column.color?.find((color) => color.value === choice)
                 //TODO: special handling for custom colors
@@ -86,7 +86,7 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
                       rounded-md flex flex-row items-center ${color && 
                         (!color.bgColor || !color.bgColor.includes('#')) &&
                         (!color.textColor || !color.textColor.includes('#')) ? `text-${color.textColor ?? 'black'} bg-${color.bgColor ?? 'white'}` : ''}
-                      px-4 text-nowrap justify-center
+                      px-4 text-nowrap justify-center py-2
                     `}
                     style={{
                       backgroundColor: color?.bgColor && color.bgColor.includes('#') ? color.bgColor : undefined,

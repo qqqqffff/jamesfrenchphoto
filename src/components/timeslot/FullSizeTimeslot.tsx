@@ -1,125 +1,97 @@
 import { FC } from "react";
 import { TimeslotDisplayProps } from "./Timeslot";
-import { Badge, Dropdown, Label, Tooltip } from "flowbite-react";
-import { badgeColorThemeMap, normalizeDate } from "../../utils";
+import { Badge, Label, Tooltip } from "flowbite-react";
+import { badgeColorThemeMap, defaultColumnColors, normalizeDate } from "../../utils";
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineInformationCircle } from "react-icons/hi"
-import { Timeslot, UserTag } from "../../types";
-import { ColorComponent } from "../common/ColorComponent";
+import { Timeslot } from "../../types";
 
-const component: FC<TimeslotDisplayProps> = ({timeslots, setActiveDate, activeDate, formatTimeslot, formatRegisteredTimeslot }) => {
-  const normalDates = timeslots
-    .map((timeslot) => normalizeDate(timeslot.start).getTime())
-    .reduce((prev, cur) => {
-      if(!prev.includes(cur)){
-        prev.push(cur)
-      }
-      return prev
-    }, [] as number[])
-    .map((time) => new Date(time))
-  
+const component: FC<TimeslotDisplayProps> = ({timeslots, tags, setActiveDate, activeDate, setActiveTag, activeTag, formatTimeslot, formatRegisteredTimeslot }) => {
   return (
     <div className="grid grid-cols-6 gap-4 font-main mt-6">
       <div className="flex flex-col ms-4 border border-gray-400 rounded-lg px-6 py-2 gap-2">
         <div className="flex flex-row gap-1 w-full justify-between">
           <span className="text-2xl underline underline-offset-4">Timeslot Date</span>
-          <Tooltip content={
+          <Tooltip style='light' content={
             (<span className="italic">Click on a timeslot to register for a selected date in the range seen bellow!</span>)
           }>
-            <Badge color="light" icon={HiOutlineInformationCircle} className="text-2xl text-gray-600 bg-transparent" theme={badgeColorThemeMap} size="" />
+            <Badge color="light" icon={HiOutlineInformationCircle} className="text-2xl text-gray-600 bg-transparent -me-2" theme={badgeColorThemeMap} size="" />
           </Tooltip>
         </div>
-        <div className="flex flex-row gap-2 items-center w-full justify-center">
-          {normalDates.length > 1 && (
-            <button 
-              className="border p-1.5 rounded-full border-black bg-white hover:bg-gray-300" 
-              onClick={() => {
-                const currentTimeslotIndex = normalDates.findIndex((date) => date.getTime() === activeDate.getTime())
-                const currentDate = currentTimeslotIndex - 1 < 0 ? normalDates[normalDates.length - 1] : normalDates[currentTimeslotIndex - 1]
-                
-                setActiveDate(currentDate)
-              }} 
-            >
-              <HiOutlineArrowLeft />
-            </button>
-          )}
-          <Dropdown color="light" label={'Date: ' + activeDate.toLocaleDateString()}>
-            {
-              timeslots.length > 0 ? (
-                timeslots
-                  .reduce((prev, cur) => {
-                    if(!prev.some((timeslot) => timeslot.tag?.id === cur.tag?.id)) prev.push(cur)
-                    return prev
-                  }, [] as Timeslot[])
-                  .map((timeslot) => {
-                    const color = timeslot.tag?.color ?? 'black'
-                    const dates = timeslots
-                      .map((timeslot) => normalizeDate(timeslot.start).getTime())
-                      .reduce((prev, cur) => {
-                        if(!prev.includes(cur)) {
-                          prev.push(cur)
-                        }
-                        return prev
-                      }, [] as number[])
-                      .sort((a, b) => a - b)
-                      .map((time) => new Date(time))
-                    
-                    const objects = dates.map((date, index) => {
-                      return (
-                        <Dropdown.Item 
-                          key={index} 
-                          className={`text-${color}`} 
-                          onClick={() => setActiveDate(date)}
-                        >{date.toLocaleDateString()}</Dropdown.Item>
-                      )
-                    })
-                    return objects
-                  })
-              ) : (
-                <Dropdown.Item>No Dates available</Dropdown.Item>
-              )
-            }
-          </Dropdown>
-          {normalDates.length > 1 && (
-            <button className="border p-1.5 rounded-full border-black bg-white hover:bg-gray-300" onClick={() => {
-              const currentTimeslotIndex = normalDates.findIndex((date) => date.getTime() === activeDate.getTime())
-              const currentDate = currentTimeslotIndex + 1 >= normalDates.length ? normalDates[0] : normalDates[currentTimeslotIndex + 1]
-              
-              setActiveDate(currentDate)
-          }} disabled={timeslots.length === 0}>
-              <HiOutlineArrowRight />
-            </button>
-          )}
-        </div>
-        {timeslots.length > 0 ? (
-          <div className="flex flex-col">
-            {timeslots
-              .filter((timeslot) => timeslot.tag !== undefined)
-              //filtering only timeslots with this id
-              .reduce((prev, cur) => {
-                if(cur.tag && !prev.some((tag) => tag.id === cur.tag?.id)) prev.push(cur.tag)
-                return prev
-              }, [] as UserTag[])
-              .map((tag, index) => {
-                const sortedTimeslots = timeslots.sort((a, b) => a.start.getTime() - b.start.getTime())
-                
-                const formattedDateString = 
-                  sortedTimeslots[0].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' }) + 
-                  ' - ' + 
-                  sortedTimeslots[sortedTimeslots.length - 1].start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
-
-                return (
-                  <div key={index} className="flex flex-col items-center justify-center">
-                    <span>Dates for:</span>
-                    <Badge theme={badgeColorThemeMap} color={tag.color ? tag.color : 'light'} key={index} className="py-1 ">{tag.name}</Badge>
-                    <ColorComponent activeColor={tag.color} customText={formattedDateString} />
-                  </div>
-                )
-              }
+        <div className="flex flex-col items-center justify-center">
+          <span className="mb-1">Dates for:</span>
+          <div className="flex flex-row gap-2 items-center mb-2">
+            {tags.length > 1 && (
+              <button
+                className="rounded-full border p-1"
+                onClick={() => {
+                  const index = tags.findIndex((tag) => tag.id === activeTag.id)
+                  const newTag = index === -1 ? tags[0] : index - 1 < 0 ? tags[tags.length - 1] : tags[index - 1]
+                  setActiveTag(newTag)
+                }}
+              >
+                <HiOutlineArrowLeft />
+              </button>
+            )}
+            <Badge theme={badgeColorThemeMap} color={activeTag.color ? activeTag.color : 'light'} className="py-1">{activeTag.name}</Badge>
+            {tags.length > 1 && (
+              <button
+                className="rounded-full border p-1"
+                onClick={() => {
+                  const index = tags.findIndex((tag) => tag.id === activeTag.id)
+                  const newTag = index === -1 ? tags[0] : index + 1 >= tags.length ? tags[0] : tags[index + 1]
+                  setActiveTag(newTag)
+                }}
+              >
+                <HiOutlineArrowRight />
+              </button>
             )}
           </div>
-        ) : (
-          <span className="text-gray-400 italic">No current timeslots for registration!</span>
-        )}
+          
+          <div  className="border mb-2 w-full"/>
+          {timeslots.length > 0 ? (
+            <div className="flex flex-col w-full">
+              {timeslots
+                .filter((timeslot) => timeslot.tag !== undefined && timeslot.tag.id === activeTag.id)
+                //filtering only timeslots with this id
+                .reduce((prev, cur) => {
+                  if(!prev.some((timeslot) => (
+                    new Date(timeslot.start).getDate() === new Date(cur.start).getDate() &&
+                    new Date(timeslot.start).getMonth() === new Date(cur.start).getMonth() &&
+                    new Date(timeslot.start).getFullYear() === new Date(cur.start).getFullYear()
+                  ))) {
+                    prev.push(cur)
+                  }
+                  return prev
+                }, [] as Timeslot[])
+                .sort((a, b) => a.start.getTime() - b.start.getTime())
+                .map((timeslot) => {
+                  const formattedDateString = timeslot.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
+                  const badgeColor = activeTag.color ? defaultColumnColors[activeTag.color] : { text: 'black', bg: 'transparent', hover: 'bg-gray-100' }
+                  const selected = normalizeDate(timeslot.start).getTime() === normalizeDate(activeDate).getTime()
+                  const selectedClass = selected ? `${badgeColor.hover.substring(badgeColor.hover.indexOf(':') + 1)}` : ''
+
+                  return (
+                    <button
+                      key={timeslot.id}
+                      className={`
+                        mb-2 rounded-lg px-4 py-2 w-full
+                        bg-${badgeColor.bg} text-${badgeColor.text} ${badgeColor.hover}
+                        ${selectedClass}
+                      `}
+                      onClick={() => {
+                        setActiveDate(normalizeDate(timeslot.start))
+                      }}
+                    >
+                      {formattedDateString}
+                    </button>
+                  )
+                }
+              )}
+            </div>
+          ) : (
+            <span className="text-gray-400 italic">No current timeslots for registration!</span>
+          )}
+        </div>
       </div>
       <div className="col-span-4 border border-gray-400 rounded-lg py-4 px-2 h-[500px] overflow-auto">
         <div className="grid gap-2 grid-cols-3">

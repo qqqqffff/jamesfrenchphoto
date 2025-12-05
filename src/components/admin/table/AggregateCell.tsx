@@ -29,13 +29,15 @@ export const AggregateCell = (props: AggregateCellProps) => {
               <div 
                 key={index}
                 className={`
-                  h-full ${segment.color?.bgColor && !segment.color.bgColor.includes('#') ? `bg-${segment.color.bgColor}` : ''}
-                  ${!segment.color ? 'border border-gray-400' : ''}
+                  border h-full 
+                  ${segment.color?.bgColor && !segment.color.bgColor.includes('#') ? `bg-${segment.color.bgColor}` : ''}
+                  ${segment.color?.textColor && !segment.color.textColor.includes('#') ? `border-${segment.color.textColor}` : !segment.color ? 'border-gray-400' : ''}
                 `}
                 style={{ 
                   width: `${(segment.count / props.column.values.length) * 100}%`,
                   background: !segment.color ? 'repeating-linear-gradient(45deg, #ffffff, #ffffff 10px, #d1d5db 10px, #d1d5db 20px)' : '',
-                  backgroundColor: segment.color?.bgColor && segment.color.bgColor.includes('#') ? segment.color.bgColor : undefined
+                  backgroundColor: segment.color?.bgColor && segment.color.bgColor.includes('#') ? segment.color.bgColor : undefined,
+                  borderColor: segment.color?.textColor && segment.color.textColor.includes('#') ? segment.color.textColor : undefined
                 }}
                 onMouseEnter={() => setHoveredSegment(index)}
                 onMouseLeave={() => setHoveredSegment(undefined)}
