@@ -500,6 +500,14 @@ export interface CreateTempUserProfileParams {
   email: string,
 }
 
+export interface SendUserInviteEmailParams {
+  profile: UserProfile
+  baseLink: string
+  options?: {
+    logging?: boolean
+  }
+}
+
 export interface InviteUserParams {
   sittingNumber: number
   email: string,
@@ -517,6 +525,17 @@ export interface RevokeUserInviteMutationParams {
   options?: {
     logging?: boolean,
     metric?: boolean
+  }
+}
+
+export interface LinkUserFieldMutationParams {
+  tableColumn: TableColumn,
+  rowIndex: number,
+  userFieldLinks: UserFieldLinks,
+  field: 'sitting' | 'first' | 'last'
+  userProfile: UserProfile,
+  options?: {
+    logging?: boolean
   }
 }
 
@@ -578,7 +597,13 @@ export class UserService {
 
     const tagsMemo: UserTag[] = []
     const mappedResponse: UserProfile[] = (await Promise.all(temporaryUserData.map(async (token) => {
-      const userProfile = await this.getUserProfileByEmail(client, token.userEmail, { siTags: options?.siTags })
+      const userProfile = await this.getUserProfileByEmail(
+        client, 
+        token.userEmail, { 
+          siTags: options?.siTags, 
+          memo: { tags: tagsMemo } 
+        }
+      )
       if(userProfile) {
         tagsMemo.push(...userProfile.participant
           .flatMap((participant) => participant.userTags)
@@ -590,7 +615,14 @@ export class UserService {
           }, [] as UserTag[])
         )
       }
-      return userProfile
+      else {
+        return undefined
+      }
+      const profile: UserProfile = {
+        ...userProfile,
+        temporary: token.id
+      }
+      return profile
     }))).filter((data) => data !== undefined)
 
     if(options?.logging) console.log(mappedResponse)
@@ -1022,7 +1054,33 @@ export class UserService {
     }
   }
 
-  //TODO: improve me with getting existing participants? and checking for existing userprofile
+  //TODO: enhance error handling
+  async sendUserInviteEmail(params: SendUserInviteEmailParams) {
+    if(!params.profile.firstName || !params.profile.lastName) return null
+    
+    let temp: String | undefined = params.profile.temporary
+
+    if(!temp) {
+      const profileResponse = await this.client.models.UserProfile.get({ email: params.profile.email.toLowerCase() })
+      if(profileResponse.data) {
+        temp = (await profileResponse.data.temporaryCreate()).data?.id
+      }
+    }
+
+    if(!temp) return null
+
+    const response = await this.client.queries.ShareUserInvite({
+      email: params.profile.email.toLocaleLowerCase(),
+      firstName: params.profile.email,
+      lastName: params.profile.email,
+      link: params.baseLink + `?token=${temp}`
+    }, {
+      authMode: 'userPool'
+    })
+
+    if(params.options?.logging) console.log(response)
+  }
+
   async inviteUserMutation(params: InviteUserParams) {
     const participantResponses: [
       Schema['Participant']['type'] | null, 
@@ -1123,6 +1181,86 @@ export class UserService {
     const deleteTemporaryToken = await this.client.models.TemporaryCreateUsersTokens.delete({ id: profile.temporary })
     if(params.options?.logging) console.log(deleteTemporaryToken)
     if(params.options?.metric) console.log(`REVOKEUSERINVITE:${new Date().getTime() - start.getTime()}ms`)
+  }
+
+  async linkUserFieldMutation(params: LinkUserFieldMutationParams): Promise<[TableColumn, UserProfile]> {
+    const updatedColumn = { ...params.tableColumn }
+    const updatedProfile = { ...params.userProfile }
+    const choices = updatedColumn.choices ?? []
+
+    switch(params.field) {
+      case "sitting":
+        //removing the link
+        if(params.userFieldLinks.sitting === null) {
+          choices[params.rowIndex] = ''
+          updatedColumn.choices = choices
+          break;
+        }
+        choices[params.rowIndex] = 'userEmail:' + params.userProfile.email + ',sitting'
+        updatedColumn.choices = choices
+        if(params.userFieldLinks.sitting?.[1] === 'update') {
+          const response = this.client.models.UserProfile.update({
+            email: params.userProfile.email,
+            sittingNumber: Number(updatedColumn.values[params.rowIndex])
+          })
+          updatedProfile.sittingNumber = Number(updatedColumn.values[params.rowIndex])
+          if(params.options?.logging) console.log(response)
+        }
+        else if(params.userFieldLinks.sitting?.[1] === 'override') {
+          updatedColumn.values[params.rowIndex] = String(params.userProfile.sittingNumber)
+        }
+        break;
+      case "first":
+        //removing the link
+        if(params.userFieldLinks.first === null) {
+          choices[params.rowIndex] = ''
+          updatedColumn.choices = choices
+          break;
+        }
+        choices[params.rowIndex] = 'userEmail:' + params.userProfile.email + ',first'
+        updatedColumn.choices = choices
+        if(params.userFieldLinks.first?.[1] === 'update') {
+          const response = this.client.models.UserProfile.update({
+            email: params.userProfile.email,
+            firstName: updatedColumn.values[params.rowIndex]
+          })
+          updatedProfile.firstName = updatedColumn.values[params.rowIndex]
+          if(params.options?.logging) console.log(response)
+        }
+        else if(params.userFieldLinks.first?.[1] === 'override') {
+          updatedColumn.values[params.rowIndex] = params.userProfile.firstName ?? ''
+        }
+        break;
+      case "last":
+        //removing the link
+        if(params.userFieldLinks.last === null) {
+          choices[params.rowIndex] = ''
+          updatedColumn.choices = choices
+          break;
+        }
+        choices[params.rowIndex] = 'userEmail:' + params.userProfile.email + ',last'
+        updatedColumn.choices = choices
+        if(params.userFieldLinks.last?.[1] === 'update') {
+          const response = this.client.models.UserProfile.update({
+            email: params.userProfile.email,
+            lastName: updatedColumn.values[params.rowIndex]
+          })
+          updatedProfile.lastName = updatedColumn.values[params.rowIndex]
+          if(params.options?.logging) console.log(response)
+        }
+        else if(params.userFieldLinks.last?.[1] === 'override') {
+          updatedColumn.values[params.rowIndex] = params.userProfile.lastName ?? ''
+        }
+        break;
+    }
+    const response = this.client.models.TableColumn.update({
+      id: updatedColumn.id,
+      values: updatedColumn.values,
+      choices: updatedColumn.choices
+    })
+    if(params.options?.logging) console.log(response)
+
+    return [updatedColumn, updatedProfile]
   }
 
   /**

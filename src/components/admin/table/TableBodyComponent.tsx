@@ -25,6 +25,7 @@ interface TableBodyComponentProps {
   tempUsers: UserProfile[],
   selectedTag: UserTag | undefined,
   selectedDate: Date
+  baseLink: string
   refRow: React.MutableRefObject<number>
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
   tagTimeslotQuery: UseQueryResult<Timeslot[], Error>
@@ -181,6 +182,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               tempUsers={props.tempUsers}
               selectedTag={props.selectedTag}
               selectedDate={props.selectedDate}
+              baseLink={props.baseLink}
               refRow={props.refRow}
               timeslotsQuery={props.timeslotsQuery}
               tagTimeslotQuery={props.tagTimeslotQuery}

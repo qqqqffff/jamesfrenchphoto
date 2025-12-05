@@ -1,7 +1,7 @@
-import { useMutation, useQueries, UseQueryResult } from "@tanstack/react-query";
+import { UseMutationResult, useQueries, UseQueryResult } from "@tanstack/react-query";
 import { ModalProps } from ".";
-import { Table, TableColumn, TableGroup, UserProfile, UserTag } from "../../types";
-import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
+import { TableColumn, UserProfile, UserTag } from "../../types";
+import { FC, useEffect, useState } from "react";
 import { Button, Dropdown, Modal } from "flowbite-react";
 import { ParticipantPanel } from "../common/ParticipantPanel";
 import { HiOutlineChevronDown, HiOutlineLockClosed, HiOutlineLockOpen, HiOutlineChevronLeft } from "react-icons/hi2";
@@ -15,10 +15,7 @@ interface LinkUserModalProps extends ModalProps {
   tableColumns: TableColumn[]
   rowIndex: number,
   tags: UseQueryResult<UserTag[] | undefined, Error>,
-  parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
-  parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
-  parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
-  parentUpdateTableColumns: Dispatch<SetStateAction<TableColumn[]>>
+  linkUser: UseMutationResult<TableColumn[], Error, LinkUserMutationParams, unknown>
 }
 
 export type UserFieldLinks = {
@@ -92,7 +89,7 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
         const column = props.tableColumns[i]
         const foundChoice = (column.choices ?? [])?.[props.rowIndex]
         //skip if mapping already exits for this column
-        if(foundChoice !== undefined && (foundChoice.includes('userEmail') || foundChoice.includes('participantId'))) continue
+        if(foundChoice !== undefined && foundChoice !== null && (foundChoice.includes('userEmail') || foundChoice.includes('participantId'))) continue
         const normalHeader = column.header.toLocaleLowerCase()
         if(
           column.type === 'value' &&
@@ -231,7 +228,6 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
 
   const filteredUserFields = props.tableColumns.filter((column) => {
     if(column.type !== 'tag' && column.type !== 'date' && column.type !== 'value') return false
-    if(column.type === 'tag' || column.type === 'date') return true
     return (
       linkedUserFields === undefined || (
         (linkedUserFields.first === null || linkedUserFields.first[0] !== column.id) &&
@@ -245,35 +241,14 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
             (participantLink.email === null || participantLink.email[0] !== column.id) &&
             (participantLink.middle === null || participantLink.middle[0] !== column.id) &&
             (participantLink.preferred === null || participantLink.preferred[0] !== column.id) &&
-            (participantLink.tags === null || participantLink.tags[0] !== column.id)
+            (participantLink.tags === null || participantLink.tags[0] !== column.id) &&
+            (participantLink.timeslot === null || participantLink.timeslot[0] !== column.id)
           )
         })
       ) 
     )
   })
-
-  const linkUser = useMutation({
-    mutationFn: (params: LinkUserMutationParams) => props.UserService.linkUserMutation(params),
-    onSuccess: (data) => {
-      if(data.length > 0) {
-        const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === data[0].tableId) ? ({
-          ...group,
-          tables: group.tables.map((table) => table.id === data[0].tableId ? ({
-            ...table,
-            columns: data
-          }) : table)
-        }) : group)
-
-        props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-        props.parentUpdateTableGroups((prev) => updateGroup(prev))
-        props.parentUpdateTable((prev) => prev !== undefined ? ({
-          ...prev,
-          columns: data
-        }) : prev)
-        props.parentUpdateTableColumns(data)
-      }
-    }
-  })
+  
 
   return (
     <Modal show={props.open} onClose={() => {
@@ -291,7 +266,7 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
                 <span>Sitting Number:</span>
                 <span className="italic">
                   {linkedUserFields?.sitting !== null && 
-                  linkedUserFields?.sitting[1] === 'override' &&
+                  linkedUserFields?.sitting[1] === 'update' &&
                   props.tableColumns.some((column) => column.id === linkedUserFields?.sitting?.[0]) ? (
                     props.tableColumns.find((column) => column.id === linkedUserFields.sitting?.[0])?.values[props.rowIndex]
                   ) : (
@@ -370,7 +345,7 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
                 <span>First Name:</span>
                 <span className="italic">
                   {linkedUserFields?.first !== null && 
-                  linkedUserFields?.first[1] === 'override' &&
+                  linkedUserFields?.first[1] === 'update' &&
                   props.tableColumns.some((column) => column.id === linkedUserFields?.first?.[0]) ? (
                     props.tableColumns.find((column) => column.id === linkedUserFields.first?.[0])?.values[props.rowIndex]
                   ) : (
@@ -450,7 +425,7 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
                 <span>Last Name:</span>
                 <span className="italic">
                   {linkedUserFields?.last !== null && 
-                  linkedUserFields?.last[1] === 'override' &&
+                  linkedUserFields?.last[1] === 'update' &&
                   props.tableColumns.some((column) => column.id === linkedUserFields?.last?.[0]) ? (
                     props.tableColumns.find((column) => column.id === linkedUserFields.last?.[0])?.values[props.rowIndex]
                   ) : (
@@ -647,11 +622,11 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
         >Cancel</Button>
         <Button 
           size='xs'
-          isProcessing={linkUser.isPending}
+          isProcessing={props.linkUser.isPending}
           disabled={linkedUserFields === undefined}
           onClick={() => {
             if(linkedUserFields !== undefined) {
-              linkUser.mutate({
+              props.linkUser.mutate({
                 tableColumns: props.tableColumns,
                 rowIndex: props.rowIndex,
                 participantFieldLinks: linkedParticipantFields,

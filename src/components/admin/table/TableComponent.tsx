@@ -253,6 +253,7 @@ export const TableComponent = (props: TableComponentProps) => {
             tempUsers={tempUsers}
             selectedTag={selectedTag}
             selectedDate={selectedDate}
+            baseLink={link}
             refRow={refRow}
             timeslotsQuery={timeslotsQuery}
             tagTimeslotQuery={tagTimeslotQuery}

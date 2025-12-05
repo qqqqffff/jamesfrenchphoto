@@ -388,6 +388,11 @@ export class TableService {
           if(params.rowIndex === index) return prev
           prev.push(cur)
           return prev
+        }, [] as string[]),
+        choices: (column.choices ?? []).reduce((prev, cur, index) => {
+          if(params.rowIndex === index) return prev
+          prev.push(cur)
+          return prev
         }, [] as string[])
       }))
     }
@@ -395,7 +400,8 @@ export class TableService {
     const response = await Promise.all(tempTable.columns.map(async (column) => {
       return this.client.models.TableColumn.update({
         id: column.id,
-        values: column.values
+        values: column.values,
+        choices: column.choices
       })
     }))
     if(params.options?.logging) console.log(response)

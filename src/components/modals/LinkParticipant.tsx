@@ -1,9 +1,9 @@
-import { useMutation, useQueries, UseQueryResult } from "@tanstack/react-query";
+import { UseMutationResult, useQueries, UseQueryResult } from "@tanstack/react-query";
 import { ModalProps } from ".";
 import { TimeslotService } from "../../services/timeslotService";
 import { LinkParticipantMutationParams, UserService } from "../../services/userService";
-import { Participant, Table, TableColumn, TableGroup, UserTag } from "../../types";
-import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
+import { Participant, TableColumn, UserTag } from "../../types";
+import { FC, useEffect, useState } from "react";
 import { ParticipantFieldLinks } from "./LinkUser";
 import { Button, Modal } from "flowbite-react";
 import { ParticipantPanel } from "../common/ParticipantPanel";
@@ -15,31 +15,28 @@ interface LinkParticipantModalProps extends ModalProps {
   tableColumns: TableColumn[],
   rowIndex: number,
   tags: UseQueryResult<UserTag[] | undefined, Error>
-  parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
-  parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
-  parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
-  parentUpdateTableColumns: Dispatch<SetStateAction<TableColumn[]>>
+  linkParticipant: UseMutationResult<TableColumn[], Error, LinkParticipantMutationParams, unknown>
 }
 
 export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
   const [linkedParticipantFields, setLinkedParticipantFields] = useState<ParticipantFieldLinks[]>([])
 
   //disgusting mapping logic to go from column id to query
-    const timeslotQueries = useQueries({
-      queries: linkedParticipantFields[0]?.timeslot?.[0] === undefined ? [props.TimeslotService.getTimeslotByIdQueryOptions('', { siTag: false })] :
-      (props.tableColumns.find((column) => column.id === linkedParticipantFields[0]?.timeslot?.[0])
-      ?.values[props.rowIndex] ?? '').split(',').filter((value) => value !== '')
-      .reduce((prev, cur) => {
-        if(!prev.some((timeslotId) => timeslotId === cur)) {
-          prev.push(cur)
-        }
-        return prev
-      }, [] as string[])
-      .filter((timeslotId) => !(props.participant.timeslot ?? [])
-        .some((timeslot) => timeslot.id === timeslotId)
-      )
-      .map((timeslotId) => props.TimeslotService.getTimeslotByIdQueryOptions(timeslotId, { siTag: false }))
-    })
+  const timeslotQueries = useQueries({
+    queries: linkedParticipantFields[0]?.timeslot?.[0] === undefined ? [props.TimeslotService.getTimeslotByIdQueryOptions('', { siTag: false })] :
+    (props.tableColumns.find((column) => column.id === linkedParticipantFields[0]?.timeslot?.[0])
+    ?.values[props.rowIndex] ?? '').split(',').filter((value) => value !== '')
+    .reduce((prev, cur) => {
+      if(!prev.some((timeslotId) => timeslotId === cur)) {
+        prev.push(cur)
+      }
+      return prev
+    }, [] as string[])
+    .filter((timeslotId) => !(props.participant.timeslot ?? [])
+      .some((timeslot) => timeslot.id === timeslotId)
+    )
+    .map((timeslotId) => props.TimeslotService.getTimeslotByIdQueryOptions(timeslotId, { siTag: false }))
+  })
 
   useEffect(() => {
     const linkedParticipants: ParticipantFieldLinks[] = [{
@@ -156,33 +153,12 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
         (linkedParticipantFields[0].email === null || linkedParticipantFields[0].email[0] !== column.id) &&
         (linkedParticipantFields[0].middle === null || linkedParticipantFields[0].middle[0] !== column.id) &&
         (linkedParticipantFields[0].preferred === null || linkedParticipantFields[0].preferred[0] !== column.id) &&
-        (linkedParticipantFields[0].tags === null || linkedParticipantFields[0].tags[0] !== column.id)
+        (linkedParticipantFields[0].tags === null || linkedParticipantFields[0].tags[0] !== column.id) &&
+        (linkedParticipantFields[0].timeslot === null || linkedParticipantFields[0].timeslot[0] !== column.id)
       )
     )
   })
 
-  const linkParticipant = useMutation({
-    mutationFn: (params: LinkParticipantMutationParams) => props.UserService.linkParticipantMutation(params),
-    onSuccess: (data) => {
-      if(data.length > 0) {
-        const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === data[0].tableId) ? ({
-          ...group,
-          tables: group.tables.map((table) => table.id === data[0].tableId ? ({
-            ...table,
-            columns: data
-          }) : table)
-        }) : group)
-
-        props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-        props.parentUpdateTableGroups((prev) => updateGroup(prev))
-        props.parentUpdateTable((prev) => prev !== undefined ? ({
-          ...prev,
-          columns: data
-        }) : prev)
-        props.parentUpdateTableColumns(data)
-      }
-    }
-  })
   return (
     <Modal show={props.open} onClose={() => {
       props.onClose()
@@ -229,11 +205,11 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
         >Cancel</Button>
         <Button 
           size='xs'
-          isProcessing={linkParticipant.isPending}
+          isProcessing={props.linkParticipant.isPending}
           disabled={linkedParticipantFields[0] === undefined}
           onClick={() => {
             if(linkedParticipantFields[0] !== undefined) {
-              linkParticipant.mutate({
+              props.linkParticipant.mutate({
                 tableColumns: props.tableColumns,
                 rowIndex: props.rowIndex,
                 participantFieldLinks: linkedParticipantFields[0],

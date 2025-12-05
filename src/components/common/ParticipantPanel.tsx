@@ -28,11 +28,16 @@ interface ParticipantPanelProps {
 }
 
 export const ParticipantPanel = (props: ParticipantPanelProps) => {
+  const timeslots = props.showOptions?.linkedFields?.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0])
+    ?.values[props.showOptions?.linkedFields?.rowIndex ?? 0].split(',')
+    .map((timeslotId) => props.showOptions?.linkedFields?.timeslotQueries.map((query) => query.data).find((timeslot) => timeslot?.id === timeslotId))
+    .filter((timeslot) => timeslot !== null && timeslot !== undefined)
+  
   return (
     <div className="flex flex-col">
       <span className='text-purple-400 py-2 text-sm'>Participant</span>
       <div className="flex flex-col text-xs pb-1 max-h-80 overflow-y-auto">
-        <div className="flex flex-row items-center text-nowrap justify-between w-full border-y py-1 px-2 min-h-[36px]">
+        <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-y py-1 px-2 min-h-[36px]">
           <div className="flex flex-row gap-2 items-center">
             <span>First Name:</span>
             <span className="italic">{
@@ -111,7 +116,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
           )}
         </div>
         {props.participant.preferredName !== undefined && (
-          <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+          <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
             <div className="flex flex-row gap-2 items-center">
               <span>Preferred Name:</span>
               <span className="italic">{
@@ -192,7 +197,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
           </div>
         )}
         {props.participant.middleName !== undefined && (
-          <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+          <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
             <div className="flex flex-row gap-2 items-center">
               <span>Middle Name:</span>
               <span className="italic">{
@@ -272,7 +277,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
             )}
           </div>
         )}
-        <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+        <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
           <div className="flex flex-row gap-2 items-center">
             <span>Last Name:</span>
             <span className="italic">{
@@ -351,7 +356,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
           )}
         </div>
         {props.participant.email !== undefined && (
-          <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+          <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
             <div className="flex flex-row gap-2 items-center">
               <span>Email:</span>
               <span className="italic truncate max-w-[200px]">{
@@ -440,7 +445,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
           </div>
         )}
         {!props.hiddenOptions?.tags && (
-          <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+          <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
             <div className="flex flex-row gap-2 justify-start flex-wrap max-w-[250px] items-center">
               <span>Tags:</span>
               {props.showOptions?.linkedFields?.participantLinks.tags !== null &&
@@ -534,11 +539,12 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
         )}
        
         {props.showOptions?.timeslot && (
-          <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+          <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
             <div className="flex flex-row items-center">
               {props.showOptions.linkedFields?.participantLinks.timeslot !== null &&
               props.showOptions.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0]) &&
-              props.showOptions.linkedFields.participantLinks.timeslot[1] === 'update' ? (
+              props.showOptions.linkedFields.participantLinks.timeslot[1] === 'update' &&
+              (timeslots ?? []).length > 0 ? (
                 props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0])
                 ?.values[props.showOptions.linkedFields.rowIndex].split(',')
                 .map((timeslotId) => props.showOptions?.linkedFields?.timeslotQueries.map((query) => query.data).find((timeslot) => timeslot?.id === timeslotId))
