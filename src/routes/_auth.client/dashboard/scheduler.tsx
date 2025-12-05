@@ -49,7 +49,7 @@ function RouteComponent() {
   const [activeTag, setActiveTag] = useState<UserTag>(userTags.reduce((prev, cur) => {
     if(new Date(cur.createdAt).getTime() > new Date(prev.createdAt).getTime()) return cur
     return prev
-  }))
+  }, userTags[0]))
 
   const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
     (timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).map((timeslot) => {
@@ -74,7 +74,7 @@ function RouteComponent() {
             return cur
           }
           return prev
-        })
+        }, currentDate)
       )
     }
   }, [timeslots.data, activeTag])
