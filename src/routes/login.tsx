@@ -5,6 +5,7 @@ import useWindowDimensions from '../hooks/windowDimensions'
 import { Alert, Button, Label, Modal, TextInput } from 'flowbite-react'
 import { textInputTheme } from '../utils'
 import { HiOutlineEyeSlash, HiOutlineEye } from "react-icons/hi2";
+import { ForgotPasswordModal } from '../components/modals/ForgotPassword'
 
 interface LoginParams {
   createAccount?: boolean,
@@ -61,6 +62,7 @@ function RouteComponent() {
   const [passwordLowerCharacter, setPasswordLowerCharacter] = useState(false)
 
   const [passwordVisible, setPasswordVisible] = useState(false)
+  const [resetPasswordVisible, setResetPasswordVisible] = useState(false)
   
   function NotificationComponent() {
     return (
@@ -249,6 +251,11 @@ function RouteComponent() {
         </Modal.Footer>
       </Modal>
 
+      <ForgotPasswordModal 
+        onClose={() => setResetPasswordVisible(false)}
+        open={resetPasswordVisible}
+      />
+
       <div className="mt-4">
         {formErrors.length > 0 && formErrors.map((error, index) => {
           return (
@@ -288,7 +295,11 @@ function RouteComponent() {
                 )}
               </button>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-between">
+              <button 
+                className='text-blue-500 hover:underline hover:text-blue-300 text-sm'
+                onClick={() => setPasswordResetVisible(true)}
+              >Forgot password?</button>
               <Button isProcessing={submitting} className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" disabled={!validate()}>Login</Button>
             </div>
           </div>
