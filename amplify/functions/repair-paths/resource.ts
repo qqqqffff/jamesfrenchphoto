@@ -6,5 +6,6 @@ export const repairPaths = defineFunction({
   environment: {
     BUCKET_NAME: secret('jamesfrenchphoto-bucket')
   },
-  timeoutSeconds: 300
+  timeoutSeconds: 300,
+  runtime: 22,
 })

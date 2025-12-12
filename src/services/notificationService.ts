@@ -2,6 +2,7 @@ import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Notification, Participant, UserTag } from "../types";
 import { queryOptions } from "@tanstack/react-query";
+import sgMail from '@sendgrid/mail'
 
 interface GetAllNotificationOptions {
   siParticipants?: boolean
@@ -198,6 +199,14 @@ export interface DeleteNotificationParams {
   }
 }
 
+export interface SendUserEmailNotificationParams {
+  email: string,
+  content: string,
+  options?: {
+    logging?: boolean
+  }
+}
+
 // export const getAllParticipantNotificationsQueryOptions = (participantId?: string, options?: GetAllParticipantNotificationOptions) => queryOptions({
 //   queryKey: ['participantNotifications', client, options],
 //   queryFn: () => getAllParticipantNotifications(client, participantId, options)
@@ -351,6 +360,34 @@ export class NotificationService {
     const response = this.client.models.Notifications.delete({ id: params.notificationId })
 
     if(params.options?.logging) console.log(response)
+  }
+
+  async sendUserEmailNotificationMutation(params: SendUserEmailNotificationParams): Promise<{message: string, status: 'fail' | 'success'}> {
+    try {
+      const response = await this.client.queries.NotifyUser({
+        email: params.email,
+        content: params.content
+      })
+
+      if(params.options?.logging) {
+        console.log(response)
+      }
+      if(response.data !== null) {
+        const sgResponse: [sgMail.ClientResponse, {}] = JSON.parse(response.data.toString())
+        if(sgResponse[0].statusCode >= 200 && sgResponse[0].statusCode < 300) {
+          return { message: 'Email sent successfully.', status: 'success' }
+        }
+        else {
+          return { message: 'Failed to send email.', status: 'fail' }
+        }
+      }
+      else {
+        return { message: 'Failed to send email.', status: 'fail' }
+      }
+      
+    } catch(error) {
+      return { message: 'Failed to send email.', status: 'fail' }
+    }
   }
 
   public getAllNotificationsQueryOptions = (options?: GetAllNotificationOptions) => queryOptions({

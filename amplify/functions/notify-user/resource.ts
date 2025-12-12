@@ -1,7 +1,7 @@
 import { defineFunction, secret } from "@aws-amplify/backend";
 
-export const shareUserInvite = defineFunction({
-  name: 'share-user-invite',
+export const notifyUser = defineFunction({
+  name: 'notify-user',
   entry: './handler.ts',
   environment: {
     SENDGRID_API_KEY: secret('sendgrid-api-key')

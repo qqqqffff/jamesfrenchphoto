@@ -1,6 +1,6 @@
 import { UseMutationResult, useQueries, UseQueryResult } from "@tanstack/react-query";
 import { ModalProps } from ".";
-import { TableColumn, UserProfile, UserTag } from "../../types";
+import { TableColumn, UserProfile, UserTag, Notification } from "../../types";
 import { FC, useEffect, useState } from "react";
 import { Button, Dropdown, Modal } from "flowbite-react";
 import { ParticipantPanel } from "../common/ParticipantPanel";
@@ -12,7 +12,8 @@ interface LinkUserModalProps extends ModalProps {
   UserService: UserService
   TimeslotService: TimeslotService
   userProfile: UserProfile & { temp: boolean }
-  tableColumns: TableColumn[]
+  tableColumns: TableColumn[],
+  notifications: Notification[]
   rowIndex: number,
   tags: UseQueryResult<UserTag[] | undefined, Error>,
   linkUser: UseMutationResult<TableColumn[], Error, LinkUserMutationParams, unknown>
@@ -34,6 +35,7 @@ export type ParticipantFieldLinks = {
   email: [string, 'update' | 'override'] | null,
   tags: [string, 'update' | 'override'] | null,
   timeslot: [string, 'update' | 'override'] | null,
+  notifications: [string, 'update' | 'override'] | null,
 }
 
 export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
@@ -79,7 +81,8 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
         preferred: null,
         email: null,
         tags: null,
-        timeslot: null
+        timeslot: null,
+        notifications: null,
       })
     }) : linkedParticipantFields
     //TODO: investigate how to get linking to working for multiple participants & smarter with local compare
@@ -242,7 +245,8 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
             (participantLink.middle === null || participantLink.middle[0] !== column.id) &&
             (participantLink.preferred === null || participantLink.preferred[0] !== column.id) &&
             (participantLink.tags === null || participantLink.tags[0] !== column.id) &&
-            (participantLink.timeslot === null || participantLink.timeslot[0] !== column.id)
+            (participantLink.timeslot === null || participantLink.timeslot[0] !== column.id) &&
+            (participantLink.notifications === null || participantLink.notifications[0] !== column.id)
           )
         })
       ) 
@@ -558,6 +562,7 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
                     participant={participant}
                     showOptions={{
                       timeslot: true,
+                      notifications: true,
                       linkedFields: {
                         participantLinks: linkedParticipantFields.find((link) => link.id === participant.id) ?? {
                           id: participant.id,
@@ -567,10 +572,12 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
                           preferred: null,
                           email: null,
                           tags: null,
-                          timeslot: null
+                          timeslot: null,
+                          notifications: null
                         },
                         rowIndex: props.rowIndex,
                         tags: props.tags.data ?? [],
+                        notifications: props.notifications,
                         timeslotQueries: timeslotQueries,
                         availableOptions: filteredUserFields,
                         allColumns: props.tableColumns,

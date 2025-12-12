@@ -5,5 +5,6 @@ export const deletePublicPhoto = defineFunction({
   entry: './handler.ts',
   environment: {
     PUBLIC_BUCKET_NAME: secret('jamesfrenchphoto-public-bucket')
-  }
+  },
+  runtime: 22,
 })

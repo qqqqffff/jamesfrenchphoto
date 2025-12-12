@@ -15,6 +15,7 @@ import { repairPaths } from '../functions/repair-paths/resource';
 import { registerUser } from '../functions/register-user/resource';
 import { adminUpdateUserAttributes } from '../auth/admin-update-user-attributes/resource';
 import { registerTimeslot } from '../functions/register-timeslot/resource';
+import { notifyUser } from '../functions/notify-user/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -231,7 +232,7 @@ const schema = a.schema({
       header: a.string().required(),
       values: a.string().array(),
       choices: a.string().array(),
-      type: a.enum(['value', 'date', 'choice', 'tag', 'file']),
+      type: a.enum(['value', 'date', 'choice', 'tag', 'file', 'notification']),
       color: a.hasMany('ColumnColorMapping', 'columnId'),
       tag: a.string().array(),
       tableId: a.id().required(),
@@ -540,6 +541,15 @@ const schema = a.schema({
       path: a.string().required(),
     })
     .handler(a.handler.function(deletePublicPhoto))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.json()),
+  NotifyUser: a
+    .query()
+    .arguments({
+      email: a.string().required(),
+      content: a.string().required()
+    })
+    .handler(a.handler.function(notifyUser))
     .authorization((allow) => [allow.group('ADMINS')])
     .returns(a.json()),
   TemporaryAccessToken: a

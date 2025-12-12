@@ -5,5 +5,6 @@ export const downloadImages = defineFunction({
   entry: './handler.ts',
   environment: {
     BUCKET_NAME: secret('jamesfrenchphoto-bucket')
-  }
+  },
+  runtime: 22,
 })

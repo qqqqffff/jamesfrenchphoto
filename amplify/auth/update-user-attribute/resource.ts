@@ -1,5 +1,6 @@
 import { defineFunction } from "@aws-amplify/backend";
 
 export const updateUserAttribute = defineFunction({
-    name: 'update-user-attribute'
+    name: 'update-user-attribute',
+    runtime: 22,
 })

@@ -6,5 +6,6 @@ export const postConfirmation = defineFunction({
     environment: {
         GROUP_NAME: 'USERS',
         ADMIN_GROUP_NAME: 'ADMINS'
-    }
+    },
+    runtime: 22,
 })

@@ -8,5 +8,6 @@ export const customMessage = defineFunction({
     },
     bundling: {
         minify: false
-    }
+    },
+    runtime: 22,
 })

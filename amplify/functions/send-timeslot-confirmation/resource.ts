@@ -8,5 +8,6 @@ export const sendTimeslotConfirmation = defineFunction({
     },
     bundling: {
         minify: false
-    }
+    },
+    runtime: 22,
 })

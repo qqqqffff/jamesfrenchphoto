@@ -1,6 +1,6 @@
 import { Dropdown } from "flowbite-react"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
-import { ColumnColor, Participant, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
+import { ColumnColor, Notification, Participant, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
 import { ChoiceCell } from "./ChoiceCell"
 import { DateCell } from "./DateCell"
 import { FileCell } from "./FileCell"
@@ -35,17 +35,21 @@ import { ParticipantPanel } from "../../common/ParticipantPanel"
 import { LinkUserModal, ParticipantFieldLinks, UserFieldLinks } from "../../modals/LinkUser"
 import { LinkParticipantModal } from "../../modals/LinkParticipant"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
+import { NotificationCell } from "./NotificationCell"
+import { CreateNotificationParams, NotificationService, UpdateNotificationParams } from "../../../services/notificationService"
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
   UserService: UserService,
-  TableService: TableService
-  PhotoPathService: PhotoPathService
+  TableService: TableService,
+  PhotoPathService: PhotoPathService,
+  NotificationService: NotificationService
   row: [string, TableColumn['type'], string][]
   i: number
   table: Table
   users: UserData[],
   tempUsers: UserProfile[],
+  notifications: Notification[]
   selectedTag: UserTag | undefined,
   selectedDate: Date
   baseLink: string
@@ -55,6 +59,7 @@ interface TableRowComponentProps {
   tagData: UseQueryResult<UserTag[] | undefined, Error>
   userData: UseQueryResult<UserData[] | undefined, Error>
   tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
+  notificationData: UseQueryResult<Notification[] | undefined, Error>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   deleteRow: UseMutationResult<void, Error, DeleteTableRowParams, unknown>
   createChoice: UseMutationResult<[string, string] | undefined, Error, CreateChoiceParams, unknown>
@@ -68,6 +73,7 @@ interface TableRowComponentProps {
   setSelectedDate: Dispatch<SetStateAction<Date>>
   setSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
   setCreateUser: Dispatch<SetStateAction<boolean>>
+  setNotifications: Dispatch<SetStateAction<Notification[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
@@ -987,6 +993,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
               email: null,
               tags: null,
               timeslot: null,
+              notifications: null
             })
           }
           const field = choice.substring(endIndex + 1)
@@ -1158,6 +1165,10 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     mutationFn: (params: SendUserInviteEmailParams) => props.UserService.sendUserInviteEmail(params)
   })
 
+  const createNotification = useMutation({
+    mutationFn: (params: CreateNotificationParams) => props.NotificationService.createNotificationMutation(params)
+  })
+
   return (
     <>
       {userDetection[0] === 'unlinked' && detectedUser !== undefined && (
@@ -1170,6 +1181,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             ...detectedUser,
             temp: props.tempUsers.some((temp) => temp.email === detectedUser.email)
           }}
+          notifications={props.notifications}
           rowIndex={props.i}
           tags={props.tagData}
           linkUser={linkUser}
@@ -1342,6 +1354,21 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                         })
                       }))
                     }
+                  }}
+                />
+              )
+            }
+            case 'notification': {
+              return (
+                <NotificationCell
+                  key={j}
+                  value={v}
+                  NotificationService={props.NotificationService}
+                  notifications={props.notifications}
+                  setNotifications={props.setNotifications}
+                  updateValue={(value) => updateValue(id, value, props.i)}
+                  updateParticipant={(newNotification, participantId, userEmail, tempUser) => {
+                    //handle updating the notifications of the participant
                   }}
                 />
               )

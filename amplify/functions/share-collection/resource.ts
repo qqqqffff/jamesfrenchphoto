@@ -6,5 +6,6 @@ export const shareCollection = defineFunction({
   environment: {
     SENDGRID_API_KEY: secret('sendgrid-api-key-2'),
     BASE_LINK: secret('cloudfront-base-link')
-  }
+  },
+  runtime: 22,
 })
