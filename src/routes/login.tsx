@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useAuth } from '../auth'
-import { FormEvent, useState } from 'react'
+import { useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Alert, Button, Label, Modal, TextInput } from 'flowbite-react'
 import { textInputTheme } from '../utils'
@@ -62,7 +62,7 @@ function RouteComponent() {
   const [passwordLowerCharacter, setPasswordLowerCharacter] = useState(false)
 
   const [passwordVisible, setPasswordVisible] = useState(false)
-  const [resetPasswordVisible, setResetPasswordVisible] = useState(false)
+  const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false)
   
   function NotificationComponent() {
     return (
@@ -150,38 +150,36 @@ function RouteComponent() {
     )
   }
 
-  async function handlesubmit(event: FormEvent) {
-      event.preventDefault()
+  async function handlesubmit() {
+    try{
+      const response = await auth.login(
+        username,
+        password
+      )
 
-      try{
-        const response = await auth.login(
-          username,
-          password
-        )
-
-        if(response === 'nextStep'){
-          setSubmitting(false)
-          setPasswordResetVisible(true)
-          setPassword('')
-          return
-        }
-
-        await router.invalidate()
-
-        await new Promise(resolve => setTimeout(resolve, 1))
-
-        if(response === 'admin'){
-          navigate({ to: '/admin/dashboard'})
-        }
-        else if(response === 'client'){
-          navigate({ to: '/client/dashboard/advertise' })
-        }
+      if(response === 'nextStep'){
         setSubmitting(false)
-      } catch(err){
-        const error = err as Error
-        setFormErrors([error.message])
-        setSubmitting(false)
+        setPasswordResetVisible(true)
+        setPassword('')
+        return
       }
+
+      await router.invalidate()
+
+      await new Promise(resolve => setTimeout(resolve, 1))
+
+      if(response === 'admin'){
+        navigate({ to: '/admin/dashboard'})
+      }
+      else if(response === 'client'){
+        navigate({ to: '/client/dashboard/advertise' })
+      }
+      setSubmitting(false)
+    } catch(err){
+      const error = err as Error
+      setFormErrors([error.message])
+      setSubmitting(false)
+    }
   }
 
   async function confirmSignInWithNewPassword(){
@@ -252,8 +250,8 @@ function RouteComponent() {
       </Modal>
 
       <ForgotPasswordModal 
-        onClose={() => setResetPasswordVisible(false)}
-        open={resetPasswordVisible}
+        onClose={() => setForgotPasswordVisible(false)}
+        open={forgotPasswordVisible}
       />
 
       <div className="mt-4">
@@ -267,10 +265,7 @@ function RouteComponent() {
           )
         })}
       </div>
-      <form className='flex flex-col items-center justify-center font-main mt-12' onSubmit={(event: FormEvent) => {
-        handlesubmit(event)
-        setSubmitting(true)
-      }}>
+      <div className='flex flex-col items-center justify-center font-main mt-12'>
         <div className={`
           flex flex-col items-center justify-center 
           ${width > 800 ? 'w-[60%] border-4 border-gray-500 rounded-lg max-w-[48rem]' : 'w-full px-6 border-y-4 border-y-gray-500'}
@@ -278,9 +273,9 @@ function RouteComponent() {
         >
           <p className="font-bold text-4xl mb-8 mt-2 text-center">Welcome Back</p>
           <div className={`flex flex-col gap-3 ${width > 500 ? 'w-[60%]' : 'w-full px-6'}  max-w-[32rem]`}>
-            <Label className="ms-2 font-semibold text-xl" htmlFor="email">Email:</Label>
+            <span className="ms-2 font-semibold text-xl">Email:</span>
             <TextInput sizing='lg' className="mb-4 w-full" placeholder="Email" type="email" onChange={(event) => setUsername(event.target.value)} value={username} />
-            <Label className="ms-2 font-semibold text-xl" htmlFor="password">Password:</Label>
+            <span className="ms-2 font-semibold text-xl">Password:</span>
             <div className='w-full relative h-auto'>
               <TextInput sizing='lg' className="mb-4 w-full" placeholder="Password" type={passwordVisible ? 'text' : 'password'} onChange={(event) => setPassword(event.target.value)} value={password} />
               <button 
@@ -295,16 +290,24 @@ function RouteComponent() {
                 )}
               </button>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center pb-4">
               <button 
-                className='text-blue-500 hover:underline hover:text-blue-300 text-sm'
-                onClick={() => setPasswordResetVisible(true)}
+                className='text-blue-500 hover:underline hover:text-blue-300 text-sm font-medium'
+                onClick={() => setForgotPasswordVisible(true)}
               >Forgot password?</button>
-              <Button isProcessing={submitting} className="text-xl w-[40%] max-w-[8rem] mb-6" type="submit" disabled={!validate()}>Login</Button>
+              <Button 
+                isProcessing={submitting} 
+                className="text-xl w-[40%] max-w-[8rem]" 
+                disabled={!validate()}
+                onClick={() => {
+                  handlesubmit()
+                  setSubmitting(true)
+                }}
+              >Login</Button>
             </div>
           </div>
         </div>
-      </form>
+      </div>
     </>
   )
 }

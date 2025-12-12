@@ -50,59 +50,67 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
   }
 
   return (
-    <Modal show={props.open} onClose={() => {
-      props.onClose()
-      clearState()
-    }}
+    <Modal 
+      show={props.open} 
+      onClose={() => {
+        props.onClose()
+        clearState()
+      }}
+      size="lg"
     >
       <Modal.Header className="pb-2">Forgot Password</Modal.Header>
       <Modal.Body className="pb-2">
-        <div className="flex flex-col px-2 gap-4 border rounded-lg p-4 relative">
+        <div className="flex flex-col px-2 gap-4 p-4">
           {message !== undefined && (
-            <div className="absolute top-0 w-full mt-2">
+            <div className="w-full my-2">
               <Alert 
                 color={message.type === 'Success' ? 'green' : 'red'} 
                 onDismiss={() => setMessage(undefined)}
               >{message.message}</Alert>
             </div>
           )}
-          <div className="flex flex-row gap-2 items-center text-nowrap">
+          <div className="flex flex-row gap-2 text-nowrap">
             <span className="">Email:</span>
-            <TextInput 
-              className={`
-                font-thin p-0 text-sm border-transparent ring-transparent w-full
-                border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic 
-                ${invalidEmail ? 'border-b-red-500' : 'border-b-gray-400'}
-              `}
-              placeholder="Your Email..."
-              value={email}
-              onChange={(event) => {
-                if(forgotPasswordStep?.nextStep !== undefined) {
-                  setForgotPasswordStep(undefined)
-                  setEmail(event.target.value)
+            <div className="flex flex-col justify-start w-full">
+              <input 
+                className={`
+                  font-thin p-0 text-sm border-transparent ring-transparent w-full 
+                  border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic 
+                  ${invalidEmail ? 'border-b-red-500' : 'border-b-gray-400'}
+                `}
+                placeholder="Your Email..."
+                value={email}
+                onChange={(event) => {
+                  if(forgotPasswordStep?.nextStep !== undefined) {
+                    setForgotPasswordStep(undefined)
+                    setEmail(event.target.value)
+                    setInvalidEmail(false)
+                    setConfirmPassword('')
+                    setNewPassword('')
+                    setCode('')
+                  }
+                  else {
+                    setEmail(event.target.value)
+                    setInvalidEmail(false)
+                  }
+                }}
+                onBlur={() => {
+                  if(!validator.isEmail(email)) {
+                    setInvalidEmail(true)
+                  }
+                }}
+                onFocus={() => {
                   setInvalidEmail(false)
-                  setConfirmPassword('')
-                  setNewPassword('')
-                  setCode('')
-                }
-                else {
-                  setEmail(event.target.value)
-                  setInvalidEmail(false)
-                }
-              }}
-              onBlur={() => {
-                if(!validator.isEmail(email)) {
-                  setInvalidEmail(true)
-                }
-              }}
-              helperText={invalidEmail ? (
-                <span className="-mt-2 mb-4 ms-2 text-sm">
+                }}
+              />
+              {invalidEmail && (
+                <span className="ms-2 text-sm">
                   <span>
                     <span className="text-red-500">Please enter a valid email</span>
                   </span>
                 </span>
-              ) : undefined}
-            />
+              )}
+            </div>
           </div>
           {forgotPasswordStep?.nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE' && (
             <>
@@ -232,30 +240,32 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
             setResetCodeSending(true)
           }}
         >{forgotPasswordStep?.nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE' ? 'Res' : 'S'}end Code</Button>
-        <Button
-          isProcessing={passwordResetting}
-          disabled={!validatePassword() || code === ''}
-          size="sm"
-          onClick={() => {
-            confirmResetPassword({
-              confirmationCode: code,
-              newPassword: newPassword,
-              username: email
-            }).then(() => {
-              clearState()
-              props.onClose()
-            }).catch((error) => {
-              console.error(error)
-              setMessage({ type: 'Fail', message: 'Invalid code or reused password.'})
-              messageTimeout.current = setTimeout(() => {
-                messageTimeout.current = null
-                setMessage(undefined)
-              }, 10 * 1000)
-              setPasswordResetting(false)
-            })
-            setPasswordResetting(true)
-          }}
-        >Confirm Reset</Button>
+        {forgotPasswordStep?.nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE' && (
+          <Button
+            isProcessing={passwordResetting}
+            disabled={!validatePassword() || code === ''}
+            size="sm"
+            onClick={() => {
+              confirmResetPassword({
+                confirmationCode: code,
+                newPassword: newPassword,
+                username: email
+              }).then(() => {
+                clearState()
+                props.onClose()
+              }).catch((error) => {
+                console.error(error)
+                setMessage({ type: 'Fail', message: 'Invalid code or reused password.'})
+                messageTimeout.current = setTimeout(() => {
+                  messageTimeout.current = null
+                  setMessage(undefined)
+                }, 10 * 1000)
+                setPasswordResetting(false)
+              })
+              setPasswordResetting(true)
+            }}
+          >Confirm Reset</Button>
+        )}
       </Modal.Footer>
     </Modal>
   )
