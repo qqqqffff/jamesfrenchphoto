@@ -1,14 +1,38 @@
 
 import { CognitoIdentityProviderClient, ListUsersCommand, UserType } from '@aws-sdk/client-cognito-identity-provider';
 import sgMail from '@sendgrid/mail';
-import { ResetPasswordOutput } from 'aws-amplify/auth';
 import type { CustomMessageTriggerEvent, CustomMessageTriggerHandler } from 'aws-lambda';
+import {
+  KmsKeyringNode,
+  buildClient,
+  CommitmentPolicy,
+} from '@aws-crypto/client-node'
+import { env } from '$amplify/env/custom-message'
+
 
 // Initialize clients
 const cognitoClient = new CognitoIdentityProviderClient();
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+
+const { decrypt } = buildClient(CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT)
+const keyIds = [env.KEY_ARN]
+const keyring = new KmsKeyringNode({ keyIds })
+
+sgMail.setApiKey(env.SENDGRID_API_KEY);
 
 const FROM_EMAIL = 'no-reply@jamesfrenchphotography.com'; // Change this to your verified SendGrid email
+
+
+async function decryptCode(encryptedCode: string): Promise<string> {
+    try {
+        const { plaintext, messageHeader } = await decrypt(keyring, Buffer.from(encryptedCode))
+        console.log(plaintext, messageHeader)
+        return plaintext.toString('utf-8')
+    } catch (error) {
+        console.error('Error decrypting code:', error);
+        console.error('Encrypted code format:', encryptedCode);
+        throw error;
+    }
+}
 
 /**
  * Verify that a user with the given email exists in the user pool
@@ -46,6 +70,10 @@ export const handler: CustomMessageTriggerHandler = async (event: CustomMessageT
     console.log('Received event:', JSON.stringify(event, null, 2));
 
     if(event.triggerSource == 'CustomMessage_ForgotPassword'){
+        event.response.emailSubject = null;
+        event.response.emailMessage = null;
+        event.response.smsMessage = null;
+
         try {
             const { codeParameter } = event.request;
             const { email } = event.request.userAttributes;
@@ -56,10 +84,6 @@ export const handler: CustomMessageTriggerHandler = async (event: CustomMessageT
             
             if (user === null) {
                 console.log(`No user found with email: ${email}. Skipping email send.`);
-                // Still suppress Cognito's default email
-                event.response.emailSubject = '';
-                event.response.emailMessage = '';
-                event.response.smsMessage = '';
                 return event;
             }
 
@@ -68,20 +92,9 @@ export const handler: CustomMessageTriggerHandler = async (event: CustomMessageT
             const firstName = (user.Attributes ?? []).find((attribute) => attribute.Name === 'given_name')
             const lastName = (user.Attributes ?? []).find((attribute) => attribute.Name === 'family_name')
 
-            const structuredName = firstName !== undefined && lastName !== undefined ? ` ${firstName} ${lastName}` : ''
+            const structuredName = firstName !== undefined && lastName !== undefined ? ` ${firstName.Value} ${lastName.Value}` : ''
 
-            console.log(`
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2>Password Reset Request</h2>
-                    <p>Hello${structuredName},</p>
-                    <p>You requested to reset your password. Use the following code to reset it:</p>
-                    <div style="background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 20px 0;">
-                    ${codeParameter}
-                    </div>
-                    <p>If you didn't request this password reset, please ignore this email.</p>
-                    <p style="color: #666; font-size: 12px;">This code will expire in 1 hour.</p>
-                </div>
-            `)
+            const code = await decryptCode(codeParameter)
 
             // Compose the email
             const msg = {
@@ -95,7 +108,7 @@ export const handler: CustomMessageTriggerHandler = async (event: CustomMessageT
                     <p>Hello${structuredName},</p>
                     <p>You requested to reset your password. Use the following code to reset it:</p>
                     <div style="background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 20px 0;">
-                    ${codeParameter}
+                    ${code}
                     </div>
                     <p>If you didn't request this password reset, please ignore this email.</p>
                     <p style="color: #666; font-size: 12px;">This code will expire in 1 hour.</p>
@@ -107,17 +120,6 @@ export const handler: CustomMessageTriggerHandler = async (event: CustomMessageT
             const sendGridResponse = await sgMail.send(msg);
             console.log(`Response: ${sendGridResponse}`);
 
-            const response: ResetPasswordOutput = {
-                isPasswordReset: true,
-                nextStep: {
-                    resetPasswordStep: 'CONFIRM_RESET_PASSWORD_WITH_CODE',
-                    codeDeliveryDetails: {
-                        destination: email,
-                    }
-                }
-            }
-
-            return JSON.stringify(response)
         } catch (error) {
             console.error('Error sending email:', error);
             
@@ -130,4 +132,6 @@ export const handler: CustomMessageTriggerHandler = async (event: CustomMessageT
             // Cognito will fall back to default message if custom one fails
         }
     }
+
+    return event
 }

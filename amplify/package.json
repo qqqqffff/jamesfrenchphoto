@@ -1,6 +1,8 @@
 {
   "type": "module",
   "dependencies": {
+    "@aws-crypto/client-node": "^4.2.1",
+    "@aws-sdk/client-kms": "^3.948.0",
     "@types/image-size": "^0.7.0",
     "image-size": "^2.0.2"
   }

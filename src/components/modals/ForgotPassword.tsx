@@ -1,6 +1,6 @@
 import { FC, useRef, useState } from "react";
 import { ModalProps } from ".";
-import { Alert, Button, Modal, TextInput } from "flowbite-react";
+import { Alert, Button, Modal } from "flowbite-react";
 import { confirmResetPassword, resetPassword, type ResetPasswordOutput } from "aws-amplify/auth";
 import validator from 'validator'
 import { HiOutlineEye, HiOutlineEyeSlash } from "react-icons/hi2"
@@ -62,7 +62,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
       <Modal.Body className="pb-2">
         <div className="flex flex-col px-2 gap-4 p-4">
           {message !== undefined && (
-            <div className="w-full my-2">
+            <div className="w-full mb-2">
               <Alert 
                 color={message.type === 'Success' ? 'green' : 'red'} 
                 onDismiss={() => setMessage(undefined)}
@@ -126,63 +126,64 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
                   onChange={(event) => setCode(event.target.value)}
                 />
               </div>
-              <div className="flex flex-row gap-2 items-center text-nowrap relative">
+              <div className="flex flex-row gap-2 text-nowrap">
                 <span className="">New Password:</span>
-                <TextInput
-                  type={passwordVisible ? 'text' : 'password'}
-                  className={`
-                    font-thin p-0 text-sm border-transparent ring-transparent w-full max-w-xs
-                    border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic 
-                    ${invalidPassword ? 'border-b-red-500' : 'border-b-gray-400'}
-                  `}
-                  placeholder="New Password..."
-                  value={newPassword}
-                  onChange={(event) => {
-                    setNewPassword(event.target.value)
-                    setInvalidPassword(false)
-                  }}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => {
-                    if(!validatePassword()) {
-                      setInvalidPassword(true)
-                      setPasswordFocused(false)
-                    }
-                    else {
-                      setPasswordFocused(false)
-                    }
-                  }}
-                  helperText={passwordFocused ? (
-                    <span className="-mt-2 mb-4 ms-2 text-sm">
-                      <span>
-                        <span>Your password must</span>
-                        <span className={`${newPassword === confirmPassword && newPassword !== '' ? 'text-green-500' : 'text-red-600'}`}> match </span> 
-                        <span>and include: a</span>
-                        <span className={`${/^.*\d+.*$/g.test(newPassword) ? 'text-green-500' : 'text-red-600'}`}> number</span>, 
-                        <span className={`${/^.*[!@#$%^&*(),.?":{}|<>]+.*$/g.test(newPassword) ? 'text-green-500' : 'text-red-600'}`}> special character</span>, 
-                        <span className={`${/^.*[A-Z]+.*$/g.test(newPassword) ? 'text-green-500' : 'text-red-600'}`}> upper</span> 
-                        <span> and </span>
-                        <span className={`${/^.*[a-z]+.*$/g.test(newPassword) ? 'text-green-500' : 'text-red-600'}`}> lower</span> 
-                        <span> case characters, and </span>
-                        <span className={`${newPassword.length >= 8 ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span>
-                        <span>.</span>
+                <div className="flex flex-col justify-start w-full relative">
+                  <input
+                    type={passwordVisible ? 'text' : 'password'}
+                    className={`
+                      font-thin p-0 text-sm border-transparent ring-transparent w-full max-w-xs
+                      border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic 
+                      ${invalidPassword ? 'border-b-red-500' : 'border-b-gray-400'}
+                    `}
+                    placeholder="New Password..."
+                    value={newPassword}
+                    onChange={(event) => {
+                      setNewPassword(event.target.value)
+                      setInvalidPassword(false)
+                    }}
+                    onFocus={() => {
+                      setPasswordFocused(true)
+                      setInvalidPassword(false)
+                    }}
+                    onBlur={() => {
+                      if(!validatePassword()) {
+                        setInvalidPassword(true)
+                        setPasswordFocused(false)
+                      }
+                      else {
+                        setPasswordFocused(false)
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => setPasswordVisible(!passwordVisible)}
+                    className="absolute top-0 right-3 mt-0.5"
+                  >
+                    {passwordVisible ? (
+                      <HiOutlineEyeSlash size={20} className='fill-white'/>
+                    ) : (
+                      <HiOutlineEye size={20} className='fill-white'/>
+                    )}
+                  </button>
+                  {passwordFocused && (
+                    <span className="ms-2 text-sm">
+                      <span>Your password must include the following:</span>
+                      <span className="grid grid-cols-2">
+                        <span>- <span className={`${newPassword === confirmPassword && newPassword !== '' ? 'text-green-500' : 'text-red-600'}`}>match</span></span>
+                        <span>- <span className={`${/^.*\d+.*$/g.test(newPassword) ? 'text-green-500' : 'text-red-600'}`}>number</span></span>
+                        <span>- <span className={`${/^.*[!@#$%^&*(),.?":{}|<>]+.*$/g.test(newPassword) ? 'text-green-500' : 'text-red-600'}`}>special character</span></span>
+                        <span>- <span className={`${/^.*[A-Z]+.*$/g.test(newPassword) ? 'text-green-500' : 'text-red-600'}`}>upper case</span></span>
+                        <span>- <span className={`${/^.*[a-z]+.*$/g.test(newPassword) ? 'text-green-500' : 'text-red-600'}`}> lower case</span> </span>
+                        <span>- <span className={`${newPassword.length >= 8 ? 'text-green-500' : 'text-red-600'}`}> at least 8 characters</span></span>
                       </span>
                     </span>
-                  ) : undefined}
-                />
-                <button
-                  onClick={() => setPasswordVisible(!passwordVisible)}
-                  className="absolute top-0 right-3 mt-2"
-                >
-                  {passwordVisible ? (
-                    <HiOutlineEyeSlash size={24} className='fill-white'/>
-                  ) : (
-                    <HiOutlineEye size={24} className='fill-white'/>
                   )}
-                </button>
+                </div>
               </div>
               <div className="flex flex-row gap-2 items-center text-nowrap relative">
                 <span className="">Confirm Password:</span>
-                <TextInput
+                <input
                   type='password'
                   className={`
                     font-thin p-0 text-sm border-transparent ring-transparent w-full max-w-xs
@@ -213,7 +214,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
           disabled={!validator.isEmail(email) || cooldown !== undefined || resetCodeSending}
           onClick={() => {
             resetPassword({
-              username: email
+              username: email.toLowerCase()
             }).then((output) => {
               setForgotPasswordStep(output)
               setMessage({ type: 'Success', message: `Sent code to ${email} if an account exists!`})
