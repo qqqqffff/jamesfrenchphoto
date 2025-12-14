@@ -1,7 +1,6 @@
 import { Dispatch, SetStateAction } from "react"
 import { Participant, TableColumn, Timeslot, UserTag } from "../../types"
-import { formatTime } from "../../utils"
-import { createTimeString } from "../timeslot/Slot"
+import { formatTime, formatTimeslotDates } from "../../utils"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
 import { Dropdown } from "flowbite-react";
 import { ParticipantFieldLinks } from "../modals/LinkUser";
@@ -562,7 +561,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   return (
                     <div className="flex flex-col border w-full rounded-lg items-center py-1 px-2" key={index}>
                       <span className="whitespace-nowrap text-nowrap">{formatTime(timeslot.start, {timeString: false})}</span>
-                      <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timeslot)}</span>
+                      <span className="text-xs whitespace-nowrap text-nowrap">{formatTimeslotDates(timeslot)}</span>
                     </div>
                   )
                 })
@@ -571,7 +570,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   return (
                     <div className="flex flex-col border w-full rounded-lg items-center py-1 px-2" key={index}>
                       <span className="whitespace-nowrap text-nowrap">{formatTime(timeslot.start, {timeString: false})}</span>
-                      <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timeslot)}</span>
+                      <span className="text-xs whitespace-nowrap text-nowrap">{formatTimeslotDates(timeslot)}</span>
                     </div>
                   )
                 })

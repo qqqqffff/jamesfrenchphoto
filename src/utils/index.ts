@@ -1,5 +1,5 @@
 import { CustomFlowbiteTheme } from "flowbite-react"
-import { TableColumn } from "../types"
+import { TableColumn, Timeslot } from "../types"
 
 export function formatTime(time: Date | string | undefined, params?: {timeString: boolean}): string {
     if(!time) return 'N/A'
@@ -22,6 +22,13 @@ export const normalizeDate = (date: Date): Date => {
         date.getMonth(),
         date.getDate()
     )
+}
+
+export const formatTimeslotDates = (timeslot: Timeslot) => {
+    const startString = new Date(timeslot.start).toLocaleTimeString('en-us', { timeZone: 'America/Chicago' })
+    const endString = new Date(timeslot.end).toLocaleTimeString('en-us', { timeZone: 'America/Chicago' })
+    const formatTime = (timeString: String) => timeString.substring(0, timeString.lastIndexOf(':')) + timeString.substring(timeString.indexOf(' '))
+    return `${formatTime(startString)} - ${formatTime(endString)}`
 }
 
 export const sortDatesAround = (dates: Date[], date: Date) => {

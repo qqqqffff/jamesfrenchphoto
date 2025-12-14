@@ -4,9 +4,9 @@ import { HiOutlineCalendar, HiOutlineChevronLeft, HiOutlineChevronRight, HiOutli
 import { currentDate, DAY_OFFSET, defaultColumnColors, formatTime, textInputTheme } from "../../../utils";
 import { formatParticipantName } from "../../../functions/clientFunctions";
 import { useMutation, useQueries, UseQueryResult } from "@tanstack/react-query";
-import { TimeslotService, RegisterTimeslotMutationParams } from "../../../services/timeslotService";
+import { TimeslotService, AdminRegisterTimeslotMutationParams } from "../../../services/timeslotService";
 import { DateInput } from "../../common/DateInput";
-import { createTimeString } from "../../timeslot/Slot";
+import { formatTimeslotDates } from "../../../utils";
 import { Dropdown, Label, Radio, TextInput } from "flowbite-react";
 import NotificationComponent from "../../timeslot/NotificationComponent";
 import { ConfirmationModal } from "../../modals";
@@ -53,6 +53,7 @@ export const DateCell = (props: DateCellProps) => {
   const selectedTimeslot = useRef<Timeslot | null>(null)
   const [notify, setNotify] = useState<boolean>(true)
   const [notifyEmail, setNotifyEmail] = useState<string>('')
+  const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([])
   
   useEffect(() => {
     if(props.value !== value){
@@ -114,7 +115,7 @@ export const DateCell = (props: DateCellProps) => {
   // })
 
   const registerTimeslot = useMutation({
-    mutationFn: (params: RegisterTimeslotMutationParams) => props.TimeslotService.registerTimeslotMutation(params)
+    mutationFn: (params: AdminRegisterTimeslotMutationParams) => props.TimeslotService.adminRegisterTimeslotMutation(params)
   })
 
   const cellTimeslotIds = (value.split(',') ?? []).filter((timeslotId) => timeslotId !== '')
@@ -167,19 +168,13 @@ export const DateCell = (props: DateCellProps) => {
           denyText="Back"
           confirmAction={() => {
             //TODO: search for other areas with the edge case of having a register but no participantId
-            if(selectedTimeslot.current) {
+            if(selectedTimeslot.current && foundParticipant) {
               registerTimeslot.mutate({
-                timeslot: {
-                  ...selectedTimeslot.current,
-                  register: foundParticipant?.user.email ? 
-                    foundParticipant.user.email 
-                  : 
-                    selectedTimeslot.current.register ? 
-                      selectedTimeslot.current.register 
-                    : 
-                      'Not specified',
-                  participantId: foundParticipant?.participant.id,
-                },
+                timeslot: selectedTimeslot.current.id,
+                userEmail: foundParticipant.user.email,
+                participantId: foundParticipant.participant.id,
+                additionalRecipients: foundParticipant.participant.contact && foundParticipant.participant.email ? [foundParticipant.participant.email] : [],
+                unregister: false,
                 notify: notify && 
                   ((
                     !foundParticipant && 
@@ -222,7 +217,12 @@ export const DateCell = (props: DateCellProps) => {
               />
             </div>
           ) : (
-            <NotificationComponent setNotify={setNotify} email={foundParticipant.user.email} notify={notify} />
+            <NotificationComponent 
+              setNotify={setNotify} 
+              email={foundParticipant.user.email} 
+              notify={notify} recipients={additionalRecipients} 
+              setRecipients={setAdditionalRecipients} 
+            />
           )}
           title="Confirm Timeslot Selection" 
           body={`<b>Registration for Timeslot: ${selectedTimeslot.current.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot.current.start, {timeString: true})} - ${formatTime(selectedTimeslot.current.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.${selectedTimeslot.current.register || selectedTimeslot.current.participantId ? `\nThis timeslot is currently registered to ${
@@ -246,12 +246,12 @@ export const DateCell = (props: DateCellProps) => {
             //removing register/participant association
             if(selectedTimeslot.current) {
               registerTimeslot.mutate({
-                timeslot: {
-                  ...selectedTimeslot.current,
-                  register: undefined,
-                  participantId: undefined
-                },
+                timeslot: selectedTimeslot.current.id,
                 notify: false,
+                unregister: true,
+                participantId: '',
+                userEmail: '',
+                additionalRecipients: [],
                 options: {
                   logging: true
                 }
@@ -516,7 +516,7 @@ export const DateCell = (props: DateCellProps) => {
                         }}
                       >
                         <span className={`whitespace-nowrap text-nowrap font-semibold`}>{formatTime(timeslot.start, {timeString: false})}</span>
-                        <span className={`text-xs whitespace-nowrap text-nowrap font-semibold`}>{createTimeString(timeslot)}</span>
+                        <span className={`text-xs whitespace-nowrap text-nowrap font-semibold`}>{formatTimeslotDates(timeslot)}</span>
                       </button>
                     )
                   })}
@@ -539,7 +539,7 @@ export const DateCell = (props: DateCellProps) => {
                           }}
                         >
                           <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId !== undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>
-                          <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId != undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{createTimeString(timeslot)}</span>
+                          <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId != undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{formatTimeslotDates(timeslot)}</span>
                         </button>
                       )
                     })
@@ -557,7 +557,7 @@ export const DateCell = (props: DateCellProps) => {
                           }}
                         >
                           <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>
-                          <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId ? 'line-through' : ''}`}>{createTimeString(timeslot)}</span>
+                          <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId ? 'line-through' : ''}`}>{formatTimeslotDates(timeslot)}</span>
                         </button>
                       )
                     })

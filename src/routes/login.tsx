@@ -307,7 +307,19 @@ function RouteComponent() {
             <TextInput sizing='lg' className="mb-4 w-full" placeholder="Email" type="email" onChange={(event) => setUsername(event.target.value)} value={username} />
             <span className="ms-2 font-semibold text-xl">Password:</span>
             <div className='w-full relative h-auto'>
-              <TextInput sizing='lg' className="mb-4 w-full" placeholder="Password" type={passwordVisible ? 'text' : 'password'} onChange={(event) => setPassword(event.target.value)} value={password} />
+              <TextInput 
+                sizing='lg' 
+                className="mb-4 w-full" 
+                placeholder="Password" type={passwordVisible ? 'text' : 'password'} 
+                onChange={(event) => setPassword(event.target.value)} 
+                value={password}
+                onKeyDown={(event) => {
+                  if(event.code === 'Enter' && validate()) {
+                    handlesubmit()
+                    setSubmitting(true)
+                  }
+                }}
+              />
               <button 
                 type='button' 
                 onClick={() => setPasswordVisible(!passwordVisible)}

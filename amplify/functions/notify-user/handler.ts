@@ -245,7 +245,7 @@ const template = `
   </html>
 `
 
-const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig({...env, AMPLIFY_DATA_DEFAULT_NAME: 'default'})
+const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig({...env })
 
 Amplify.configure(resourceConfig, libraryOptions)
 

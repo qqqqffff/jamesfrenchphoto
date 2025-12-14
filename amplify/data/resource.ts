@@ -400,7 +400,7 @@ const schema = a.schema({
       timeslotId: a.string().required(),
       unregister: a.boolean().required(),
       userEmail: a.string().required(),
-      participantId: a.string().required()
+      participantId: a.string().required(),
     })
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(registerTimeslot))
@@ -467,6 +467,9 @@ const schema = a.schema({
       email: a.string().required(),
       start: a.datetime().required(),
       end: a.datetime().required(),
+      participantId: a.string().required(),
+      tagId: a.string().required(),
+      additionalRecipients: a.string().array(),
     })
     .handler(a.handler.function(sendTimeslotConfirmation))
     .authorization((allow) => [allow.authenticated()])
@@ -569,7 +572,9 @@ const schema = a.schema({
   allow.resource(shareUserInvite),
   allow.resource(repairPaths),
   allow.resource(registerUser),
-  allow.resource(registerTimeslot)
+  allow.resource(registerTimeslot),
+  allow.resource(notifyUser),
+  allow.resource(sendTimeslotConfirmation)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

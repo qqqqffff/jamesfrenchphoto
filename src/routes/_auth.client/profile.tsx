@@ -96,13 +96,8 @@ function RouteComponent() {
             submit={(noti: string, participant: Participant) => {
               const tempUserProfile = {
                 ...user,
+                participant: user.participant.map((part) => part.id === participant.id ? participant: part)
               }
-              tempUserProfile.participant = tempUserProfile.participant.map((part) => {
-                if(part.id == participant.id){
-                  return participant
-                }
-                return part
-              })
 
               updateProfile(tempUserProfile)
               setUser(tempUserProfile)
