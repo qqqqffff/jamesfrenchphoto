@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useAuth } from '../auth'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import useWindowDimensions from '../hooks/windowDimensions'
 import { Alert, Button, Label, Modal, TextInput } from 'flowbite-react'
 import { textInputTheme } from '../utils'
@@ -12,6 +12,7 @@ interface LoginParams {
   unauthorized?: boolean,
   invalidToken?: boolean,
   relogin?: boolean,
+  forgotPassword?: boolean,
 }
 
 export const Route = createFileRoute('/login')({
@@ -21,6 +22,7 @@ export const Route = createFileRoute('/login')({
     unauthorized: (search.unauthorized as boolean) || undefined,
     invalidToken: (search.invalidToken as boolean) || undefined,
     relogin: (search.relogin as boolean) || undefined,
+    forgotPassword: (search.forgotPassword as boolean) || undefined,
   })
 })
 
@@ -71,7 +73,7 @@ function RouteComponent() {
           notifications.find((item) => item.item === 'createAccount')?.visible && 
           notification('Successfully created user! Login with the user\'s email and password you just set!', 'green', 
             () => {
-              navigate({ to: '.' })
+              navigate({ to: '.', search: { ...search, createAccount: undefined } })
               setNotifications(
                 notifications.map((notification) => {
                   if(notification.item === 'createAccount') return {...notification, visible: false}
@@ -100,7 +102,7 @@ function RouteComponent() {
           notifications.find((item) => item.item === 'unauthorized')?.visible && 
           notification('Unauthorized', 'red', 
             () => {
-              navigate({ to: '.' })
+              navigate({ to: '.', search: { ...search, unauthorized: undefined }  })
               setNotifications(
                 notifications.map((notification) => {
                   if(notification.item === 'unauthorized') return {...notification, visible: false}
@@ -114,7 +116,7 @@ function RouteComponent() {
           notifications.find((item) => item.item === 'relogin')?.visible && 
           notification('Session expired please relogin', 'green', 
             () => {
-              navigate({ to: '.' })
+              navigate({ to: '.', search: { ...search, relogin: undefined }  })
               setNotifications(
                 notifications.map((notification) => {
                   if(notification.item === 'relogin') return {...notification, visible: false}
@@ -128,7 +130,7 @@ function RouteComponent() {
           notifications.find((item) => item.item === 'invalidToken')?.visible &&
           notification('The provided access token is invalid or has expired. If this was unexpected please ask for a new one.', 'red',
             () => {
-              navigate({ to: '.' })
+              navigate({ to: '.', search: { ...search, invalidToken: undefined }  })
               setNotifications(
                 notifications.map((notification) => {
                   if(notification.item === 'invalidToken') return {...notification, visible: false}
@@ -136,6 +138,20 @@ function RouteComponent() {
                 })
               )
             },
+          )
+        }
+        {
+          notifications.find((item) => item.item === 'forgotPassword')?.visible && 
+          notification('Successfully reset password', 'green', 
+            () => {
+              navigate({ to: '.', search: { ...search, forgotPassword: undefined }  })
+              setNotifications(
+                notifications.map((notification) => {
+                  if(notification.item === 'forgotPassword') return {...notification, visible: false}
+                  return notification
+                })
+              )
+            }
           )
         }
       </div>
@@ -204,6 +220,15 @@ function RouteComponent() {
       }
   }
 
+  useEffect(() => {
+    setNotifications([
+      ...Object.entries(search).map((item) => 
+        ({item: item[0], visible: item[1] !== undefined})
+      ), 
+      { item: 'alreadyLoggedIn', visible: auth.isAuthenticated },
+    ])
+  }, [search, auth.isAuthenticated])
+
   return (
     <>
       <NotificationComponent />
@@ -250,28 +275,33 @@ function RouteComponent() {
       </Modal>
 
       <ForgotPasswordModal 
-        onClose={() => setForgotPasswordVisible(false)}
+        onClose={() => {
+          setForgotPasswordVisible(false)
+        }}
         open={forgotPasswordVisible}
+        successCallback={() => {
+          navigate({ to: '.', search: { ...search, forgotPassword: true }})
+        }}
       />
 
-      <div className="mt-4">
-        {formErrors.length > 0 && formErrors.map((error, index) => {
-          return (
-            <div key={index} className="flex justify-center items-center font-main mb-4">
-              <Alert color='red' className="text-lg w-[90%]" onDismiss={() => {setFormErrors(formErrors.filter((e) => e != error))}}>
-                <p>{error}</p>
-              </Alert>
-            </div>
-          )
-        })}
-      </div>
       <div className='flex flex-col items-center justify-center font-main mt-12'>
         <div className={`
           flex flex-col items-center justify-center 
           ${width > 800 ? 'w-[60%] border-4 border-gray-500 rounded-lg max-w-[48rem]' : 'w-full px-6 border-y-4 border-y-gray-500'}
         `}
         >
-          <p className="font-bold text-4xl mb-8 mt-2 text-center">Welcome Back</p>
+          <div className="mt-2 w-full relative">
+            <div className="items-center mb-4 absolute top-0 left-0 right-0 mx-20">
+              {formErrors.length > 0 && formErrors.map((error, index) => {
+                return (
+                  <Alert key={index} color='red' className="text-base w-full opacity-70 font-semibold" onDismiss={() => {setFormErrors(formErrors.filter((e) => e != error))}}>
+                    <p>{error}</p>
+                  </Alert>
+                )
+              })}
+            </div>
+          </div>
+          <p className="font-bold text-4xl mb-8 mt-8 text-center">Welcome Back</p>
           <div className={`flex flex-col gap-3 ${width > 500 ? 'w-[60%]' : 'w-full px-6'}  max-w-[32rem]`}>
             <span className="ms-2 font-semibold text-xl">Email:</span>
             <TextInput sizing='lg' className="mb-4 w-full" placeholder="Email" type="email" onChange={(event) => setUsername(event.target.value)} value={username} />
@@ -290,7 +320,7 @@ function RouteComponent() {
                 )}
               </button>
             </div>
-            <div className="flex justify-between items-center pb-4">
+            <div className="flex justify-between items-center pb-4 mb-8">
               <button 
                 className='text-blue-500 hover:underline hover:text-blue-300 text-sm font-medium'
                 onClick={() => setForgotPasswordVisible(true)}

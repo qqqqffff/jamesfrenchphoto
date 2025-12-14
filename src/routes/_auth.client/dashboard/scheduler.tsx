@@ -61,21 +61,18 @@ function RouteComponent() {
   const [unregisterConfirmationVisible, setUnegisterConfirmationVisible] = useState(false)
 
   const [notify, setNotify] = useState(true)
+  const [notifyAdditionalRecipients, setNotifyAdditionalRecipients] = useState<string[]>([])
   const { width } = useWindowDimensions()
 
   //automatically setting date based on the closest date to present
   useEffect(() => {
-    if((timeslots.data ?? []).length > 0) { 
-      setActiveDate(sortDatesAround(
-        (timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).map((timeslot) => {
-          return normalizeDate(timeslot.start)
-        }), currentDate).reduce((prev, cur) => {
-          if(prev.getTime() < currentDate.getTime() && cur.getTime() >= currentDate.getTime()) {
-            return cur
-          }
-          return prev
-        }, currentDate)
-      )
+    if((timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).length > 0) { 
+      setActiveDate(new Date((timeslots.data ?? [])
+      .filter((timeslot) => timeslot.tag?.id === activeTag.id)
+      .sort((a, b) => {
+        if(new Date(a.start).getTime() < currentDate.getTime()) return 1
+        return new Date(a.start).getTime() - new Date(b.start).getTime()
+      })[0].start)) 
     }
   }, [timeslots.data, activeTag])
 
@@ -163,6 +160,8 @@ function RouteComponent() {
       })
   }
 
+  const shortNoticeRebook = selectedTimeslot ? (normalizeDate(selectedTimeslot.start).getTime() - normalizeDate(currentDate).getTime()) <= 24 * 3 * 1000 * 60 * 60 : null
+
   return (
     <>
       <ConfirmationModal 
@@ -208,9 +207,16 @@ function RouteComponent() {
             router.invalidate()
           }
         }}
-        children={(<NotificationComponent setNotify={setNotify} email={userEmail} notify={notify} />)}
+        children={(
+        <NotificationComponent 
+          setNotify={setNotify} 
+          email={userEmail} 
+          notify={notify} 
+          setRecipients={setNotifyAdditionalRecipients}
+          recipients={notifyAdditionalRecipients}
+        />)}
         title="Confirm Timeslot Selection" 
-        body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}
+        body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!${shortNoticeRebook ? '\nRescheduling within a 48 hours of the selected date will incur an additional short notice rescheduling fee.' : ''}`}
       />
       <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
         confirmText="Confirm"

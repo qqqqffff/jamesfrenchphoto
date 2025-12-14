@@ -1,11 +1,12 @@
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
+import { Dispatch, SetStateAction, useRef, useState } from "react"
 import { 
   Table, 
   TableColumn, 
   TableGroup, 
   UserData, 
   UserProfile, 
-  UserTag 
+  UserTag,
+  Notification
 } from "../../../types"
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { 
@@ -26,6 +27,7 @@ import { UserService, InviteUserParams, CreateParticipantParams, UpdateParticipa
 import { PhotoPathService } from "../../../services/photoPathService"
 import { TableHeaderComponent } from "./TableHeaderComponent"
 import { TableBodyComponent } from "./TableBodyComponent"
+import { NotificationService } from "../../../services/notificationService"
 
 interface TableComponentProps {
   TableService: TableService,
@@ -33,6 +35,14 @@ interface TableComponentProps {
   UserService: UserService,
   table: Table,
   PhotoPathService: PhotoPathService,
+  NotificationService: NotificationService,
+  tempUsers: UserProfile[],
+  users: UserData[],
+  notifications: Notification[],
+  sidePanelExpanded: boolean,
+  setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
+  setUsers: Dispatch<SetStateAction<UserData[]>>
+  setNotifications: Dispatch<SetStateAction<Notification[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
@@ -40,12 +50,12 @@ interface TableComponentProps {
   userData: UseQueryResult<UserData[] | undefined, Error>
   tagData: UseQueryResult<UserTag[] | undefined, Error>
   tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
+  notificationsData: UseQueryResult<Notification[], Error>
 }
 
 export const TableComponent = (props: TableComponentProps) => {
   const [deleteColumnConfirmation, setDeleteColumnConfirmation] = useState(false)
-  const [tempUsers, setTempUsers] = useState<UserProfile[]>([])
-  const [users, setUsers] = useState<UserData[]>([])
+  
   const [selectedDate, setSelectedDate] = useState<Date>(currentDate)
   const [selectedTag, setSelectedTag] = useState<UserTag | undefined>()
   const [createUser, setCreateUser] = useState(false)
@@ -131,18 +141,6 @@ export const TableComponent = (props: TableComponentProps) => {
     mutationFn: (params: AdminRegisterTimeslotMutationParams) => props.TimeslotService.adminRegisterTimeslotMutation(params)
   })
 
-  useEffect(() => {
-    if(props.tempUsersData.data && props.tempUsersData.data.length > 0) {
-      setTempUsers(props.tempUsersData.data)
-    }
-  }, [props.tempUsersData.data])
-
-  useEffect(() => {
-    if(props.userData.data) {
-      setUsers(props.userData.data)
-    }
-  }, [props.userData.data])
-
   return (
     <>
       <ConfirmationModal
@@ -213,7 +211,7 @@ export const TableComponent = (props: TableComponentProps) => {
             }
           })
 
-          tempUsers.push(userProfile)
+          props.setTempUsers((prev) => [...prev, userProfile])
         }}
         tableColumns={props.table.columns}
         rowNumber={refRow.current}
@@ -224,15 +222,16 @@ export const TableComponent = (props: TableComponentProps) => {
           refRow.current = -1
         }}
       />
-      {/* overflow-x-auto overflow-y-auto */}
-      <div className="relative shadow-md ">
-        <table className="w-full text-sm text-left text-gray-600">
+      <div className="relative shadow-md overflow-auto max-h-full max-w-full">
+        <table 
+          className={`text-sm w-full h-full`}
+        >
           <TableHeaderComponent 
             table={props.table}
             refColumn={refColumn}
             tagData={props.tagData}
-            users={users}
-            tempUsers={tempUsers}
+            users={props.users}
+            tempUsers={props.tempUsers}
             createColumn={createColumn}
             updateColumn={updateColumn}
             reorderTableColumns={reorderTableColumns}
@@ -247,10 +246,12 @@ export const TableComponent = (props: TableComponentProps) => {
             UserService={props.UserService}
             TableService={props.TableService}
             PhotoPathService={props.PhotoPathService}
+            NotificationService={props.NotificationService}
             table={props.table}
             tableRows={tableRows}
-            users={users}
-            tempUsers={tempUsers}
+            users={props.users}
+            tempUsers={props.tempUsers}
+            notifications={props.notifications}
             selectedTag={selectedTag}
             selectedDate={selectedDate}
             baseLink={link}
@@ -260,6 +261,7 @@ export const TableComponent = (props: TableComponentProps) => {
             tagData={props.tagData}
             userData={props.userData}
             tempUsersData={props.tempUsersData}
+            notificationsData={props.notificationsData}
             deleteRow={deleteRow}
             appendRow={appendRow}
             updateColumn={updateColumn}
@@ -270,11 +272,12 @@ export const TableComponent = (props: TableComponentProps) => {
             updateParticipant={updateParticipant}
             createParticipant={createParticipant}
             registerTimeslot={registerTimeslot}
-            setTempUsers={setTempUsers}
-            setUsers={setUsers}
+            setTempUsers={props.setTempUsers}
+            setUsers={props.setUsers}
             setSelectedDate={setSelectedDate}
             setSelectedTag={setSelectedTag}
             setCreateUser={setCreateUser}
+            setNotifications={props.setNotifications}
             parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
             parentUpdateTableGroups={props.parentUpdateTableGroups}
             parentUpdateTable={props.parentUpdateTable}

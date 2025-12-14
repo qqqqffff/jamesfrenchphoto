@@ -1,10 +1,10 @@
 import { useMutation, UseQueryResult } from "@tanstack/react-query"
-import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlinePlusCircle } from "react-icons/hi2"
+import { HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlinePlusCircle } from "react-icons/hi2"
 import { TableService, CreateTableGroupParams, CreateTableParams, DeleteTableGroupParams, UpdateTableGroupParams } from "../../../services/tableService"
 import { Table, TableGroup } from "../../../types"
 import { Dispatch, SetStateAction, useRef, useState } from "react"
 import { EditableTextField } from "../../common/EditableTextField"
-import { HiOutlineDotsHorizontal } from "react-icons/hi"
+import { HiOutlineDotsHorizontal, HiOutlineMinusCircle } from "react-icons/hi"
 import { Dropdown } from "flowbite-react"
 import { ConfirmationModal } from "../../modals"
 import { useNavigate } from "@tanstack/react-router"
@@ -15,6 +15,8 @@ interface TableSidePanelParams {
   TableService: TableService,
   tableGroups: TableGroup[],
   tableGroupsQuery: UseQueryResult<TableGroup[] | undefined, Error>,
+  sidePanelExpanded: boolean,
+  setSidePanelExpanded: Dispatch<SetStateAction<boolean>>,
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>,
   selectedTableGroups: TableGroup[],
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>,
@@ -76,32 +78,53 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
         onClose={() => setDeleteConfirmation(false)}
         open={deleteConfirmation}
       />
-      <div className="flex flex-col items-center border border-gray-400 gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
-        <div className="flex flex-row items-center w-full justify-between px-4 border-b pb-4 border-b-gray-400">
-          <span className="text-2xl text-start">Tables</span>
-          <button 
-            className="flex flex-row items-center gap-2 enabled:hover:text-gray-500 enabled:hover:bg-gray-100 px-3 py-1 border rounded-xl disabled:text-gray-400"
-            disabled={props.tableGroups.some((group) => group.temporary)}
-            onClick={() => {
-              const temp = [
-                ...props.tableGroups
-              ]
-              temp.push({
-                id: v4(),
-                name: '',
-                tables: [],
-                temporary: true,
-                createdAt: new Date().toISOString()
-              })
+      <div className={`flex flex-col items-center border border-gray-400 gap-2 rounded-2xl ${props.sidePanelExpanded ? 'min-w-[400px] p-4 w-[400px]' : 'w-[50px] max-w-[50px]'} transition-all duration-300 ease-in-out`}>
+        <div className={`flex flex-row items-center w-full justify-between ${props.sidePanelExpanded ? 'border-b  border-b-gray-400 pb-2' : ''}`}>
+          <span className={`text-2xl text-start ${props.sidePanelExpanded ? 'ps-4 pe-2' : 'rotate-90 mt-8 -ms-1.5'} transition-all duration-300 ease-in-out`}>Tables</span>
+          {props.sidePanelExpanded && (
+            <div className="flex flex-row gap-2">
+              <button 
+                className="flex flex-row items-center gap-2 enabled:hover:text-gray-500 enabled:hover:bg-gray-100 px-3 py-1 border rounded-xl disabled:text-gray-400"
+                disabled={props.tableGroups.some((group) => group.temporary)}
+                onClick={() => {
+                  const temp = [
+                    ...props.tableGroups
+                  ]
+                  temp.push({
+                    id: v4(),
+                    name: '',
+                    tables: [],
+                    temporary: true,
+                    createdAt: new Date().toISOString()
+                  })
 
-              props.parentUpdateTableGroups(temp)
+                  props.parentUpdateTableGroups(temp)
+                }}
+              >
+                <span>Create Group</span>
+                <HiOutlinePlusCircle size={20}/>
+              </button>
+              <button
+                className="hover:text-gray-500 rounded-full"
+                onClick={() => props.setSidePanelExpanded(!props.sidePanelExpanded)}
+              >
+                <HiOutlineMinusCircle size={20} />
+              </button>
+            </div>
+          )}
+        </div>
+        {!props.sidePanelExpanded && (
+          <button 
+            className="mt-4"
+            onClick={() => {
+              props.setSidePanelExpanded(true)
             }}
           >
-            <span>Create Group</span>
-            <HiOutlinePlusCircle size={20}/>
+            <HiOutlineChevronRight size={24} />
           </button>
-        </div>
-        <div className="flex flex-col w-full">
+        )}
+        {props.sidePanelExpanded && (
+          <div className="flex flex-col w-full">
           {props.tableGroupsQuery.isLoading ? (
             <span className="flex flex-row text-start gap-1 italic font-light ms-4">
               <span>Loading</span>
@@ -551,7 +574,8 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
               )
             })
           )}
-        </div>
+          </div>
+        )}
       </div>
     </>
   )

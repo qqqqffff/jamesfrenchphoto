@@ -6,11 +6,11 @@ import validator from 'validator'
 import { HiOutlineEye, HiOutlineEyeSlash } from "react-icons/hi2"
 
 interface ForgotPasswordModalProps extends ModalProps { 
-
+  successCallback: () => void
 }
 
 export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
-  const [cooldown, setCooldown] = useState<NodeJS.Timeout>()
+  const [cooldown, setCooldown] = useState<NodeJS.Timeout | null>(null)
   const [email, setEmail] = useState('')
   const [invalidEmail, setInvalidEmail] = useState(false)
   const [code, setCode] = useState('')
@@ -38,7 +38,6 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
   const clearState = () => {
     setInvalidEmail(false)
     setInvalidPassword(false)
-    setCooldown(undefined)
     setMessage(undefined)
     setResetCodeSending(false)
     setPasswordResetting(false)
@@ -54,6 +53,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
       show={props.open} 
       onClose={() => {
         props.onClose()
+        props.successCallback()
         clearState()
       }}
       size="lg"
@@ -193,6 +193,12 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
                   placeholder="Confirm Password..."
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
+                  onFocus={() => setInvalidPassword(false)}
+                  onBlur={() => {
+                    if(!validatePassword()) {
+                      setInvalidPassword(true)
+                    }
+                  }}
                 />
               </div>
             </>
@@ -211,16 +217,19 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
         <Button 
           isProcessing={resetCodeSending} 
           size="sm" 
-          disabled={!validator.isEmail(email) || cooldown !== undefined || resetCodeSending}
+          disabled={!validator.isEmail(email) || cooldown !== null || resetCodeSending}
           onClick={() => {
             resetPassword({
               username: email.toLowerCase()
             }).then((output) => {
+              if(messageTimeout.current) {
+                clearTimeout(messageTimeout.current)
+              }
               setForgotPasswordStep(output)
               setMessage({ type: 'Success', message: `Sent code to ${email} if an account exists!`})
               setResetCodeSending(false)
               setCooldown(setTimeout(() => {
-                setCooldown(undefined)
+                setCooldown(null)
               }, 30 * 1000))
               messageTimeout.current = setTimeout(() => {
                 messageTimeout.current = null
@@ -228,10 +237,13 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
               }, 10 * 1000)
             }).catch((error) => {
               console.error(error)
+              if(messageTimeout.current) {
+                clearTimeout(messageTimeout.current)
+              }
               setMessage({ type: 'Fail', message: `Failed to send code to ${email}`})
               setResetCodeSending(false)
               setCooldown(setTimeout(() => {
-                setCooldown(undefined)
+                setCooldown(null)
               }, 5 * 1000))
               messageTimeout.current = setTimeout(() => {
                 messageTimeout.current = null
@@ -254,8 +266,12 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
               }).then(() => {
                 clearState()
                 props.onClose()
+                props.successCallback()
               }).catch((error) => {
                 console.error(error)
+                if(messageTimeout.current) {
+                  clearTimeout(messageTimeout.current)
+                }
                 setMessage({ type: 'Fail', message: 'Invalid code or reused password.'})
                 messageTimeout.current = setTimeout(() => {
                   messageTimeout.current = null

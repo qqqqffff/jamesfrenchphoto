@@ -1,7 +1,7 @@
 
 import { CognitoIdentityProviderClient, ListUsersCommand, UserType } from '@aws-sdk/client-cognito-identity-provider';
 import sgMail from '@sendgrid/mail';
-import type { CustomMessageTriggerEvent, CustomMessageTriggerHandler } from 'aws-lambda';
+import type { CustomEmailSenderForgotPasswordTriggerEvent, CustomEmailSenderTriggerHandler, CustomEmailSenderTriggerEvent } from 'aws-lambda';
 import {
   KmsKeyringNode,
   buildClient,
@@ -13,9 +13,7 @@ import { env } from '$amplify/env/custom-message'
 // Initialize clients
 const cognitoClient = new CognitoIdentityProviderClient();
 
-const { decrypt } = buildClient(CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT)
-const keyIds = [env.KEY_ARN]
-const keyring = new KmsKeyringNode({ keyIds })
+const { decrypt } = buildClient(CommitmentPolicy.REQUIRE_ENCRYPT_ALLOW_DECRYPT)
 
 sgMail.setApiKey(env.SENDGRID_API_KEY);
 
@@ -24,7 +22,14 @@ const FROM_EMAIL = 'no-reply@jamesfrenchphotography.com'; // Change this to your
 
 async function decryptCode(encryptedCode: string): Promise<string> {
     try {
-        const { plaintext, messageHeader } = await decrypt(keyring, Buffer.from(encryptedCode))
+        const keyring = new KmsKeyringNode({ 
+            keyIds: [env.KEY_ARN],
+            generatorKeyId: env.KEY_ARN,
+        })
+
+        const encryptedBuffer = Buffer.from(encryptedCode, 'base64');
+         
+        const { plaintext, messageHeader } = await decrypt(keyring, encryptedBuffer)
         console.log(plaintext, messageHeader)
         return plaintext.toString('utf-8')
     } catch (error) {
@@ -66,16 +71,14 @@ async function userExistsWithEmail(userPoolId: string, email: string): Promise<U
   }
 }
 
-export const handler: CustomMessageTriggerHandler = async (event: CustomMessageTriggerEvent) => {
+export const handler: CustomEmailSenderTriggerHandler = async (event: CustomEmailSenderTriggerEvent) => {
     console.log('Received event:', JSON.stringify(event, null, 2));
 
-    if(event.triggerSource == 'CustomMessage_ForgotPassword'){
-        event.response.emailSubject = null;
-        event.response.emailMessage = null;
-        event.response.smsMessage = null;
-
+    if(event.triggerSource == 'CustomEmailSender_ForgotPassword') {
+        const newEvent = event as CustomEmailSenderForgotPasswordTriggerEvent
+        
         try {
-            const { codeParameter } = event.request;
+            const { code } = event.request;
             const { email } = event.request.userAttributes;
             const userPoolId = event.userPoolId;
 
@@ -87,6 +90,11 @@ export const handler: CustomMessageTriggerHandler = async (event: CustomMessageT
                 return event;
             }
 
+            if(code === null) {
+                console.log('No code found in the event request. Skipping email send.');
+                return event;
+            }
+
             console.log(`User verified. Sending password reset email to: ${email}`);
 
             const firstName = (user.Attributes ?? []).find((attribute) => attribute.Name === 'given_name')
@@ -94,21 +102,21 @@ export const handler: CustomMessageTriggerHandler = async (event: CustomMessageT
 
             const structuredName = firstName !== undefined && lastName !== undefined ? ` ${firstName.Value} ${lastName.Value}` : ''
 
-            const code = await decryptCode(codeParameter)
+            const decryptedCode = await decryptCode(code)
 
             // Compose the email
             const msg = {
                 to: email,
                 from: FROM_EMAIL,
                 subject: 'James French Photo Password Reset Code',
-                text: `Hello${structuredName},\n\nYou requested to reset your password. Use the following code to reset it:\n\n${codeParameter}\n\nIf you didn't request this, please ignore this email.\n\nThis code will expire in 1 hour.`,
+                text: `Hello${structuredName},\n\nYou requested to reset your password. Use the following code to reset it:\n\n${decryptedCode}\n\nIf you didn't request this, please ignore this email.\n\nThis code will expire in 1 hour.`,
                 html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2>Password Reset Request</h2>
                     <p>Hello${structuredName},</p>
                     <p>You requested to reset your password. Use the following code to reset it:</p>
                     <div style="background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 20px 0;">
-                    ${code}
+                    ${decryptedCode}
                     </div>
                     <p>If you didn't request this password reset, please ignore this email.</p>
                     <p style="color: #666; font-size: 12px;">This code will expire in 1 hour.</p>
