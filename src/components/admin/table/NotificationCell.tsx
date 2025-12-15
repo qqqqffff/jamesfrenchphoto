@@ -1,5 +1,5 @@
 import { ComponentProps, Dispatch, SetStateAction, useEffect, useState } from "react";
-import { NotificationService, SendUserEmailNotificationParams, UpdateNotificationParams } from "../../../services/notificationService";
+import { CreateNotificationParams, NotificationService, SendUserEmailNotificationParams, UpdateNotificationParams } from "../../../services/notificationService";
 import { Notification, Participant, UserData, UserProfile } from "../../../types";
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
 import { v4 } from "uuid";
@@ -21,13 +21,6 @@ interface NotificationCellProps extends ComponentProps<'td'> {
   usersQuery: UseQueryResult<UserData[] | undefined, Error>
   tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>,
   notificationQuery: UseQueryResult<Notification[] | undefined, Error>,
-  updateParticipant: (
-    newNotification: Notification,
-    participantId: string,
-    userEmail: string,
-    tempUser: boolean,
-    oldNotification?: Notification,
-  ) => void
 }
 
 export const NotificationCell = (props: NotificationCellProps) => {
@@ -131,6 +124,10 @@ export const NotificationCell = (props: NotificationCellProps) => {
     mutationFn: (params: SendUserEmailNotificationParams) => props.NotificationService.sendUserEmailNotificationMutation(params),
   })
 
+  const createNotification = useMutation({
+    mutationFn: (params: CreateNotificationParams) => props.NotificationService.createNotificationMutation(params)
+  })
+
   const updateNotification = useMutation({
     mutationFn: (params: UpdateNotificationParams) => props.NotificationService.updateNotificationMutation(params)
   })
@@ -147,18 +144,45 @@ export const NotificationCell = (props: NotificationCellProps) => {
           bg-transparent border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
           hover:cursor-pointer
         `}
-        value={value}
+        value={notification.content}
         onFocus={() => setIsFocused(true)}
         onBlur={() => {
-          if(foundParticipant) {
-            props.updateParticipant(
-              notification,
-              foundParticipant.participant.id,
-              foundParticipant.user.email,
-              foundParticipant.user.temp
-            )
+          if(foundParticipant && !actionWindowInteraction && notification.content !== '') {
+            const foundNotification = props.notifications.find((noti) => notification.id === noti.id)
+            if(foundNotification !== undefined) {
+              const updatedNotification: Notification = {
+                ...foundNotification,
+                content: notification.content,
+                location: notification.location,
+                participants: [
+                  ...foundNotification.participants.filter((participant) => participant.id !== foundParticipant.participant.id), 
+                  foundParticipant.participant
+                ],
+              }
+              updateNotification.mutateAsync({
+                notification: foundNotification,
+                content: updatedNotification.content,
+                location: updatedNotification.location,
+                participantIds: updatedNotification.participants.map((participant) => participant.id),
+                tagIds: updatedNotification.tags.map((tag) => tag.id),
+                options: {
+                  logging: true
+                }
+              }).then(() => {
+                props.setNotifications(prev => prev.map((noti) => noti.id === updatedNotification.id ? updatedNotification : noti))
+              })
+            }
+            else {
+              createNotification.mutateAsync({
+                notification: notification,
+                options: {
+                  logging: true
+                }
+              }).then(() => {
+                props.setNotifications(prev => [...prev, notification])
+              })
+            }
           }
-          
           
           setIsFocused(actionWindowInteraction ? true : false)
           setActionWindowInteraction(false)
@@ -168,10 +192,20 @@ export const NotificationCell = (props: NotificationCellProps) => {
             ...notification,
             content: event.target.value
           })
-          props.setNotifications((prev) => prev.map((n) => n.id === value ? {
-            ...n,
-            content: event.target.value
-          } : n))
+        }}
+        onKeyDown={(event) => {
+          setActionWindowInteraction(false)
+          const foundNotification = props.notifications.find((noti) => notification.id === noti.id)
+          if(event.code === 'Escape' && foundNotification) {
+            setNotification({
+              ...notification,
+              content: foundNotification.content
+            })
+            setTimeout(() => event.currentTarget.blur(), 1)
+          }
+          else if(event.code === 'Enter') {
+            setTimeout(() => event.currentTarget.blur(), 1)
+          }
         }}
       />
       {isFocused && foundParticipant !== undefined && (
@@ -244,13 +278,6 @@ export const NotificationCell = (props: NotificationCellProps) => {
                     setNotification(n)
                     setValue(n.id)
                     props.updateValue(n.id)
-                    props.updateParticipant(
-                      n, 
-                      foundParticipant.participant.id, 
-                      foundParticipant.user.email, 
-                      foundParticipant.user.temp,
-                      notification
-                    )
                     setActionWindowInteraction(true)
                   }}
                 >
@@ -287,12 +314,6 @@ export const NotificationCell = (props: NotificationCellProps) => {
                 }
                 setActionWindowInteraction(true)
                 props.updateValue(newNotification.id)
-                props.updateParticipant(
-                  newNotification,
-                  foundParticipant.participant.id,
-                  foundParticipant.user.email,
-                  foundParticipant.user.temp
-                )
               }}
             >
               <span>New Notificaiton</span>

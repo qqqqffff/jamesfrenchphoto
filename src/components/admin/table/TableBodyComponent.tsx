@@ -45,7 +45,7 @@ interface TableBodyComponentProps {
   updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
   updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
   createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
-  registerTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
+  adminRegisterTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
@@ -204,7 +204,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               updateUserProfile={props.updateUserProfile}
               updateParticipant={props.updateParticipant}
               createParticipant={props.createParticipant}
-              registerTimeslot={props.registerTimeslot}
+              adminRegisterTimeslot={props.adminRegisterTimeslot}
               setTempUsers={props.setTempUsers}
               setUsers={props.setUsers}
               setSelectedDate={props.setSelectedDate}

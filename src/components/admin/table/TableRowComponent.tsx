@@ -36,7 +36,7 @@ import { LinkUserModal, ParticipantFieldLinks, UserFieldLinks } from "../../moda
 import { LinkParticipantModal } from "../../modals/LinkParticipant"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
 import { NotificationCell } from "./NotificationCell"
-import { CreateNotificationParams, NotificationService } from "../../../services/notificationService"
+import { NotificationService } from "../../../services/notificationService"
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
@@ -67,7 +67,7 @@ interface TableRowComponentProps {
   updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
   updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
   createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
-  registerTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
+  adminRegisterTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
@@ -594,10 +594,12 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
               .filter((timeslotId) => (foundParticipant.timeslot ?? [])
               .some((timeslot) => timeslot.id === timeslotId))
               .map(async (timeslotId) => {
-                return props.registerTimeslot.mutateAsync({
-                  timeslotId: timeslotId,
+                return props.adminRegisterTimeslot.mutateAsync({
+                  timeslot: timeslotId,
                   userEmail: foundParticipant.userEmail,
                   participantId: foundParticipant.id,
+                  unregister: false,
+                  additionalRecipients: [],
                   notify: false,
                   options: {
                     logging: true
@@ -649,6 +651,9 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             })
           }
         })
+      }
+      else if(linkedParticipantFields.some((link) => link.notifications && link.notifications[0] === column.id) && column.type === 'notification') {
+        // link processing will be done in each cell
       }
     }
 
@@ -1165,10 +1170,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     mutationFn: (params: SendUserInviteEmailParams) => props.UserService.sendUserInviteEmail(params)
   })
 
-  const createNotification = useMutation({
-    mutationFn: (params: CreateNotificationParams) => props.NotificationService.createNotificationMutation(params)
-  })
-
   return (
     <>
       {userDetection[0] === 'unlinked' && detectedUser !== undefined && (
@@ -1205,6 +1206,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             return choice === undefined || (!choice.includes('userEmail') && !choice.includes('participantId'))
           })}
           linkParticipant={linkParticipant}
+          notifications={props.notifications}
         />
       )}
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'top' && (
@@ -1374,9 +1376,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   usersQuery={props.userData}
                   tempUsersQuery={props.tempUsersData}
                   notificationQuery={props.notificationData}
-                  updateParticipant={(newNotification, participantId, userEmail, tempUser) => {
-                    //handle updating the notifications of the participant
-                  }}
                 />
               )
             }

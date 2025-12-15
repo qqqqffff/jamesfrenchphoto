@@ -137,7 +137,7 @@ export const TableComponent = (props: TableComponentProps) => {
     mutationFn: (params: CreateParticipantParams) => props.UserService.createParticipantMutation(params)
   })
 
-  const registerTimeslot = useMutation({
+  const adminRegisterTimeslot = useMutation({
     mutationFn: (params: AdminRegisterTimeslotMutationParams) => props.TimeslotService.adminRegisterTimeslotMutation(params)
   })
 
@@ -271,7 +271,7 @@ export const TableComponent = (props: TableComponentProps) => {
             updateUserProfile={updateUserProfile}
             updateParticipant={updateParticipant}
             createParticipant={createParticipant}
-            registerTimeslot={registerTimeslot}
+            adminRegisterTimeslot={adminRegisterTimeslot}
             setTempUsers={props.setTempUsers}
             setUsers={props.setUsers}
             setSelectedDate={setSelectedDate}

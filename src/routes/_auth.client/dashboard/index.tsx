@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Package, UserTag } from '../../../types'
+import { Package, Timeslot, UserTag } from '../../../types'
 import { Alert, Badge } from 'flowbite-react'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
@@ -70,13 +70,16 @@ function RouteComponent() {
     //some timeslot where the date is after today
     timeslotAvailable: (tag.timeslots ?? []).filter((timeslot) => new Date(timeslot.start).getTime() > currentDate.getTime()).length > 0 &&
       //the tag is not in the registrations
-      !registeredTimeslots.some((timeslot) => timeslot.tag?.id === tag.id),
+      !registeredTimeslots.some((timeslot) => timeslot.tag?.id === tag.id) && 
+      !(tag.timeslots ?? []).some((tagTimeslot) => registeredTimeslots.some((timeslot) => timeslot.id === tagTimeslot.id)),
     tag: tag
   }))
 
   const unregisterTimeslot = useMutation({
     mutationFn: (params: RegisterTimeslotMutationParams) => data.TimeslotService.registerTimeslotMutation(params)
   })
+
+  console.log(tags.map((tag) => !(tag.timeslots ?? []).some((tagTimeslot) => registeredTimeslots.some((timeslot) => timeslot.id === tagTimeslot.id))), registrationAvailable)
 
 
   return (
@@ -124,9 +127,13 @@ function RouteComponent() {
                   if(!a.timeslotAvailable && b.timeslotAvailable) return -1
                   return 1
                 }).map((registration) => {
-                  const foundTimeslot = registeredTimeslots.find((timeslot) => timeslot.tag?.id === registration.tag.id)
+                  const foundTimeslot = (registration.tag.timeslots ?? []).find((timeslot) => registeredTimeslots.some((registeredTimeslot) => registeredTimeslot.id === timeslot.id))
+                  const mappedTimeslot: Timeslot | undefined = foundTimeslot ? {
+                    ...foundTimeslot,
+                    tag: registration.tag
+                  } : undefined
                   return (
-                    foundTimeslot !== undefined 
+                    mappedTimeslot !== undefined 
                   ? (
                     <div className={`flex flex-row items-center gap-1`}>
                       <span>Registration for</span>
@@ -142,11 +149,11 @@ function RouteComponent() {
                         onClick={() => {
                           if(
                             auth.user?.profile.activeParticipant?.id !== undefined &&
-                            auth.user?.profile.activeParticipant?.id === foundTimeslot.participantId &&
+                            auth.user?.profile.activeParticipant?.id === mappedTimeslot.participantId &&
                             auth.user?.profile.email !== undefined
                           ) {
                             unregisterTimeslot.mutateAsync({
-                              timeslot: foundTimeslot,
+                              timeslot: mappedTimeslot,
                               unregister: true,
                               participantId: auth.user.profile.activeParticipant.id,
                               userEmail: auth.user.profile.email,
@@ -155,7 +162,7 @@ function RouteComponent() {
                             }).then((response) => {
                               if(response.status === 'Success' && auth.user?.profile.activeParticipant) {
                                 const updatedTimeslot = (auth.user?.profile.activeParticipant?.timeslot ?? [])
-                                  .filter((timeslot) => timeslot.id !== foundTimeslot.id)
+                                  .filter((timeslot) => timeslot.id !== mappedTimeslot.id)
 
                                 auth.updateProfile({
                                   ...auth.user.profile,
@@ -178,7 +185,7 @@ function RouteComponent() {
                         }}
                       >
                         {unregisterTimeslot.isPending && (<CgSpinner size={20} className='animate-spin text-gray-500'/>)}
-                        <span>{new Date(foundTimeslot.start).toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at {formatTimeslotDates(foundTimeslot)}</span>
+                        <span>{new Date(mappedTimeslot.start).toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at {formatTimeslotDates(mappedTimeslot)}</span>
                       </button>
                     </div>
                   ) : (
