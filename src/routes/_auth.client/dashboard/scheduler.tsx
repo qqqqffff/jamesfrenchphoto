@@ -16,13 +16,22 @@ import { V6Client } from '@aws-amplify/api-graphql'
 import validator from 'validator'
 import { Alert } from 'flowbite-react'
 
+interface SchedulerParams {
+  tagId?: string
+}
+
 export const Route = createFileRoute('/_auth/client/dashboard/scheduler')({
+  validateSearch: (search: Record<string, unknown>): SchedulerParams => ({
+    tagId: (search.tagId as string) || undefined
+  }),
+  beforeLoad: ({ search }) => search,
   component: RouteComponent,
   loader: ({ context }) => {
     const client = context.client as V6Client<Schema>
 
     return {
-      TimeslotService: new TimeslotService(client)
+      TimeslotService: new TimeslotService(client),
+      tagId: context.tagId
     }
   }
 })
@@ -47,10 +56,13 @@ function RouteComponent() {
   const timeslots = useQuery(data.TimeslotService.getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
 
   //getting the most recently created userTag
-  const [activeTag, setActiveTag] = useState<UserTag>(userTags.reduce((prev, cur) => {
-    if(new Date(cur.createdAt).getTime() > new Date(prev.createdAt).getTime()) return cur
-    return prev
-  }, userTags[0]))
+  const [activeTag, setActiveTag] = useState<UserTag>(
+    userTags.find((tag) => tag.id === data.tagId) ?? 
+    userTags.reduce((prev, cur) => {
+      if(new Date(cur.createdAt).getTime() > new Date(prev.createdAt).getTime()) return cur
+      return prev
+    }, userTags[0])
+  )
 
   const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
     (timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).map((timeslot) => {
@@ -65,6 +77,13 @@ function RouteComponent() {
   const [notify, setNotify] = useState(true)
   const [notifyAdditionalRecipients, setNotifyAdditionalRecipients] = useState<string[]>([])
   const { width } = useWindowDimensions()
+
+  useEffect(() => {
+    const foundTag = userTags.find((tag) => tag.id === data.tagId)
+    if(activeTag.id !== data.tagId && foundTag !== undefined) {
+      setActiveTag(foundTag)
+    }
+  }, [data.tagId])
 
   //automatically setting date based on the closest date to present
   useEffect(() => {
@@ -197,9 +216,6 @@ function RouteComponent() {
               userEmail: userEmail,
               unregister: false,
               additionalRecipients: notifyAdditionalRecipients,
-              options: {
-                logging: true
-              }
             }).then((response) => {
               if(response.status === 'Success') {
                 const updatedTimeslot = participant.timeslot ?? []
@@ -230,7 +246,6 @@ function RouteComponent() {
                 setNotifyAdditionalRecipients(participant.contact && participant.email !== undefined ? [participant.email] : [])
               }
               else {
-                console.log(response)
                 setRegistrationResponse(response)
               }
             }).catch(() => {
@@ -261,9 +276,6 @@ function RouteComponent() {
               userEmail: userEmail,
               notify: false,
               additionalRecipients: [],
-              options: {
-                logging: true
-              }
             }).then((response) => {
               if(response.status === 'Success') {
                 const updatedTimeslot = (participant.timeslot ?? [])
@@ -288,7 +300,6 @@ function RouteComponent() {
 
                 timeslots.refetch()
               }
-              console.log(response)
               setRegistrationResponse(response)
             }).catch(() => {
               setRegistrationResponse({ status: 'Fail', error: 'Failed to unregister from your timeslot. Please try again later.'})
