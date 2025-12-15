@@ -2,7 +2,6 @@ import { queryOptions } from "@tanstack/react-query";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Timeslot, UserTag } from "../types";
-import validator from 'validator'
 
 //TODO: add metricing
 interface MapTimeslotOptions {
@@ -218,20 +217,18 @@ export interface DeleteTimeslotsMutationParams {
 
 export interface RegisterTimeslotMutationParams {
   timeslot: Timeslot,
+  participantId: string,
+  userEmail: string,
+  unregister: boolean,
+  additionalRecipients: string[]
   notify: boolean,
   options?: {
     logging: boolean
   }
 }
 
-export interface AdminRegisterTimeslotMutationParams {
-  timeslotId: string,
-  userEmail: string,
-  participantId: string,
-  notify: boolean,
-  options?: {
-    logging: boolean
-  }
+export interface AdminRegisterTimeslotMutationParams extends Omit<RegisterTimeslotMutationParams, 'timeslot'> {
+  timeslot: string
 }
 
 export class TimeslotService {
@@ -397,51 +394,79 @@ export class TimeslotService {
   //TODO: convert me into a lambda function
   //TODO: also handle errors with email sending
   //TODO: validate that the current user is able to register to this timeslot by receiving first
-  async registerTimeslotMutation(params: RegisterTimeslotMutationParams) {
-    const response = await this.client.models.Timeslot.update({
-      id: params.timeslot.id,
-      register: params.timeslot.register ?? null,
-      participantId: params.timeslot.participantId ?? null
+  async registerTimeslotMutation(params: RegisterTimeslotMutationParams): Promise<{ status: 'Success' | 'Fail', error?: string }> {
+    if(!params.timeslot.tag) return { status: 'Fail', error: 'Unable to register for a timeslot with no tag' }
+    
+    const response = await this.client.mutations.RegisterTimeslot({
+      timeslotId: params.timeslot.id,
+      unregister: params.unregister,
+      userEmail: params.userEmail,
+      participantId: params.participantId,
     }, { authMode: 'userPool' })
+    
     if (params.options?.logging) console.log(response)
-    if (!response.data) return false
-    if (params.notify && params.timeslot.register) {
-      const response = await this.client.queries.SendTimeslotConfirmation({
-        email: params.timeslot.register.toLowerCase(),
-        start: params.timeslot.start.toISOString(),
-        end: params.timeslot.end.toISOString()
-      }, {
-        authMode: 'userPool'
-      })
-      if (params.options?.logging) console.log(response)
+    if (!response.data) return { status: 'Fail', error: 'Failed to register for timeslot.' }
+    try {
+      const parsedResponse: { status: 'Fail' | 'Success', error?: string } = JSON.parse(response.data.toString())
+      if(params.options?.logging) console.log(parsedResponse.status === 'Success', params.notify, !params.unregister)
+      if(parsedResponse.status === 'Success' && params.notify && !params.unregister) {
+        //continue with registration
+        const response = await this.client.queries.SendTimeslotConfirmation({
+          email: params.userEmail,
+          start: params.timeslot.start.toISOString(),
+          end: params.timeslot.end.toISOString(),
+          additionalRecipients: params.additionalRecipients,
+          tagId: params.timeslot.tag.id,
+          participantId: params.participantId,
+        }, {
+          authMode: 'userPool'
+        })
+        if (params.options?.logging) console.log(response)
+        if(response.data === null) return { status: 'Success', error: 'Failed to send confirmation email.'}
+        
+        const emailParsedResponse: { success: boolean } = JSON.parse(response.data.toString())
+        if(!emailParsedResponse.success) {
+          return { status: 'Success', error: 'Failed to send confirmation email.'}
+        }
+      }
+      return parsedResponse
+    } catch(err) {
+      console.error(err)
+      return { status: 'Fail', error: 'Recieved invalid response from server, please try again later.'}
     }
-    return true
   }
 
   async adminRegisterTimeslotMutation(params: AdminRegisterTimeslotMutationParams): Promise<Timeslot | null> {
-    const getTimeslotResponse = await this.client.models.Timeslot.get({ id: params.timeslotId })
-    if(
-      getTimeslotResponse.data !== null && 
-      getTimeslotResponse.data.participantId !== params.participantId &&
-      getTimeslotResponse.data.register !== params.userEmail
-    ) {
-      const registerResponse = await this.client.models.Timeslot.update({
-        id: params.timeslotId,
-        register: params.userEmail,
+    const getTimeslot = await getTimeslotById(this.client, params.timeslot, { siTag: true })
+
+    if(getTimeslot === null) return null
+
+    const registerResponse = await this.client.models.Timeslot.update({
+      id: getTimeslot.id,
+      register: params.unregister ? null : params.userEmail,
+      participantId: params.unregister ? null : params.participantId,
+    })
+    if(params.options?.logging) console.log(registerResponse)
+      
+    if(params.notify && getTimeslot.tag?.id !== undefined) {
+      const emailResponse = await this.client.queries.SendTimeslotConfirmation({
+        email: params.userEmail,
         participantId: params.participantId,
+        start: getTimeslot.start.toISOString(),
+        end: getTimeslot.end.toISOString(),
+        tagId: getTimeslot.tag.id,
+        additionalRecipients: params.additionalRecipients,
       })
-      if(params.options?.logging) console.log(registerResponse)
-      if(params.notify && validator.isEmail(params.userEmail)) {
-        const emailResponse = await this.client.queries.SendTimeslotConfirmation({
-          email: params.userEmail,
-          start: getTimeslotResponse.data.start,
-          end: getTimeslotResponse.data.end
-        })
-        if(params.options?.logging) console.log(emailResponse)
-      }
-      return mapTimeslot(getTimeslotResponse.data, { siTag: undefined })
+      if(params.options?.logging) console.log(emailResponse)
     }
-    return null
+
+    const returnedTimeslot: Timeslot = {
+      ...getTimeslot,
+      register: params.unregister ? undefined : params.userEmail,
+      participantId: params.unregister ? undefined : params.participantId,
+    }
+
+    return returnedTimeslot
   }
 
   getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({

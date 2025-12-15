@@ -2,7 +2,7 @@ import { UseMutationResult, useQueries, UseQueryResult } from "@tanstack/react-q
 import { ModalProps } from ".";
 import { TimeslotService } from "../../services/timeslotService";
 import { LinkParticipantMutationParams, UserService } from "../../services/userService";
-import { Participant, TableColumn, UserTag } from "../../types";
+import { Participant, TableColumn, UserTag, Notification } from "../../types";
 import { FC, useEffect, useState } from "react";
 import { ParticipantFieldLinks } from "./LinkUser";
 import { Button, Modal } from "flowbite-react";
@@ -15,7 +15,8 @@ interface LinkParticipantModalProps extends ModalProps {
   tableColumns: TableColumn[],
   rowIndex: number,
   tags: UseQueryResult<UserTag[] | undefined, Error>
-  linkParticipant: UseMutationResult<TableColumn[], Error, LinkParticipantMutationParams, unknown>
+  linkParticipant: UseMutationResult<TableColumn[], Error, LinkParticipantMutationParams, unknown>,
+  notifications: Notification[]
 }
 
 export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
@@ -47,7 +48,8 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
       preferred: null,
       email: null,
       tags: null,
-      timeslot: null
+      timeslot: null,
+      notifications: null
     }]
 
     if(props.tableColumns.length > 0 && props.tableColumns[0].values[props.rowIndex] !== undefined) {
@@ -184,7 +186,8 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
                 availableOptions: filteredUserFields,
                 allColumns: props.tableColumns,
                 toggleField: setLinkedParticipantFields,
-                noColumnModification: true
+                noColumnModification: true,
+                notifications: props.notifications
               }
             }}
           />

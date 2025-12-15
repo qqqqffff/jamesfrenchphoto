@@ -1,4 +1,4 @@
-import { Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
+import { Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag, Notification } from "../../../types"
 import { AggregateCell } from "./AggregateCell"
 import { AdminRegisterTimeslotMutationParams, TimeslotService } from "../../../services/timeslotService"
 import { Dispatch, SetStateAction, useEffect } from "react"
@@ -13,16 +13,19 @@ import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/clo
 import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
 import { isTableRowData } from "./TableRowData"
 import { flushSync } from "react-dom"
+import { NotificationService } from "../../../services/notificationService"
 
 interface TableBodyComponentProps {
   TimeslotService: TimeslotService,
   UserService: UserService,
   TableService: TableService
-  PhotoPathService: PhotoPathService
+  PhotoPathService: PhotoPathService,
+  NotificationService: NotificationService,
   table: Table
   tableRows: [string, TableColumn['type'], string][][],
   users: UserData[],
   tempUsers: UserProfile[],
+  notifications: Notification[],
   selectedTag: UserTag | undefined,
   selectedDate: Date
   baseLink: string
@@ -32,6 +35,7 @@ interface TableBodyComponentProps {
   tagData: UseQueryResult<UserTag[] | undefined, Error>
   userData: UseQueryResult<UserData[] | undefined, Error>
   tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
+  notificationsData: UseQueryResult<Notification[], Error>
   deleteRow: UseMutationResult<void, Error, DeleteTableRowParams, unknown>
   appendRow: UseMutationResult<void, Error, AppendTableRowParams, unknown>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
@@ -41,8 +45,9 @@ interface TableBodyComponentProps {
   updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
   updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
   createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
-  registerTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
+  adminRegisterTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
+  setNotifications: Dispatch<SetStateAction<Notification[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
   setSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
@@ -175,11 +180,13 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               UserService={props.UserService}
               TableService={props.TableService}
               PhotoPathService={props.PhotoPathService}
+              NotificationService={props.NotificationService}
               row={row}
               i={i}
               table={props.table}
               users={props.users}
               tempUsers={props.tempUsers}
+              notifications={props.notifications}
               selectedTag={props.selectedTag}
               selectedDate={props.selectedDate}
               baseLink={props.baseLink}
@@ -189,6 +196,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               tagData={props.tagData}
               userData={props.userData}
               tempUsersData={props.tempUsersData}
+              notificationData={props.notificationsData}
               updateColumn={props.updateColumn}
               deleteRow={props.deleteRow}
               createChoice={props.createChoice}
@@ -196,12 +204,13 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               updateUserProfile={props.updateUserProfile}
               updateParticipant={props.updateParticipant}
               createParticipant={props.createParticipant}
-              registerTimeslot={props.registerTimeslot}
+              adminRegisterTimeslot={props.adminRegisterTimeslot}
               setTempUsers={props.setTempUsers}
               setUsers={props.setUsers}
               setSelectedDate={props.setSelectedDate}
               setSelectedTag={props.setSelectedTag}
               setCreateUser={props.setCreateUser}
+              setNotifications={props.setNotifications}
               parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
               parentUpdateTableGroups={props.parentUpdateTableGroups}
               parentUpdateTable={props.parentUpdateTable}

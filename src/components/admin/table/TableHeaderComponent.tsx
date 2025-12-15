@@ -137,7 +137,7 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
 
     for(let i = 0; i < props.table.columns[0].values.length; i++) {
       temp.values.push('')
-      if(temp.choices) {
+      if(temp.choices && temp.type !== 'choice') {
         temp.choices.push('')
       }
     }
@@ -238,7 +238,7 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
                   <HiOutlineCalendar size={32} className="bg-pink-400 border-4 border-pink-400 rounded-lg"/>
                   <div className="flex flex-col">
                     <span className="whitespace-nowrap">Timeslot Column</span>
-                    <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column hold timeslots available to participants.</span>
+                    <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column hold timeslots related to participants.</span>
                   </div>
                 </Dropdown.Item >
                 <Dropdown.Item  
@@ -261,6 +261,17 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
                   <div className="flex flex-col">
                     <span className="whitespace-nowrap">Tag Column</span>
                     <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds tags associated with participants.</span>
+                  </div>
+                </Dropdown.Item >
+                <Dropdown.Item  
+                  as='button'
+                  className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
+                  onClick={() => pushColumn('tag')}
+                >
+                  <HiOutlineTag size={32} className="bg-purple-600 border-4 border-purple-600 rounded-lg"/>
+                  <div className="flex flex-col">
+                    <span className="whitespace-nowrap">Notes Column</span>
+                    <span className="text-xs text-gray-600 font-light italic max-w-[150px] min-w-[150px]">This column holds notifications associated with participants.</span>
                   </div>
                 </Dropdown.Item >
               </div>

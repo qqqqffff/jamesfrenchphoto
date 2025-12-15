@@ -16,7 +16,7 @@ interface CreateUserModalProps extends ModalProps {
   tableColumns: TableColumn[]
   rowNumber: number,
   tags: UseQueryResult<UserTag[] | undefined, Error>
-  UserService: UserService
+  UserService: UserService,
 }
 
 //TODO: validations for non-currently existing user email required
@@ -76,6 +76,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
       email: null,
       tags: null,
       timeslot: null,
+      notifications: null
     }))
     
     

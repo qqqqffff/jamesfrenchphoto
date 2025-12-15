@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { TableService } from '../../../services/tableService'
 import { useEffect, useState } from 'react'
-import { Table, TableGroup } from '../../../types'
+import { Table, TableGroup, UserData, UserProfile, Notification } from '../../../types'
 import { TableSidePanel } from '../../../components/admin/table/TableSidePanel'
 import { TablePanel } from '../../../components/admin/table/TablePanel'
 import { useQuery } from '@tanstack/react-query'
@@ -11,6 +11,7 @@ import { Schema } from '../../../../amplify/data/resource'
 import { PhotoPathService } from '../../../services/photoPathService'
 import { TimeslotService } from '../../../services/timeslotService'
 import { TagService } from '../../../services/tagService'
+import { NotificationService } from '../../../services/notificationService'
 
 interface ManagementTablesSearchParams {
   table?: string,
@@ -31,6 +32,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/table')({
       TimeslotService: new TimeslotService(client),
       UserService: new UserService(client),
       TagService: new TagService(client),
+      NotificationService: new NotificationService(client),
       searchTable: context.table,
     }
   }
@@ -43,11 +45,16 @@ function RouteComponent() {
     TimeslotService,
     UserService,
     TagService,
+    NotificationService,
     searchTable,
   } = Route.useLoaderData()
   const [tableGroups, setTableGroups] = useState<TableGroup[]>([])
   const [selectedGroups, setSelectedGroups] = useState<TableGroup[]>([])
   const [selectedTable, setSelectedTable] = useState<Table | undefined>()
+  const [tempUsers, setTempUsers] = useState<UserProfile[]>([])
+  const [users, setUsers] = useState<UserData[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [sidePanelExpanded, setSidePanelExpanded] = useState(true)
 
   const tableGroupsQuery = useQuery(TableService.getAllTableGroupsQueryOptions({ metrics: true }))
 
@@ -56,6 +63,8 @@ function RouteComponent() {
   const tagsQuery = useQuery(TagService.getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: false }))
 
   const tempUsersQuery = useQuery(UserService.getAllTemporaryUsersQueryOptions({ siTags: true }))
+
+  const notificationsQuery = useQuery(NotificationService.getAllNotificationsQueryOptions({ logging: true }))
 
   useEffect(() => {
     if(tableGroupsQuery.data && tableGroupsQuery.data.length > 0) {
@@ -69,6 +78,24 @@ function RouteComponent() {
     }
   }, [tableGroupsQuery.data])
 
+  useEffect(() => {
+    if(notificationsQuery.data) {
+      setNotifications(notificationsQuery.data)
+    }
+  }, [])
+
+  useEffect(() => {
+    if(tempUsersQuery.data) {
+      setTempUsers(tempUsersQuery.data)
+    }
+  }, [tempUsersQuery.data])
+
+  useEffect(() => {
+    if(usersQuery.data) { 
+      setUsers(usersQuery.data)
+    }
+  }, [usersQuery.data])
+
   return (
     <>
       <div className='flex flex-row mx-4 gap-4 h-[98vh] my-[1vh]'>
@@ -76,6 +103,8 @@ function RouteComponent() {
           TableService={TableService}
           tableGroups={tableGroups}
           tableGroupsQuery={tableGroupsQuery}
+          sidePanelExpanded={sidePanelExpanded}
+          setSidePanelExpanded={setSidePanelExpanded}
           parentUpdateTableGroups={setTableGroups} 
           selectedTableGroups={selectedGroups}
           selectedTable={selectedTable}
@@ -88,13 +117,22 @@ function RouteComponent() {
             TableService={TableService}
             TimeslotService={TimeslotService}
             PhotoPathService={PhotoPathService}
+            NotificationService={NotificationService}
+            selectedTable={selectedTable}
+            tempUsers={tempUsers}
+            users={users}
+            notifications={notifications}
+            sidePanelExpanded={sidePanelExpanded}
+            setTempUsers={setTempUsers}
+            setUsers={setUsers}
+            setNotifications={setNotifications}
             parentUpdateSelectedTableGroups={setSelectedGroups}
             parentUpdateTableGroups={setTableGroups}
             parentUpdateSelectedTable={setSelectedTable}
-            selectedTable={selectedTable}
             tagsQuery={tagsQuery}
             usersQuery={usersQuery}
             tempUsersQuery={tempUsersQuery}
+            notificationsQuery={notificationsQuery}
           />
         ) : (
           <div className="flex flex-col w-full items-center border border-gray-400 gap-2 rounded-2xl p-4">

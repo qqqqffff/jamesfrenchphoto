@@ -5,7 +5,7 @@ import { storage } from './storage/resource';
 import { PublicStorage } from './custom/public-storage/resource';
 import { addPublicPhoto } from './functions/add-public-photo/resource';
 import { deletePublicPhoto } from './functions/delete-public-photo/resource';
-import { Events } from './custom/metrics/resource';
+import { customMessage } from './auth/custom-message/resource';
 
 /**
  * @see https://docs.amplify.aws/react/build-a-backend/ to add storage, functions, and more

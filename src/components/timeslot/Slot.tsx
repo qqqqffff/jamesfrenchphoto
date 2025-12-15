@@ -1,6 +1,6 @@
 import { FC } from "react";
 import { Participant, Timeslot, UserTag } from "../../types";
-import { formatTime } from "../../utils";
+import { formatTime, formatTimeslotDates } from "../../utils";
 import { HiOutlineCalendar } from "react-icons/hi2";
 import { EventAttributes, createEvent } from 'ics'
 import { DateTime } from 'luxon'
@@ -10,10 +10,6 @@ export interface SlotProps {
   participant?: Participant | null
   tag?: UserTag,
   className?: string,
-}
-
-export function createTimeString(timeslot: Timeslot){
-  return timeslot.start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' }) + " - " + timeslot.end.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })
 }
 
 export function createTimeslotEvent(timeslot: Timeslot, participant: Participant){
@@ -74,7 +70,7 @@ export const SlotComponent: FC<SlotProps> = ({ timeslot, participant, tag, class
           </>
         )}
       </div>
-      <span>{createTimeString(timeslot)}</span>
+      <span>{formatTimeslotDates(timeslot)}</span>
       {participant !== null && (
         participant ? (
           <span className="flex flex-row gap-2">

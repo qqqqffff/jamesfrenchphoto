@@ -1,6 +1,6 @@
 import { Dropdown } from "flowbite-react"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
-import { ColumnColor, Participant, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
+import { ColumnColor, Notification, Participant, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
 import { ChoiceCell } from "./ChoiceCell"
 import { DateCell } from "./DateCell"
 import { FileCell } from "./FileCell"
@@ -35,17 +35,21 @@ import { ParticipantPanel } from "../../common/ParticipantPanel"
 import { LinkUserModal, ParticipantFieldLinks, UserFieldLinks } from "../../modals/LinkUser"
 import { LinkParticipantModal } from "../../modals/LinkParticipant"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
+import { NotificationCell } from "./NotificationCell"
+import { NotificationService } from "../../../services/notificationService"
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
   UserService: UserService,
-  TableService: TableService
-  PhotoPathService: PhotoPathService
+  TableService: TableService,
+  PhotoPathService: PhotoPathService,
+  NotificationService: NotificationService
   row: [string, TableColumn['type'], string][]
   i: number
   table: Table
   users: UserData[],
   tempUsers: UserProfile[],
+  notifications: Notification[]
   selectedTag: UserTag | undefined,
   selectedDate: Date
   baseLink: string
@@ -55,6 +59,7 @@ interface TableRowComponentProps {
   tagData: UseQueryResult<UserTag[] | undefined, Error>
   userData: UseQueryResult<UserData[] | undefined, Error>
   tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
+  notificationData: UseQueryResult<Notification[], Error>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   deleteRow: UseMutationResult<void, Error, DeleteTableRowParams, unknown>
   createChoice: UseMutationResult<[string, string] | undefined, Error, CreateChoiceParams, unknown>
@@ -62,12 +67,13 @@ interface TableRowComponentProps {
   updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
   updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
   createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
-  registerTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
+  adminRegisterTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
   setSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
   setCreateUser: Dispatch<SetStateAction<boolean>>
+  setNotifications: Dispatch<SetStateAction<Notification[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
@@ -588,10 +594,12 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
               .filter((timeslotId) => (foundParticipant.timeslot ?? [])
               .some((timeslot) => timeslot.id === timeslotId))
               .map(async (timeslotId) => {
-                return props.registerTimeslot.mutateAsync({
-                  timeslotId: timeslotId,
+                return props.adminRegisterTimeslot.mutateAsync({
+                  timeslot: timeslotId,
                   userEmail: foundParticipant.userEmail,
                   participantId: foundParticipant.id,
+                  unregister: false,
+                  additionalRecipients: [],
                   notify: false,
                   options: {
                     logging: true
@@ -643,6 +651,9 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             })
           }
         })
+      }
+      else if(linkedParticipantFields.some((link) => link.notifications && link.notifications[0] === column.id) && column.type === 'notification') {
+        // link processing will be done in each cell
       }
     }
 
@@ -987,6 +998,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
               email: null,
               tags: null,
               timeslot: null,
+              notifications: null
             })
           }
           const field = choice.substring(endIndex + 1)
@@ -1170,6 +1182,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             ...detectedUser,
             temp: props.tempUsers.some((temp) => temp.email === detectedUser.email)
           }}
+          notifications={props.notifications}
           rowIndex={props.i}
           tags={props.tagData}
           linkUser={linkUser}
@@ -1193,6 +1206,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             return choice === undefined || (!choice.includes('userEmail') && !choice.includes('participantId'))
           })}
           linkParticipant={linkParticipant}
+          notifications={props.notifications}
         />
       )}
       {rowState.type === 'is-dragging-over' && rowState.closestEdge === 'top' && (
@@ -1343,6 +1357,25 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                       }))
                     }
                   }}
+                />
+              )
+            }
+            case 'notification': {
+              return (
+                <NotificationCell
+                  key={j}
+                  value={v}
+                  NotificationService={props.NotificationService}
+                  notifications={props.notifications}
+                  setNotifications={props.setNotifications}
+                  updateValue={(value) => updateValue(id, value, props.i)}
+                  userData={{
+                    users: props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
+                    tempUsers: props.tempUsers
+                  }}
+                  usersQuery={props.userData}
+                  tempUsersQuery={props.tempUsersData}
+                  notificationQuery={props.notificationData}
                 />
               )
             }
@@ -1760,6 +1793,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                                 allColumns: props.table.columns,
                                 tags: props.tagData.data ?? [],
                                 timeslotQueries: timeslotQueries,
+                                notifications: props.notificationData.data ?? [],
                                 rowIndex: props.i,
                                 noColumnModification: true
                               } : undefined

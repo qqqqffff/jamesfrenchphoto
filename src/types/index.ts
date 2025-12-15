@@ -69,7 +69,7 @@ export interface UserFields {
 export type Notification = {
     id: string,
     content: string,
-    location: 'dashboard'
+    location?: 'dashboard'
     participants: Participant[]
     tags: UserTag[]
     expiration?: string,
@@ -247,7 +247,7 @@ export interface TableColumn {
     id: string,
     header: string,
     values: string[],
-    type: 'value' | 'date' | 'choice'  | 'tag' | 'file',
+    type: 'value' | 'date' | 'choice' | 'tag' | 'file' | 'notification',
     choices?: string[],
     color?: ColumnColor[],
     display: boolean,

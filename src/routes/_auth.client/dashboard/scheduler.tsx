@@ -1,7 +1,7 @@
-import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { TimeslotService, RegisterTimeslotMutationParams } from '../../../services/timeslotService'
 import { useEffect, useState } from 'react'
-import { currentDate, formatTime, normalizeDate, sortDatesAround } from '../../../utils'
+import { currentDate, formatTime, formatTimeslotDates, normalizeDate, sortDatesAround } from '../../../utils'
 import { Timeslot, UserTag } from '../../../types'
 import { ConfirmationModal } from '../../../components/modals'
 import NotificationComponent from '../../../components/timeslot/NotificationComponent'
@@ -13,14 +13,25 @@ import FullSizeTimeslot from '../../../components/timeslot/FullSizeTimeslot'
 import { useAuth } from '../../../auth'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
+import validator from 'validator'
+import { Alert } from 'flowbite-react'
+
+interface SchedulerParams {
+  tagId?: string
+}
 
 export const Route = createFileRoute('/_auth/client/dashboard/scheduler')({
+  validateSearch: (search: Record<string, unknown>): SchedulerParams => ({
+    tagId: (search.tagId as string) || undefined
+  }),
+  beforeLoad: ({ search }) => search,
   component: RouteComponent,
   loader: ({ context }) => {
     const client = context.client as V6Client<Schema>
 
     return {
-      TimeslotService: new TimeslotService(client)
+      TimeslotService: new TimeslotService(client),
+      tagId: context.tagId
     }
   }
 })
@@ -31,7 +42,6 @@ function RouteComponent() {
     updateProfile,
   } = useAuth()
   const data = Route.useLoaderData()
-  const router = useRouter()
 
   const tempProfile = user?.profile
   const tempParticipant = user?.profile.activeParticipant
@@ -46,38 +56,57 @@ function RouteComponent() {
   const timeslots = useQuery(data.TimeslotService.getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
 
   //getting the most recently created userTag
-  const [activeTag, setActiveTag] = useState<UserTag>(userTags.reduce((prev, cur) => {
-    if(new Date(cur.createdAt).getTime() > new Date(prev.createdAt).getTime()) return cur
-    return prev
-  }, userTags[0]))
+  const [activeTag, setActiveTag] = useState<UserTag>(
+    userTags.find((tag) => tag.id === data.tagId) ?? 
+    userTags.reduce((prev, cur) => {
+      if(new Date(cur.createdAt).getTime() > new Date(prev.createdAt).getTime()) return cur
+      return prev
+    }, userTags[0])
+  )
 
   const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
     (timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).map((timeslot) => {
       return normalizeDate(timeslot.start)
     }), currentDate)[0] ?? currentDate)
   const [selectedTimeslot, setSelectedTimeslot] = useState<Timeslot>()
+  const [registrationResponse, setRegistrationResponse] = useState<{ status: 'Fail' | 'Success', error?: string }>()
   
   const [registerConfirmationVisible, setRegisterConfirmationVisible] = useState(false)
   const [unregisterConfirmationVisible, setUnegisterConfirmationVisible] = useState(false)
 
   const [notify, setNotify] = useState(true)
+  const [notifyAdditionalRecipients, setNotifyAdditionalRecipients] = useState<string[]>([])
   const { width } = useWindowDimensions()
+
+  useEffect(() => {
+    const foundTag = userTags.find((tag) => tag.id === data.tagId)
+    if(activeTag.id !== data.tagId && foundTag !== undefined) {
+      setActiveTag(foundTag)
+    }
+  }, [data.tagId])
 
   //automatically setting date based on the closest date to present
   useEffect(() => {
-    if((timeslots.data ?? []).length > 0) { 
-      setActiveDate(sortDatesAround(
-        (timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).map((timeslot) => {
-          return normalizeDate(timeslot.start)
-        }), currentDate).reduce((prev, cur) => {
-          if(prev.getTime() < currentDate.getTime() && cur.getTime() >= currentDate.getTime()) {
-            return cur
-          }
-          return prev
-        }, currentDate)
-      )
+    if((timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).length > 0) { 
+      setActiveDate(new Date((timeslots.data ?? [])
+      .filter((timeslot) => timeslot.tag?.id === activeTag.id)
+      .sort((a, b) => {
+        if(new Date(a.start).getTime() < currentDate.getTime()) return 1
+        return new Date(a.start).getTime() - new Date(b.start).getTime()
+      })[0].start)) 
     }
   }, [timeslots.data, activeTag])
+
+  useEffect(() => {
+    if(
+      participant.contact && 
+      participant.email && 
+      validator.isEmail(participant.email) && 
+      !notifyAdditionalRecipients.some((email) => (participant.email ?? '').toLowerCase() === email.toLowerCase())
+    ) {
+      setNotifyAdditionalRecipients([...notifyAdditionalRecipients, participant.email])
+    }
+  }, [participant])
 
   const registerTimeslot= useMutation({
     mutationFn: (params: RegisterTimeslotMutationParams) => data.TimeslotService.registerTimeslotMutation(params)
@@ -156,12 +185,14 @@ function RouteComponent() {
                 }} 
                 className='hover:line-through'
               >
-                  {`${new Date(timeslot.start).toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}: ${new Date(timeslot.start).toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} - ${new Date(timeslot.end).toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}`}
+                  {`${new Date(timeslot.start).toLocaleDateString("en-us", { timeZone: 'America/Chicago' })}: ${formatTimeslotDates(timeslot)}`}
               </button>
           </div>
         )
       })
   }
+
+  const shortNoticeRebook = selectedTimeslot ? (normalizeDate(selectedTimeslot.start).getTime() - normalizeDate(currentDate).getTime()) <= 24 * 3 * 1000 * 60 * 60 : null
 
   return (
     <>
@@ -177,40 +208,61 @@ function RouteComponent() {
               register: userEmail,
               participantId: participant.id,
             }
+
             await registerTimeslot.mutateAsync({
               timeslot: newTimeslot,
               notify: notify,
-            })
-            
-            const updatedTimeslot = participant.timeslot ?? []
-            updatedTimeslot.push({
-              ...selectedTimeslot,
-            })
+              participantId: participant.id,
+              userEmail: userEmail,
+              unregister: false,
+              additionalRecipients: notifyAdditionalRecipients,
+            }).then((response) => {
+              if(response.status === 'Success') {
+                const updatedTimeslot = participant.timeslot ?? []
 
-            updateProfile({
-              ...userProfile,
-              participant: userProfile.participant.map((upPart) => {
-                if(upPart.id === participant.id) {
-                  return {
+                updatedTimeslot.push({
+                  ...newTimeslot,
+                })
+
+                updateProfile({
+                  ...userProfile,
+                  participant: userProfile.participant.map((upPart) => {
+                    if(upPart.id === participant.id) {
+                      return {
+                        ...participant,
+                        timeslot: updatedTimeslot
+                      }
+                    }
+                    return upPart
+                  }),
+                  activeParticipant: {
                     ...participant,
                     timeslot: updatedTimeslot
                   }
-                }
-                return upPart
-              }),
-              activeParticipant: {
-                ...participant,
-                timeslot: updatedTimeslot
-              }
-            })
+                })
 
-            timeslots.refetch()
-            router.invalidate()
+                timeslots.refetch()
+                setRegistrationResponse(response)
+                setNotifyAdditionalRecipients(participant.contact && participant.email !== undefined ? [participant.email] : [])
+              }
+              else {
+                setRegistrationResponse(response)
+              }
+            }).catch(() => {
+              setRegistrationResponse({ status: 'Fail', error: 'Failed to register for timeslot. Please try again later.'})
+            })
           }
         }}
-        children={(<NotificationComponent setNotify={setNotify} email={userEmail} notify={notify} />)}
+        children={(
+        <NotificationComponent 
+          setNotify={setNotify} 
+          email={userEmail} 
+          notify={notify} 
+          setRecipients={setNotifyAdditionalRecipients}
+          recipients={notifyAdditionalRecipients}
+        />)}
         title="Confirm Timeslot Selection" 
-        body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!\nRescheduling is only allowed up until one day in advance.`}
+        body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!${shortNoticeRebook ? '\nRescheduling within a 48 hours of the selected date will incur an additional short notice rescheduling fee.' : ''}`}
       />
       <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
         confirmText="Confirm"
@@ -218,39 +270,55 @@ function RouteComponent() {
         confirmAction={async () => {
           if(selectedTimeslot && userEmail && participant && userTags) {
             await registerTimeslot.mutateAsync({
-              timeslot: {
-                ...selectedTimeslot,
-                register: undefined,
-                participantId: undefined,
-              },
-              notify: false
-            })
-            const updatedTimeslot = (participant.timeslot ?? [])
-              .filter((timeslot) => timeslot.id !== selectedTimeslot.id)
+              timeslot: selectedTimeslot,
+              unregister: true,
+              participantId: participant.id,
+              userEmail: userEmail,
+              notify: false,
+              additionalRecipients: [],
+            }).then((response) => {
+              if(response.status === 'Success') {
+                const updatedTimeslot = (participant.timeslot ?? [])
+                  .filter((timeslot) => timeslot.id !== selectedTimeslot.id)
 
-            updateProfile({
-              ...userProfile,
-              participant: userProfile.participant.map((upPart) => {
-                if(upPart.id === participant.id) {
-                  return {
+                updateProfile({
+                  ...userProfile,
+                  participant: userProfile.participant.map((upPart) => {
+                    if(upPart.id === participant.id) {
+                      return {
+                        ...participant,
+                        timeslot: updatedTimeslot
+                      }
+                    }
+                    return upPart
+                  }),
+                  activeParticipant: {
                     ...participant,
                     timeslot: updatedTimeslot
                   }
-                }
-                return upPart
-              }),
-              activeParticipant: {
-                ...participant,
-                timeslot: updatedTimeslot
-              }
-            })
+                })
 
-            timeslots.refetch()
-            router.invalidate()
+                timeslots.refetch()
+              }
+              setRegistrationResponse(response)
+            }).catch(() => {
+              setRegistrationResponse({ status: 'Fail', error: 'Failed to unregister from your timeslot. Please try again later.'})
+            })
           }
         }}
         title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} 
       />
+      {registrationResponse !== undefined && (
+        <div className={`relative top-8 ${ width > 1200 ? 'left-[20%] w-[60%]' : 'left-[12.5%] w-[75%]'} z-10`}>
+          <Alert 
+            color={registrationResponse.status === 'Success' ? 'green' : 'red'}
+            className='absolute w-full opacity-80'
+            onDismiss={() => {
+              setRegistrationResponse(undefined)
+            }}
+          >{registrationResponse.status === 'Success' ? 'Success' : registrationResponse.error ?? 'Failed to register. Please try again later.'}</Alert>
+        </div>
+      )} 
       {width > 1200 ? (
         <FullSizeTimeslot 
           timeslots={(timeslots.data ?? []).map((timeslot) => ({

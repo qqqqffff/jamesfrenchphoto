@@ -1,11 +1,12 @@
 import { Dispatch, SetStateAction } from "react"
 import { Participant, TableColumn, Timeslot, UserTag } from "../../types"
-import { formatTime } from "../../utils"
-import { createTimeString } from "../timeslot/Slot"
+import { formatTime, formatTimeslotDates } from "../../utils"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
 import { Dropdown } from "flowbite-react";
 import { ParticipantFieldLinks } from "../modals/LinkUser";
 import { DefinedUseQueryResult, QueryObserverLoadingErrorResult, QueryObserverLoadingResult, QueryObserverPendingResult, QueryObserverPlaceholderResult } from "@tanstack/react-query";
+import { Notification } from "../../types";
+
 
 interface ParticipantPanelProps {
   participant: Participant
@@ -14,6 +15,7 @@ interface ParticipantPanelProps {
   }
   showOptions?: {
     timeslot?: boolean,
+    notifications?: boolean,
     linkedFields?: {
       participantLinks: ParticipantFieldLinks,
       toggleField: Dispatch<SetStateAction<ParticipantFieldLinks[]>>,
@@ -21,6 +23,7 @@ interface ParticipantPanelProps {
       allColumns: TableColumn[],
       tags: UserTag[],
       timeslotQueries: (DefinedUseQueryResult<Timeslot | null, Error> | QueryObserverLoadingErrorResult<Timeslot | null, Error> | QueryObserverLoadingResult<Timeslot | null, Error> | QueryObserverPendingResult<Timeslot | null, Error> | QueryObserverPlaceholderResult<Timeslot | null, Error>)[]
+      notifications: Notification[]
       rowIndex: number,
       noColumnModification?: boolean
     }
@@ -32,6 +35,11 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
     ?.values[props.showOptions?.linkedFields?.rowIndex ?? 0].split(',')
     .map((timeslotId) => props.showOptions?.linkedFields?.timeslotQueries.map((query) => query.data).find((timeslot) => timeslot?.id === timeslotId))
     .filter((timeslot) => timeslot !== null && timeslot !== undefined)
+
+  const notifications = [props.showOptions?.linkedFields?.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.notifications?.[0])
+    ?.values[props.showOptions.linkedFields.rowIndex ?? 0] ?? '']
+    .map((notificationId) => props.showOptions?.linkedFields?.notifications.find((notification) => notification.id === notificationId))
+    .filter((notification) => notification !== undefined)
   
   return (
     <div className="flex flex-col">
@@ -553,7 +561,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   return (
                     <div className="flex flex-col border w-full rounded-lg items-center py-1 px-2" key={index}>
                       <span className="whitespace-nowrap text-nowrap">{formatTime(timeslot.start, {timeString: false})}</span>
-                      <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timeslot)}</span>
+                      <span className="text-xs whitespace-nowrap text-nowrap">{formatTimeslotDates(timeslot)}</span>
                     </div>
                   )
                 })
@@ -562,7 +570,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   return (
                     <div className="flex flex-col border w-full rounded-lg items-center py-1 px-2" key={index}>
                       <span className="whitespace-nowrap text-nowrap">{formatTime(timeslot.start, {timeString: false})}</span>
-                      <span className="text-xs whitespace-nowrap text-nowrap">{createTimeString(timeslot)}</span>
+                      <span className="text-xs whitespace-nowrap text-nowrap">{formatTimeslotDates(timeslot)}</span>
                     </div>
                   )
                 })
@@ -635,6 +643,37 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                 </Dropdown>
               </div>
             )}
+          </div>
+        )}
+
+        {props.showOptions?.notifications && (
+          <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+            <div className="flex flex-row items-center">
+              {props.showOptions.linkedFields?.participantLinks.notifications !== null &&
+              props.showOptions.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.notifications?.[0]) &&
+              props.showOptions.linkedFields.participantLinks.notifications[1] === 'update' &&
+              notifications.length > 0 ? (
+                notifications.map((notification) => {
+                  return (
+                    <div className="border rounded-sm px-3 py-1 text-left" key={notification.id}>
+                      <span>{notification.content}</span>
+                    </div>
+                  )
+                })
+              ) : props.participant.notifications.length > 0 ? (
+                props.participant.notifications.map((notification) => {
+                  return (
+                    <div className="border rounded-sm px-3 py-1 text-left" key={notification.id}>
+                      <span>{notification.content}</span>
+                    </div>
+                  )
+                }
+              )) : (
+                <div className="border rounded-sm px-3 py-1 text-left">
+                  <span>No Notifications</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
