@@ -4,7 +4,7 @@ import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { DeleteTableParams, TableService, UpdateTableParams } from "../../../services/tableService"
 import { EditableTextField } from "../../common/EditableTextField"
 import { textInputTheme } from "../../../utils"
-import { Dropdown, TextInput } from "flowbite-react"
+import { Alert, Dropdown, TextInput } from "flowbite-react"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
 import { TableComponent } from "./TableComponent"
 import Loading from "../../common/Loading"
@@ -36,10 +36,19 @@ interface TablePanelProps {
   notificationsQuery: UseQueryResult<Notification[], Error>
 }
 
+export interface TablePanelNotification { 
+  id: string, 
+  message: string,
+  status: 'Success' | 'Error'
+  createdAt: Date,
+  autoClose: NodeJS.Timeout | null
+}
+
 //TODO: fix row deletion
 export const TablePanel = (props: TablePanelProps) => {
   const [searchText, setSearchText] = useState('')
   const [tableColumns, setTableColumns] = useState<TableColumn[]>([])
+  const [tableNotifications, setTableNotifications] = useState<TablePanelNotification[]>([])
 
   const table = useQuery(props.TableService.getTableQueryOptions(props.selectedTable.id, { siUserTags: true, logging: true }))
 
@@ -70,6 +79,28 @@ export const TablePanel = (props: TablePanelProps) => {
           maxWidth: props.sidePanelExpanded ? 'calc(100vw - 448px)' : 'calc(100vw - 98px)',
         }}
       >
+        <div className="absolute w-[60%] z-20 max-w-[750px]">
+          {tableNotifications
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .filter((_, index) => index < 3)
+          .reverse()
+          .map((notification, index) => {
+            console.log(notification.createdAt.toLocaleTimeString(), index, notification.message)
+            return (
+              <Alert 
+                key={notification.id}
+                className={`opacity-80 border transition-opacity ${index > 0 ? '-mt-12' : ''}`}
+                color={notification.status === 'Success' ? 'green' : 'red'}
+                onDismiss={() => {
+                  if(notification.autoClose !== null) {
+                    clearTimeout(notification.autoClose)
+                  }
+                  setTableNotifications(prev => prev.filter((parentNotifications) => parentNotifications.id !== notification.id))
+                }}
+              >{notification.message}</Alert>
+            )
+          })}
+        </div>
         { table.isPending ? (
           <div className="flex flex-row">
             Loading<Loading />

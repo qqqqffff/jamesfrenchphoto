@@ -7,7 +7,7 @@ import { FileCell } from "./FileCell"
 import { TagCell } from "./TagCell"
 import { ValueCell } from "./ValueCell"
 import { AdminRegisterTimeslotMutationParams, TimeslotService } from "../../../services/timeslotService"
-import { useMutation, UseMutationResult, UseQueryResult, useQueries } from "@tanstack/react-query"
+import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react"
 import { defaultColumnColors } from "../../../utils"
 import { UpdateTableColumnParams, CreateChoiceParams, TableService, DeleteTableRowParams } from "../../../services/tableService"
@@ -15,7 +15,6 @@ import { v4 } from 'uuid'
 import { 
   CreateParticipantParams, 
   LinkParticipantMutationParams, 
-  LinkUserFieldMutationParams, 
   LinkUserMutationParams, 
   UpdateParticipantMutationParams, 
   UpdateUserAttributesMutationParams, 
@@ -41,8 +40,6 @@ import invariant from 'tiny-invariant';
 import { getTableRowData, isTableRowData } from "./TableRowData"
 import { createPortal } from "react-dom"
 import validator from 'validator'
-import { HiOutlineUserCircle } from "react-icons/hi2";
-import { ParticipantPanel } from "../../common/ParticipantPanel"
 import { LinkUserModal, ParticipantFieldLinks, UserFieldLinks } from "../../modals/LinkUser"
 import { LinkParticipantModal } from "../../modals/LinkParticipant"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
@@ -50,6 +47,8 @@ import { NotificationCell } from "./NotificationCell"
 import { NotificationService } from "../../../services/notificationService"
 import { possibleLinkDetection, rowUnlinkAvailable } from "../../../functions/tableFunctions"
 import { CgSpinner } from "react-icons/cg"
+import { TablePanelNotification } from "./TablePanel"
+import { formatParticipantName } from "../../../functions/clientFunctions"
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
@@ -57,22 +56,27 @@ interface TableRowComponentProps {
   TableService: TableService,
   PhotoPathService: PhotoPathService,
   NotificationService: NotificationService
+
   row: [string, TableColumn['type'], string][]
   i: number
   table: Table
-  users: UserData[],
-  tempUsers: UserProfile[],
-  notifications: Notification[]
+
   selectedTag: UserTag | undefined,
   selectedDate: Date
   baseLink: string
   refRow: React.MutableRefObject<number>
+
+  users: UserData[],
+  tempUsers: UserProfile[],
+  notifications: Notification[]  
+  
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
   tagTimeslotQuery: UseQueryResult<Timeslot[], Error>
   tagData: UseQueryResult<UserTag[] | undefined, Error>
   userData: UseQueryResult<UserData[] | undefined, Error>
   tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
   notificationData: UseQueryResult<Notification[], Error>
+
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   deleteRow: UseMutationResult<void, Error, DeleteTableRowParams, unknown>
   createChoice: UseMutationResult<[string, string] | undefined, Error, CreateChoiceParams, unknown>
@@ -81,12 +85,17 @@ interface TableRowComponentProps {
   updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
   createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
   adminRegisterTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
+
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
+  setNotifications: Dispatch<SetStateAction<Notification[]>>
+  setTableNotifaction: Dispatch<SetStateAction<TablePanelNotification[]>>
+
   setSelectedDate: Dispatch<SetStateAction<Date>>
   setSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
+
   setCreateUser: Dispatch<SetStateAction<boolean>>
-  setNotifications: Dispatch<SetStateAction<Notification[]>>
+  
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
@@ -1067,38 +1076,39 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     props.i  
   ])
 
-  const filteredColumns = props.table.columns.filter((column) => {
-    if(column.type !== 'tag' && column.type !== 'date' && column.type !== 'value') return false
-    return (
-      linkedUserFields === undefined || (
-        (linkedUserFields.first === null || linkedUserFields.first[0] !== column.id) &&
-        (linkedUserFields.last === null || linkedUserFields.last[0] !== column.id) &&
-        (linkedUserFields.sitting === null || linkedUserFields.sitting[0] !== column.id) &&
-        (linkedUserFields.email[1] !== column.id) &&
-        linkedParticipantFields.every((participantLink) => {
-          return (
-            (participantLink.first === null || participantLink.first[0] !== column.id) &&
-            (participantLink.last === null || participantLink.last[0] !== column.id) &&
-            (participantLink.email === null || participantLink.email[0] !== column.id) &&
-            (participantLink.middle === null || participantLink.middle[0] !== column.id) &&
-            (participantLink.preferred === null || participantLink.preferred[0] !== column.id) &&
-            (participantLink.tags === null || participantLink.tags[0] !== column.id) &&
-            (participantLink.timeslot === null || participantLink.timeslot[0] !== column.id)
-          )
-        })
-      )
-    )
-  })
+  // const filteredColumns = props.table.columns.filter((column) => {
+  //   if(column.type !== 'tag' && column.type !== 'date' && column.type !== 'value') return false
+  //   return (
+  //     linkedUserFields === undefined || (
+  //       (linkedUserFields.first === null || linkedUserFields.first[0] !== column.id) &&
+  //       (linkedUserFields.last === null || linkedUserFields.last[0] !== column.id) &&
+  //       (linkedUserFields.sitting === null || linkedUserFields.sitting[0] !== column.id) &&
+  //       (linkedUserFields.email[1] !== column.id) &&
+  //       linkedParticipantFields.every((participantLink) => {
+  //         return (
+  //           (participantLink.first === null || participantLink.first[0] !== column.id) &&
+  //           (participantLink.last === null || participantLink.last[0] !== column.id) &&
+  //           (participantLink.email === null || participantLink.email[0] !== column.id) &&
+  //           (participantLink.middle === null || participantLink.middle[0] !== column.id) &&
+  //           (participantLink.preferred === null || participantLink.preferred[0] !== column.id) &&
+  //           (participantLink.tags === null || participantLink.tags[0] !== column.id) &&
+  //           (participantLink.timeslot === null || participantLink.timeslot[0] !== column.id)
+  //         )
+  //       })
+  //     )
+  //   )
+  // })
 
   const linkUser = useMutation({
     mutationFn: (params: LinkUserMutationParams) => props.UserService.linkUserMutation(params),
     onSuccess: (data) => {
-      if(data.length > 0) {
-        const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === data[0].tableId) ? ({
+      if(data.columns.length > 0) {
+        const notificationId = v4()
+        const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === data.columns[0].tableId) ? ({
           ...group,
-          tables: group.tables.map((table) => table.id === data[0].tableId ? ({
+          tables: group.tables.map((table) => table.id === data.columns[0].tableId ? ({
             ...table,
-            columns: data
+            columns: data.columns
           }) : table)
         }) : group)
 
@@ -1106,22 +1116,48 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         props.parentUpdateTableGroups((prev) => updateGroup(prev))
         props.parentUpdateTable((prev) => prev !== undefined ? ({
           ...prev,
-          columns: data
+          columns: data.columns
         }) : prev)
-        props.parentUpdateTableColumns(data)
+        props.parentUpdateTableColumns(data.columns)
+        props.setTableNotifaction(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully linked user: ${data.user.email}`,
+          createdAt: new Date(),
+          status: 'Success' as 'Success',
+          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
       }
+      else {
+        props.setTableNotifaction(prev => [...prev, {
+          id: v4(),
+          message: 'Failed to link user.',
+          createdAt: new Date(),
+          status: 'Error',
+          autoClose: null
+        }])
+      }
+    },
+    onError: () => {
+      props.setTableNotifaction(prev => [...prev, {
+        id: v4(),
+        message: 'Failed to link user.',
+        createdAt: new Date(),
+        status: 'Error',
+        autoClose: null
+      }])
     }
   })
 
   const linkParticipant = useMutation({
     mutationFn: (params: LinkParticipantMutationParams) => props.UserService.linkParticipantMutation(params),
     onSuccess: (data) => {
-      if(data.length > 0) {
-        const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === data[0].tableId) ? ({
+      if(data.columns.length > 0) {
+        const notificationId = v4()
+        const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === data.columns[0].tableId) ? ({
           ...group,
-          tables: group.tables.map((table) => table.id === data[0].tableId ? ({
+          tables: group.tables.map((table) => table.id === data.columns[0].tableId ? ({
             ...table,
-            columns: data
+            columns: data.columns
           }) : table)
         }) : group)
 
@@ -1129,53 +1165,80 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         props.parentUpdateTableGroups((prev) => updateGroup(prev))
         props.parentUpdateTable((prev) => prev !== undefined ? ({
           ...prev,
-          columns: data
+          columns: data.columns
         }) : prev)
-        props.parentUpdateTableColumns(data)
+        props.parentUpdateTableColumns(data.columns)
+        props.setTableNotifaction(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully linked participant: ${formatParticipantName(data.participant)}`,
+          createdAt: new Date(),
+          status: 'Success' as 'Success',
+          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
       }
+      else {
+        props.setTableNotifaction(prev => [...prev, {
+          id: v4(),
+          message: 'Failed to link participant.',
+          createdAt: new Date(),
+          status: 'Error',
+          autoClose: null
+        }])
+      }
+    },
+    onError: () => {
+      props.setTableNotifaction(prev => [...prev, {
+        id: v4(),
+        message: 'Failed to link participant.',
+        createdAt: new Date(),
+        status: 'Error',
+        autoClose: null
+      }])
     }
   })
 
-  const linkUserField = useMutation({
-    mutationFn: (params: LinkUserFieldMutationParams) => props.UserService.linkUserFieldMutation(params),
-    onSuccess: (data) => {
-      const newColumn = data[0]
-      const newProfile = data[1]
-      const temp = props.tempUsers.some((profile) => profile.email === newProfile.email)
+  // const linkUserField = useMutation({
+  //   mutationFn: (params: LinkUserFieldMutationParams) => props.UserService.linkUserFieldMutation(params),
+  //   onSuccess: (data) => {
+  //     const newColumn = data[0]
+  //     const newProfile = data[1]
+  //     const temp = props.tempUsers.some((profile) => profile.email === newProfile.email)
 
       
-      const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === newColumn.tableId) ? ({
-        ...group,
-        tables: group.tables.map((table) => table.id === newColumn.tableId ? ({
-          ...table,
-          columns: table.columns.map((column) => column.id === newColumn.id ? newColumn : column)
-        }) : table)
-      }) : ( 
-        group 
-      ))
+  //     const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === newColumn.tableId) ? ({
+  //       ...group,
+  //       tables: group.tables.map((table) => table.id === newColumn.tableId ? ({
+  //         ...table,
+  //         columns: table.columns.map((column) => column.id === newColumn.id ? newColumn : column)
+  //       }) : table)
+  //     }) : ( 
+  //       group 
+  //     ))
 
 
-      props.setTempUsers((prev) => temp ? prev.map((profile) => profile.email === newProfile.email ? newProfile : profile) : prev)
-      props.setUsers((prev) => !temp ? prev.map((user) => user.email === newProfile.email ? ({...user, profile: newProfile}) : user) : prev)
-      props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-      props.parentUpdateTableGroups((prev) => updateGroup(prev))
-      props.parentUpdateTable((prev) => prev !== undefined ? ({
-        ...prev,
-        columns: prev.columns.map((column) => column.id === newColumn.id ? newColumn : column)
-      }) : prev)
-      props.parentUpdateTableColumns((prev) => prev.map((column) => column.id === newColumn.id ? newColumn : column))
-    }
-  })
+  //     props.setTempUsers((prev) => temp ? prev.map((profile) => profile.email === newProfile.email ? newProfile : profile) : prev)
+  //     props.setUsers((prev) => !temp ? prev.map((user) => user.email === newProfile.email ? ({...user, profile: newProfile}) : user) : prev)
+  //     props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+  //     props.parentUpdateTableGroups((prev) => updateGroup(prev))
+  //     props.parentUpdateTable((prev) => prev !== undefined ? ({
+  //       ...prev,
+  //       columns: prev.columns.map((column) => column.id === newColumn.id ? newColumn : column)
+  //     }) : prev)
+  //     props.parentUpdateTableColumns((prev) => prev.map((column) => column.id === newColumn.id ? newColumn : column))
+  //   }
+  // })
 
   const unlinkUserRow = useMutation({
     mutationFn: (params: UnlinkUserRowMutationParams) => props.UserService.unlinkUserRowMutation(params),
     onSuccess: (data) => {
-      if(data.length > 0) {
-        const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === data[0].tableId) ? ({
+      if(data.columns.length > 0) {
+        const notificationId = v4()
+
+        const updateGroup = (prev: TableGroup[]): TableGroup[] => prev.map((group) => group.tables.some((table) => table.id === data.columns[0].tableId) ? ({
           ...group,
-          tables: group.tables.map((table) => table.id === data[0].tableId ? ({
+          tables: group.tables.map((table) => table.id === data.columns[0].tableId ? ({
             ...table,
-            columns: data
+            columns: data.columns
           }) : table)
         }) : group)
 
@@ -1183,17 +1246,71 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         props.parentUpdateTableGroups((prev) => updateGroup(prev))
         props.parentUpdateTable((prev) => prev !== undefined ? ({
           ...prev,
-          columns: data
+          columns: data.columns
         }) : prev)
-        props.parentUpdateTableColumns(data)
+        props.parentUpdateTableColumns(data.columns)
         setLinkedParticipantFields([])
         setLinkedUserFields(undefined)
+        props.setTableNotifaction(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully unlinked user: ${data.user.email}`,
+          createdAt: new Date(),
+          status: 'Success' as 'Success',
+          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
       }
+      else {
+        props.setTableNotifaction(prev => [...prev, {
+          id: v4(),
+          message: 'Failed to unlink user.',
+          createdAt: new Date(),
+          status: 'Error',
+          autoClose: null
+        }])
+      }
+    },
+    onError: () => {
+      props.setTableNotifaction(prev => [...prev, {
+        id: v4(),
+        message: 'Failed to unlink user.',
+        createdAt: new Date(),
+        status: 'Error',
+        autoClose: null
+      }])
     }
   })
 
   const sendInviteEmail = useMutation({
-    mutationFn: (params: SendUserInviteEmailParams) => props.UserService.sendUserInviteEmail(params)
+    mutationFn: (params: SendUserInviteEmailParams) => props.UserService.sendUserInviteEmail(params),
+    onSuccess: (data) => {
+      if(data.success) {
+        const notificationId = v4()
+        props.setTableNotifaction(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully sent invite to user: ${data.email}`,
+          createdAt: new Date(),
+          status: 'Success' as 'Success',
+          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
+      } else {
+        props.setTableNotifaction(prev => [...prev, {
+          id: v4(),
+          message: 'Failed to invite user.',
+          createdAt: new Date(),
+          status: 'Error',
+          autoClose: null
+        }])
+      }
+    },
+    onError: () => {
+      props.setTableNotifaction(prev => [...prev, {
+        id: v4(),
+        message: 'Failed to invite user.',
+        createdAt: new Date(),
+        status: 'Error',
+        autoClose: null
+      }])
+    }
   })
 
   const unlinkAvailable = rowUnlinkAvailable(linkedParticipantFields, linkedUserFields, props.table.columns)
@@ -1499,6 +1616,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     unlinkUserRow.mutate({
                       tableColumns: props.table.columns,
                       rowIndex: props.i,
+                      userProfile: detectedUser,
                       options:{
                         logging: true
                       }
@@ -1956,7 +2074,15 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   <Dropdown.Item  
                     className="whitespace-nowrap flex flex-row justify-center w-full"
                     onClick={() => {
+                      const notificationId = v4()
                       navigator.clipboard.writeText(props.baseLink + `?token=${detectedUser.temporary}`)
+                      props.setTableNotifaction((prev) => [...prev, {
+                        id: notificationId,
+                        message: 'Link copied successfully',
+                        status: 'Success',
+                        createdAt: new Date(),
+                        autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)))
+                      }])
                     }}
                   >Copy Invite Link
                   </Dropdown.Item>

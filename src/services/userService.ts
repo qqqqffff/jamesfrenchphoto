@@ -12,6 +12,7 @@ import { V6Client } from '@aws-amplify/api-graphql'
 import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
 import validator from 'validator'
 import { mapTimeslot } from "./timeslotService";
+import sgMail from '@sendgrid/mail'
 
 interface GetUserProfileByEmailOptions {
   siTags?: boolean,
@@ -542,6 +543,7 @@ export interface LinkUserFieldMutationParams {
 export interface UnlinkUserRowMutationParams {
   tableColumns: TableColumn[],
   rowIndex: number,
+  userProfile: UserProfile,
   options?: {
     logging?: boolean
   }
@@ -1063,8 +1065,8 @@ export class UserService {
   }
 
   //TODO: enhance error handling
-  async sendUserInviteEmail(params: SendUserInviteEmailParams) {
-    if(!params.profile.firstName || !params.profile.lastName) return null
+  async sendUserInviteEmail(params: SendUserInviteEmailParams): Promise<{ email: string, success: boolean }> {
+    if(!params.profile.firstName || !params.profile.lastName) return { email: params.profile.email, success: false }
     
     let temp: String | undefined = params.profile.temporary
 
@@ -1075,18 +1077,35 @@ export class UserService {
       }
     }
 
-    if(!temp) return null
+    if(!temp) return { email: params.profile.email, success: false }
 
     const response = await this.client.queries.ShareUserInvite({
       email: params.profile.email.toLocaleLowerCase(),
       firstName: params.profile.email,
       lastName: params.profile.email,
       link: params.baseLink + `?token=${temp}`
-    }, {
-      authMode: 'userPool'
     })
 
     if(params.options?.logging) console.log(response)
+    if(response.data === null) return { 
+      email: params.profile.email,
+      success: false, 
+    }
+
+    try {
+      const parsedResponse: sgMail.ClientResponse = JSON.parse(response.data.toString())
+      return {
+        email: params.profile.email,
+        success: parsedResponse.statusCode >= 200 && parsedResponse.statusCode < 300
+      }
+    } catch (err) {
+      return {
+        success: false,
+        email: params.profile.email,
+      }
+    }
+
+    
   }
 
   async inviteUserMutation(params: InviteUserParams) {
@@ -1281,7 +1300,7 @@ export class UserService {
    * with field being any of the potentially mappable 
    * field is not applicable to tags or timeslots (not necessary for those col types)
    */
-  async linkUserMutation(params: LinkUserMutationParams): Promise<TableColumn[]> {
+  async linkUserMutation(params: LinkUserMutationParams): Promise<{columns: TableColumn[], user: UserProfile }> {
     const updatedColumns = [...params.tableColumns]
     if(params.tableColumns.some((column) => column.id === params.userFieldLinks.email[1])) {
       const columnIndex = params.tableColumns.findIndex((column) => column.id === params.userFieldLinks.email[1])
@@ -1793,10 +1812,13 @@ export class UserService {
       }
     }))
 
-    return updatedColumns
+    return {
+      columns: updatedColumns,
+      user: params.userProfile
+    }
   }
 
-  async unlinkUserRowMutation(params: UnlinkUserRowMutationParams): Promise<TableColumn[]> {
+  async unlinkUserRowMutation(params: UnlinkUserRowMutationParams): Promise<{ columns: TableColumn[], user: UserProfile }> {
     const updatedColumns: TableColumn[] = await Promise.all([...params.tableColumns].map(async (column) => {
       const choices = (column.choices ?? [])
       if(
@@ -1824,10 +1846,13 @@ export class UserService {
       return column
     }));
 
-    return updatedColumns
+    return {
+      columns: updatedColumns,
+      user: params.userProfile
+    }
   }
 
-  async linkParticipantMutation(params: LinkParticipantMutationParams): Promise<TableColumn[]> {
+  async linkParticipantMutation(params: LinkParticipantMutationParams): Promise<{ columns: TableColumn[], participant: Participant }> {
     const updatedColumns = [...params.tableColumns]
 
     //creating the user
@@ -2148,7 +2173,10 @@ export class UserService {
       }
     }
 
-    return updatedColumns
+    return {
+      columns: updatedColumns,
+      participant: params.participant
+    }
   }
 
   getUserProfileByEmailQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({

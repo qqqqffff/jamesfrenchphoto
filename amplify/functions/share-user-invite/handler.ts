@@ -321,5 +321,5 @@ export const handler: Schema['ShareUserInvite']['functionHandler'] = async (even
   const response = await sgMail.send(message)
   console.log(response)
 
-  return JSON.stringify(response)
+  return response[0]
 }

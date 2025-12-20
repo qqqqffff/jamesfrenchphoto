@@ -17,7 +17,7 @@ interface LinkUserModalProps extends ModalProps {
   notifications: Notification[]
   rowIndex: number,
   tags: UseQueryResult<UserTag[] | undefined, Error>,
-  linkUser: UseMutationResult<TableColumn[], Error, LinkUserMutationParams, unknown>
+  linkUser: UseMutationResult<{ columns: TableColumn[], user: UserProfile }, Error, LinkUserMutationParams, unknown>
 }
 
 export type UserFieldLinks = {

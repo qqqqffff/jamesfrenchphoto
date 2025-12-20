@@ -15,7 +15,7 @@ interface LinkParticipantModalProps extends ModalProps {
   tableColumns: TableColumn[],
   rowIndex: number,
   tags: UseQueryResult<UserTag[] | undefined, Error>
-  linkParticipant: UseMutationResult<TableColumn[], Error, LinkParticipantMutationParams, unknown>,
+  linkParticipant: UseMutationResult<{ columns: TableColumn[], participant: Participant }, Error, LinkParticipantMutationParams, unknown>,
   notifications: Notification[]
 }
 
