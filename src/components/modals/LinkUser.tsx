@@ -7,6 +7,7 @@ import { ParticipantPanel } from "../common/ParticipantPanel";
 import { HiOutlineChevronDown, HiOutlineLockClosed, HiOutlineLockOpen, HiOutlineChevronLeft } from "react-icons/hi2";
 import { LinkUserMutationParams, UserService } from "../../services/userService";
 import { TimeslotService } from "../../services/timeslotService";
+import { possibleLinkDetection } from "../../functions/tableFunctions";
 
 interface LinkUserModalProps extends ModalProps {
   UserService: UserService
@@ -65,162 +66,14 @@ export const LinkUserModal: FC<LinkUserModalProps> = (props) => {
   })
 
   useEffect(() => {
-    const linkedUser: UserFieldLinks = linkedUserFields ? {...linkedUserFields} : {
-      email: [props.userProfile.email, ''],
-      first: null,
-      last: null,
-      sitting: null
-    }
-    
-    const linkedParticipants: ParticipantFieldLinks[] = linkedParticipantFields.length === 0 ? props.userProfile.participant.map((participant) => {
-      return ({
-        id: participant.id,
-        first: null,
-        last: null,
-        middle: null,
-        preferred: null,
-        email: null,
-        tags: null,
-        timeslot: null,
-        notifications: null,
-      })
-    }) : linkedParticipantFields
-    //TODO: investigate how to get linking to working for multiple participants & smarter with local compare
+    const linkDetectionResults = possibleLinkDetection(
+      props.userProfile,
+      props.rowIndex,
+      props.tableColumns
+    )
 
-    if(props.tableColumns.length > 0 && props.tableColumns[0].values[props.rowIndex] !== undefined) {
-      for(let i = 0; i < props.tableColumns.length; i++) {
-        const column = props.tableColumns[i]
-        const foundChoice = (column.choices ?? [])?.[props.rowIndex]
-        //skip if mapping already exits for this column
-        if(foundChoice !== undefined && foundChoice !== null && (foundChoice.includes('userEmail') || foundChoice.includes('participantId'))) continue
-        const normalHeader = column.header.toLocaleLowerCase()
-        if(
-          column.type === 'value' &&
-          !(
-            normalHeader.includes('participant') || 
-            normalHeader.includes('duchess') || 
-            normalHeader.includes('deb') || 
-            normalHeader.includes('escort') ||
-            normalHeader.includes('daughter') ||
-            normalHeader.includes('son') ||
-            normalHeader.includes('child')
-          )
-        ) {
-          if(
-            normalHeader.includes('first') &&
-            linkedUser.first === null
-          ) {
-            linkedUser.first = [
-              column.id, 
-              column.values[props.rowIndex] === '' ? 'override' : 'update'
-            ]
-          }
-          else if(
-            normalHeader.includes('last') &&
-            linkedUser.last === null
-          ) {
-            linkedUser.last = [
-              column.id, 
-              column.values[props.rowIndex] === '' ? "override" : 'update'
-            ]
-          }
-          else if(
-            normalHeader.includes('sitting') &&
-            linkedUser.sitting === null
-          ) {
-            linkedUser.sitting = [
-              column.id, 
-              column.values[props.rowIndex] === '' ? 'override' : 'update'
-            ]
-          }
-          else if(
-            normalHeader.includes('email') &&
-            linkedUser.email[0] === column.values[props.rowIndex] &&
-            linkedUser.email[1] === ''
-          ) {
-            linkedUser.email = [linkedUser.email[0], column.id]
-          }
-        }
-        else if(
-          (
-            normalHeader.includes('participant') || 
-            normalHeader.includes('duchess') || 
-            normalHeader.includes('deb') || 
-            normalHeader.includes('escort') ||
-            column.type === 'tag' ||
-            column.type === 'date'
-          ) &&
-          linkedParticipants.length > 0
-        ) {
-          if(
-            normalHeader.includes('first') &&
-            linkedParticipants[0].first === null
-          ) {
-            linkedParticipants[0].first = [
-              column.id, 
-              column.values[props.rowIndex] === '' ? 'override' : 'update'
-            ]
-          }
-          else if(
-            normalHeader.includes('last') &&
-            linkedParticipants[0].last === null
-          ) {
-            linkedParticipants[0].last = [
-              column.id, 
-              column.values[props.rowIndex] === '' ? 'override' : 'update'
-            ]
-          }
-          else if(
-            normalHeader.includes('middle') &&
-            linkedParticipants[0].middle === null
-          ) {
-            linkedParticipants[0].middle = [
-              column.id, 
-              column.values[props.rowIndex] === '' ? 'override' : 'update'
-            ]
-          }
-          else if(
-            normalHeader.includes('prefer') &&
-            linkedParticipants[0].preferred === null
-          ) {
-            linkedParticipants[0].preferred = [
-              column.id, 
-              column.values[props.rowIndex] === '' ? 'override' : 'update'
-            ]
-          }
-          else if(
-            normalHeader.includes('email') &&
-            linkedParticipants[0].email === null
-          ) {
-            linkedParticipants[0].email = [
-              column.id, 
-              column.values[props.rowIndex] === '' ? 'override' : 'update'
-            ]
-          }
-          else if(
-            column.type === 'tag' &&
-            linkedParticipants[0].tags === null
-          ) {
-            linkedParticipants[0].tags = [
-              column.id,
-              column.values[props.rowIndex] === '' ? 'override' : 'update'
-            ]
-          }
-          else if(
-            column.type === 'date' &&
-            linkedParticipants[0].timeslot === null
-          ) {
-            linkedParticipants[0].timeslot = [
-              column.id,
-              column.values[props.rowIndex] === '' ? 'override' : 'update'
-            ]
-          }
-        }
-      }
-    }
-
-    setLinkedUserFields(linkedUser)
-    setLinkedParticipantFields(linkedParticipants)
+    setLinkedUserFields(linkDetectionResults.userLinks)
+    setLinkedParticipantFields(linkDetectionResults.participantLinks)
   }, [
     props.userProfile,
     props.tableColumns,

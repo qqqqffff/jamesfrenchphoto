@@ -36,8 +36,6 @@ export const TagCell = (props: TagCellProps) => {
   const [search, setSearch] = useState<string>('')
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile, participant: Participant } | undefined>();
   const [availableTags, setAvailableTags] = useState<UserTag[]>(props.tags.data ?? [])
-
-  console.log(foundParticipant)
   
   useEffect(() => {
     if(props.value !== value){

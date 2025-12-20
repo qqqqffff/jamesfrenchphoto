@@ -33,12 +33,14 @@ export const ValueCell = (props: ValueCellProps) => {
       link.preferred?.[0] === props.column.id
     ))
 
+  const userField = specialField && props.column.id === props.userFieldLinks?.email[1];
+
   //TODO: handle special case for sitting number (accept only numbers)
 
   return (
     <td className={`
       text-ellipsis border py-3 px-3 max-w-[150px]
-      ${specialField ? 'bg-yellow-50 bg-opacity-40' : ''}
+      ${specialField && !userField ? 'bg-yellow-50' : userField ? 'bg-blue-50' : ''}
     `}>
       <input
         ref={inputRef}

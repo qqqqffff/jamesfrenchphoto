@@ -14,7 +14,7 @@ import { useAuth } from '../../../auth'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
 import validator from 'validator'
-import { Alert } from 'flowbite-react'
+import { Alert, Tooltip } from 'flowbite-react'
 
 interface SchedulerParams {
   tagId?: string
@@ -89,9 +89,8 @@ function RouteComponent() {
   useEffect(() => {
     if((timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).length > 0) { 
       setActiveDate(new Date((timeslots.data ?? [])
-      .filter((timeslot) => timeslot.tag?.id === activeTag.id)
+      .filter((timeslot) => timeslot.tag?.id === activeTag.id && new Date(timeslot.start).getTime() > currentDate.getTime())
       .sort((a, b) => {
-        if(new Date(a.start).getTime() < currentDate.getTime()) return 1
         return new Date(a.start).getTime() - new Date(b.start).getTime()
       })[0].start)) 
     }
@@ -139,13 +138,16 @@ function RouteComponent() {
             tagTimeslot?.tag?.id === tag?.id
           ))
         
+        let participantDisabled = 
+          (timeslot.register !== undefined && userProfile.email !== timeslot.register) &&
+          (timeslot.participantId !== undefined && (userProfile.activeParticipant?.id ?? userProfile.participant[0].id ?? participant.id) !== timeslot.participantId)
+        let pastedDateDisabled = currentDate.getTime() > activeDate.getTime()
+        let alreadyRegisteredDisabled = (alreadyRegistered !== undefined && timeslot.id !== alreadyRegistered.id)
+
         let disabled = 
-          (
-            (timeslot.register !== undefined && userProfile.email !== timeslot.register) &&
-            (timeslot.participantId !== undefined && (userProfile.activeParticipant?.id ?? userProfile.participant[0].id ?? participant.id) !== timeslot.participantId)
-          ) || 
-          currentDate > activeDate ||
-          (alreadyRegistered !== undefined && timeslot.id !== alreadyRegistered.id)
+          participantDisabled ||
+          pastedDateDisabled ||
+          alreadyRegisteredDisabled
 
         const disabledText = disabled ? 'line-through cursor-not-allowed' : ''
 
@@ -160,7 +162,18 @@ function RouteComponent() {
               setSelectedTimeslot(timeslot)
             }
           }} disabled={disabled} className={`${selected} rounded-lg enabled:hover:bg-gray-300 ${disabledText}`}>
-            <SlotComponent timeslot={{...timeslot, tag: tag }} tag={tag} participant={null} />
+            {disabled ? (
+              <Tooltip
+                style='light'
+                placement='bottom'
+                theme={{ target: undefined }}
+                content={(<span className='text-xs italic whitespace-nowrap font-sans'>{pastedDateDisabled ? 'You can only register for future timeslots.' : alreadyRegisteredDisabled ? 'Only one timeslot is allowed per user.' : 'This timeslot has been taken by another user.'}</span>)}
+              >
+                <SlotComponent timeslot={{...timeslot, tag: tag }} tag={tag} participant={null} />
+              </Tooltip>
+            ) : (
+              <SlotComponent timeslot={{...timeslot, tag: tag }} tag={tag} participant={null} />
+            )}
           </button>
         )
       })

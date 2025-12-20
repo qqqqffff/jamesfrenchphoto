@@ -196,8 +196,8 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
           className="
             bg-gray-50
             relative px-6 py-3 border-e border-e-gray-300 border-b border-b-gray-300
-            min-w-[50px] max-w-[50px] whitespace-normal break-words
-            text-center
+            w-full whitespace-normal break-words justify-center flex items-center
+            
           "
         >
           <Dropdown

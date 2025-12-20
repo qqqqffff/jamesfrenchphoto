@@ -539,6 +539,14 @@ export interface LinkUserFieldMutationParams {
   }
 }
 
+export interface UnlinkUserRowMutationParams {
+  tableColumns: TableColumn[],
+  rowIndex: number,
+  options?: {
+    logging?: boolean
+  }
+}
+
 export interface LinkUserMutationParams {
   tableColumns: TableColumn[],
   rowIndex: number,
@@ -1784,6 +1792,37 @@ export class UserService {
         }
       }
     }))
+
+    return updatedColumns
+  }
+
+  async unlinkUserRowMutation(params: UnlinkUserRowMutationParams): Promise<TableColumn[]> {
+    const updatedColumns: TableColumn[] = await Promise.all([...params.tableColumns].map(async (column) => {
+      const choices = (column.choices ?? [])
+      if(
+        (
+          column.type === 'date' ||
+          column.type === 'notification' ||
+          column.type === 'tag' ||
+          column.type === 'value'
+        ) && (
+          choices[params.rowIndex] !== undefined &&
+          choices[params.rowIndex] !== ''
+        )
+      ) {
+        choices[params.rowIndex] = ''
+        const updatedColumnResponse = await this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices
+        })
+        if(params.options?.logging) console.log(updatedColumnResponse)
+        return ({
+          ...column,
+          choices: choices
+        })
+      }
+      return column
+    }));
 
     return updatedColumns
   }
