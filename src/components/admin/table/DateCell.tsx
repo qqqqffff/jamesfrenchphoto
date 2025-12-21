@@ -171,6 +171,8 @@ export const DateCell = (props: DateCellProps) => {
     }, [] as Participant[])
     .find((participant) => participant.id === selectedTimeslot.current?.participantId)
 
+  const cellColoring = props.rowIndex % 2 ? foundParticipant ? 'bg-yellow-200 bg-opacity-40' : 'bg-gray-100 bg-opacity-40' : foundParticipant ? 'bg-yellow-50 bg-opacity-40' : '';
+
   return (
     <>
       {selectedTimeslot.current && (
@@ -286,15 +288,15 @@ export const DateCell = (props: DateCellProps) => {
       )}
       <td className={`
         text-ellipsis border py-3 px-3 max-w-[150px]
-        ${foundParticipant !== undefined ? 'bg-yellow-50 bg-opacity-40' : ''}
+         ${cellColoring}
       `}>
         <input
           placeholder="Pick Timeslots..."
-          className="
+          className={`
             font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
             border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
-            hover:cursor-pointer
-          "
+            hover:cursor-pointer bg-transparent
+          `}
           value={timeslotValue}
           onFocus={() => setIsFocused(true)}
           readOnly

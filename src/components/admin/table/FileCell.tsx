@@ -58,6 +58,8 @@ export const FileCell = (props: FileCellProps) => {
     },
   })
 
+  const cellColoring = props.rowIndex % 2 ?  'bg-gray-100 bg-opacity-40' : '';
+
   return (
     <>
       <ConfirmationModal 
@@ -103,7 +105,7 @@ export const FileCell = (props: FileCellProps) => {
         }}
         open={deleteFileVisible}
       />
-      <td className="text-ellipsis border py-3 px-3 max-w-[150px]">
+      <td className={`text-ellipsis border py-3 px-3 max-w-[150px] ${cellColoring}`}>
         <div className="flex flex-row items-center gap-2">
           <label 
             className="

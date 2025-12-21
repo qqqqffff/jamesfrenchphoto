@@ -110,11 +110,13 @@ export const TagCell = (props: TagCellProps) => {
     }
   })()
 
+  const cellColoring = props.rowIndex % 2 ? foundParticipant ? 'bg-yellow-200 bg-opacity-40' : 'bg-gray-100 bg-opacity-40' : foundParticipant ? 'bg-yellow-50 bg-opacity-40' : '';
+
   return (
     <>
       <td className={`
         text-ellipsis border py-3 px-3 max-w-[150px]
-        ${foundParticipant !== undefined ? 'bg-yellow-50 bg-opacity-40' : ''}
+        ${cellColoring}
       `}>
         <input
           placeholder="Pick Tags..."
