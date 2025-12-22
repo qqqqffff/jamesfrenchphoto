@@ -49,6 +49,7 @@ import { possibleLinkDetection, rowUnlinkAvailable } from "../../../functions/ta
 import { CgSpinner } from "react-icons/cg"
 import { TablePanelNotification } from "./TablePanel"
 import { formatParticipantName } from "../../../functions/clientFunctions"
+import { UserPanel } from "../../common/UserPanel"
 
 interface TableRowComponentProps {
   TimeslotService: TimeslotService,
@@ -1655,394 +1656,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     />
                   )
                 )}
-                {/* <div className="px-4 py-2 flex flex-col">
-                  <span className="font-medium whitespace-nowrap text-lg text-blue-400">User Info{
-                  userDetection[0] === 'temp' ? (
-                    ' - Temporary'
-                  ) : (
-                    userDetection[0] === 'unlinked' ? (
-                      ' - Unlinked'
-                    ) : (
-                      ''
-                    )
-                  )}
-                  </span>
-                  <div className="border mb-2"/>
-                  <div className="flex flex-col text-xs">
-                    <div className="px-3">
-                      <div className="flex flex-row items-center text-nowrap justify-between w-full border-y py-1 px-2 min-h-[36px]">
-                        <div className="flex flex-row gap-2 items-center">
-                          <span>Sitting Number:</span>
-                          <span className="italic">{detectedUser.sittingNumber}</span>
-                        </div>
-                        {userDetection[0] !== 'unlinked' && (
-                          <div className="me-2">
-                            <Dropdown
-                              inline
-                              arrowIcon={false}
-                              label={(
-                                linkedUserFields?.sitting !== null && 
-                                props.table.columns.some((column) => column.id === linkedUserFields?.sitting?.[0])
-                              ) ? (
-                                <HiOutlineLockClosed size={16} className="hover:text-gray-300" />
-                              ) : (
-                                <HiOutlineLockOpen size={16} className="hover:text-gray-300" />
-                              )}
-                            >
-                              {linkedUserFields?.sitting !== null &&
-                              props.table.columns.some((column) => column.id === linkedUserFields?.sitting?.[0]) && (
-                                <Dropdown.Item
-                                  className="bg-gray-200 hover:bg-transparent"
-                                  onClick={() => {
-                                    const column = props.table.columns.find((column) => column.id === linkedUserFields?.first?.[0])
-                                    invariant(column)
-
-                                    const fieldLink: UserFieldLinks = {
-                                      ...linkedUserFields === undefined ? {
-                                        sitting: null,
-                                        email: [detectedUser.email, ''],
-                                        first: null,
-                                        last: null
-                                      } : {
-                                        ...linkedUserFields,
-                                        sitting: null,
-                                      }
-                                    }
-
-                                    linkUserField.mutate({
-                                      tableColumn: column,
-                                      rowIndex: props.i,
-                                      userFieldLinks: fieldLink,
-                                      field: 'first',
-                                      userProfile: detectedUser,
-                                      options: {
-                                        logging: true
-                                      }
-                                    })
-
-                                    setLinkedUserFields(fieldLink)
-                                  }}
-                                >{props.table.columns.find((column) => column.id === linkedUserFields?.sitting?.[0])?.header}</Dropdown.Item>
-                              )}
-                              {filteredColumns.filter((column) => column.type === 'value' && !isNaN(Number(column.values[props.i]))).length === 0 ? (
-                                <Dropdown.Item disabled>No available columns</Dropdown.Item>
-                              ) : (filteredColumns.filter((column) => column.type === 'value' && !isNaN(Number(column.values[props.i]))).map((column) => {
-                                return (
-                                  <Dropdown.Item
-                                    key={column.id}
-                                    onClick={() => {
-                                      const fieldLink: UserFieldLinks = {
-                                        ...linkedUserFields === undefined ? {
-                                          sitting: [column.id, column.values[props.i] === undefined || column.values[props.i] === '' ? 'override' : 'update'],
-                                          email: [detectedUser.email, ''],
-                                          first: null,
-                                          last: null
-                                        } : {
-                                          ...linkedUserFields,
-                                          sitting: [column.id, column.values[props.i] === undefined || column.values[props.i] === '' ? 'override' : 'update'],
-                                        }
-                                      }
-
-                                      linkUserField.mutate({
-                                        tableColumn: column,
-                                        rowIndex: props.i,
-                                        userFieldLinks: fieldLink,
-                                        field: 'sitting',
-                                        userProfile: detectedUser,
-                                        options: {
-                                          logging: true
-                                        }
-                                      })
-
-                                      setLinkedUserFields(fieldLink)
-                                    }}
-                                  >{column.header}</Dropdown.Item>
-                                )})
-                              )}
-                            </Dropdown>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
-                        <div className="flex flex-row gap-2 items-center">
-                          <span>First Name:</span>
-                          <span className="italic">{detectedUser.firstName}</span>
-                        </div>
-                        {userDetection[0] !== 'unlinked' && (
-                          <div className="me-2">
-                            <Dropdown
-                              inline
-                              arrowIcon={false}
-                              label={(
-                                linkedUserFields?.first !== null && 
-                                props.table.columns.some((column) => column.id === linkedUserFields?.first?.[0])
-                              ) ? (
-                                <HiOutlineLockClosed size={16} className="hover:text-gray-300" />
-                              ) : (
-                                <HiOutlineLockOpen size={16} className="hover:text-gray-300" />
-                              )}
-                            >
-                              {linkedUserFields?.first !== null &&
-                              props.table.columns.some((column) => column.id === linkedUserFields?.first?.[0]) && (
-                                <Dropdown.Item
-                                  className="bg-gray-200 hover:bg-transparent"
-                                  onClick={() => {
-                                    const column = props.table.columns.find((column) => column.id === linkedUserFields?.first?.[0])
-                                    invariant(column)
-
-                                    const fieldLink: UserFieldLinks = {
-                                      ...linkedUserFields === undefined ? {
-                                        sitting: null,
-                                        email: [detectedUser.email, ''],
-                                        first: null,
-                                        last: null
-                                      } : {
-                                        ...linkedUserFields,
-                                        first: null,
-                                      }
-                                    }
-
-                                    linkUserField.mutate({
-                                      tableColumn: column,
-                                      rowIndex: props.i,
-                                      userFieldLinks: fieldLink,
-                                      field: 'first',
-                                      userProfile: detectedUser,
-                                      options: {
-                                        logging: true
-                                      }
-                                    })
-
-                                    setLinkedUserFields(fieldLink)
-                                  }}
-                                >{props.table.columns.find((column) => column.id === linkedUserFields?.first?.[0])?.header}</Dropdown.Item>
-                              )}
-                              {filteredColumns.filter((column) => column.type === 'value').length === 0 ? (
-                                <Dropdown.Item disabled>No available columns</Dropdown.Item>
-                              ) : (filteredColumns.filter((column) => column.type === 'value').map((column) => {
-                                return (
-                                  <Dropdown.Item
-                                    key={column.id}
-                                    onClick={() => {
-                                      const fieldLink: UserFieldLinks = {
-                                        ...linkedUserFields === undefined ? {
-                                          first: [column.id, column.values[props.i] === undefined || column.values[props.i] === '' ? 'override' : 'update'],
-                                          email: [detectedUser.email, ''],
-                                          sitting: null,
-                                          last: null
-                                        } : {
-                                          ...linkedUserFields,
-                                          first: [column.id, column.values[props.i] === undefined || column.values[props.i] === '' ? 'override' : 'update'],
-                                        }
-                                      }
-
-                                      linkUserField.mutate({
-                                        tableColumn: column,
-                                        rowIndex: props.i,
-                                        userFieldLinks: fieldLink,
-                                        field: 'first',
-                                        userProfile: detectedUser,
-                                        options: {
-                                          logging: true
-                                        }
-                                      })
-
-                                      setLinkedUserFields(fieldLink)
-                                    }}
-                                  >{column.header}</Dropdown.Item>
-                                )})
-                              )}
-                            </Dropdown>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
-                        <div className="flex flex-row gap-2 items-center">
-                          <span>Last Name:</span>
-                          <span className="italic">{detectedUser.lastName}</span>
-                        </div>
-                        {userDetection[0] !== 'unlinked' && (
-                            <div className="me-2">
-                              <Dropdown
-                                inline
-                                arrowIcon={false}
-                                label={(
-                                  linkedUserFields?.last !== null && 
-                                  props.table.columns.some((column) => column.id === linkedUserFields?.last?.[0])
-                                ) ? (
-                                  <HiOutlineLockClosed size={16} className="hover:text-gray-300" />
-                                ) : (
-                                  <HiOutlineLockOpen size={16} className="hover:text-gray-300" />
-                                )}
-                              >
-                                {linkedUserFields?.last !== null &&
-                                props.table.columns.some((column) => column.id === linkedUserFields?.last?.[0]) && (
-                                  <Dropdown.Item
-                                    className="bg-gray-200 hover:bg-transparent"
-                                    onClick={() => {
-                                      const column = props.table.columns.find((column) => column.id === linkedUserFields?.last?.[0])
-                                      invariant(column)
-
-                                      const fieldLink: UserFieldLinks = {
-                                        ...linkedUserFields === undefined ? {
-                                          sitting: null,
-                                          email: [detectedUser.email, ''],
-                                          first: null,
-                                          last: null
-                                        } : {
-                                          ...linkedUserFields,
-                                          last: null,
-                                        }
-                                      }
-
-                                      linkUserField.mutate({
-                                        tableColumn: column,
-                                        rowIndex: props.i,
-                                        userFieldLinks: fieldLink,
-                                        field: 'last',
-                                        userProfile: detectedUser,
-                                        options: {
-                                          logging: true
-                                        }
-                                      })
-
-                                      setLinkedUserFields(fieldLink)
-                                    }}
-                                  >{props.table.columns.find((column) => column.id === linkedUserFields?.last?.[0])?.header}</Dropdown.Item>
-                                )}
-                                {filteredColumns.filter((column) => column.type === 'value').length === 0 ? (
-                                  <Dropdown.Item disabled>No available columns</Dropdown.Item>
-                                ) : (filteredColumns.filter((column) => column.type === 'value').map((column) => {
-                                  return (
-                                    <Dropdown.Item
-                                      key={column.id}
-                                      onClick={() => {
-                                        const fieldLink: UserFieldLinks = {
-                                          ...linkedUserFields === undefined ? {
-                                            last: [column.id, column.values[props.i] === undefined || column.values[props.i] === '' ? 'override' : 'update'],
-                                            email: [detectedUser.email, ''],
-                                            sitting: null,
-                                            first: null
-                                          } : {
-                                            ...linkedUserFields,
-                                            last: [column.id, column.values[props.i] === undefined || column.values[props.i] === '' ? 'override' : 'update'],
-                                          }
-                                        }
-
-                                        linkUserField.mutate({
-                                          tableColumn: column,
-                                          rowIndex: props.i,
-                                          userFieldLinks: fieldLink,
-                                          field: 'last',
-                                          userProfile: detectedUser,
-                                          options: {
-                                            logging: true
-                                          }
-                                        })
-
-                                        setLinkedUserFields(fieldLink)
-                                      }}
-                                    >{column.header}</Dropdown.Item>
-                                  )})
-                                )}
-                              </Dropdown>
-                            </div>
-                          )}
-                      </div>
-                      <div className="flex flex-row items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
-                        <div className="flex flex-row gap-2 items-center">
-                          <span>Email:</span>
-                          <span className="italic">{detectedUser.email}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="border mt-2"/>
-                    {detectedUser.participant
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                    .map((participant, index) => {
-                      // TODO: implement admin options to delete participants
-                      const linkedParticipant = linkedParticipantFields.find((link) => link.id === participant.id)
-
-                      return (
-                        <div key={index}>
-                          <div className="px-3">
-                            <ParticipantPanel 
-                              //removing redundant userEmail
-                              participant={{ ...participant, userEmail: ''}}
-                              showOptions={{
-                                timeslot: true,
-                                linkedFields: linkedParticipant ? {
-                                  participantLinks: linkedParticipant,
-                                  toggleField: setLinkedParticipantFields,
-                                  availableOptions: filteredColumns,
-                                  allColumns: props.table.columns,
-                                  tags: props.tagData.data ?? [],
-                                  timeslotQueries: timeslotQueries,
-                                  notifications: props.notificationData.data ?? [],
-                                  rowIndex: props.i,
-                                  noColumnModification: true
-                                } : undefined
-                              }}
-                            />
-                          </div>
-                          <div className="border"/>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div className="flex flex-col mt-2 gap-2">
-                    {userDetection[0] === 'unlinked' && (
-                      <div className="flex flex-row justify-end gap-2">
-                        <button 
-                          className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
-                          onClick={() => {
-                            setLinkUserVisible(true)
-                          }}
-                        >
-                          <span>Link User</span>
-                        </button>
-                        {linkParticipantAvailable && (
-                          <button 
-                            className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
-                            onClick={() => {
-                              setLinkParticipantVisible(true)
-                            }}
-                          >
-                            <span>Link Participant</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {(userDetection[0] === 'temp' || props.tempUsers.some((user) => user.email === userDetection[1])) && (
-                      <div className="flex flex-row gap-2 justify-end">
-                        <button 
-                          className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
-                          onClick={() => {
-                            sendInviteEmail.mutate({
-                              profile: detectedUser,
-                              baseLink: props.baseLink,
-                              options: {
-                                logging: true
-                              }
-                            })
-                          }}
-                        >
-                          <span>Send Invite</span>
-                        </button>
-                        {detectedUser.temporary !== undefined && (
-                          <button 
-                            className="border px-2 py-1 rounded-lg text-xs hover:bg-gray-200 bg-white"
-                            onClick={() => {
-                              navigator.clipboard.writeText(props.baseLink + `?token=${detectedUser.temporary}`)
-                            }}
-                          >
-                            <span>Copy Invite Link</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div> */}
               </Button>
             </Tooltip>
           )}
@@ -2052,7 +1665,27 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
             className=""
             arrowIcon={false}
             placement="bottom-end"
+            dismissOnClick={false}
           >
+            {detectedUser && (
+              <Dropdown.Item 
+                as='div'
+                className="flex flex-row justify-center"
+              >
+                <Dropdown
+                  label='View User Info'
+                  placement="left-start"
+                  arrowIcon={false}
+                  inline
+                  dismissOnClick={false}
+                >
+                  <UserPanel 
+                    userProfile={detectedUser}
+                    userType={userDetection}
+                  />
+                </Dropdown>
+              </Dropdown.Item>
+            )}
             {userDetection[0] === 'potential' && (
               <Dropdown.Item
                 className="whitespace-nowrap flex flex-row justify-center w-full"
@@ -2107,12 +1740,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 )}
               </>
             )}
-            {/* TODO: implement me please */}
-            <Dropdown.Item
-              className="whitespace-nowrap flex flex-row justify-center w-full"
-            >
-              Notify User
-            </Dropdown.Item>
             <Dropdown.Item 
               className="whitespace-nowrap flex flex-row justify-center w-full"
               onClick={() => {
