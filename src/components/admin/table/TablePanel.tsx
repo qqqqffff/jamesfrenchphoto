@@ -228,6 +228,7 @@ export const TablePanel = (props: TablePanelProps) => {
               setTempUsers={props.setTempUsers}
               setUsers={props.setUsers}
               setNotifications={props.setNotifications}
+              setTableNotifications={setTableNotifications}
               parentUpdateTable={props.parentUpdateSelectedTable}
               parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
               parentUpdateTableGroups={props.parentUpdateTableGroups}

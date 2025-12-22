@@ -28,6 +28,7 @@ import { PhotoPathService } from "../../../services/photoPathService"
 import { TableHeaderComponent } from "./TableHeaderComponent"
 import { TableBodyComponent } from "./TableBodyComponent"
 import { NotificationService } from "../../../services/notificationService"
+import { TablePanelNotification } from "./TablePanel"
 
 interface TableComponentProps {
   TableService: TableService,
@@ -43,6 +44,7 @@ interface TableComponentProps {
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
+  setTableNotifications: Dispatch<SetStateAction<TablePanelNotification[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
@@ -278,6 +280,7 @@ export const TableComponent = (props: TableComponentProps) => {
             setSelectedTag={setSelectedTag}
             setCreateUser={setCreateUser}
             setNotifications={props.setNotifications}
+            setTableNotifications={props.setTableNotifications}
             parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
             parentUpdateTableGroups={props.parentUpdateTableGroups}
             parentUpdateTable={props.parentUpdateTable}

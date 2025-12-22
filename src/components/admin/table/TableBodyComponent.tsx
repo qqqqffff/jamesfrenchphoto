@@ -14,6 +14,7 @@ import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish
 import { isTableRowData } from "./TableRowData"
 import { flushSync } from "react-dom"
 import { NotificationService } from "../../../services/notificationService"
+import { TablePanelNotification } from "./TablePanel"
 
 interface TableBodyComponentProps {
   TimeslotService: TimeslotService,
@@ -48,6 +49,7 @@ interface TableBodyComponentProps {
   adminRegisterTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
+  setTableNotifications: Dispatch<SetStateAction<TablePanelNotification[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
   setSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
@@ -214,7 +216,8 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
               parentUpdateTableGroups={props.parentUpdateTableGroups}
               parentUpdateTable={props.parentUpdateTable}
-              parentUpdateTableColumns={props.parentUpdateTableColumns}
+              parentUpdateTableColumns={props.parentUpdateTableColumns} 
+              setTableNotifaction={props.setTableNotifications}            
             />
           )
         })
