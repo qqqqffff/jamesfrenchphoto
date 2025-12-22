@@ -162,12 +162,8 @@ export const TableColumnComponent = (props: TableColumnProps) => {
             placeholder="Enter Column Name..."
             onSubmitText={(text) => {
               if(props.column.temporary && text !== ''){
-                const valuesArray = [] as string[]
-                const choiceArray = [] as string[]
-                for(let i = 0; i < props.table.columns[0].values.length; i++) {
-                  valuesArray.push('')
-                  choiceArray.push('')
-                }
+                const valuesArray = [...props.column.values]
+                const choiceArray = [...(props.column.choices ?? [])]
 
                 const normalText = text.toLowerCase()
                 const participant = 
@@ -177,7 +173,10 @@ export const TableColumnComponent = (props: TableColumnProps) => {
                   normalText.includes('escort') ||
                   normalText.includes('daughter') ||
                   normalText.includes('son') ||
-                  normalText.includes('child')
+                  normalText.includes('child') ||
+                  props.column.type === 'date' ||
+                  props.column.type === 'notification' ||
+                  props.column.type === 'tag'
                 
                 const field: 'first' | 'last' | 'sitting' | 'email' | 'preferred' | 'middle' | undefined = props.column.type === 'value' ? (() => {
                   if(normalText.includes('first')) {
@@ -202,22 +201,8 @@ export const TableColumnComponent = (props: TableColumnProps) => {
                 })(): undefined 
 
                 //check existing links for duplicates
-                let existingLink = false;
-                if(field) {
-                  for(let i = 0; i < props.table.columns.length; i++) {
-                    if((props.table.columns[i].choices ?? []).some((choice) => {
-                      if(participant) {
-                        return choice.includes(String(field)) && choice.includes('participantId:')
-                      }
-                      else {
-                        return choice.includes(String(field)) && choice.includes('userEmail:')
-                      }
-                    })) {
-                      existingLink = true
-                      break;
-                    }
-                  }
-                }
+                let existingLink: { link: boolean, user: { user: boolean, id: string } | null }[] = [];
+                existingLink = existingLink.fill({ link: false, user: null }, 0, props.table.columns[0].values.length);
                   
                 //value & choice injection
                 if(
@@ -226,111 +211,146 @@ export const TableColumnComponent = (props: TableColumnProps) => {
                     props.column.type === 'date' || 
                     props.column.type === 'tag' ||
                     props.column.type === 'notification'
-                  ) && 
-                  !existingLink
+                  )
                 ) {
-                  for(let i = 0; i < valuesArray.length; i++) {
-                    //search other columns for potential ids at the same row index
+                  //search for the existing links
+                  for(let i = 0; i < choiceArray.length; i++) {
                     for(let j = 0; j < props.table.columns.length; j++) {
-                      const foundChoice = props.table.columns[j].choices?.[i] ?? ''
-                      if(foundChoice.includes('participantId:') && participant) {
-                        const foundId = foundChoice.substring(foundChoice.indexOf(':') + 1, foundChoice.indexOf(',') === -1 ? foundChoice.length : foundChoice.indexOf(','))
-                        const foundParticipant = [
-                          ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant),
-                          ...props.tempUsers.flatMap((profile) => profile.participant)
-                        ].reduce((prev, cur) => {
-                          if(!prev.some((participant) => participant.id === cur.id)) {
-                            prev.push(cur)
+                      const parsedChoice = (props.table.columns[j].choices ?? [])[i]
+                      if(participant && parsedChoice !== undefined && parsedChoice.includes('participantId:')) {
+                        existingLink[i] = {
+                          link: true,
+                          user: {
+                            user: false,
+                            id: parsedChoice.substring(
+                              parsedChoice.indexOf(':') + 1, 
+                              parsedChoice.indexOf(',') === -1 ? 
+                                parsedChoice.length 
+                              : 
+                                parsedChoice.indexOf(',')
+                            )
                           }
-                          return prev
-                        }, [] as Participant[])
-                        .find((participant) => participant.id === foundId)
-
-                        if(foundParticipant === undefined) continue;
-
-                        choiceArray[i] = 'participantId:' + foundId + (field ? (',' + field) : '')
-                        
-                        //inject the values since cells should not be editable 
-                        //TODO: make the cells not editable while the column is temporary
-                        switch(field) {
-                          case 'first':
-                            valuesArray[i] = foundParticipant.firstName
-                            break;
-                          case 'last':
-                            valuesArray[i] = foundParticipant.lastName
-                            break;
-                          case 'middle':
-                            valuesArray[i] = foundParticipant.middleName ?? ''
-                            break;
-                          case 'email':
-                            valuesArray[i] = foundParticipant.email ?? ''
-                            break;
-                          case 'preferred':
-                            valuesArray[i] = foundParticipant.preferredName ?? ''
-                            break;
-                          default:
-                            if(props.column.type === 'date') {
-                              const dateValue = (foundParticipant.timeslot ?? [])
-                                .map((timeslot) => timeslot.id)
-                                .reduce((prev, cur) => {
-                                  return prev + ',' + cur
-                                }, '')
-                              valuesArray[i] = dateValue.charAt(0) === ',' ? dateValue.substring(0) : dateValue
-                            }
-                            else if(props.column.type === 'tag'){
-                              const tagValue = foundParticipant.userTags
-                                .map((timeslot) => timeslot.id)
-                                .reduce((prev, cur) => {
-                                  return prev + ',' + cur
-                                }, '')
-                              valuesArray[i] = tagValue.charAt(0) === ',' ? tagValue.substring(0) : tagValue
-                            }
-                            else if(props.column.type === 'notification') {
-                              const notificationValue = foundParticipant.notifications[0].id ?? ''
-                              valuesArray[i] = notificationValue
-                            }
-
-                            break;
                         }
-
                         break;
                       }
-                      else if(foundChoice.includes('userEmail:') && !participant && field) {
-                        const foundEmail = foundChoice.substring(foundChoice.indexOf(':') + 1, foundChoice.indexOf(',') === -1 ? foundChoice.length : foundChoice.indexOf(',')).toLowerCase()
-                        const foundUser = [
-                          ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
-                          ...props.tempUsers
-                        ]
-                        .reduce((prev, cur) => {
-                          if(!prev.some((user) => user.email.toLowerCase() === cur.email.toLowerCase())) {
-                            prev.push(cur)
+                      else if(!participant && parsedChoice !== undefined && parsedChoice.includes('userEmail:')) {
+                        existingLink[i] = {
+                          link: true,
+                          user: {
+                            user: true,
+                            id: parsedChoice.substring(
+                              parsedChoice.indexOf(':') + 1,
+                              parsedChoice.indexOf(',') === -1 ?
+                                parsedChoice.length
+                              :
+                                parsedChoice.indexOf(',')
+                            )
                           }
-                          return prev
-                        }, [] as UserProfile[])
-                        .find((user) => user.email.toLowerCase() === foundEmail)
-
-                        if(foundUser === undefined) continue
-
-                        choiceArray[i] = 'userEmail:' + foundEmail + ',' + field
-                        
-                        //inject the values since cells should not be editable 
-                        //TODO: make the cells not editable while the column is temporary
-                        switch(field) {
-                          case 'first':
-                            valuesArray[i] = foundUser.firstName ?? ''
-                            break;
-                          case 'last':
-                            valuesArray[i] = foundUser.lastName ?? ''
-                            break;
-                          case 'sitting':
-                            valuesArray[i] = String(foundUser.sittingNumber) ?? ''
-                            break;
-                          case 'email':
-                            //idk how this case will work but ill leave it
-                            valuesArray[i] = foundUser.email
-                            break;
                         }
                         break;
+                      }
+                    }
+                  }
+
+                  console.log(existingLink)
+
+                  //update the values array
+                  for(let i = 0; i < valuesArray.length; i++) {
+                    const existingChoice = existingLink[i]
+                    if(existingChoice !== undefined && existingChoice.link && existingChoice.user !== null && !existingChoice.user.user) {
+                      const foundId = existingChoice.user.id
+                      const foundParticipant = [
+                        ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant),
+                        ...props.tempUsers.flatMap((profile) => profile.participant)
+                      ].reduce((prev, cur) => {
+                        if(!prev.some((participant) => participant.id === cur.id)) {
+                          prev.push(cur)
+                        }
+                        return prev
+                      }, [] as Participant[])
+                      .find((participant) => participant.id === foundId)
+
+                      if(foundParticipant === undefined) continue;
+
+                      choiceArray[i] = 'participantId:' + foundId + (field ? (',' + field) : '')
+                      
+                      //inject the values since cells should not be editable 
+                      //TODO: make the cells not editable while the column is temporary
+                      switch(field) {
+                        case 'first':
+                          valuesArray[i] = foundParticipant.firstName
+                          break;
+                        case 'last':
+                          valuesArray[i] = foundParticipant.lastName
+                          break;
+                        case 'middle':
+                          valuesArray[i] = foundParticipant.middleName ?? ''
+                          break;
+                        case 'email':
+                          valuesArray[i] = foundParticipant.email ?? ''
+                          break;
+                        case 'preferred':
+                          valuesArray[i] = foundParticipant.preferredName ?? ''
+                          break;
+                        default:
+                          if(props.column.type === 'date') {
+                            const dateValue = (foundParticipant.timeslot ?? [])
+                              .map((timeslot) => timeslot.id)
+                              .reduce((prev, cur) => {
+                                return prev + ',' + cur
+                              }, '')
+                            valuesArray[i] = dateValue.charAt(0) === ',' ? dateValue.substring(0) : dateValue
+                          }
+                          else if(props.column.type === 'tag'){
+                            const tagValue = foundParticipant.userTags
+                              .map((timeslot) => timeslot.id)
+                              .reduce((prev, cur) => {
+                                return prev + ',' + cur
+                              }, '')
+                            valuesArray[i] = tagValue.charAt(0) === ',' ? tagValue.substring(0) : tagValue
+                          }
+                          else if(props.column.type === 'notification') {
+                            const notificationValue = foundParticipant.notifications[0]?.id ?? ''
+                            valuesArray[i] = notificationValue
+                          }
+
+                          break;
+                      }
+                    }
+                    else if(existingChoice !== undefined && existingChoice.link && existingChoice.user !== null && existingChoice.user.user) {
+                      const foundEmail = existingChoice.user.id.toLowerCase()
+                      const foundUser = [
+                        ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
+                        ...props.tempUsers
+                      ]
+                      .reduce((prev, cur) => {
+                        if(!prev.some((user) => user.email.toLowerCase() === cur.email.toLowerCase())) {
+                          prev.push(cur)
+                        }
+                        return prev
+                      }, [] as UserProfile[])
+                      .find((user) => user.email.toLowerCase() === foundEmail)
+
+                      if(foundUser === undefined) continue
+
+                      choiceArray[i] = 'userEmail:' + foundEmail + ',' + field
+                      
+                      //inject the values since cells should not be editable 
+                      //TODO: make the cells not editable while the column is temporary
+                      switch(field) {
+                        case 'first':
+                          valuesArray[i] = foundUser.firstName ?? ''
+                          break;
+                        case 'last':
+                          valuesArray[i] = foundUser.lastName ?? ''
+                          break;
+                        case 'sitting':
+                          valuesArray[i] = String(foundUser.sittingNumber) ?? ''
+                          break;
+                        case 'email':
+                          //idk how this case will work but ill leave it
+                          valuesArray[i] = foundUser.email
+                          break;
                       }
                     }
                   }

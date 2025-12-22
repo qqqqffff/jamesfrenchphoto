@@ -1494,6 +1494,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 <NotificationCell
                   key={j}
                   value={v}
+                  rowIndex={props.i}
                   NotificationService={props.NotificationService}
                   notifications={props.notifications}
                   setNotifications={props.setNotifications}
