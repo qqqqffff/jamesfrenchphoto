@@ -252,8 +252,6 @@ export const TableColumnComponent = (props: TableColumnProps) => {
                     }
                   }
 
-                  console.log(existingLink)
-
                   //update the values array
                   for(let i = 0; i < valuesArray.length; i++) {
                     const existingChoice = existingLink[i]
