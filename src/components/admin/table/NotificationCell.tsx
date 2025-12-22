@@ -1,11 +1,13 @@
-import { ComponentProps, Dispatch, SetStateAction, useEffect, useState } from "react";
+import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { CreateNotificationParams, NotificationService, SendUserEmailNotificationParams, UpdateNotificationParams } from "../../../services/notificationService";
 import { Notification, Participant, UserData, UserProfile } from "../../../types";
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
 import { v4 } from "uuid";
 import { formatParticipantName } from "../../../functions/clientFunctions";
-import { HiOutlineMinus, HiOutlineXMark } from "react-icons/hi2";
+import { HiOutlineMinus, HiOutlinePlus, HiOutlineXMark } from "react-icons/hi2";
 import { Alert, ToggleSwitch } from "flowbite-react";
+import { TablePanelNotification } from "./TablePanel";
+import validator from 'validator'
 
 interface NotificationCellProps extends ComponentProps<'td'> {
   value: string,
@@ -13,6 +15,7 @@ interface NotificationCellProps extends ComponentProps<'td'> {
   NotificationService: NotificationService,
   notifications: Notification[]
   setNotifications: Dispatch<SetStateAction<Notification[]>>
+  setTableNotification: Dispatch<SetStateAction<TablePanelNotification[]>>
   updateValue: (text: string) => void
   linkedParticipantId?: string
   userData: {
@@ -25,7 +28,6 @@ interface NotificationCellProps extends ComponentProps<'td'> {
 }
 
 export const NotificationCell = (props: NotificationCellProps) => {
-  const [value, setValue] = useState('')
   const [notification, setNotification] = useState<Notification>({
     id: v4(),
     content: '',
@@ -35,11 +37,17 @@ export const NotificationCell = (props: NotificationCellProps) => {
     updatedAt: new Date().toISOString(),
   })
   const [isFocused, setIsFocused] = useState(false)
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile & { temp: boolean }, participant: Participant } | undefined>()
   const [sendEmailNotificationResult, setSendEmailNotificationResult] = useState<{ success: boolean, message: string, timeout: NodeJS.Timeout } | null>(null)
   const [actionWindowInteraction, setActionWindowInteraction] = useState(false)
   const [search, setSearch] = useState('')
   const [searchHidden, setSearchHidden] = useState(true)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [emailCooldown, setEmailCooldown] = useState<{
+    cooldown: NodeJS.Timeout
+    remaining: number
+  } | null>(null)
 
   useEffect(() => {
     if(props.value !== notification?.id) {
@@ -55,8 +63,6 @@ export const NotificationCell = (props: NotificationCellProps) => {
       }
 
       setNotification(notification)
-      setValue(notification.id)
-      props.setNotifications((prev) => !prev.some((n) => n.id === notification.id) ? [...prev, notification] : prev)
     }
   }, [
     props.value,
@@ -107,10 +113,6 @@ export const NotificationCell = (props: NotificationCellProps) => {
         }
         return prev
       })
-      props.setNotifications((prev) => prev.map((n) => n.id === value && participant ? {
-        ...n,
-        participants: [...n.participants, participant.participant]
-      } : n))
     }
     else {
       setFoundParticipant(undefined)
@@ -134,6 +136,13 @@ export const NotificationCell = (props: NotificationCellProps) => {
   })
 
   const cellColoring = props.rowIndex % 2 ? foundParticipant ? 'bg-yellow-200 bg-opacity-40' : 'bg-gray-200 bg-opacity-40' : foundParticipant ? 'bg-yellow-100 bg-opacity-20' : ''
+  const filteredNotifications = props.notifications
+    .filter((n) => n.content.trim().toLowerCase().includes(search.trim().toLowerCase()) && n.id !== notification.id && n.content !== '')
+
+  const selectedNotification = props.notifications.find((parentNotification) => 
+    parentNotification.id === notification.id && 
+    parentNotification.participants.some((participant) => foundParticipant?.participant.id === participant.id)
+  )
 
   return (
     <td className={`
@@ -145,7 +154,7 @@ export const NotificationCell = (props: NotificationCellProps) => {
         className={`
           font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400
           bg-transparent border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
-          hover:cursor-pointer
+          hover:cursor-text
         `}
         value={notification.content}
         onFocus={() => setIsFocused(true)}
@@ -172,7 +181,23 @@ export const NotificationCell = (props: NotificationCellProps) => {
                   logging: true
                 }
               }).then(() => {
+                const notificationId = v4()
                 props.setNotifications(prev => prev.map((noti) => noti.id === updatedNotification.id ? updatedNotification : noti))
+                props.setTableNotification(prev => [...prev, {
+                  id: notificationId,
+                  message: `Successfully created new notification for: ${formatParticipantName(foundParticipant.participant)}`,
+                  status: 'Success' as 'Success',
+                  createdAt: new Date(),
+                  autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
+                }])
+              }).catch(() => {
+                props.setTableNotification(prev => [...prev, {
+                  id: v4(),
+                  message: `Failed to create notification for: ${formatParticipantName(foundParticipant.participant)}`,
+                  status: 'Error' as 'Error',
+                  createdAt: new Date(),
+                  autoClose: null
+                }])
               })
             }
             else {
@@ -182,15 +207,55 @@ export const NotificationCell = (props: NotificationCellProps) => {
                   logging: true
                 }
               }).then(() => {
+                const notificationId = v4()
                 props.setNotifications(prev => [...prev, notification])
+                props.setTableNotification(prev => [...prev, {
+                  id: notificationId,
+                  message: `Successfully created new notification for: ${formatParticipantName(foundParticipant.participant)}`,
+                  status: 'Success' as 'Success',
+                  createdAt: new Date(),
+                  autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
+                }])
+              }).catch(() => {
+                props.setTableNotification(prev => [...prev, {
+                  id: v4(),
+                  message: `Failed to create notification for: ${formatParticipantName(foundParticipant.participant)}`,
+                  status: 'Error' as 'Error',
+                  createdAt: new Date(),
+                  autoClose: null
+                }])
               })
             }
+          }
+          //remove participant from the notification
+          else if(foundParticipant && !actionWindowInteraction && selectedNotification !== undefined && notification.content === '') {
+            updateNotification.mutateAsync({
+              notification: selectedNotification,
+              content: selectedNotification.content,
+              location: selectedNotification.location,
+              participantIds: selectedNotification.participants
+                .filter((participant) => participant.id !== foundParticipant.participant.id)
+                .map((participant) => participant.id),
+              tagIds: selectedNotification.tags.map((tag) => tag.id),
+              options: {
+                logging: true
+              }
+            }).catch(() => {
+              props.setTableNotification(prev => [...prev, {
+                id: v4(),
+                message: `Failed to remove notification from: ${formatParticipantName(foundParticipant.participant)}`,
+                status: 'Error' as 'Error',
+                createdAt: new Date(),
+                autoClose: null
+              }])
+            })
           }
           
           setIsFocused(actionWindowInteraction ? true : false)
           setActionWindowInteraction(false)
         }}
         onChange={(event) => {
+          setActionWindowInteraction(false)
           setNotification({
             ...notification,
             content: event.target.value
@@ -199,10 +264,10 @@ export const NotificationCell = (props: NotificationCellProps) => {
         onKeyDown={(event) => {
           setActionWindowInteraction(false)
           const foundNotification = props.notifications.find((noti) => notification.id === noti.id)
-          if(event.code === 'Escape' && foundNotification) {
+          if(event.code === 'Escape') {
             setNotification({
               ...notification,
-              content: foundNotification.content
+              content: foundNotification ? foundNotification.content : ''
             })
             setTimeout(() => event.currentTarget.blur(), 1)
           }
@@ -214,7 +279,10 @@ export const NotificationCell = (props: NotificationCellProps) => {
       {isFocused && foundParticipant !== undefined && (
         <div 
           className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]"
-          onMouseDown={() => setActionWindowInteraction(true)}
+          onMouseDown={() => {
+            setActionWindowInteraction(true)
+          }}
+          ref={containerRef}
         >
           {sendEmailNotificationResult !== null && (
             <div className="absolute z-20 top-0 w-full mt-2">
@@ -229,8 +297,8 @@ export const NotificationCell = (props: NotificationCellProps) => {
               >{sendEmailNotificationResult.message}</Alert>
             </div>
           )}
-          <div className="italic text-gray-600 w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between">
-            <span>Linked with: {formatParticipantName(foundParticipant.participant)}</span>
+          <div className="italic text-gray-600 w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between gap-2">
+            <span className="max-w-[250px] truncate">Linked with: {formatParticipantName(foundParticipant.participant)}</span>
             <div className="flex flex-row gap-1 items-center">
               <button 
                 className=""
@@ -242,71 +310,264 @@ export const NotificationCell = (props: NotificationCellProps) => {
               </button>
             </div>
           </div>
-          <div className="border rounded-lg flex flex-col p-2 gap-2 items-center max-h-[250px] overflow-auto">
-            <div className="flex flex-row w-full justify-between">
-              <div />
+          <div className="border rounded-lg flex flex-col p-2 gap-2 items-center max-h-[250px] overflow-auto mt-1 mx-2">
+            <div className="flex flex-row w-full justify-between gap-4">
               <input 
                 placeholder="Search for notification"
-                className=""
-                onFocus={() => {
-                  setSearchHidden(false)
-                  setActionWindowInteraction(true)
-                }}
+                className="border-b focus:outline-none ps-1.5 pb-0.5 placeholder:italic placeholder:text-gray-400 w-full"
+                onFocus={() => setSearchHidden(false)}
                 onChange={(event)  => setSearch(event.target.value)}
                 value={search}
               />
               <button
-                onClick={() => {
-                  setSearchHidden(true)
-                  setActionWindowInteraction(true)
-                }}
-              ><HiOutlineMinus size={12}/></button>
+                className="focus:outline-none"
+                onClick={() => setSearchHidden(!searchHidden)}
+              >{searchHidden ? (
+                <HiOutlinePlus size={12} />
+              ) : (
+                <HiOutlineMinus size={12}/>
+              )}</button>
             </div>
+            {!searchHidden && selectedNotification !== undefined && (
+              <button
+                className={`
+                  border-y px-2 py-1 hover:bg-gray-100 w-full text-left 
+                  ${hoveredItem === selectedNotification.id ? '' : 'truncate'}
+                `}
+                onMouseEnter={() => setHoveredItem(selectedNotification.id)}
+                onMouseLeave={() => setHoveredItem(null)}
+                style={{
+                  maxWidth: containerRef.current ? containerRef.current.clientWidth - 36 : '184px',
+                  minWidth: containerRef.current ? containerRef.current.clientWidth - 36 : '184px'
+                }}
+                onClick={() => {
+                  const updatedNotification: Notification = {
+                    ...selectedNotification,
+                    participants: selectedNotification.participants.filter((participant) => participant.id !== foundParticipant.participant.id)
+                  }
+                  const newNotification: Notification = {
+                    id: v4(),
+                    content: '',
+                    participants: [foundParticipant.participant],
+                    tags: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  }
+                  props.setNotifications(prev => prev.map((parentNotification) => parentNotification.id === selectedNotification.id ? (
+                    updatedNotification
+                  ) : (
+                    parentNotification
+                  )))
+                  setNotification(newNotification)
+                  props.updateValue('')
+                  updateNotification.mutateAsync({
+                    notification: selectedNotification,
+                    content: selectedNotification.content,
+                    location: selectedNotification.location,
+                    participantIds: selectedNotification.participants
+                      .filter((participant) => participant.id !== foundParticipant.participant.id)
+                      .map((participant) => participant.id),
+                    tagIds: selectedNotification.tags.map((tag) => tag.id),
+                    options: {
+                      logging: true
+                    }
+                  }).catch(() => {
+                    props.setTableNotification(prev => [...prev, {
+                      id: v4(),
+                      message: `Failed to remove notification from: ${formatParticipantName(foundParticipant.participant)}`,
+                      status: 'Error' as 'Error',
+                      createdAt: new Date(),
+                      autoClose: null
+                    }])
+                  })
+                }}
+              >
+                {hoveredItem ? (
+                  <div className="flex flex-col gap-1">
+                    <span className="border-b">{selectedNotification.content}</span>
+                    <span className="font-medium">Created: {new Date(selectedNotification.createdAt).toLocaleDateString('en-us', { timeZone: 'America/Chicago' })}</span>
+                  </div>
+                  
+                ) : (
+                  <span>{selectedNotification.content}</span>
+                )}
+              </button>
+            )}
             {!searchHidden && (
-              props.notifications
-              .filter((n) => n.content.trim().toLowerCase().includes(search.trim().toLowerCase()) && n.id !== notification.id)
-              .map((n) => (
-                <button 
-                  className="border-b px-2 py-1 hover:bg-gray-100 w-full text-left"
-                  onClick={() => {
-                    //TODO: update the notifications here
-                    //update once for the previous then once for the new one
-                    props.setNotifications(prev => prev.map((parentNotification) => parentNotification.id === props.value ? ({
-                      ...parentNotification,
-                      participants: parentNotification.participants.filter((participant) => participant.id !== foundParticipant.participant.id)
-                    }) : n.id === parentNotification.id ? ({
-                      ...parentNotification,
-                      participants: [...parentNotification.participants, foundParticipant.participant]
-                    }) : parentNotification))
-                    setNotification(n)
-                    setValue(n.id)
-                    props.updateValue(n.id)
-                    setActionWindowInteraction(true)
-                  }}
-                >
-                  {n.content}
-                </button>
-              ))
+              filteredNotifications.length > 0 ? (
+                filteredNotifications
+                .map((n, index) => {
+                  return (
+                    <button 
+                      key={index}
+                      onMouseEnter={(event) => setHoveredItem(event.currentTarget.disabled ? null : n.id)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                      disabled={updateNotification.isPending}
+                      className={`
+                        ${index === 0 ? 'border-y' : 'border-b'}
+                        px-2 py-1 enabled:hover:bg-gray-100 w-full text-left
+                        disabled:opacity-60 disabled:cursor-not-allowed
+                        ${hoveredItem === n.id ? '' : 'truncate'}
+                      `}
+                      style={{
+                        maxWidth: containerRef.current ? containerRef.current.clientWidth - 36 : '184px',
+                        minWidth: containerRef.current ? containerRef.current.clientWidth - 36 : '184px'
+                      }}
+                      onClick={() => {
+                        const foundNotification = props.notifications.find((parentNotification) => parentNotification.id === n.id)
+                        if(!foundNotification) return
+
+                        //if found notification is equal to the parents push the participant
+                        props.setNotifications(prev => prev.map((parentNotification) => foundNotification.id === parentNotification.id ? ({
+                          ...parentNotification,
+                          participants: [...parentNotification.participants, foundParticipant.participant]
+                        //if there is a previously selected notification, remove the participant from it
+                        }) : (
+                          selectedNotification?.id === parentNotification.id ? ({
+                            ...parentNotification,
+                            participants: parentNotification.participants.filter((participant) => participant.id !== foundParticipant.participant.id)
+                          }) : (
+                            parentNotification
+                          ))
+                        ))
+                        setNotification(n)
+                        props.updateValue(n.id)
+                        setHoveredItem(null)
+                        updateNotification.mutateAsync({
+                          notification: foundNotification,
+                          participantIds: [...foundNotification.participants.map((participant) => participant.id), foundParticipant.participant.id],
+                          tagIds: foundNotification.tags.map((tag) => tag.id),
+                          content: foundNotification.content,
+                          location: foundNotification.location,
+                          options: {
+                            logging: true
+                          }
+                        }).then(() => {
+                          const notificationId = v4()
+                          props.setTableNotification(prev => [...prev, {
+                            id: notificationId,
+                            message: `Successfully created new notification for: ${formatParticipantName(foundParticipant.participant)}`,
+                            status: 'Success' as 'Success',
+                            createdAt: new Date(),
+                            autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
+                          }])
+                        }).catch(() => {
+                          props.setTableNotification(prev => [...prev, {
+                            id: v4(),
+                            message: `Failed to create notification for: ${formatParticipantName(foundParticipant.participant)}`,
+                            status: 'Error' as 'Error',
+                            createdAt: new Date(),
+                            autoClose: null
+                          }])
+                        })
+                        if(selectedNotification !== undefined) {
+                          updateNotification.mutateAsync({
+                            notification: selectedNotification,
+                            content: selectedNotification.content,
+                            location: selectedNotification.location,
+                            participantIds: selectedNotification.participants
+                              .filter((participant) => participant.id !== foundParticipant.participant.id)
+                              .map((participant) => participant.id),
+                            tagIds: selectedNotification.tags.map((tag) => tag.id),
+                            options: {
+                              logging: true
+                            }
+                          }).catch(() => {
+                            props.setTableNotification(prev => [...prev, {
+                              id: v4(),
+                              message: `Failed to remove notification from: ${formatParticipantName(foundParticipant.participant)}`,
+                              status: 'Error' as 'Error',
+                              createdAt: new Date(),
+                              autoClose: null
+                            }])
+                          })
+                        }
+                      }}
+                    >
+                      {hoveredItem ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="border-b">{n.content}</span>
+                          <span className="font-medium">Created: {new Date(n.createdAt).toLocaleDateString('en-us', { timeZone: 'America/Chicago' })}</span>
+                        </div>
+                        
+                      ) : (
+                        <span>{n.content}</span>
+                      )}
+                    </button>
+                  )
+                })
+              ) : (
+                <span className="">No Notifications found.</span>
+              )
             )}
           </div>
-          <div className="w-full px-2 py-2 flex flex-row justify-center">
-            <ToggleSwitch 
-              checked={notification.location !== undefined} 
-              onChange={() => {
-                //TODO: handle updating notification's details here
-                setActionWindowInteraction(true)
-                setNotification({
-                  ...notification,
-                  location: notification.location === undefined ? 'dashboard' : undefined
+          <button 
+            className="mt-2 px-2 py-1 flex flex-row justify-center gap-3 border rounded-lg mx-2 enabled:hover:border-gray-600 disabled:opacity-60"
+            disabled={updateNotification.isPending}
+            onClick={(event) => {
+              event.stopPropagation()
+              const foundNotification = props.notifications.find((parentNotification) => parentNotification.id === notification.id)
+              setNotification({
+                ...notification,
+                location: notification.location === undefined ? 'dashboard' : undefined
+              })
+              props.setNotifications(prev => foundNotification !== undefined ? prev.map((parentNotification) => parentNotification.id === notification.id ? ({
+                ...parentNotification,
+                location: parentNotification.location === undefined ? 'dashboard' : undefined
+              }) : parentNotification) : prev)
+              if(foundNotification !== undefined) {
+                updateNotification.mutateAsync({
+                  notification: foundNotification,
+                  content: foundNotification.content,
+                  location: foundNotification.location === undefined ? 'dashboard' : undefined,
+                  participantIds: foundNotification.participants.map((participant) => participant.id),
+                  tagIds: foundNotification.tags.map((tag) => tag.id),
+                  options: {
+                    logging: true
+                  }
+                }).then(() => {
+                  const notificationId = v4()
+                  props.setTableNotification(prev => [...prev, {
+                    id: notificationId,
+                    message: `Successfully posted on dashboard for: ${formatParticipantName(foundParticipant.participant)}`,
+                    status: 'Success' as 'Success',
+                    createdAt: new Date(),
+                    autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
+                  }])
+                }).catch(() => {
+                  props.setTableNotification(prev => [...prev, {
+                    id: v4(),
+                    message: `Failed to post on dashboard for: ${formatParticipantName(foundParticipant.participant)}`,
+                    status: 'Error' as 'Error',
+                    createdAt: new Date(),
+                    autoClose: null
+                  }])
                 })
-              }}
-              label="Display on Dashboard"
+              }
+              
+            }}
+          >
+            <ToggleSwitch 
+              sizing="sm"
+              checked={notification.location !== undefined} 
+              onChange={() => {}}
             />
-          </div>
-          <div className="flex flex-col gap-4 justify-center items-center">
+            <span>Display on Dashboard</span>
+          </button>
+          <div className="flex flex-row gap-4 justify-center items-center px-2 py-2">
             <button
-              className="py-1.5 px-4 self-end hover:bg-gray-100 cursor-pointer"
+              className="
+                py-1.5 px-4 enabled:hover:bg-gray-100 
+                enabled:cursor-pointer disabled:hover:cursor-not-allowed
+                disabled:opacity-60
+                border rounded-lg whitespace-nowrap text-xs
+              "
+              disabled={!props.notifications.some((parentNotification) => notification.id === parentNotification.id) || updateNotification.isPending}
               onClick={() => {
+                const updatedNotification: Notification | undefined = selectedNotification ? {
+                  ...selectedNotification,
+                  participants: selectedNotification.participants.filter((participant) => participant.id !== foundParticipant.participant.id)
+                } : undefined
                 const newNotification: Notification = {
                   id: v4(),
                   content: '',
@@ -315,59 +576,116 @@ export const NotificationCell = (props: NotificationCellProps) => {
                   createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString(),
                 }
-                setActionWindowInteraction(true)
-                props.updateValue(newNotification.id)
+                setNotification(newNotification)
+                props.updateValue('')
+                props.setNotifications(prev => updatedNotification !== undefined ? prev.map((notification) => notification.id === updatedNotification.id ? 
+                    updatedNotification 
+                  : 
+                    notification
+                ) : (
+                  prev
+                ))
+                if(updatedNotification !== undefined && selectedNotification !== undefined) {
+                  updateNotification.mutateAsync({
+                    notification: selectedNotification,
+                    participantIds: updatedNotification.participants.map((participant) => participant.id),
+                    tagIds: updatedNotification.tags.map((tag) => tag.id),
+                    content: updatedNotification.content,
+                    location: updatedNotification.location,
+                    options: {
+                      logging: true
+                    }
+                  }).catch(() => {
+                    props.setTableNotification(prev => [...prev, {
+                      id: v4(),
+                      message: `Failed to remove notification from: ${formatParticipantName(foundParticipant.participant)}`,
+                      status: 'Error' as 'Error',
+                      createdAt: new Date(),
+                      autoClose: null
+                    }])
+                  })
+                }
               }}
             >
               <span>New Notificaiton</span>
             </button>
             <button
-              disabled={sendNotification.isPending || notification.content === ''}
-              className="py-1.5 px-4 self-end enabled:hover:bg-gray-100 enabled:cursor-pointer disabled:hover:cursor-wait disabled:opacity-60" 
+              disabled={
+                sendNotification.isPending || 
+                notification.content === '' || 
+                emailCooldown !== null || 
+                !validator.isEmail(foundParticipant.user.email)
+              }
+              className={`
+                py-1.5 px-4 enabled:hover:bg-gray-100 
+                enabled:cursor-pointer disabled:opacity-60 
+                ${sendNotification.isPending ? 'disabled:hover:cursor-wait' : 'disabled:hover:cursor-not-allowed'} 
+                border rounded-lg whitespace-nowrap text-xs
+              `}
               onClick={() => {
-                setActionWindowInteraction(true)
                 sendNotification.mutateAsync({
                   content: notification.content,
                   email: foundParticipant.user.email,
+                  additionalRecipients: (
+                    foundParticipant.participant.contact &&
+                    foundParticipant.participant.email &&
+                    validator.isEmail(foundParticipant.participant.email)
+                  ) ? [foundParticipant.participant.email] : [],
                   options: {
                     logging: true
                   }
                 })
                 .then((data) => {
-                  if(sendEmailNotificationResult?.timeout) {
-                    clearTimeout(sendEmailNotificationResult.timeout)
-                  }
-
                   if(data.status === 'success') {
-                    setSendEmailNotificationResult({
-                      success: true,
-                      message: data.message,
-                      timeout: setTimeout(() => {
-                        setSendEmailNotificationResult(null)
-                      }, 5 * 1000)
-                    })
+                    const notificationId = v4()
+                    props.setTableNotification(prev => [...prev, {
+                      id: notificationId,
+                      message: `Successfully sent notification to: ${foundParticipant.user.email}${
+                        foundParticipant.participant.contact && 
+                        foundParticipant.participant.email && 
+                        validator.isEmail(foundParticipant.participant.email) ? ` and ${formatParticipantName(foundParticipant.participant)}.` : '.'
+                      }`,
+                      status: 'Success' as 'Success',
+                      createdAt: new Date(),
+                      autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
+                    }])
                   }
                   else {
-                    setSendEmailNotificationResult({
-                      success: false,
-                      message: data.message,
-                      timeout: setTimeout(() => {
-                        setSendEmailNotificationResult(null)
-                      }, 5 * 1000)
-                    })
+                    props.setTableNotification(prev => [...prev, {
+                      id: v4(),
+                      message: `Failed to send notification to: ${foundParticipant.user.email}${
+                        foundParticipant.participant.contact && 
+                        foundParticipant.participant.email && 
+                        validator.isEmail(foundParticipant.participant.email) ? ` and ${formatParticipantName(foundParticipant.participant)}.` : '.'
+                      }`,
+                      status: 'Success' as 'Success',
+                      createdAt: new Date(),
+                      autoClose: null
+                    }])
                   }
                 })
-                .catch((error) => {
-                  if(sendEmailNotificationResult?.timeout) {
-                    clearTimeout(sendEmailNotificationResult.timeout)
-                  }
-                  console.error(error)
-                  setSendEmailNotificationResult({
-                    success: false,
-                    message: 'Failed to send email.',
-                    timeout: setTimeout(() => {
-                      setSendEmailNotificationResult(null)
-                    }, 5 * 1000)
+                .catch(() => {
+                  props.setTableNotification(prev => [...prev, {
+                    id: v4(),
+                    message: `Failed to send notification to: ${foundParticipant.user.email}${
+                      foundParticipant.participant.contact && 
+                      foundParticipant.participant.email && 
+                      validator.isEmail(foundParticipant.participant.email) ? ` and ${formatParticipantName(foundParticipant.participant)}.` : '.'
+                    }`,
+                    status: 'Error' as 'Error',
+                    createdAt: new Date(),
+                    autoClose: null
+                  }])
+                }).finally(() => {
+                  //10 second cooldown
+                  setEmailCooldown({
+                    cooldown: setInterval(() => {
+                      setEmailCooldown(prev => prev !== null && prev.remaining > 0 ? {
+                        ...prev,
+                        remaining: prev.remaining - 1
+                      } : null)
+                    }, 1000),
+                    remaining: 10
                   })
                 })
               }}

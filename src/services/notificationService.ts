@@ -201,6 +201,7 @@ export interface DeleteNotificationParams {
 
 export interface SendUserEmailNotificationParams {
   email: string,
+  additionalRecipients: string[]
   content: string,
   options?: {
     logging?: boolean
@@ -366,7 +367,8 @@ export class NotificationService {
     try {
       const response = await this.client.queries.NotifyUser({
         email: params.email,
-        content: params.content
+        content: params.content,
+        additionalRecipients: params.additionalRecipients
       })
 
       if(params.options?.logging) {

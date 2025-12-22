@@ -550,7 +550,8 @@ const schema = a.schema({
     .query()
     .arguments({
       email: a.string().required(),
-      content: a.string().required()
+      content: a.string().required(),
+      additionalRecipients: a.string().required().array(),
     })
     .handler(a.handler.function(notifyUser))
     .authorization((allow) => [allow.group('ADMINS')])

@@ -1497,6 +1497,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   rowIndex={props.i}
                   NotificationService={props.NotificationService}
                   notifications={props.notifications}
+                  setTableNotification={props.setTableNotifaction}
                   setNotifications={props.setNotifications}
                   updateValue={(value) => updateValue(id, value, props.i)}
                   linkedParticipantId={(() => {

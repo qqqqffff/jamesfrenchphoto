@@ -254,6 +254,7 @@ const dynamoClient = generateClient<Schema>()
 export const handler: Schema['NotifyUser']['functionHandler'] = async (event) => {
   const email = event.arguments.email
   const content = event.arguments.content
+  const additionalRecipients = event.arguments.additionalRecipients
 
   const userProfile = await dynamoClient.models.UserProfile.get({ email: email })
 
@@ -272,7 +273,7 @@ export const handler: Schema['NotifyUser']['functionHandler'] = async (event) =>
   sgMail.setApiKey(env.SENDGRID_API_KEY)
 
   const message: sgMail.MailDataRequired = {
-    to: email,
+    to: [email, ...(additionalRecipients !== undefined && additionalRecipients !== null ? additionalRecipients : [])],
     from: 'no-reply@jamesfrenchphotography.com',
     subject: 'Notification from James French Photography',
     html: template

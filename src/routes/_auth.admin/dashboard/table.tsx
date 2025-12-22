@@ -82,7 +82,7 @@ function RouteComponent() {
     if(notificationsQuery.data) {
       setNotifications(notificationsQuery.data)
     }
-  }, [])
+  }, [notificationsQuery.data])
 
   useEffect(() => {
     if(tempUsersQuery.data) {
