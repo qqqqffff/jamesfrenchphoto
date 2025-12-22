@@ -151,6 +151,9 @@ export const getColumnTypeColor = (value?: TableColumn['type']) => {
         case 'value': {
             return 'orange-400'
         }
+        case 'notification': {
+            return 'purple-600'
+        }
     }
 }
 

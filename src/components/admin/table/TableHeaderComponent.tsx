@@ -197,7 +197,6 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
             bg-gray-50
             relative px-6 py-3 border-e border-e-gray-300 border-b border-b-gray-300
             w-full whitespace-normal break-words justify-center flex items-center
-            
           "
         >
           <Dropdown
@@ -266,7 +265,7 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
                 <Dropdown.Item  
                   as='button'
                   className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
-                  onClick={() => pushColumn('tag')}
+                  onClick={() => pushColumn('notification')}
                 >
                   <HiOutlineTag size={32} className="bg-purple-600 border-4 border-purple-600 rounded-lg"/>
                   <div className="flex flex-col">

@@ -110,7 +110,7 @@ export const TagCell = (props: TagCellProps) => {
     }
   })()
 
-  const cellColoring = props.rowIndex % 2 ? foundParticipant ? 'bg-yellow-200 bg-opacity-40' : 'bg-gray-100 bg-opacity-40' : foundParticipant ? 'bg-yellow-50 bg-opacity-40' : '';
+  const cellColoring = props.rowIndex % 2 ? foundParticipant ? 'bg-yellow-200 bg-opacity-40' : 'bg-gray-200 bg-opacity-40' : foundParticipant ? 'bg-yellow-100 bg-opacity-20' : '';
 
   return (
     <>

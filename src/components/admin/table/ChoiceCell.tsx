@@ -13,6 +13,7 @@ interface ChoiceCellProps extends ComponentProps<'td'> {
   updateValue: (text: string) => void,
   column: TableColumn,
   createChoice: (choice: string, color: string, customColor?: [string, string]) => void,
+  rowIndex: number
 }
 
 export const ChoiceCell = (props: ChoiceCellProps) => {
@@ -36,7 +37,8 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
     <td 
       className={`
         text-ellipsis border py-3 px-3 max-w-[150px] 
-        ${valueColor && (!valueColor.bgColor || !valueColor.bgColor.includes('#')) ? `bg-${valueColor.bgColor ?? 'transparent'}` : ''}
+        ${valueColor && (!valueColor.bgColor || !valueColor.bgColor.includes('#')) ? 
+          `bg-${valueColor.bgColor ? `${valueColor.bgColor} ${props.rowIndex % 2 ? '' : 'bg-opacity-60'}` : props.rowIndex % 2 ? 'bg-gray-200 bg-opacity-40' : ''}` : props.rowIndex % 2 ? 'bg-gray-200 bg-opacity-40' : ''}
       `}
       style={{
         backgroundColor: valueColor?.bgColor && valueColor.bgColor.includes('#') ? valueColor.bgColor : undefined,
@@ -47,13 +49,13 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
         className={`
           font-thin w-full border-b-gray-400 border-b py-0.5 flex flex-row 
           placeholder:italic focus:outline-none hover:cursor-pointer
+          bg-transparent
           ${valueColor && 
-            (!valueColor.bgColor || !valueColor.bgColor.includes('#')) &&
             (!valueColor.textColor || !valueColor.textColor.includes('#'))
-          ? `bg-${valueColor.bgColor ?? 'transparent'} text-${valueColor.textColor ?? 'black'}` : ''}
+          ? `text-${valueColor.textColor ?? 'black'}` : ''}
         `}
         style={{
-          backgroundColor: valueColor?.bgColor && valueColor.bgColor.includes('#') ? valueColor.bgColor : undefined,
+          // backgroundColor: valueColor?.bgColor && valueColor.bgColor.includes('#') ? valueColor.bgColor : undefined,
           color: valueColor?.textColor && valueColor.textColor.includes('#') ? valueColor.textColor + 'bb' : undefined
         }}
         onFocus={() => setIsFocused(true)}

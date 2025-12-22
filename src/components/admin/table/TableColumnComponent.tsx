@@ -221,7 +221,12 @@ export const TableColumnComponent = (props: TableColumnProps) => {
                   
                 //value & choice injection
                 if(
-                  (field || props.column.type === 'date' || props.column.type === 'tag') && 
+                  (
+                    field || 
+                    props.column.type === 'date' || 
+                    props.column.type === 'tag' ||
+                    props.column.type === 'notification'
+                  ) && 
                   !existingLink
                 ) {
                   for(let i = 0; i < valuesArray.length; i++) {
@@ -279,6 +284,10 @@ export const TableColumnComponent = (props: TableColumnProps) => {
                                   return prev + ',' + cur
                                 }, '')
                               valuesArray[i] = tagValue.charAt(0) === ',' ? tagValue.substring(0) : tagValue
+                            }
+                            else if(props.column.type === 'notification') {
+                              const notificationValue = foundParticipant.notifications[0].id ?? ''
+                              valuesArray[i] = notificationValue
                             }
 
                             break;

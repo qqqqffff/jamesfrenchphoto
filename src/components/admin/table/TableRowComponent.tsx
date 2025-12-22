@@ -1419,6 +1419,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 <ChoiceCell
                   key={j}
                   value={v}
+                  rowIndex={props.i}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   column={props.table.columns.find((col) => col.id === id)!}
                   createChoice={(choice, color, customColor) => updateChoices(id, {choice: choice, color: color, customColor: customColor}, "create")}
@@ -1497,6 +1498,20 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   notifications={props.notifications}
                   setNotifications={props.setNotifications}
                   updateValue={(value) => updateValue(id, value, props.i)}
+                  linkedParticipantId={(() => {
+                    const foundColumn = props.table.columns.find((col) => col.id === id)
+                    if(!foundColumn) return undefined
+                    const foundParticipantChoice = (foundColumn.choices?.[props.i] ?? '')
+
+                    if(foundParticipantChoice !== '') {
+                      const searchString = foundParticipantChoice.substring(foundParticipantChoice.indexOf(':') + 1)
+                      if(
+                        !props.users.flatMap((data) => data.profile?.participant).filter((participant) => participant !== undefined).some((participant) => participant.id === searchString) &&
+                        !props.tempUsers.flatMap((data) => data.participant).some((participant) => participant.id === searchString)
+                      ) return undefined
+                      return searchString
+                    }
+                  })()}
                   userData={{
                     users: props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
                     tempUsers: props.tempUsers
@@ -1565,6 +1580,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 <ValueCell
                   key={j} 
                   value={v}
+                  rowIndex={props.i}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   column={props.table.columns.find((column) => column.id === id)!}
                   participantFieldLinks={linkedParticipantFields}
