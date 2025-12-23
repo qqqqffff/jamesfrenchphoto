@@ -1,5 +1,5 @@
 import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
-import { Notification, Participant, ParticipantFields, TableColumn, Timeslot, UserData, UserFields, UserProfile, UserTag } from "../types";
+import { Notification, Participant, ParticipantFields, Table, TableColumn, Timeslot, UserData, UserFields, UserProfile, UserTag } from "../types";
 import { parsePathName } from "../utils";
 
 export const mapParticipantField = (props: { field: ParticipantFields['type'], participant: Participant }): string => {
@@ -18,6 +18,88 @@ export const mapParticipantField = (props: { field: ParticipantFields['type'], p
       return ''
   }
 }
+
+export const reorderRows = (
+  order: 'ASC' | 'DSC', 
+  column: TableColumn, 
+  table: Table, 
+  tags: UserTag[], 
+  timeslots: Timeslot[], 
+  notifications: Notification[]
+): Record<string, string[]> => {
+    const values = [...column.values]
+    //cherry pick all blank columns
+    const filteredBlanks: number[] = [...values]
+      .map((v, i) => ({ v: v, i: i}))
+      .filter((v) => v.v === '')
+      .map((v) => v.i)
+
+      //TODO: record based on id for whole table
+    const sortedValues: Record<string, string[]> = order === 'ASC' ? 
+      Object.fromEntries(table.columns.map((column) => [
+        column.id,
+        column.id === column.id ? 
+          sortColumnValues(column, tags, timeslots, notifications) 
+        : 
+          column.values
+      ]))
+    : 
+      Object.fromEntries(table.columns.map((column) => [
+        column.id,
+        column.id === column.id ? 
+          sortColumnValues(column, tags, timeslots, notifications).reverse() 
+        : 
+          column.values
+      ])
+    )
+      
+
+    try {
+      const sortMapping: { previousIndex: number, newIndex: number }[] = []
+      for(let i = 0; i < values.length; i++) {
+        if(values[i] === '') continue
+        let foundIndex = sortedValues[column.id].findIndex((value) => values[i] === value)
+        
+        let offset = foundIndex;
+        while(
+          sortMapping.some((item) => item.newIndex === foundIndex) && 
+          offset < sortedValues[column.id].length &&
+          foundIndex !== -1
+        ) {
+          offset++;
+          foundIndex = sortedValues[column.id]
+            .filter((_, j) => j > offset)
+            .findIndex((value) => values[i] === value) + offset
+        }
+
+        console.log(values[i], foundIndex)
+        if(foundIndex === -1) throw new Error('Failed to index sorted array')
+        sortMapping.push({ previousIndex: i, newIndex: foundIndex })
+      }
+      const initialLength = sortMapping.length
+      for(let i = 0; i < filteredBlanks.length; i++) {
+        sortMapping.push({ previousIndex: filteredBlanks[i], newIndex: initialLength + i })
+      }
+
+      console.log(sortMapping)
+
+      const ret: Record<string, string[]> = Object.fromEntries(table.columns.map((col) => [col.id, []]))
+
+      for(let i = 0; i < table.columns.length; i++) {
+        const currentColumnId = table.columns[i].id
+        for(let j = 0; j < sortMapping.length; j++) {
+          ret[currentColumnId][sortMapping[j].newIndex] = currentColumnId === column.id ? 
+            values[sortMapping[j].previousIndex] 
+          : 
+            sortedValues[currentColumnId][sortMapping[j].previousIndex]
+        }
+      }
+
+      return ret
+    } catch(e) {
+      return {}
+    }
+  }
 
 export const sortColumnValues = (
   column: TableColumn, 

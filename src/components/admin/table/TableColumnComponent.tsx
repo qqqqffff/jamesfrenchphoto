@@ -23,7 +23,7 @@ import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/el
 import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview';
 import { createPortal } from 'react-dom';
 import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
-import { sortColumnValues } from '../../../functions/tableFunctions';
+import { reorderRows, sortColumnValues } from '../../../functions/tableFunctions';
 
 
 interface TableColumnProps {
@@ -244,61 +244,10 @@ export const TableColumnComponent = (props: TableColumnProps) => {
     }
 
     if(sortedASC && sortedDSC) return null
-    else if(sortedASC) return 'DSC'
-    else if(sortedDSC) return 'ASC'
+    else if(sortedASC) return 'ASC'
+    else if(sortedDSC) return 'DSC'
     return null
   })()
-
-  const reorderRows = (order: 'ASC' | 'DSC'): { columnId: string, values: string[] }[] => {
-    const values = [...props.column.values]
-    //cherry pick all blank columns
-    const filteredBlanks: number[] = [...values]
-      .map((v, i) => ({ v: v, i: i}))
-      .filter((v) => v.v === '')
-      .map((v) => v.i)
-
-      //TODO: record based on id for whole table
-    const sortedValues = order === 'ASC' ? 
-      sortColumnValues(props.column, props.tags, props.timeslots, props.notifications) 
-    : 
-      sortColumnValues(props.column, props.tags, props.timeslots, props.notifications).reverse()
-
-    try {
-      const sortMapping: { previousIndex: number, newIndex: number }[] = [...sortedValues.map((value, i) => {
-        const foundIndex = values.findIndex((v) => v === value)
-        if(foundIndex === -1) throw new Error('Could not find value index')
-        return {
-          previousIndex: foundIndex,
-          newIndex: i
-        }
-      }),
-      ...filteredBlanks.map((p, i) => {
-        return ({
-          previousIndex: p,
-          newIndex: sortMapping.length + i
-        })
-      })
-      ].sort((a, b) => a.newIndex - b.newIndex)
-
-      const ret: { columnId: string, values: string[] }[] = props.table.columns.map((col) => ({
-        columnId: col.id,
-        values: []
-      }))
-
-      for(let i = 0; i < ret.length; i++) {
-        for(let j = 0; j < sortMapping.length; j++) {
-          ret[i].values[j] = values[sortMapping[j].previousIndex]
-        }
-      }
-
-      console.log(ret)
-
-      return ret
-    } catch(e) {
-      return []
-    }
-    return []
-  }
 
   return (
     <th
@@ -718,10 +667,10 @@ export const TableColumnComponent = (props: TableColumnProps) => {
           className='absolute right-0 top-3 p-1 hover:bg-gray-200 text-gray-500 hover:text-black'
           onClick={() => {
             if(sortOrder === 'DSC' || sortOrder === null) {
-              reorderRows('ASC')
+              reorderRows('ASC', props.column, props.table, props.tags, props.timeslots, props.notifications)
             }
             else {
-              reorderRows('DSC')
+              reorderRows('DSC', props.column, props.table, props.tags, props.timeslots, props.notifications)
             }
           }}
         >
