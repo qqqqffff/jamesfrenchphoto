@@ -8,7 +8,7 @@ import {
   UserTag,
   Notification
 } from "../../../types"
-import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
+import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { 
   TableService,
   AppendTableRowParams,
@@ -62,7 +62,22 @@ export const TableComponent = (props: TableComponentProps) => {
   const [selectedTag, setSelectedTag] = useState<UserTag | undefined>()
   const [createUser, setCreateUser] = useState(false)
 
+  //TODO: remove redundancy
   const timeslotsQuery = useQuery(props.TimeslotService.getAllTimeslotsByDateQueryOptions(selectedDate))
+  const allTableTimeslots = useQueries({
+    queries: props.table.columns
+      .filter((column) => column.type === 'date')
+      .flatMap((column) => column.values)
+      .filter((value) => value !== '')
+      .flatMap((value) => value.split(','))
+      .reduce((prev, cur) => {
+        if(!prev.some((timeslotId) => timeslotId === cur)) {
+          prev.push(cur)
+        }
+        return prev
+      }, [] as string[])
+      .map((timeslotId) => props.TimeslotService.getTimeslotByIdQueryOptions(timeslotId, { siTag: false }))
+  })
   const tagTimeslotQuery = useQuery({
     ...props.TimeslotService.getAllTimeslotsByUserTagQueryOptions(selectedTag?.id),
     enabled: selectedTag !== undefined
@@ -233,6 +248,8 @@ export const TableComponent = (props: TableComponentProps) => {
             refColumn={refColumn}
             tagData={props.tagData}
             users={props.users}
+            notifications={props.notifications}
+            timeslots={allTableTimeslots.map((data) => data.data).filter((timeslot) => timeslot !== undefined && timeslot !== null)}
             tempUsers={props.tempUsers}
             createColumn={createColumn}
             updateColumn={updateColumn}

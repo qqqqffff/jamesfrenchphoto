@@ -1,5 +1,5 @@
 import { Dropdown } from "flowbite-react"
-import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from "../../../types"
+import { Notification, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
 import { TableColumnComponent } from "./TableColumnComponent"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { MutableRefObject, Dispatch, SetStateAction, useRef, useEffect } from "react"
@@ -19,6 +19,8 @@ interface TableHeaderComponentProps {
   users: UserData[]
   tempUsers: UserProfile[]
   tagData: UseQueryResult<UserTag[] | undefined, Error>
+  timeslots: Timeslot[]
+  notifications: Notification[]
   createColumn: UseMutationResult<void, Error, CreateTableColumnParams, unknown>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   reorderTableColumns: UseMutationResult<void, Error, ReorderTableColumnsParams, unknown>
@@ -180,6 +182,8 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
               column={column}
               refColumn={props.refColumn}
               tags={props.tagData.data ?? []}
+              notifications={props.notifications}
+              timeslots={props.timeslots}
               users={props.users}
               tempUsers={props.tempUsers}
               createColumn={props.createColumn}

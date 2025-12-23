@@ -1,5 +1,6 @@
 import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
-import { Participant, ParticipantFields, TableColumn, UserData, UserFields, UserProfile } from "../types";
+import { Notification, Participant, ParticipantFields, TableColumn, Timeslot, UserData, UserFields, UserProfile, UserTag } from "../types";
+import { parsePathName } from "../utils";
 
 export const mapParticipantField = (props: { field: ParticipantFields['type'], participant: Participant }): string => {
   switch(props.field) {
@@ -16,6 +17,89 @@ export const mapParticipantField = (props: { field: ParticipantFields['type'], p
     default:
       return ''
   }
+}
+
+export const sortColumnValues = (
+  column: TableColumn, 
+  tags: UserTag[], 
+  timeslots: Timeslot[], 
+  notifications: Notification[]
+): string[] => {
+  return [...column.values]
+    .filter((v) => v !== '')
+    .sort((a, b) => {
+      if(column.type === 'tag') {
+        let tagValueA = a.split(',')
+          .map((tagId) => tags.find((tag) => tag.id === tagId)?.name)
+          .filter((tagName) => tagName !== undefined)
+          .sort((c, d) => c.localeCompare(d))
+          .reduce((prev, cur) => prev + ',' + cur, '')
+        tagValueA = tagValueA.charAt(0) === ',' ? tagValueA.substring(1) : tagValueA
+
+        let tagValueB = a.split(',')
+          .map((tagId) => tags.find((tag) => tag.id === tagId)?.name)
+          .filter((tagName) => tagName !== undefined)
+          .sort((c, d) => c.localeCompare(d))
+          .reduce((prev, cur) => prev + ',' + cur, '')
+        tagValueB = tagValueB.charAt(0) === ',' ? tagValueB.substring(1) : tagValueB
+
+        
+        //higher number of tags is sorted first
+        const commasA = a.split('').filter((char) => char === ',')
+        const commasB = b.split('').filter((char) => char === ',')
+        if(commasA.length < commasB.length) return -1
+        else if(commasB.length > commasA.length) return 1
+        if(commasA.length === 0 && commasB.length === 0) return 0
+        else {
+          const splitA = tagValueA.split(',')
+          const splitB = tagValueB.split(',')
+          let index = 0
+          for(index; index < splitA.length && index < splitB.length; index++) {
+            if(splitA[index].localeCompare(splitB[index]) !== 0) break
+          }
+          index = splitA.length >= index ? index - 1 : index
+          return splitA[index].localeCompare(splitB[index])
+        }
+      }
+      else if(column.type === 'date') {
+        const commasA = a.split(',')
+          .map((timeslotId) => timeslots.find((timeslot) => timeslot.id === timeslotId))
+          .filter((timeslot) => timeslot !== undefined)
+          .sort((a, b) => a.start.getTime() - b.start.getTime())
+        const commasB = a.split(',')
+          .map((timeslotId) => timeslots.find((timeslot) => timeslot.id === timeslotId))
+          .filter((timeslot) => timeslot !== undefined)
+          .sort((a, b) => a.start.getTime() - b.start.getTime())
+
+        let index = 0
+        while(commasA[index].start.getTime() === commasB[index].start.getTime() && index < commasA.length && index < commasB.length) {
+          index++
+        }
+        if(commasA[index].start.getTime() < commasB[index].start.getTime()) {
+          return -1
+        }
+        else if(commasA[index].start.getTime() > commasB[index].start.getTime()) {
+          return 1
+        }
+        return 0
+      }
+      else if(column.type === 'notification') {
+        const foundNotificationA = notifications.find((notification) => notification.id === a)
+        const foundNotificationB = notifications.find((notification) => notification.id === b)
+
+        if(!foundNotificationA && !foundNotificationB) return 0
+        else if(!foundNotificationA && foundNotificationB) return 1
+        else if(foundNotificationA && !foundNotificationB) return -1
+        else if(foundNotificationA && foundNotificationB) {
+          return foundNotificationA.content.localeCompare(foundNotificationB.content)
+        }
+      }
+      else if(column.type === 'file') {
+        return parsePathName(a).localeCompare(parsePathName(b))
+      }
+      //fine for choice and value columns
+      return a.localeCompare(b)
+    })
 }
 
 export const rowUnlinkAvailable = (participantLinks: ParticipantFieldLinks[], userLinks: UserFieldLinks | undefined, columns: TableColumn[]): boolean => {

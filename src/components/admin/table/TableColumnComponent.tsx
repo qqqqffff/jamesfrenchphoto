@@ -7,7 +7,7 @@ import {
   draggable,
   dropTargetForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { Participant, Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from '../../../types';
+import { Notification, Participant, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from '../../../types';
 import { Dispatch, HTMLAttributes, MutableRefObject, SetStateAction, useEffect, useRef, useState } from 'react';
 import { Dropdown } from 'flowbite-react';
 import { getColumnTypeColor } from '../../../utils';
@@ -22,6 +22,8 @@ import { getTableColumnData, isTableColumnData } from './TableColumnData';
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
 import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview';
 import { createPortal } from 'react-dom';
+import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
+import { sortColumnValues } from '../../../functions/tableFunctions';
 
 
 interface TableColumnProps {
@@ -29,6 +31,8 @@ interface TableColumnProps {
   column: TableColumn
   refColumn: MutableRefObject<TableColumn | null>
   tags: UserTag[]
+  timeslots: Timeslot[]
+  notifications: Notification[]
   users: UserData[]
   tempUsers: UserProfile[]
   createColumn: UseMutationResult<void, Error, CreateTableColumnParams, unknown>
@@ -65,6 +69,7 @@ const idle: TableColumnState = { type: 'idle' }
 export const TableColumnComponent = (props: TableColumnProps) => {
   const tableColumnRef = useRef<HTMLTableCellElement | null>(null)
   const [columnState, setColumnState] = useState<TableColumnState>(idle)
+  const [mouseHover, setMouseHover] = useState(false)
 
   useEffect(() => {
     const element = tableColumnRef.current
@@ -140,6 +145,161 @@ export const TableColumnComponent = (props: TableColumnProps) => {
     props.column
   ])
 
+  const sortOrder: 'ASC' | 'DSC' | null = (() => {
+    const values = [...props.column.values]
+    
+    const sortedValuesASC = sortColumnValues(props.column, props.tags, props.timeslots, props.notifications)
+    // [...props.column.values]
+    //   .filter((v) => v !== '')
+    //   .sort((a, b) => {
+    //     if(props.column.type === 'tag') {
+    //       let tagValueA = a.split(',')
+    //         .map((tagId) => props.tags.find((tag) => tag.id === tagId)?.name)
+    //         .filter((tagName) => tagName !== undefined)
+    //         .sort((c, d) => c.localeCompare(d))
+    //         .reduce((prev, cur) => prev + ',' + cur, '')
+    //       tagValueA = tagValueA.charAt(0) === ',' ? tagValueA.substring(1) : tagValueA
+
+    //       let tagValueB = a.split(',')
+    //         .map((tagId) => props.tags.find((tag) => tag.id === tagId)?.name)
+    //         .filter((tagName) => tagName !== undefined)
+    //         .sort((c, d) => c.localeCompare(d))
+    //         .reduce((prev, cur) => prev + ',' + cur, '')
+    //       tagValueB = tagValueB.charAt(0) === ',' ? tagValueB.substring(1) : tagValueB
+
+          
+    //       //higher number of tags is sorted first
+    //       const commasA = a.split('').filter((char) => char === ',')
+    //       const commasB = b.split('').filter((char) => char === ',')
+    //       if(commasA.length < commasB.length) return -1
+    //       else if(commasB.length > commasA.length) return 1
+    //       if(commasA.length === 0 && commasB.length === 0) return 0
+    //       else {
+    //         const splitA = tagValueA.split(',')
+    //         const splitB = tagValueB.split(',')
+    //         let index = 0
+    //         for(index; index < splitA.length && index < splitB.length; index++) {
+    //           if(splitA[index].localeCompare(splitB[index]) !== 0) break
+    //         }
+    //         index = splitA.length >= index ? index - 1 : index
+    //         return splitA[index].localeCompare(splitB[index])
+    //       }
+    //     }
+    //     else if(props.column.type === 'date') {
+    //       const commasA = a.split(',')
+    //         .map((timeslotId) => props.timeslots.find((timeslot) => timeslot.id === timeslotId))
+    //         .filter((timeslot) => timeslot !== undefined)
+    //         .sort((a, b) => a.start.getTime() - b.start.getTime())
+    //       const commasB = a.split(',')
+    //         .map((timeslotId) => props.timeslots.find((timeslot) => timeslot.id === timeslotId))
+    //         .filter((timeslot) => timeslot !== undefined)
+    //         .sort((a, b) => a.start.getTime() - b.start.getTime())
+
+    //       let index = 0
+    //       while(commasA[index].start.getTime() === commasB[index].start.getTime() && index < commasA.length && index < commasB.length) {
+    //         index++
+    //       }
+    //       if(commasA[index].start.getTime() < commasB[index].start.getTime()) {
+    //         return -1
+    //       }
+    //       else if(commasA[index].start.getTime() > commasB[index].start.getTime()) {
+    //         return 1
+    //       }
+    //       return 0
+    //     }
+    //     else if(props.column.type === 'notification') {
+    //       const foundNotificationA = props.notifications.find((notification) => notification.id === a)
+    //       const foundNotificationB = props.notifications.find((notification) => notification.id === b)
+
+    //       if(!foundNotificationA && !foundNotificationB) return 0
+    //       else if(!foundNotificationA && foundNotificationB) return 1
+    //       else if(foundNotificationA && !foundNotificationB) return -1
+    //       else if(foundNotificationA && foundNotificationB) {
+    //         return foundNotificationA.content.localeCompare(foundNotificationB.content)
+    //       }
+    //     }
+    //     else if(props.column.type === 'file') {
+    //       return parsePathName(a).localeCompare(parsePathName(b))
+    //     }
+    //     //fine for choice and value columns
+    //     return a.localeCompare(b)
+    //   })
+    const sortedValuesDSC = [...sortedValuesASC].reverse()
+
+    let sortedASC = true
+    let sortedDSC = true
+
+    for(let i = 0, j = 0; i < values.length; i++) {
+      if(values[i] === '') continue
+      
+      if(sortedValuesASC[j] !== values[i]) {
+        sortedASC = false
+      }
+      else if(sortedValuesDSC[j] !== values[i]) {
+        sortedDSC = false
+      }
+
+      j++
+      if(!sortedASC && !sortedDSC) return null
+    }
+
+    if(sortedASC && sortedDSC) return null
+    else if(sortedASC) return 'DSC'
+    else if(sortedDSC) return 'ASC'
+    return null
+  })()
+
+  const reorderRows = (order: 'ASC' | 'DSC'): { columnId: string, values: string[] }[] => {
+    const values = [...props.column.values]
+    //cherry pick all blank columns
+    const filteredBlanks: number[] = [...values]
+      .map((v, i) => ({ v: v, i: i}))
+      .filter((v) => v.v === '')
+      .map((v) => v.i)
+
+      //TODO: record based on id for whole table
+    const sortedValues = order === 'ASC' ? 
+      sortColumnValues(props.column, props.tags, props.timeslots, props.notifications) 
+    : 
+      sortColumnValues(props.column, props.tags, props.timeslots, props.notifications).reverse()
+
+    try {
+      const sortMapping: { previousIndex: number, newIndex: number }[] = [...sortedValues.map((value, i) => {
+        const foundIndex = values.findIndex((v) => v === value)
+        if(foundIndex === -1) throw new Error('Could not find value index')
+        return {
+          previousIndex: foundIndex,
+          newIndex: i
+        }
+      }),
+      ...filteredBlanks.map((p, i) => {
+        return ({
+          previousIndex: p,
+          newIndex: sortMapping.length + i
+        })
+      })
+      ].sort((a, b) => a.newIndex - b.newIndex)
+
+      const ret: { columnId: string, values: string[] }[] = props.table.columns.map((col) => ({
+        columnId: col.id,
+        values: []
+      }))
+
+      for(let i = 0; i < ret.length; i++) {
+        for(let j = 0; j < sortMapping.length; j++) {
+          ret[i].values[j] = values[sortMapping[j].previousIndex]
+        }
+      }
+
+      console.log(ret)
+
+      return ret
+    } catch(e) {
+      return []
+    }
+    return []
+  }
+
   return (
     <th
       data-table-column-id={props.column.id}
@@ -150,6 +310,8 @@ export const TableColumnComponent = (props: TableColumnProps) => {
         place-items-center bg-gray-50
         ${stateStyles[columnState.type] ?? ''}
       `}
+      onMouseEnter={() => setMouseHover(true)}
+      onMouseLeave={() => setMouseHover(false)}
     >
       {columnState.type === 'is-dragging-over' && columnState.closestEdge && columnState.closestEdge === 'left' && (
         <DropIndicator edge={columnState.closestEdge} gap={'8px'} />
@@ -546,6 +708,29 @@ export const TableColumnComponent = (props: TableColumnProps) => {
             >Delete</Dropdown.Item>
           </div>
         </Dropdown>
+      )}
+      {(
+        mouseHover && 
+        !props.column.temporary && 
+        !props.column.edit
+      ) && (
+        <button 
+          className='absolute right-0 top-3 p-1 hover:bg-gray-200 text-gray-500 hover:text-black'
+          onClick={() => {
+            if(sortOrder === 'DSC' || sortOrder === null) {
+              reorderRows('ASC')
+            }
+            else {
+              reorderRows('DSC')
+            }
+          }}
+        >
+          {sortOrder === 'DSC' || sortOrder === null ? (
+            <GoTriangleDown size={16} />
+          ) : (
+            <GoTriangleUp size={16} />
+          )}
+        </button>
       )}
       {columnState.type === 'is-dragging-over' && columnState.closestEdge && columnState.closestEdge === 'right' && (
         <DropIndicator edge={columnState.closestEdge} gap={'8px'} />
