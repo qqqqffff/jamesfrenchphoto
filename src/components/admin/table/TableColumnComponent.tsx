@@ -14,8 +14,8 @@ import { getColumnTypeColor } from '../../../utils';
 import { ColorComponent } from '../../common/ColorComponent';
 import { DropIndicator } from '../../common/DropIndicator';
 import { EditableTextField } from '../../common/EditableTextField';
-import { UseMutationResult } from '@tanstack/react-query';
-import { CreateTableColumnParams, UpdateTableColumnParams } from '../../../services/tableService';
+import { useMutation, UseMutationResult } from '@tanstack/react-query';
+import { CreateTableColumnParams, ReorderTableMutationParams, TableService, UpdateTableColumnParams } from '../../../services/tableService';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import invariant from 'tiny-invariant';
 import { getTableColumnData, isTableColumnData } from './TableColumnData';
@@ -27,6 +27,7 @@ import { reorderRows, sortColumnValues } from '../../../functions/tableFunctions
 
 
 interface TableColumnProps {
+  TableService: TableService
   table: Table
   column: TableColumn
   refColumn: MutableRefObject<TableColumn | null>
@@ -149,81 +150,6 @@ export const TableColumnComponent = (props: TableColumnProps) => {
     const values = [...props.column.values]
     
     const sortedValuesASC = sortColumnValues(props.column, props.tags, props.timeslots, props.notifications)
-    // [...props.column.values]
-    //   .filter((v) => v !== '')
-    //   .sort((a, b) => {
-    //     if(props.column.type === 'tag') {
-    //       let tagValueA = a.split(',')
-    //         .map((tagId) => props.tags.find((tag) => tag.id === tagId)?.name)
-    //         .filter((tagName) => tagName !== undefined)
-    //         .sort((c, d) => c.localeCompare(d))
-    //         .reduce((prev, cur) => prev + ',' + cur, '')
-    //       tagValueA = tagValueA.charAt(0) === ',' ? tagValueA.substring(1) : tagValueA
-
-    //       let tagValueB = a.split(',')
-    //         .map((tagId) => props.tags.find((tag) => tag.id === tagId)?.name)
-    //         .filter((tagName) => tagName !== undefined)
-    //         .sort((c, d) => c.localeCompare(d))
-    //         .reduce((prev, cur) => prev + ',' + cur, '')
-    //       tagValueB = tagValueB.charAt(0) === ',' ? tagValueB.substring(1) : tagValueB
-
-          
-    //       //higher number of tags is sorted first
-    //       const commasA = a.split('').filter((char) => char === ',')
-    //       const commasB = b.split('').filter((char) => char === ',')
-    //       if(commasA.length < commasB.length) return -1
-    //       else if(commasB.length > commasA.length) return 1
-    //       if(commasA.length === 0 && commasB.length === 0) return 0
-    //       else {
-    //         const splitA = tagValueA.split(',')
-    //         const splitB = tagValueB.split(',')
-    //         let index = 0
-    //         for(index; index < splitA.length && index < splitB.length; index++) {
-    //           if(splitA[index].localeCompare(splitB[index]) !== 0) break
-    //         }
-    //         index = splitA.length >= index ? index - 1 : index
-    //         return splitA[index].localeCompare(splitB[index])
-    //       }
-    //     }
-    //     else if(props.column.type === 'date') {
-    //       const commasA = a.split(',')
-    //         .map((timeslotId) => props.timeslots.find((timeslot) => timeslot.id === timeslotId))
-    //         .filter((timeslot) => timeslot !== undefined)
-    //         .sort((a, b) => a.start.getTime() - b.start.getTime())
-    //       const commasB = a.split(',')
-    //         .map((timeslotId) => props.timeslots.find((timeslot) => timeslot.id === timeslotId))
-    //         .filter((timeslot) => timeslot !== undefined)
-    //         .sort((a, b) => a.start.getTime() - b.start.getTime())
-
-    //       let index = 0
-    //       while(commasA[index].start.getTime() === commasB[index].start.getTime() && index < commasA.length && index < commasB.length) {
-    //         index++
-    //       }
-    //       if(commasA[index].start.getTime() < commasB[index].start.getTime()) {
-    //         return -1
-    //       }
-    //       else if(commasA[index].start.getTime() > commasB[index].start.getTime()) {
-    //         return 1
-    //       }
-    //       return 0
-    //     }
-    //     else if(props.column.type === 'notification') {
-    //       const foundNotificationA = props.notifications.find((notification) => notification.id === a)
-    //       const foundNotificationB = props.notifications.find((notification) => notification.id === b)
-
-    //       if(!foundNotificationA && !foundNotificationB) return 0
-    //       else if(!foundNotificationA && foundNotificationB) return 1
-    //       else if(foundNotificationA && !foundNotificationB) return -1
-    //       else if(foundNotificationA && foundNotificationB) {
-    //         return foundNotificationA.content.localeCompare(foundNotificationB.content)
-    //       }
-    //     }
-    //     else if(props.column.type === 'file') {
-    //       return parsePathName(a).localeCompare(parsePathName(b))
-    //     }
-    //     //fine for choice and value columns
-    //     return a.localeCompare(b)
-    //   })
     const sortedValuesDSC = [...sortedValuesASC].reverse()
 
     let sortedASC = true
@@ -249,6 +175,9 @@ export const TableColumnComponent = (props: TableColumnProps) => {
     return null
   })()
 
+  const reorderTable = useMutation({
+    mutationFn: (params: ReorderTableMutationParams) => props.TableService.reorderTableMutation(params)
+  })
   return (
     <th
       data-table-column-id={props.column.id}
@@ -666,12 +595,52 @@ export const TableColumnComponent = (props: TableColumnProps) => {
         <button 
           className='absolute right-0 top-3 p-1 hover:bg-gray-200 text-gray-500 hover:text-black'
           onClick={() => {
+            let reorderedRows: Record<string, { values: string[], choices: string[] }> = {}
             if(sortOrder === 'DSC' || sortOrder === null) {
-              reorderRows('ASC', props.column, props.table, props.tags, props.timeslots, props.notifications)
+              reorderedRows = reorderRows('ASC', props.column, props.table, props.tags, props.timeslots, props.notifications)
             }
             else {
-              reorderRows('DSC', props.column, props.table, props.tags, props.timeslots, props.notifications)
+              reorderedRows = reorderRows('DSC', props.column, props.table, props.tags, props.timeslots, props.notifications)
             }
+
+            reorderTable.mutate({
+              tableColumns: props.table.columns.map((column) => ({
+                ...column,
+                values: reorderedRows[column.id].values,
+                choices: reorderedRows[column.id].choices,
+              })),
+              options: {
+                logging: true
+              }
+            })
+
+            const updateGroups = (prev: TableGroup[]) => prev.map((group) => props.table.tableGroupId === group.id ? ({
+              ...group,
+              tables: group.tables.map((table) => table.id === props.table.id ? ({
+                ...table,
+                columns: table.columns.map((column) => ({
+                  ...column,
+                  values: reorderedRows[column.id].values,
+                  choices: reorderedRows[column.id].choices
+                }))
+              }) : table)
+            }) : group)
+
+            props.parentUpdateSelectedTableGroups(prev => updateGroups(prev))
+            props.parentUpdateTableGroups(prev => updateGroups(prev))
+            props.parentUpdateTable(prev => prev !== undefined ? ({
+              ...prev,
+              columns: prev.columns.map((column) => ({
+                ...column,
+                values: reorderedRows[column.id].values,
+                choices: reorderedRows[column.id].choices
+              }))
+            }) : prev)
+            props.parentUpdateTableColumns(prev => prev.map((column) => ({
+              ...column,
+              values: reorderedRows[column.id].values,
+              choices: reorderedRows[column.id].choices
+            })))
           }}
         >
           {sortOrder === 'DSC' || sortOrder === null ? (

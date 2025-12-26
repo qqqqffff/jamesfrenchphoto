@@ -91,16 +91,24 @@ export const DateCell = (props: DateCellProps) => {
         })() 
       }
 
-      //one directional validation of participant timeslots to cell value
-      if(foundUser !== undefined) {
-        let participantTimeslotIdMap = (foundUser.participant.timeslot ?? [])
-          .reduce((prev, cur) => prev + ',' + cur.id, '')
-        participantTimeslotIdMap = participantTimeslotIdMap.charAt(0) === ',' ? participantTimeslotIdMap.substring(1) : participantTimeslotIdMap
-        if(participantTimeslotIdMap !== parentValue) {
-          parentValue = participantTimeslotIdMap
-          props.updateValue(participantTimeslotIdMap, true)
-        }
-      }
+      //TODO: perform validations at the super levle 
+      // one directional validation of participant timeslots to cell value
+      // if(foundUser !== undefined) {
+      //   let participantTimeslots = (foundUser.participant.timeslot ?? [])
+      //   .reduce((prev, cur) => {
+      //     if(parentValue.includes(cur.id)) {
+      //       return prev.filter((timeslot) => timeslot.id !== cur.id)
+      //     }
+      //     return prev
+      //   }, (foundUser.participant.timeslot ?? []))
+
+      //   if(participantTimeslots.length !== 0) {
+      //     const temp = (foundUser.participant.timeslot ?? [])
+      //       .reduce((prev, cur) => prev + ',' + cur.id, '')
+      //     parentValue = temp.charAt(0) === ',' ? temp.substring(1) : temp
+      //     props.updateValue(parentValue, true)
+      //   }
+      // }
 
       setValue(prev => parentValue !== prev ? parentValue : prev)
       setFoundParticipant(prev => foundUser !== undefined ? foundUser : prev)

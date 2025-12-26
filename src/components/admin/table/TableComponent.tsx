@@ -244,6 +244,7 @@ export const TableComponent = (props: TableComponentProps) => {
           className={`text-sm w-full h-full`}
         >
           <TableHeaderComponent 
+            TableService={props.TableService}
             table={props.table}
             refColumn={refColumn}
             tagData={props.tagData}

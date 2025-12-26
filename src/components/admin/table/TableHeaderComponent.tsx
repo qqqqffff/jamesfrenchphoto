@@ -3,7 +3,7 @@ import { Notification, Table, TableColumn, TableGroup, Timeslot, UserData, UserP
 import { TableColumnComponent } from "./TableColumnComponent"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { MutableRefObject, Dispatch, SetStateAction, useRef, useEffect } from "react"
-import { CreateTableColumnParams, ReorderTableColumnsParams, UpdateTableColumnParams } from "../../../services/tableService"
+import { CreateTableColumnParams, ReorderTableColumnsParams, TableService, UpdateTableColumnParams } from "../../../services/tableService"
 import { HiOutlineCalendar, HiOutlineDocumentText, HiOutlineListBullet, HiOutlinePencil, HiOutlinePlusCircle, HiOutlineTag } from 'react-icons/hi2'
 import { v4 } from 'uuid'
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
@@ -14,6 +14,7 @@ import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 
 interface TableHeaderComponentProps {
+  TableService: TableService
   table: Table
   refColumn: MutableRefObject<TableColumn | null>
   users: UserData[]
@@ -178,6 +179,7 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
           return (
             <TableColumnComponent 
               key={column.id}
+              TableService={props.TableService}
               table={props.table}
               column={column}
               refColumn={props.refColumn}

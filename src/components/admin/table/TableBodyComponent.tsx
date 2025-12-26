@@ -92,6 +92,8 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
         const updatedValues: Map<string, string[]> = new Map()
         const updatedChoices: Map<string, string[]> = new Map()
 
+        props.table.columns.filter((column) => column.type === 'choice').forEach((column) => updatedChoices.set(column.id, column.choices ?? []))
+
         for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
           if(i === indexOfSource) continue
           for(let j = 0; j < props.table.columns.length; j++){
@@ -99,10 +101,12 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               props.table.columns[j].id, 
               [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[i]]
             )
-            updatedChoices.set(
-              props.table.columns[j].id, 
-              [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
-            )
+            if(props.table.columns[j].type !== 'choice') {
+              updatedChoices.set(
+                props.table.columns[j].id, 
+                [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
+              )
+            }
           }
         }
         for(let j = 0; j < props.table.columns.length; j++) {
@@ -110,10 +114,12 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
             props.table.columns[j].id,
             [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[indexOfSource]]
           )
-          updatedChoices.set(
-            props.table.columns[j].id,
-            [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[indexOfSource] ?? '']
-          )
+          if(props.table.columns[j].type !== 'choice') {
+            updatedChoices.set(
+              props.table.columns[j].id,
+              [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[indexOfSource] ?? '']
+            )
+          }
         }
         for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < props.table.columns[0].values.length; i++) {
           if(i === indexOfSource) continue
@@ -122,10 +128,12 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               props.table.columns[j].id, 
               [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[i]]
             )
-            updatedChoices.set(
-              props.table.columns[j].id, 
-              [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
-            )
+            if(props.table.columns[j].type !== 'choice') {
+              updatedChoices.set(
+                props.table.columns[j].id, 
+                [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
+              )
+            }
           }
         }
 

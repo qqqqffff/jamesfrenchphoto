@@ -208,6 +208,8 @@ export interface ReorderTableColumnsParams {
 
 export interface ReorderTableRowsParams extends ReorderTableColumnsParams { }
 
+export interface ReorderTableMutationParams extends ReorderTableColumnsParams { }
+
 export class TableService {
   private client: V6Client<Schema>
   constructor(client: V6Client<Schema>) {
@@ -485,6 +487,18 @@ export class TableService {
     }
   }
 
+  async reorderTableMutation(params: ReorderTableMutationParams) {
+    const updatedTable = await Promise.all(params.tableColumns.map((column) => {
+      return this.client.models.TableColumn.update({
+        id: column.id,
+        values: column.values,
+        choices: column.choices
+      })
+    }))
+
+    if(params.options?.logging) console.log(updatedTable)
+  }
+
   async reorderTableColumnsMutation(params: ReorderTableColumnsParams) {
     const updatedTableColumns = await Promise.all(params.tableColumns.map((tableColumn) => {
       return this.client.models.TableColumn.update({
@@ -499,7 +513,8 @@ export class TableService {
     const updatedTableColumns = await Promise.all(params.tableColumns.map((tableColumn) => {
       return this.client.models.TableColumn.update({
         id: tableColumn.id,
-        values: tableColumn.values
+        values: tableColumn.values,
+        choices: tableColumn.choices,
       })
     }))
     if(params.options?.logging) console.log(updatedTableColumns)

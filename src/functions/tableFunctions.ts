@@ -26,7 +26,7 @@ export const reorderRows = (
   tags: UserTag[], 
   timeslots: Timeslot[], 
   notifications: Notification[]
-): Record<string, string[]> => {
+): Record<string, { values: string[], choices: string[] }> => {
     const values = [...column.values]
     //cherry pick all blank columns
     const filteredBlanks: number[] = [...values]
@@ -34,22 +34,22 @@ export const reorderRows = (
       .filter((v) => v.v === '')
       .map((v) => v.i)
 
-      //TODO: record based on id for whole table
+    //TODO: record based on id for whole table
     const sortedValues: Record<string, string[]> = order === 'ASC' ? 
-      Object.fromEntries(table.columns.map((column) => [
-        column.id,
-        column.id === column.id ? 
-          sortColumnValues(column, tags, timeslots, notifications) 
+      Object.fromEntries(table.columns.map((tableColumn) => [
+        tableColumn.id,
+        tableColumn.id === column.id ? 
+          sortColumnValues(tableColumn, tags, timeslots, notifications) 
         : 
-          column.values
+          tableColumn.values
       ]))
     : 
-      Object.fromEntries(table.columns.map((column) => [
-        column.id,
-        column.id === column.id ? 
-          sortColumnValues(column, tags, timeslots, notifications).reverse() 
+      Object.fromEntries(table.columns.map((tableColumn) => [
+        tableColumn.id,
+        tableColumn.id === column.id ? 
+          sortColumnValues(tableColumn, tags, timeslots, notifications).reverse() 
         : 
-          column.values
+          tableColumn.values
       ])
     )
       
@@ -72,7 +72,6 @@ export const reorderRows = (
             .findIndex((value) => values[i] === value) + offset
         }
 
-        console.log(values[i], foundIndex)
         if(foundIndex === -1) throw new Error('Failed to index sorted array')
         sortMapping.push({ previousIndex: i, newIndex: foundIndex })
       }
@@ -81,17 +80,21 @@ export const reorderRows = (
         sortMapping.push({ previousIndex: filteredBlanks[i], newIndex: initialLength + i })
       }
 
-      console.log(sortMapping)
-
-      const ret: Record<string, string[]> = Object.fromEntries(table.columns.map((col) => [col.id, []]))
+      const ret: Record<string, { values : string[], choices: string[] }> = Object.fromEntries(table.columns.map((col) => [col.id, { values: [], choices: [] }]))
 
       for(let i = 0; i < table.columns.length; i++) {
         const currentColumnId = table.columns[i].id
+        if(table.columns[i].type === 'choice') {
+          ret[currentColumnId].choices = table.columns[i].choices ?? []
+        }
         for(let j = 0; j < sortMapping.length; j++) {
-          ret[currentColumnId][sortMapping[j].newIndex] = currentColumnId === column.id ? 
+          ret[currentColumnId].values[sortMapping[j].newIndex] = currentColumnId === column.id ? 
             values[sortMapping[j].previousIndex] 
           : 
             sortedValues[currentColumnId][sortMapping[j].previousIndex]
+          if(table.columns[i].type !== 'choice') {
+            ret[currentColumnId].choices[sortMapping[j].newIndex] = (table.columns[i].choices ?? [])?.[sortMapping[j].previousIndex] ?? ''
+          }
         }
       }
 
@@ -154,10 +157,19 @@ export const sortColumnValues = (
           .sort((a, b) => a.start.getTime() - b.start.getTime())
 
         let index = 0
-        while(commasA[index].start.getTime() === commasB[index].start.getTime() && index < commasA.length && index < commasB.length) {
+        while(
+          commasA[index]?.start !== undefined && 
+          commasB[index]?.start !== undefined &&
+          commasA[index].start.getTime() === commasB[index].start.getTime() && 
+          index < commasA.length && 
+          index < commasB.length
+        ) {
           index++
         }
-        if(commasA[index].start.getTime() < commasB[index].start.getTime()) {
+        if(commasA[index]?.start === undefined && commasB[index]?.start === undefined) return 0
+        else if(commasA[index]?.start === undefined) return 1
+        else if(commasB[index]?.start === undefined) return -1
+        else if(commasA[index].start.getTime() < commasB[index].start.getTime()) {
           return -1
         }
         else if(commasA[index].start.getTime() > commasB[index].start.getTime()) {
