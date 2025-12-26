@@ -25,6 +25,7 @@ interface NotificationCellProps extends ComponentProps<'td'> {
   usersQuery: UseQueryResult<UserData[] | undefined, Error>
   tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>,
   notificationQuery: UseQueryResult<Notification[] | undefined, Error>,
+  search: string
 }
 
 export const NotificationCell = (props: NotificationCellProps) => {
@@ -49,6 +50,7 @@ export const NotificationCell = (props: NotificationCellProps) => {
     remaining: number
   } | null>(null)
 
+  //TODO: combine use effects
   useEffect(() => {
     if(props.value !== notification?.id) {
       //try to find notification first
@@ -144,9 +146,15 @@ export const NotificationCell = (props: NotificationCellProps) => {
     parentNotification.participants.some((participant) => foundParticipant?.participant.id === participant.id)
   )
 
+  const selectedSearch = props.search !== '' && props.notifications.some((parentNotification) => 
+    parentNotification.id === notification.id && 
+    parentNotification.content.toLowerCase().includes(props.search.toLowerCase())
+  )
+
   return (
     <td className={`
       text-ellipsis border py-3 px-3 max-w-[150px]
+      ${selectedSearch ? 'outline outline-green-400' : ''}
       ${cellColoring}
     `}>
       <input 

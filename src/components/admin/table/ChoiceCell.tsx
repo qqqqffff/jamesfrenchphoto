@@ -14,6 +14,7 @@ interface ChoiceCellProps extends ComponentProps<'td'> {
   column: TableColumn,
   createChoice: (choice: string, color: string, customColor?: [string, string]) => void,
   rowIndex: number
+  selectedSearch: boolean
 }
 
 export const ChoiceCell = (props: ChoiceCellProps) => {
@@ -37,6 +38,7 @@ export const ChoiceCell = (props: ChoiceCellProps) => {
     <td 
       className={`
         text-ellipsis border py-3 px-3 max-w-[150px] 
+        ${props.selectedSearch ? 'outline outline-green-400' : ''}
         ${valueColor && (!valueColor.bgColor || !valueColor.bgColor.includes('#')) ? 
           `bg-${valueColor.bgColor ? `${valueColor.bgColor} ${props.rowIndex % 2 ? '' : 'bg-opacity-60'}` : props.rowIndex % 2 ? 'bg-gray-200 bg-opacity-40' : ''}` : props.rowIndex % 2 ? 'bg-gray-200 bg-opacity-40' : ''}
       `}

@@ -16,6 +16,7 @@ interface FileCellProps extends ComponentProps<'td'> {
   column: TableColumn,
   rowIndex: number,
   PhotoPathService: PhotoPathService,
+  search: string,
 }
 
 export const FileCell = (props: FileCellProps) => {
@@ -59,6 +60,7 @@ export const FileCell = (props: FileCellProps) => {
   })
 
   const cellColoring = props.rowIndex % 2 ?  'bg-gray-200 bg-opacity-40' : '';
+  const selectedSearch = props.search !== '' && value.toLowerCase().includes(props.search)
 
   return (
     <>
@@ -107,6 +109,7 @@ export const FileCell = (props: FileCellProps) => {
       />
       <td className={`
         text-ellipsis border py-3 px-3 max-w-[150px] 
+        ${selectedSearch ? 'outline outline-green-400' : ''}
         ${cellColoring}
       `}>
         <div className="flex flex-row items-center gap-2">

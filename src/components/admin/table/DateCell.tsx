@@ -35,6 +35,7 @@ interface DateCellProps extends ComponentProps<'td'> {
   registerTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
   rowIndex: number,
   columnId: string,
+  search: string,
 }
 
 export const DateCell = (props: DateCellProps) => {
@@ -180,6 +181,11 @@ export const DateCell = (props: DateCellProps) => {
     .find((participant) => participant.id === selectedTimeslot.current?.participantId)
 
   const cellColoring = props.rowIndex % 2 ? foundParticipant ? 'bg-yellow-200 bg-opacity-40' : 'bg-gray-200 bg-opacity-40' : foundParticipant ? 'bg-yellow-100 bg-opacity-20' : '';
+  const selectedSearch = props.search !== '' &&
+  cellTimeslotQueries.some((query) => query.data !== null && query.data !== undefined && (
+    query.data.start.toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase()) ||
+    query.data.end.toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase()) 
+  ))
 
   return (
     <>
@@ -296,7 +302,7 @@ export const DateCell = (props: DateCellProps) => {
       )}
       <td className={`
         text-ellipsis border py-3 px-3 max-w-[150px]
-        
+        ${selectedSearch ? 'outline outline-green-400' : ''}
         ${cellColoring}
       `}>
         <input

@@ -62,6 +62,7 @@ interface TableRowComponentProps {
   i: number
   table: Table
 
+  search: string,
   selectedTag: UserTag | undefined,
   selectedDate: Date
   baseLink: string
@@ -71,6 +72,7 @@ interface TableRowComponentProps {
   tempUsers: UserProfile[],
   notifications: Notification[]  
   
+  allTableTimeslotsQuery: UseQueryResult<Timeslot | null, Error>[]
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
   tagTimeslotQuery: UseQueryResult<Timeslot[], Error>
   tagData: UseQueryResult<UserTag[] | undefined, Error>
@@ -1370,7 +1372,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           })}
         </tr>
       )}
-      <tr className={`bg-white border-b ${stateStyles[rowState.type]}`} ref={ref}>
+      <tr className={`bg-white ${stateStyles[rowState.type]}`} ref={ref}>
         {props.row.map(([v, t, id], j) => {
           switch(t){
             case 'date': {
@@ -1378,6 +1380,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 <DateCell
                   key={j}
                   value={v}
+                  search={props.search}
                   TimeslotService={props.TimeslotService}
                   //TODO: timeslot ids should be mutually exclusive -> need to convert cells from being an array of values to be its own dynamo for now will leave as is and avoid double registrations
                   updateValue={(text, skipLinks) => updateValue(id, text, props.i, skipLinks)}
@@ -1420,6 +1423,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 <ChoiceCell
                   key={j}
                   value={v}
+                  selectedSearch={props.search !== '' && v.toLowerCase().includes(props.search.toLowerCase())}
                   rowIndex={props.i}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   column={props.table.columns.find((col) => col.id === id)!}
@@ -1433,6 +1437,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   UserService={props.UserService}
                   key={j}
                   value={v}
+                  search={props.search}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   tags={props.tagData}
                   table={props.table}
@@ -1495,6 +1500,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 <NotificationCell
                   key={j}
                   value={v}
+                  search={props.search}
                   rowIndex={props.i}
                   NotificationService={props.NotificationService}
                   notifications={props.notifications}
@@ -1532,6 +1538,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   PhotoPathService={props.PhotoPathService}
                   key={j}
                   value={v}
+                  search={props.search}
                   updateValue={(text) => {
                     const tempTable: Table = {
                       ...props.table,
@@ -1583,6 +1590,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                 <ValueCell
                   key={j} 
                   value={v}
+                  selectedSearch={props.search !== '' && v.toLowerCase().includes(props.search.toLowerCase())}
                   rowIndex={props.i}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   column={props.table.columns.find((column) => column.id === id)!}

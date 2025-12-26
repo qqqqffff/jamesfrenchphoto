@@ -161,7 +161,6 @@ export const TablePanel = (props: TablePanelProps) => {
                   editting={false}
                 />
               )}
-              
               <TextInput 
                 theme={textInputTheme} 
                 sizing="sm" 
@@ -222,6 +221,7 @@ export const TablePanel = (props: TablePanelProps) => {
                 ...props.selectedTable,
                 columns: tableColumns,
               }}
+              search={searchText}
               tempUsers={props.tempUsers}
               users={props.users}
               notifications={props.notifications}

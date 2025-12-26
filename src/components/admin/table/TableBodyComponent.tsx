@@ -24,6 +24,7 @@ interface TableBodyComponentProps {
   NotificationService: NotificationService,
   table: Table
   tableRows: [string, TableColumn['type'], string][][],
+  search: string,
   users: UserData[],
   tempUsers: UserProfile[],
   notifications: Notification[],
@@ -31,6 +32,7 @@ interface TableBodyComponentProps {
   selectedDate: Date
   baseLink: string
   refRow: React.MutableRefObject<number>
+  allTableTimeslotsQuery: UseQueryResult<Timeslot | null, Error>[]
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
   tagTimeslotQuery: UseQueryResult<Timeslot[], Error>
   tagData: UseQueryResult<UserTag[] | undefined, Error>
@@ -192,6 +194,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               PhotoPathService={props.PhotoPathService}
               NotificationService={props.NotificationService}
               row={row}
+              search={props.search}
               i={i}
               table={props.table}
               users={props.users}
@@ -203,6 +206,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               refRow={props.refRow}
               timeslotsQuery={props.timeslotsQuery}
               tagTimeslotQuery={props.tagTimeslotQuery}
+              allTableTimeslotsQuery={props.allTableTimeslotsQuery}
               tagData={props.tagData}
               userData={props.userData}
               tempUsersData={props.tempUsersData}

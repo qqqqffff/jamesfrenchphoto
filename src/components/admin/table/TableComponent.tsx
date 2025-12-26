@@ -6,7 +6,8 @@ import {
   UserData, 
   UserProfile, 
   UserTag,
-  Notification
+  Notification,
+  Timeslot
 } from "../../../types"
 import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { 
@@ -35,6 +36,7 @@ interface TableComponentProps {
   TimeslotService: TimeslotService,
   UserService: UserService,
   table: Table,
+  search: string
   PhotoPathService: PhotoPathService,
   NotificationService: NotificationService,
   tempUsers: UserProfile[],
@@ -64,7 +66,7 @@ export const TableComponent = (props: TableComponentProps) => {
 
   //TODO: remove redundancy
   const timeslotsQuery = useQuery(props.TimeslotService.getAllTimeslotsByDateQueryOptions(selectedDate))
-  const allTableTimeslots = useQueries({
+  const allTableTimeslots: UseQueryResult<Timeslot | null, Error>[] = useQueries({
     queries: props.table.columns
       .filter((column) => column.type === 'date')
       .flatMap((column) => column.values)
@@ -95,7 +97,33 @@ export const TableComponent = (props: TableComponentProps) => {
       for(let j = 0; j < props.table.columns.length; j++){
         row.push([props.table.columns[j].values[i], props.table.columns[j].type, props.table.columns[j].id])
       }
-      tableRows.push(row)
+      if(
+        props.search === '' ||
+        row.some((value) => (
+          (
+            (
+              value[1] === 'value' ||
+              value[1] === 'choice' ||
+              value[1] === 'file'
+            ) && value[0].toLowerCase().includes(props.search.toLowerCase())) ||
+            (value[1] === 'notification' && props.notifications.find((notification) => notification.content.toLowerCase().includes(props.search.toLowerCase()))) ||
+            (value[1] === 'date' && allTableTimeslots
+              .map((query) => query.data)
+              .filter((timeslot) => timeslot !== undefined && timeslot !== null)
+              .filter((timeslot) => value[0].includes(timeslot.id))
+              .some((timeslot) => (
+                new Date(timeslot.start).toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase()) ||
+                new Date(timeslot.end).toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase())
+              ))
+            ) ||
+            (value[1] === 'tag' && (props.tagData.data ?? [])
+              .filter((tag) => value[0].includes(tag.id))
+              .some((tag) => tag.name.toLowerCase().includes(props.search.toLowerCase()))
+            )
+        ))
+      ) {
+        tableRows.push(row)
+      }
     }
   }
 
@@ -269,6 +297,7 @@ export const TableComponent = (props: TableComponentProps) => {
             NotificationService={props.NotificationService}
             table={props.table}
             tableRows={tableRows}
+            search={props.search}
             users={props.users}
             tempUsers={props.tempUsers}
             notifications={props.notifications}
@@ -276,6 +305,7 @@ export const TableComponent = (props: TableComponentProps) => {
             selectedDate={selectedDate}
             baseLink={link}
             refRow={refRow}
+            allTableTimeslotsQuery={allTableTimeslots}
             timeslotsQuery={timeslotsQuery}
             tagTimeslotQuery={tagTimeslotQuery}
             tagData={props.tagData}

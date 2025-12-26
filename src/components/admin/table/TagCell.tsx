@@ -27,6 +27,7 @@ interface TagCellProps extends ComponentProps<'td'> {
     userEmail: string, 
     tempUser: boolean
   ) => void
+  search: string
 }
 
 //TODO: add horizontal scrolling between all tags that are inside instead of displaying multiple tags
@@ -37,6 +38,7 @@ export const TagCell = (props: TagCellProps) => {
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile, participant: Participant } | undefined>();
   const [availableTags, setAvailableTags] = useState<UserTag[]>(props.tags.data ?? [])
   
+  //TODO: combine use effects
   useEffect(() => {
     if(props.value !== value){
       setValue(props.value)
@@ -111,11 +113,12 @@ export const TagCell = (props: TagCellProps) => {
   })()
 
   const cellColoring = props.rowIndex % 2 ? foundParticipant ? 'bg-yellow-200 bg-opacity-40' : 'bg-gray-200 bg-opacity-40' : foundParticipant ? 'bg-yellow-100 bg-opacity-20' : '';
-
+  const selectedSearch = props.search !== '' && cellTags.some((tag) => tag.name.toLowerCase().includes(props.search.toLowerCase()))
   return (
     <>
       <td className={`
         text-ellipsis border py-3 px-3 max-w-[150px]
+        ${selectedSearch ? 'outline outline-green-400' : ''}
         ${cellColoring}
       `}>
         <input

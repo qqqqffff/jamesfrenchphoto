@@ -9,6 +9,7 @@ interface ValueCellProps extends ComponentProps<'td'> {
   userFieldLinks?: UserFieldLinks,
   participantFieldLinks: ParticipantFieldLinks[]
   rowIndex: number
+  selectedSearch: boolean,
 }
 
 export const ValueCell = (props: ValueCellProps) => {
@@ -58,6 +59,7 @@ export const ValueCell = (props: ValueCellProps) => {
   return (
     <td className={`
       text-ellipsis border py-3 px-3 max-w-[150px] 
+      ${props.selectedSearch ? 'outline outline-green-400' : ''}
       ${cellColoring}
     `}>
       <input
