@@ -104,14 +104,14 @@ function RouteComponent() {
               >{clientMessages.status === 'Success' ? 'Successfully unregistered your timeslot' : clientMessages.error ?? 'Failed to register. Please try again later.'}</Alert>
             </div>
           )} 
-          <div className="flex flex-col items-center justify-center w-full">
+          <div className="flex flex-col items-center justify-center w-full px-2 py-2 gap-2">
             {(auth.user?.profile.activeParticipant?.notifications ?? [])
               .filter((notification) => 
                 !notification.expiration || 
                 currentDate.getTime() < new Date(notification.expiration).getTime())
               .map((notification, index) => {
                 return (
-                  <Alert color="gray" key={index} className='w-full'>
+                  <Alert color="gray" key={index} className='w-full items-center text-lg border'>
                     {notification.content}
                   </Alert>
                 )

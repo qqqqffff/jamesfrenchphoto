@@ -209,6 +209,7 @@ export const NotificationCell = (props: NotificationCellProps) => {
               })
             }
             else {
+              props.updateValue(notification.id)
               createNotification.mutateAsync({
                 notification: notification,
                 options: {
@@ -390,12 +391,11 @@ export const NotificationCell = (props: NotificationCellProps) => {
                   })
                 }}
               >
-                {hoveredItem ? (
+                {hoveredItem === selectedNotification.id ? (
                   <div className="flex flex-col gap-1">
                     <span className="border-b">{selectedNotification.content}</span>
                     <span className="font-medium">Created: {new Date(selectedNotification.createdAt).toLocaleDateString('en-us', { timeZone: 'America/Chicago' })}</span>
                   </div>
-                  
                 ) : (
                   <span>{selectedNotification.content}</span>
                 )}
@@ -492,7 +492,7 @@ export const NotificationCell = (props: NotificationCellProps) => {
                         }
                       }}
                     >
-                      {hoveredItem ? (
+                      {hoveredItem === n.id ? (
                         <div className="flex flex-col gap-1">
                           <span className="border-b">{n.content}</span>
                           <span className="font-medium">Created: {new Date(n.createdAt).toLocaleDateString('en-us', { timeZone: 'America/Chicago' })}</span>

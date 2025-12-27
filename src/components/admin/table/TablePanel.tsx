@@ -85,7 +85,6 @@ export const TablePanel = (props: TablePanelProps) => {
           .filter((_, index) => index < 3)
           .reverse()
           .map((notification, index) => {
-            console.log(notification.createdAt.toLocaleTimeString(), index, notification.message)
             return (
               <Alert 
                 key={notification.id}

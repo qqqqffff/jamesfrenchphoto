@@ -263,25 +263,31 @@ export class NotificationService {
         .filter((id) => !params.notification.participants.some((participant) => participant.id === id))
 
 
-      let tagResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
+      let participantResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
         notificationId: params.notification.id 
       })
-      let tagData = tagResponse.data
+      const participantData = participantResponse.data
 
-      while(tagResponse.nextToken) {
-        tagResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
+      while(
+        participantResponse.nextToken || 
+        deletedParticipants.reduce((prev, cur) => {
+          if(prev) return prev
+          if(!participantData.some((data) => data.participantId === cur)) return true
+          return prev
+        }, false)
+      ) {
+        participantResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
           notificationId: params.notification.id 
         }, { 
-          nextToken: tagResponse.nextToken 
+          nextToken: participantResponse.nextToken 
         })
-        tagData.push(...tagResponse.data)
+        participantData.push(...participantResponse.data)
       }
 
-      const deleteResponse = Promise.all(deletedParticipants.map((pId) => {
-        const foundId = tagData.find((tag) => tag.participantId === pId)?.id
-        if(foundId) {
+      const deleteResponse = Promise.all(participantData.map((data) => {
+        if(deletedParticipants.some((pId) => pId === data.participantId)) {
           return this.client.models.NotificationParticipants.delete({
-            id: foundId,
+            id: data.id
           })
         }
       }))
@@ -298,7 +304,10 @@ export class NotificationService {
       if(params.options?.logging) console.log(addResponse)
     }
 
-    if(params.tagIds?.some((cTid) => !params.notification.tags.some((tag) => cTid === tag.id))) {
+    if(
+      params.tagIds?.some((cTid) => !params.notification.tags.some((tag) => cTid === tag.id)) ||
+      params.notification.tags.some((tag) => !params.tagIds.some((tagId) => tagId === tag.id))
+    ) {
       const deletedTags: string[] = params.notification.tags
         .filter((tag) => !params.tagIds?.some((id) => id === tag.id))
         .map((tag) => tag.id)
@@ -310,9 +319,16 @@ export class NotificationService {
       let tagResponse = await this.client.models.NotificationUserTags.listNotificationUserTagsByNotificationId({ 
         notificationId: params.notification.id 
       })
-      let tagData = tagResponse.data
+      const tagData = tagResponse.data
 
-      while(tagResponse.nextToken) {
+      while(
+        tagResponse.nextToken || 
+        deletedTags.reduce((prev, cur) => {
+          if(prev) return prev
+          if(!tagData.some((data) => data.tagId === cur)) return true
+          return prev
+        }, false)
+      ) {
         tagResponse = await this.client.models.NotificationUserTags.listNotificationUserTagsByNotificationId({ 
           notificationId: params.notification.id 
         }, { 
@@ -321,11 +337,10 @@ export class NotificationService {
         tagData.push(...tagResponse.data)
       }
 
-      const deleteResponse = Promise.all(deletedTags.map((tId) => {
-        const foundId = tagData.find((tag) => tag.tagId === tId)?.id
-        if(foundId) {
+      const deleteResponse = Promise.all(tagData.map((data) => {
+        if(deletedTags.some((tagId) => tagId === data.tagId)) {
           return this.client.models.NotificationUserTags.delete({
-            id: foundId,
+            id: data.id,
           })
         }
       }))
@@ -358,9 +373,31 @@ export class NotificationService {
   }
 
   async deleteNotificationMutation(params: DeleteNotificationParams) {
-    const response = this.client.models.Notifications.delete({ id: params.notificationId })
-
+    const response = await this.client.models.Notifications.delete({ id: params.notificationId })
     if(params.options?.logging) console.log(response)
+    if(response.data) {
+      let participantResponse = await response.data.participant()
+      const participantData = participantResponse.data
+
+      while(participantResponse.nextToken) {
+        participantResponse = await response.data.participant({ nextToken: participantResponse.nextToken })
+        participantData.push(...participantResponse.data)
+      }
+
+      const deleteParticipantResponse = Promise.all(participantData.map((data) => this.client.models.NotificationParticipants.delete({ id: data.id })))
+      if(params.options?.logging) console.log(deleteParticipantResponse)
+
+      let tagResponse = await response.data.tags()
+      const tagData = tagResponse.data
+
+      while(tagResponse.nextToken) {
+        tagResponse = await response.data.tags({ nextToken: tagResponse.nextToken })
+        tagData.push(...tagResponse.data)
+      }
+
+      const deleteTagsResponse = Promise.all(tagData.map((data) => this.client.models.NotificationUserTags.delete({ id: data.id })))
+      if(params.options?.logging) console.log(deleteTagsResponse)
+    }
   }
 
   async sendUserEmailNotificationMutation(params: SendUserEmailNotificationParams): Promise<{message: string, status: 'fail' | 'success'}> {
@@ -377,18 +414,18 @@ export class NotificationService {
       if(response.data !== null) {
         const sgResponse: [sgMail.ClientResponse, {}] = JSON.parse(response.data.toString())
         if(sgResponse[0].statusCode >= 200 && sgResponse[0].statusCode < 300) {
-          return { message: 'Email sent successfully.', status: 'success' }
+          return { message: 'Email notification sent successfully.', status: 'success' }
         }
         else {
-          return { message: 'Failed to send email.', status: 'fail' }
+          return { message: 'Failed to send email notification.', status: 'fail' }
         }
       }
       else {
-        return { message: 'Failed to send email.', status: 'fail' }
+        return { message: 'Failed to send email notification.', status: 'fail' }
       }
       
     } catch(error) {
-      return { message: 'Failed to send email.', status: 'fail' }
+      return { message: 'Failed to send email notification.', status: 'fail' }
     }
   }
 

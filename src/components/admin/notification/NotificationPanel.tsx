@@ -1,13 +1,15 @@
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
 import { Notification, Participant, UserTag } from "../../../types"
-import { Badge, Button, Checkbox, Datepicker, Dropdown, Radio, TextInput, Tooltip } from "flowbite-react"
+import { Alert, Badge, Button, Checkbox, Datepicker, Dropdown, Radio, TextInput, Tooltip } from "flowbite-react"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea"
 import { useMutation } from "@tanstack/react-query"
 import { badgeColorThemeMap_hoverable, currentDate, DAY_OFFSET, textInputTheme } from "../../../utils"
 import { HiOutlineX } from "react-icons/hi"
 import { ParticipantPanel } from "../../common/ParticipantPanel"
-import { CreateNotificationParams, DeleteNotificationParams, NotificationService, UpdateNotificationParams } from "../../../services/notificationService"
+import { CreateNotificationParams, DeleteNotificationParams, NotificationService, SendUserEmailNotificationParams, UpdateNotificationParams } from "../../../services/notificationService"
+import validator from 'validator'
+import { v4 } from 'uuid'
 
 interface  NotificationPanelProps {
   NotificationService: NotificationService
@@ -37,6 +39,8 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
 
   const [expiration, setExpiration] = useState<Date>(new Date(currentDate.getTime() + DAY_OFFSET))
   const [expirationEnabled, setExpirationEnabled] = useState(true)
+  const [notificationMessages, setNotificationMessages] = useState<{ message: string, status: 'fail' | 'success', id: string, createdAt: Date }[]>([])
+  const [sendEmailCooldown, setSendEmailCooldown] = useState<{ remaining: number, cooldown: NodeJS.Timeout } | null>(null)
 
   useEffect(() => {
     if(
@@ -74,6 +78,10 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
   const deleteNotification = useMutation({
     mutationFn: (params: DeleteNotificationParams) => props.NotificationService.deleteNotificationMutation(params)
   })
+  
+  const emailNotification = useMutation({
+    mutationFn: (params: SendUserEmailNotificationParams) => props.NotificationService.sendUserEmailNotificationMutation(params)
+  })
 
   //TODO: add me to a util file
   function transformText(value: string){
@@ -98,7 +106,23 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
   ) ?? false
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col w-full">
+      <div className="absolute w-[60%] z-20 max-w-[750px]">
+        {notificationMessages
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .filter((_, index) => index < 3)
+        .reverse()
+        .map((message, index) => {
+          return (
+            <Alert
+              key={message.id}
+              className={`opacity-80 border transition-opacity ${index > 0 ? '-mt-12' : ''}`}
+              color={message.status === 'success' ? 'green' : 'red'}
+              onDismiss={() => setNotificationMessages(notificationMessages.filter((nMessage) => nMessage.id !== message.id))}
+            >{message.message}</Alert>
+          )
+        })}
+      </div>
       <div className="flex flex-row w-full justify-between">
         <span className="font-light text-xl px-2 w-full py-1">{props.notification ? 'Update' : 'Create'} Notification</span>
         {props.notification && (
@@ -129,8 +153,8 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
         )}
       </div>
       <div className="border w-full mb-4" />
-      <div className="flex flex-row px-8 gap-x-4">
-        <div className="flex flex-col w-[70%]">
+      <div className="grid grid-cols-3 px-8 gap-x-4">
+        <div className="flex flex-col col-span-2 w-full">
           <span className="font-thin text-lg italic mt-2">Users</span>
           <div className="flex flex-col gap-2">
             <div className="flex flex-row w-full gap-4 items-center">
@@ -237,8 +261,12 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
                             )}
                           `}
                           onClick={() => {
-                            const temp = [...participants, participant]
-                            setParticipants(temp)
+                            if(participants.some((pParticipant) => participant.id === pParticipant.id) && !tagSelected) {
+                              setParticipants(participants.filter((pParticipant) => pParticipant.id !== participant.id))
+                            }
+                            else {
+                              setParticipants([...participants, participant])
+                            }
                           }}
                         >
                           {`${participant.preferredName ? participant.preferredName : participant.firstName} ${participant.lastName}`}
@@ -353,12 +381,72 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
             </div>
           </div>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 w-full">
           <span className="font-thin text-lg italic">Preview Notification</span>
           <div className="border border-gray-400 rounded-lg px-4 py-1">
             <span className={`${content ? 'text-black' : 'text-gray-300'} text-base font-extralight`}>{content ? transformText(content) : 'Notification content will display here'}</span>
           </div>
           <div className="flex flex-row gap-2 self-end mt-2">
+            <Button
+              color="light"
+              disabled={
+                props.notification.temporary || 
+                sendEmailCooldown !== null ||
+                emailNotification.isPending ||
+                participants.length === 0
+              }
+              className="disabled:cursor-not-allowed"
+              isProcessing={emailNotification.isPending}
+              onClick={() => {
+                const emailList = [
+                  ...participants
+                  .filter((participant) => participant.contact)
+                  .map((participant) => (participant.email ?? '').toLowerCase())
+                  .filter((email) => validator.isEmail(email)),
+                  ...participants
+                  .filter((participant) => validator.isEmail(participant.userEmail))
+                  .map((participant) => participant.userEmail.toLowerCase())
+                ].reduce((prev, cur) => {
+                  if(!prev.some((email) => email === cur)) {
+                    prev.push(cur)
+                  }
+                  return prev
+                }, [] as string[])
+
+                const statusNotificationId = v4()
+                emailNotification.mutateAsync({
+                  email: emailList[0],
+                  content: content,
+                  additionalRecipients: emailList.length >= 2 ? emailList.slice(1) : []
+                }).then((result) => {
+                  setNotificationMessages([...notificationMessages, {...result, id: statusNotificationId, createdAt: new Date()}])
+                }).catch(() => {
+                  setNotificationMessages([...notificationMessages, {
+                    message: 'Failed to send email notification.',
+                    status: 'fail',
+                    id: statusNotificationId,
+                    createdAt: new Date()
+                  }])
+                }).finally(() => {
+                  setSendEmailCooldown({
+                    remaining: 10,
+                    cooldown: setInterval(() => {
+                      if(sendEmailCooldown !== null && sendEmailCooldown.remaining > 0) {
+                        setSendEmailCooldown({...sendEmailCooldown, remaining: sendEmailCooldown.remaining - 1})
+                      }
+                      else if(sendEmailCooldown !== null) {
+                        clearInterval(sendEmailCooldown.cooldown)
+                        setSendEmailCooldown(null)
+                        setNotificationMessages(notificationMessages.filter((message) => (
+                          message.status === 'success' && 
+                          message.id !== statusNotificationId
+                        ) || message.status === 'fail'))
+                      }
+                    }, 1000)
+                  })
+                })
+              }}
+            >Email Notification{sendEmailCooldown !== null ? ` ${sendEmailCooldown.remaining}` : ''}</Button>
             <Button 
               className="max-w-min disabled:cursor-not-allowed"
               //TODO: add in sanity check
