@@ -220,7 +220,7 @@ export class NotificationService {
     this.client = client
   }
 
-  async createNotificationMutation(params: CreateNotificationParams): Promise<string | undefined> {
+  async createNotificationMutation(params: CreateNotificationParams): Promise<'success' | 'fail'> {
     const response = await this.client.models.Notifications.create({
       id: params.notification.id,
       content: params.notification.content,
@@ -231,30 +231,42 @@ export class NotificationService {
     if(params.options?.logging) console.log(response)
 
     if(response.data) {
-      const userTagResponse = Promise.all((params.notification.tags ?? []).map((tag) => {
+      const notificationId = response.data.id
+
+      const userTagResponse = await Promise.all((params.notification.tags ?? []).map((tag) => {
         return this.client.models.NotificationUserTags.create({
           tagId: tag.id,
-          notificationId: response.data!.id
+          notificationId: notificationId
         })
       }))
 
       if(params.options?.logging) console.log(userTagResponse)
 
-      const participantResponse = Promise.all((params.notification.participants ?? []).map((participant) => {
+      const participantResponse = await Promise.all((params.notification.participants ?? []).map((participant) => {
         return this.client.models.NotificationParticipants.create({
           participantId: participant.id,
-          notificationId: response.data!.id
+          notificationId: notificationId
         })
       }))
 
       if(params.options?.logging) console.log(participantResponse)
 
-      return response.data.id
+      return [
+        ...participantResponse.map((data) => data.data).filter((data) => data !== null),
+        ...userTagResponse.map((data) => data.data).filter((data) => data !== null)
+      ].length === (
+        params.notification.participants.length + 
+        params.notification.tags.length
+      ) ? 'success' : 'fail'
     }
+    return 'fail'
   }
 
   async updateNotificationMutation(params: UpdateNotificationParams) {
-    if(params.participantIds?.some((cPid) => !params.notification.participants.some((participant) => cPid === participant.id))) {
+    if(
+      params.participantIds?.some((cPid) => !params.notification.participants.some((participant) => cPid === participant.id)) ||
+      params.notification.participants.some((participant) => !params.participantIds.some((pid) => pid === participant.id))
+    ) {
       const deletedParticipants: string[] = params.notification.participants
         .filter((participant) => !params.participantIds?.some((id) => id === participant.id))
         .map((participant) => participant.id)

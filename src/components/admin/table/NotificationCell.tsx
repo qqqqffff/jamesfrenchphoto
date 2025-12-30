@@ -125,6 +125,10 @@ export const NotificationCell = (props: NotificationCellProps) => {
     props.usersQuery.isFetching
   ])
 
+  if(props.notifications.some((pNotification) => pNotification.id === notification.id)) {
+    console.log(notification)
+  }
+
   const sendNotification = useMutation({
     mutationFn: (params: SendUserEmailNotificationParams) => props.NotificationService.sendUserEmailNotificationMutation(params),
   })
@@ -179,34 +183,41 @@ export const NotificationCell = (props: NotificationCellProps) => {
                   foundParticipant.participant
                 ],
               }
-              updateNotification.mutateAsync({
-                notification: foundNotification,
-                content: updatedNotification.content,
-                location: updatedNotification.location,
-                participantIds: updatedNotification.participants.map((participant) => participant.id),
-                tagIds: updatedNotification.tags.map((tag) => tag.id),
-                options: {
-                  logging: true
-                }
-              }).then(() => {
-                const notificationId = v4()
-                props.setNotifications(prev => prev.map((noti) => noti.id === updatedNotification.id ? updatedNotification : noti))
-                props.setTableNotification(prev => [...prev, {
-                  id: notificationId,
-                  message: `Successfully created new notification for: ${formatParticipantName(foundParticipant.participant)}`,
-                  status: 'Success' as 'Success',
-                  createdAt: new Date(),
-                  autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
-                }])
-              }).catch(() => {
-                props.setTableNotification(prev => [...prev, {
-                  id: v4(),
-                  message: `Failed to create notification for: ${formatParticipantName(foundParticipant.participant)}`,
-                  status: 'Error' as 'Error',
-                  createdAt: new Date(),
-                  autoClose: null
-                }])
-              })
+
+              if(
+                foundNotification.content !== notification.content ||
+                foundNotification.location !== notification.location ||
+                foundNotification.expiration !== notification.expiration
+              ) {
+                updateNotification.mutateAsync({
+                  notification: foundNotification,
+                  content: updatedNotification.content,
+                  location: updatedNotification.location,
+                  participantIds: updatedNotification.participants.map((participant) => participant.id),
+                  tagIds: updatedNotification.tags.map((tag) => tag.id),
+                  options: {
+                    logging: true
+                  }
+                }).then(() => {
+                  const notificationId = v4()
+                  props.setNotifications(prev => prev.map((noti) => noti.id === updatedNotification.id ? updatedNotification : noti))
+                  props.setTableNotification(prev => [...prev, {
+                    id: notificationId,
+                    message: `Successfully updated notification for: ${formatParticipantName(foundParticipant.participant)}`,
+                    status: 'Success' as 'Success',
+                    createdAt: new Date(),
+                    autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
+                  }])
+                }).catch(() => {
+                  props.setTableNotification(prev => [...prev, {
+                    id: v4(),
+                    message: `Failed to create notification for: ${formatParticipantName(foundParticipant.participant)}`,
+                    status: 'Error' as 'Error',
+                    createdAt: new Date(),
+                    autoClose: null
+                  }])
+                })
+              }
             }
             else {
               props.updateValue(notification.id)

@@ -450,7 +450,7 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
             <Button 
               className="max-w-min disabled:cursor-not-allowed"
               //TODO: add in sanity check
-              disabled={createNotification.isPending || updateNotification.isPending}
+              disabled={createNotification.isPending || updateNotification.isPending || content !== ''}
               isProcessing={createNotification.isPending || updateNotification.isPending}
               onClick={() => {
                 if(props.notification.temporary) {
@@ -494,11 +494,36 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
                     return temp
                   })
 
-                  createNotification.mutate({
+                  createNotification.mutateAsync({
                     notification: tempNotification,
                     options: {
                       logging: true
                     }
+                  }).then((status) => {
+                    if(status === 'success') {
+                      setNotificationMessages(prev => [...prev, { 
+                        status: status, 
+                        id: v4(), 
+                        createdAt: new Date(), 
+                        message: 'Successfully created new notification.' 
+                      }])
+                    }
+                    else {
+                      setNotificationMessages(prev => [...prev, { 
+                        status: status, 
+                        id: v4(), 
+                        createdAt: new Date(), 
+                        message: 'Failed to created notification.' 
+                      }])
+                    }
+                    
+                  }).catch(() => {
+                    setNotificationMessages(prev => [...prev, { 
+                      status: 'fail', 
+                      id: v4(), 
+                      createdAt: new Date(), 
+                      message: 'Failed to created notification.' 
+                    }])
                   })
                 } else {
                   const tempNotification: Notification = {
@@ -568,7 +593,7 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
                   })
 
                   
-                  updateNotification.mutate({
+                  updateNotification.mutateAsync({
                     notification: props.notification,
                     content: content,
                     location: 'dashboard',
@@ -578,6 +603,20 @@ export const NotificationPanel = (props: NotificationPanelProps) => {
                     options: {
                       logging: true,
                     }
+                  }).then(() => {
+                    setNotificationMessages(prev => [...prev, { 
+                      status: 'success', 
+                      id: v4(), 
+                      createdAt: new Date(), 
+                      message: 'Successfully updated notification.' 
+                    }])
+                  }).catch(() => {
+                    setNotificationMessages(prev => [...prev, { 
+                      status: 'fail', 
+                      id: v4(), 
+                      createdAt: new Date(), 
+                      message: 'Failed to created notification.' 
+                    }])
                   })
                 }
                 
