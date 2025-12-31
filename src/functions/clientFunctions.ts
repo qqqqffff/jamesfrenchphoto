@@ -1,4 +1,4 @@
-import { Participant, PhotoCollection, UserTag } from "../types";
+import { Participant, PhotoCollection, UserProfile, UserTag } from "../types";
 
 export const getUserCollectionList = (collections?: PhotoCollection[], tags?: UserTag[]) => {
   return [
@@ -16,4 +16,14 @@ export const getUserCollectionList = (collections?: PhotoCollection[], tags?: Us
 export const formatParticipantName = (participant: Participant): string => {
   return `${participant.preferredName !== undefined && participant.preferredName !== '' ? 
     participant.preferredName : participant.firstName}, ${participant.lastName}`
+}
+
+export const formatUserName = (user: UserProfile): string => {
+  if(
+    user.firstName === undefined || 
+    user.firstName === '' || 
+    user.lastName === undefined || 
+    user.lastName === ''
+  ) return ''
+  return `${user.firstName} ${user.lastName}`
 }

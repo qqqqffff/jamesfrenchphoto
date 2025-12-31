@@ -126,7 +126,7 @@ export const NotificationCell = (props: NotificationCellProps) => {
   ])
 
   if(props.notifications.some((pNotification) => pNotification.id === notification.id)) {
-    console.log(notification)
+    // console.log(notification)
   }
 
   const sendNotification = useMutation({

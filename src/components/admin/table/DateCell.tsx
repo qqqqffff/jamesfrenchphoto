@@ -1,4 +1,4 @@
-import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { ComponentProps, Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
 import { Participant, Table, Timeslot, UserData, UserProfile, UserTag } from "../../../types";
 import { HiOutlineCalendar, HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineTag, HiOutlineXMark } from "react-icons/hi2";
 import { currentDate, DAY_OFFSET, defaultColumnColors, formatTime, textInputTheme } from "../../../utils";
@@ -38,6 +38,7 @@ interface DateCellProps extends ComponentProps<'td'> {
   search: string,
 }
 
+//TODO: state is not getting updated when rows are reordered
 export const DateCell = (props: DateCellProps) => {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -135,16 +136,30 @@ export const DateCell = (props: DateCellProps) => {
     })
   })
 
-  const timeslotValue = (() => {
+  const timeslotValue: ReactNode = (() => {
+    const firstTimeslot = cellTimeslotQueries
+        .map((query) => query.data)
+        .filter((query) => query !== null && query !== undefined)[0]
     if(cellTimeslotQueries.some((query) => query.isLoading)) return 'Loading...'
-    if(cellTimeslotIds.length == 0) return 'No Timeslots'
-    if(cellTimeslotIds.length > 0) {
+    else if(cellTimeslotIds.length === 0) return 'No Timeslots'
+    else if(
+      cellTimeslotIds.length === 1 && 
+      firstTimeslot !== undefined
+    ) {
+      return (
+        <div className="flex flex-col items-center">
+          <span className="text-sm">{new Date(firstTimeslot.start).toLocaleDateString('en-us', { timeZone: 'America/Chicago'})}</span>
+          <span className="text-xs">{formatTimeslotDates(firstTimeslot)}</span>
+        </div>
+      )
+    }
+    else if(cellTimeslotIds.length > 1) {
       return `Timeslots: ${cellTimeslotQueries
         .map((query) => query.data)
-        .filter((query) => query !== null && query !== undefined).length
+        .filter((data) => data !== null && data !== undefined).length
       }`
     }
-    return ''
+    return 'Pick Timeslot(s)...'
   })()
 
   const filteredTags = availableTags.filter((tag) => tag.name.trim().toLocaleLowerCase().includes(tagSearch.trim().toLocaleLowerCase()))
@@ -305,7 +320,15 @@ export const DateCell = (props: DateCellProps) => {
         ${selectedSearch ? 'outline outline-green-400' : ''}
         ${cellColoring}
       `}>
-        <input
+        <button
+          className={`
+            font-thin p-0 text-sm border-transparent ring-transparent w-full border
+          `}
+          onFocus={() => setIsFocused(true)}
+        >
+          {timeslotValue}
+        </button>
+        {/* <input
           placeholder="Pick Timeslots..."
           className={`
             font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
@@ -315,9 +338,11 @@ export const DateCell = (props: DateCellProps) => {
           value={timeslotValue}
           onFocus={() => setIsFocused(true)}
           readOnly
-        />
+        /> */}
         {isFocused && (
-          <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
+          <div 
+            className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]"
+          >
             <div className="w-full whitespace-nowrap border-b p-1 text-base self-center flex flex-row justify-between">
               {foundParticipant ? (
                 <span className="me-2">Linked with: {formatParticipantName(foundParticipant.participant)}</span>
@@ -511,6 +536,55 @@ export const DateCell = (props: DateCellProps) => {
                   )}
                 </div>
                 <div className="flex flex-col gap-2 px-2 py-2 max-h-[150px] overflow-auto">
+                  {cellTimeslotQueries
+                  .map((query) => query.data)
+                  .filter((query) => query !== null && query !== undefined)
+                  .map((timeslot, index) => {
+                    return (
+                      timeslot.tag !== undefined ? (
+                        <Tooltip
+                          key={index} 
+                          style="light"
+                          theme={{ target: undefined }}
+                          content={<span className={`text-${timeslot.tag.color}`}>{timeslot.tag.name}</span>}
+                        >
+                          <button 
+                            disabled={props.registerTimeslot.isPending}
+                            className={`
+                              flex flex-col border w-full rounded-lg items-center py-1 
+                              enabled:hover:bg-gray-100 bg-gray-300 
+                              disabled:bg-gray-200 disabled:cursor-not-allowed
+                              text-${timeslot.tag.color}
+                            `}
+                            onClick={() => {
+                              selectedTimeslot.current = timeslot
+                              setRegisterConfirmationVisible(true)
+                            }}
+                          >
+                            <span className={`whitespace-nowrap text-nowrap font-semibold`}>{formatTime(timeslot.start, {timeString: false})}</span>
+                            <span className={`text-xs whitespace-nowrap text-nowrap font-semibold`}>{formatTimeslotDates(timeslot)}</span>
+                          </button>
+                        </Tooltip>
+                      ): (
+                        <button 
+                          key={index}
+                          disabled={props.registerTimeslot.isPending}
+                          className={`
+                            flex flex-col border w-full rounded-lg items-center py-1 
+                            enabled:hover:bg-gray-100 bg-gray-300 
+                            disabled:bg-gray-200 disabled:cursor-not-allowed
+                          `}
+                          onClick={() => {
+                            selectedTimeslot.current = timeslot
+                            setRegisterConfirmationVisible(true)
+                          }}
+                        >
+                          <span className={`whitespace-nowrap text-nowrap font-semibold`}>{formatTime(timeslot.start, {timeString: false})}</span>
+                          <span className={`text-xs whitespace-nowrap text-nowrap font-semibold`}>{formatTimeslotDates(timeslot)}</span>
+                        </button>
+                      )
+                    )
+                  })}
                   {(availableTimeslots.length == 0 || (filterOption === 'tag' && selectedTag === undefined)) && (
                     <div className="flex flex-col w-full items-center py-1">
                       <span className="text-nowrap">{filterOption === 'tag' && selectedTag === undefined ? 
@@ -520,26 +594,6 @@ export const DateCell = (props: DateCellProps) => {
                       }</span>
                     </div>
                   )}
-                  {cellTimeslotQueries.map((query) => query.data).filter((query) => query !== null && query !== undefined).map((timeslot, index) => {
-                    return (
-                      <button 
-                        disabled={props.registerTimeslot.isPending}
-                        className="
-                          flex flex-col border w-full rounded-lg items-center py-1 
-                          enabled:hover:bg-gray-100 bg-gray-300 
-                          disabled:bg-gray-200 disabled:cursor-not-allowed
-                        "
-                        key={index} 
-                        onClick={() => {
-                          selectedTimeslot.current = timeslot
-                          setRegisterConfirmationVisible(true)
-                        }}
-                      >
-                        <span className={`whitespace-nowrap text-nowrap font-semibold`}>{formatTime(timeslot.start, {timeString: false})}</span>
-                        <span className={`text-xs whitespace-nowrap text-nowrap font-semibold`}>{formatTimeslotDates(timeslot)}</span>
-                      </button>
-                    )
-                  })}
                   {filteredTimeslots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
                     .filter((timeslot) => !cellTimeslotQueries.flatMap((query) => query.data)
                       .filter((timeslot) => timeslot !== null && timeslot !== undefined)

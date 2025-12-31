@@ -1,6 +1,13 @@
+import { UseMutationResult } from "@tanstack/react-query";
 import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
 import { Notification, Participant, ParticipantFields, Table, TableColumn, Timeslot, UserData, UserFields, UserProfile, UserTag } from "../types";
 import { parsePathName } from "../utils";
+import { UpdateParticipantMutationParams, UpdateUserProfileParams } from "../services/userService";
+import { Dispatch, SetStateAction } from "react";
+import { v4 } from 'uuid'
+import { TablePanelNotification } from "../components/admin/table/TablePanel";
+import { formatParticipantName, formatUserName } from "./clientFunctions";
+import validator from 'validator'
 
 export const mapParticipantField = (props: { field: ParticipantFields['type'], participant: Participant }): string => {
   switch(props.field) {
@@ -27,82 +34,612 @@ export const reorderRows = (
   timeslots: Timeslot[], 
   notifications: Notification[]
 ): Record<string, { values: string[], choices: string[] }> => {
-    const values = [...column.values]
-    //cherry pick all blank columns
-    const filteredBlanks: number[] = [...values]
-      .map((v, i) => ({ v: v, i: i}))
-      .filter((v) => v.v === '')
-      .map((v) => v.i)
+  const values = [...column.values]
+  //cherry pick all blank columns
+  const filteredBlanks: number[] = [...values]
+    .map((v, i) => ({ v: v, i: i}))
+    .filter((v) => v.v === '')
+    .map((v) => v.i)
 
-    //TODO: record based on id for whole table
-    const sortedValues: Record<string, string[]> = order === 'ASC' ? 
-      Object.fromEntries(table.columns.map((tableColumn) => [
-        tableColumn.id,
-        tableColumn.id === column.id ? 
-          sortColumnValues(tableColumn, tags, timeslots, notifications) 
-        : 
-          tableColumn.values
-      ]))
-    : 
-      Object.fromEntries(table.columns.map((tableColumn) => [
-        tableColumn.id,
-        tableColumn.id === column.id ? 
-          sortColumnValues(tableColumn, tags, timeslots, notifications).reverse() 
-        : 
-          tableColumn.values
-      ])
-    )
+  const sortedValues: Record<string, string[]> = order === 'ASC' ? 
+    Object.fromEntries(table.columns.map((tableColumn) => [
+      tableColumn.id,
+      tableColumn.id === column.id ? 
+        sortColumnValues(tableColumn, tags, timeslots, notifications) 
+      : 
+        tableColumn.values
+    ]))
+  : 
+    Object.fromEntries(table.columns.map((tableColumn) => [
+      tableColumn.id,
+      tableColumn.id === column.id ? 
+        sortColumnValues(tableColumn, tags, timeslots, notifications).reverse() 
+      : 
+        tableColumn.values
+    ])
+  )
+    
+
+  try {
+    const sortMapping: { previousIndex: number, newIndex: number }[] = []
+    for(let i = 0; i < values.length; i++) {
+      if(values[i] === '') continue
+      let foundIndex = sortedValues[column.id].findIndex((value) => values[i] === value)
       
-
-    try {
-      const sortMapping: { previousIndex: number, newIndex: number }[] = []
-      for(let i = 0; i < values.length; i++) {
-        if(values[i] === '') continue
-        let foundIndex = sortedValues[column.id].findIndex((value) => values[i] === value)
-        
-        let offset = foundIndex;
-        while(
-          sortMapping.some((item) => item.newIndex === foundIndex) && 
-          offset < sortedValues[column.id].length &&
-          foundIndex !== -1
-        ) {
-          offset++;
-          foundIndex = sortedValues[column.id]
-            .filter((_, j) => j > offset)
-            .findIndex((value) => values[i] === value) + offset
-        }
-
-        if(foundIndex === -1) throw new Error('Failed to index sorted array')
-        sortMapping.push({ previousIndex: i, newIndex: foundIndex })
-      }
-      const initialLength = sortMapping.length
-      for(let i = 0; i < filteredBlanks.length; i++) {
-        sortMapping.push({ previousIndex: filteredBlanks[i], newIndex: initialLength + i })
+      let offset = foundIndex;
+      while(
+        sortMapping.some((item) => item.newIndex === foundIndex) && 
+        offset < sortedValues[column.id].length &&
+        foundIndex !== -1
+      ) {
+        offset++;
+        foundIndex = sortedValues[column.id]
+          .filter((_, j) => j > offset)
+          .findIndex((value) => values[i] === value) + offset
       }
 
-      const ret: Record<string, { values : string[], choices: string[] }> = Object.fromEntries(table.columns.map((col) => [col.id, { values: [], choices: [] }]))
+      if(foundIndex === -1) throw new Error('Failed to index sorted array')
+      sortMapping.push({ previousIndex: i, newIndex: foundIndex })
+    }
+    const initialLength = sortMapping.length
+    for(let i = 0; i < filteredBlanks.length; i++) {
+      sortMapping.push({ previousIndex: filteredBlanks[i], newIndex: initialLength + i })
+    }
 
-      for(let i = 0; i < table.columns.length; i++) {
-        const currentColumnId = table.columns[i].id
-        if(table.columns[i].type === 'choice') {
-          ret[currentColumnId].choices = table.columns[i].choices ?? []
-        }
-        for(let j = 0; j < sortMapping.length; j++) {
-          ret[currentColumnId].values[sortMapping[j].newIndex] = currentColumnId === column.id ? 
-            values[sortMapping[j].previousIndex] 
-          : 
-            sortedValues[currentColumnId][sortMapping[j].previousIndex]
-          if(table.columns[i].type !== 'choice') {
-            ret[currentColumnId].choices[sortMapping[j].newIndex] = (table.columns[i].choices ?? [])?.[sortMapping[j].previousIndex] ?? ''
-          }
+    const ret: Record<string, { values : string[], choices: string[] }> = Object.fromEntries(table.columns.map((col) => [col.id, { values: [], choices: [] }]))
+
+    for(let i = 0; i < table.columns.length; i++) {
+      const currentColumnId = table.columns[i].id
+      if(table.columns[i].type === 'choice') {
+        ret[currentColumnId].choices = table.columns[i].choices ?? []
+      }
+      for(let j = 0; j < sortMapping.length; j++) {
+        ret[currentColumnId].values[sortMapping[j].newIndex] = currentColumnId === column.id ? 
+          values[sortMapping[j].previousIndex] 
+        : 
+          sortedValues[currentColumnId][sortMapping[j].previousIndex]
+        if(table.columns[i].type !== 'choice') {
+          ret[currentColumnId].choices[sortMapping[j].newIndex] = (table.columns[i].choices ?? [])?.[sortMapping[j].previousIndex] ?? ''
         }
       }
+    }
 
-      return ret
-    } catch(e) {
-      return {}
+    return ret
+  } catch(e) {
+    return {}
+  }
+}
+
+export const processTableLinks = (
+  column: TableColumn, 
+  text: string,
+  index: number,
+  tempUsers: UserProfile[],
+  users: UserData[],
+  userLinks: UserFieldLinks | undefined,
+  participantLinks: ParticipantFieldLinks[],
+  mutations: {
+    updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
+    updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
+    setTableNotifications: Dispatch<SetStateAction<TablePanelNotification[]>>
+    setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
+    setUsers: Dispatch<SetStateAction<UserData[]>>
+  }
+) => {
+  const userLink = ((column.choices ?? [])[index] ?? '').includes('userEmail')
+  const participantLink = ((column.choices ?? [])[index] ?? '').includes('participantId')
+
+  const field = column.type === 'value' && (participantLink || userLink) ? 
+    evaluateField(column.choices?.[index]) : undefined
+
+  const userArray: (UserProfile & { temp: boolean })[] = [
+    ...tempUsers.map((profile) => ({ ...profile, temp: true })),
+    ...users.map((data) => data.profile).filter((profile) => profile !== undefined).map((profile) => ({ ...profile, temp: false }))
+  ].reduce((prev, cur) => {
+    if(!prev.some((profile) => profile.email.toLowerCase() === cur.email.toLowerCase())) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as (UserProfile & { temp: boolean })[])
+
+  const participantArray = userArray.flatMap((profile) => {
+    const participant: (Participant & { temp: boolean })[] = profile.participant.map((participant) => ({
+      ...participant, 
+      temp: profile.temp
+    }))
+    return participant
+  })
+  .reduce((prev, cur) => {
+    if(!prev.some((participant) => participant.id === cur.id)) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as (Participant & { temp: boolean })[])
+
+  if(
+    (
+      tempUsers.some((profile) => profile.email.toLowerCase() === userLinks?.email[0].toLowerCase()) ||
+      users.some((user) => user.email.toLowerCase() === userLinks?.email[0].toLowerCase())
+    ) &&
+    userLink &&
+    field !== undefined
+  ) {
+    const foundUser: UserProfile & { temp: boolean } | undefined = userArray
+    .find((profile) => profile.email.toLowerCase() === userLinks?.email[0].toLowerCase())
+
+    if(foundUser === undefined) return
+
+    if(column.id === userLinks?.email[1]) {
+      //TODO: figure out how to handle
+    }
+    else if(userLinks?.first && column.id === userLinks.first[0] && field === 'first') {
+      mutations.updateUserProfile.mutateAsync({
+        profile: foundUser,
+        first: text,
+        options: {
+          logging: true
+        }
+      }).then(() => {
+        const notificationId = v4()
+        mutations.setTableNotifications(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully updated first name of ${formatUserName({...foundUser, firstName: text})}.`,
+          status: 'Success',
+          createdAt: new Date(),
+          autoClose: setTimeout(() => mutations.setTableNotifications(prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
+      }).catch(() => {
+        mutations.setTableNotifications(prev => [...prev, {
+          id: v4(),
+          message: `Failed to update the first name of ${formatUserName(foundUser)}.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+      })
+
+      if(foundUser.temp) {
+        mutations.setTempUsers(prev => prev.map((profile) => profile.email === foundUser.email ? ({
+          ...profile,
+          firstName: text
+        }) : profile))
+      }
+      else {
+        mutations.setUsers(prev => prev.map((data) => data.email === foundUser.email ? ({
+          ...data,
+          profile: ({
+            ...foundUser,
+            firstName: text
+          })
+        }) : data))
+      }
+    }
+    else if(userLinks?.last && column.id === userLinks.last[0] && field === 'last') {
+      mutations.updateUserProfile.mutateAsync({
+        profile: foundUser,
+        last: text,
+        options: {
+          logging: true
+        }
+      }).then(() => {
+        const notificationId = v4()
+        mutations.setTableNotifications(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully updated the last name of ${formatUserName({...foundUser, lastName: text})}.`,
+          status: 'Success',
+          createdAt: new Date(),
+          autoClose: setTimeout(() => mutations.setTableNotifications(prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
+      }).catch(() => {
+        mutations.setTableNotifications(prev => [...prev, {
+          id: v4(),
+          message: `Failed to update the last name ${formatUserName(foundUser)}.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+      })
+
+      if(foundUser.temp) {
+        mutations.setTempUsers(prev => prev.map((profile) => profile.email === foundUser.email ? ({
+          ...profile,
+          lastName: text
+        }) : profile))
+      }
+      else {
+        mutations.setUsers(prev => prev.map((data) => data.email === foundUser.email ? ({
+          ...data,
+          profile: ({
+            ...foundUser,
+            lastName: text
+          })
+        }) : data))
+      }
+    }
+    else if(userLinks?.sitting && column.id === userLinks.sitting[0] && field === 'sitting') {
+      if(isNaN(Number(text))) {
+        mutations.setTableNotifications(prev => [...prev, {
+          id: v4(),
+          message: `Sitting number must be a number.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+        return
+      }
+      mutations.updateUserProfile.mutateAsync({
+        profile: foundUser,
+        sitting: Number(text),
+        options: {
+          logging: true
+        }
+      }).then(() => {
+        const notificationId = v4()
+        mutations.setTableNotifications(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully updated the sitting number of ${formatUserName(foundUser)}.`,
+          status: 'Success',
+          createdAt: new Date(),
+          autoClose: setTimeout(() => mutations.setTableNotifications(prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
+      }).catch(() => {
+        mutations.setTableNotifications(prev => [...prev, {
+          id: v4(),
+          message: `Failed to update the sitting number of ${formatUserName(foundUser)}.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+      })
+
+      if(foundUser.temp) {
+        mutations.setTempUsers(prev => prev.map((profile) => profile.email === foundUser.email ? ({
+          ...profile,
+          sittingNumber: Number(text)
+        }) : profile))
+      }
+      else {
+        mutations.setUsers(prev => prev.map((data) => data.email === foundUser.email ? ({
+          ...data,
+          profile: ({
+            ...foundUser,
+            sittingNumber: Number(text)
+          })
+        }) : data))
+      }
     }
   }
+  else if(participantLink) {
+    if(participantLinks.some((link) => link.first && link.first[0] === column.id) && field === 'first') {
+      participantLinks.forEach((link) => {
+        const foundParticipant = participantArray.find((participant) => participant.id === link.id)
+        if(foundParticipant !== undefined) {
+          mutations.updateParticipant.mutateAsync({
+            participant: foundParticipant,
+            firstName: text,
+            lastName: foundParticipant.lastName,
+            contact: foundParticipant.contact,
+            userTags: foundParticipant.userTags,
+            options: {
+              logging: true
+            }
+          }).then(() => {
+            const notificationId = v4()
+            mutations.setTableNotifications(prev => [...prev, {
+              id: notificationId,
+              message: `Successfully updated the first name of ${formatParticipantName({...foundParticipant, firstName: text})}.`,
+              status: 'Success',
+              createdAt: new Date(),
+              autoClose: setTimeout(() => mutations.setTableNotifications(prev.filter((notification) => notification.id !== notificationId)), 5000)
+            }])
+          }).catch(() => {
+            mutations.setTableNotifications(prev => [...prev, {
+              id: v4(),
+              message: `Failed to update the first name of ${formatParticipantName(foundParticipant)}.`,
+              status: 'Error',
+              createdAt: new Date(),
+              autoClose: null
+            }])
+          })
+          if(foundParticipant.temp) {
+            mutations.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+              ...profile,
+              participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                ...participant,
+                firstName: text
+              }) : participant)
+            }) : profile))
+          }
+          else {
+            mutations.setUsers(prev => prev.map((data) => (
+              data.profile && 
+              (data.profile?.participant ?? [])
+              .some((participant) => participant.id === foundParticipant.id)) 
+            ? ({
+              ...data,
+              profile: ({
+                ...data.profile,
+                participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                  ...participant,
+                  firstName: text
+                }) : participant)
+              })
+            }) : data))
+          }
+        }
+      })
+    }
+    else if(participantLinks.some((link) => link.last && link.last[0] === column.id) && field === 'last') {
+      participantLinks.forEach((link) => {
+        const foundParticipant = participantArray.find((participant) => participant.id === link.id)
+        if(foundParticipant !== undefined) {
+          mutations.updateParticipant.mutateAsync({
+            participant: foundParticipant,
+            lastName: text,
+            firstName: foundParticipant.firstName,
+            contact: foundParticipant.contact,
+            userTags: foundParticipant.userTags,
+            options: {
+              logging: true
+            }
+          }).then(() => {
+            const notificationId = v4()
+            mutations.setTableNotifications(prev => [...prev, {
+              id: notificationId,
+              message: `Successfully updated the last name of ${formatParticipantName({...foundParticipant, lastName: text})}.`,
+              status: 'Success',
+              createdAt: new Date(),
+              autoClose: setTimeout(() => mutations.setTableNotifications(prev.filter((notification) => notification.id !== notificationId)), 5000)
+            }])
+          }).catch(() => {
+            mutations.setTableNotifications(prev => [...prev, {
+              id: v4(),
+              message: `Failed to update the last name of ${formatParticipantName(foundParticipant)}.`,
+              status: 'Error',
+              createdAt: new Date(),
+              autoClose: null
+            }])
+          })
+          if(foundParticipant.temp) {
+            mutations.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+              ...profile,
+              participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                ...participant,
+                lastName: text
+              }) : participant)
+            }) : profile))
+          }
+          else {
+            mutations.setUsers(prev => prev.map((data) => (
+              data.profile && 
+              (data.profile?.participant ?? [])
+              .some((participant) => participant.id === foundParticipant.id)) 
+            ? ({
+              ...data,
+              profile: ({
+                ...data.profile,
+                participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                  ...participant,
+                  lastName: text
+                }) : participant)
+              })
+            }) : data))
+          }
+        }
+      })
+    }
+    else if(participantLinks.some((link) => link.preferred && link.preferred[0] === column.id) && field === 'preferred') {
+      participantLinks.forEach((link) => {
+        const foundParticipant = participantArray.find((participant) => participant.id === link.id)
+        if(foundParticipant !== undefined) {
+          mutations.updateParticipant.mutateAsync({
+            participant: foundParticipant,
+            lastName: foundParticipant.lastName,
+            preferredName: text,
+            firstName: foundParticipant.firstName,
+            contact: foundParticipant.contact,
+            userTags: foundParticipant.userTags,
+            options: {
+              logging: true
+            }
+          }).then(() => {
+            const notificationId = v4()
+            mutations.setTableNotifications(prev => [...prev, {
+              id: notificationId,
+              message: `Successfully updated the preferred name of ${formatParticipantName({...foundParticipant, preferredName: text})}.`,
+              status: 'Success',
+              createdAt: new Date(),
+              autoClose: setTimeout(() => mutations.setTableNotifications(prev.filter((notification) => notification.id !== notificationId)), 5000)
+            }])
+          }).catch(() => {
+            mutations.setTableNotifications(prev => [...prev, {
+              id: v4(),
+              message: `Failed to update the preferred name of ${formatParticipantName(foundParticipant)}.`,
+              status: 'Error',
+              createdAt: new Date(),
+              autoClose: null
+            }])
+          })
+          if(foundParticipant.temp) {
+            mutations.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+              ...profile,
+              participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                ...participant,
+                preferredName: text
+              }) : participant)
+            }) : profile))
+          }
+          else {
+            mutations.setUsers(prev => prev.map((data) => (
+              data.profile && 
+              (data.profile?.participant ?? [])
+              .some((participant) => participant.id === foundParticipant.id)) 
+            ? ({
+              ...data,
+              profile: ({
+                ...data.profile,
+                participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                  ...participant,
+                  preferredName: text
+                }) : participant)
+              })
+            }) : data))
+          }
+        }
+      })
+    }
+    else if(participantLinks.some((link) => link.middle && link.middle[0] === column.id) && field === 'middle') {
+      participantLinks.forEach((link) => {
+        const foundParticipant = participantArray.find((participant) => participant.id === link.id)
+        if(foundParticipant !== undefined) {
+          mutations.updateParticipant.mutateAsync({
+            participant: foundParticipant,
+            middleName: text,
+            lastName: foundParticipant.lastName,
+            firstName: foundParticipant.firstName,
+            contact: foundParticipant.contact,
+            userTags: foundParticipant.userTags,
+            options: {
+              logging: true
+            }
+          }).then(() => {
+            const notificationId = v4()
+            mutations.setTableNotifications(prev => [...prev, {
+              id: notificationId,
+              message: `Successfully updated the middle name of ${formatParticipantName(foundParticipant)}.`,
+              status: 'Success',
+              createdAt: new Date(),
+              autoClose: setTimeout(() => mutations.setTableNotifications(prev.filter((notification) => notification.id !== notificationId)), 5000)
+            }])
+          }).catch(() => {
+            mutations.setTableNotifications(prev => [...prev, {
+              id: v4(),
+              message: `Failed to update the middle name of ${formatParticipantName(foundParticipant)}.`,
+              status: 'Error',
+              createdAt: new Date(),
+              autoClose: null
+            }])
+          })
+          if(foundParticipant.temp) {
+            mutations.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+              ...profile,
+              participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                ...participant,
+                middleName: text
+              }) : participant)
+            }) : profile))
+          }
+          else {
+            mutations.setUsers(prev => prev.map((data) => (
+              data.profile && 
+              (data.profile?.participant ?? [])
+              .some((participant) => participant.id === foundParticipant.id)) 
+            ? ({
+              ...data,
+              profile: ({
+                ...data.profile,
+                participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                  ...participant,
+                  middleName: text
+                }) : participant)
+              })
+            }) : data))
+          }
+        }
+      })
+    }
+    else if(participantLinks.some((link) => link.email && link.email[0] === column.id) && field === 'email') {
+      participantLinks.forEach((link) => {
+        const foundParticipant = participantArray.find((participant) => participant.id === link.id)
+        if(foundParticipant !== undefined) {
+          if(!validator.isEmail(text)) {
+            mutations.setTableNotifications(prev => [...prev, {
+              id: v4(),
+              message: `Email must be valid.`,
+              status: 'Error',
+              createdAt: new Date(),
+              autoClose: null
+            }])
+          }
+          mutations.updateParticipant.mutateAsync({
+            participant: foundParticipant,
+            email: text,
+            lastName: foundParticipant.lastName,
+            firstName: foundParticipant.firstName,
+            contact: foundParticipant.contact,
+            userTags: foundParticipant.userTags,
+            options: {
+              logging: true
+            }
+          }).then(() => {
+            const notificationId = v4()
+            mutations.setTableNotifications(prev => [...prev, {
+              id: notificationId,
+              message: `Successfully updated the email of ${formatParticipantName(foundParticipant)}.`,
+              status: 'Success',
+              createdAt: new Date(),
+              autoClose: setTimeout(() => mutations.setTableNotifications(prev.filter((notification) => notification.id !== notificationId)), 5000)
+            }])
+          }).catch(() => {
+            mutations.setTableNotifications(prev => [...prev, {
+              id: v4(),
+              message: `Failed to update the email of ${formatParticipantName(foundParticipant)}.`,
+              status: 'Error',
+              createdAt: new Date(),
+              autoClose: null
+            }])
+          })
+          if(foundParticipant.temp) {
+            mutations.setTempUsers(prev => prev.map((profile) => profile.participant.some((participant) => participant.id === foundParticipant.id) ? ({
+              ...profile,
+              participant: profile.participant.map((participant) => participant.id === foundParticipant.id ? ({
+                ...participant,
+                email: text
+              }) : participant)
+            }) : profile))
+          }
+          else {
+            mutations.setUsers(prev => prev.map((data) => (
+              data.profile && 
+              (data.profile?.participant ?? [])
+              .some((participant) => participant.id === foundParticipant.id)) 
+            ? ({
+              ...data,
+              profile: ({
+                ...data.profile,
+                participant: (data.profile?.participant ?? []).map((participant) => participant.id === foundParticipant.id ?({
+                  ...participant,
+                  email: text
+                }) : participant)
+              })
+            }) : data))
+          }
+        }
+      })
+    }
+  }
+}
+
+const evaluateField = (choice: string | undefined): 'first' | 'last' | 'sitting' | 'email' | 'preferred' | 'middle' | undefined => {
+  if(!choice) return undefined
+  const field = choice.substring(choice.indexOf(',') + 1)
+  switch(field) {
+    case 'first':
+      return 'first'
+    case 'last':
+      return 'last'
+    case 'sitting':
+      return 'sitting'
+    case 'email':
+      return 'email'
+    case 'preferred':
+      return 'preferred'
+    case 'middle':
+      return 'middle'
+    default:
+      return undefined
+  }
+}
 
 export const sortColumnValues = (
   column: TableColumn, 
