@@ -51,7 +51,6 @@ function RouteComponent() {
     siNotifications: false,
     siTags: {
       siChildren: false,
-      siCollections: false,
       siPackages: false,
       siTimeslots: true
     },

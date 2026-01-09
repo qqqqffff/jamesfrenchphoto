@@ -29,6 +29,9 @@ interface NotificationCellProps extends ComponentProps<'td'> {
 }
 
 export const NotificationCell = (props: NotificationCellProps) => {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const actionWindowRef = useRef<HTMLDivElement | null>(null)
+
   const [notification, setNotification] = useState<Notification>({
     id: v4(),
     content: '',
@@ -41,10 +44,8 @@ export const NotificationCell = (props: NotificationCellProps) => {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile & { temp: boolean }, participant: Participant } | undefined>()
   const [sendEmailNotificationResult, setSendEmailNotificationResult] = useState<{ success: boolean, message: string, timeout: NodeJS.Timeout } | null>(null)
-  const [actionWindowInteraction, setActionWindowInteraction] = useState(false)
   const [search, setSearch] = useState('')
   const [searchHidden, setSearchHidden] = useState(true)
-  const containerRef = useRef<HTMLDivElement | null>(null)
   const [emailCooldown, setEmailCooldown] = useState<{
     cooldown: NodeJS.Timeout
     remaining: number
@@ -125,6 +126,133 @@ export const NotificationCell = (props: NotificationCellProps) => {
     props.usersQuery.isFetching
   ])
 
+  const handleSubmit = () => {
+    if(foundParticipant && notification.content !== '') {
+      const foundNotification = props.notifications.find((noti) => notification.id === noti.id)
+      if(foundNotification !== undefined) {
+        const updatedNotification: Notification = {
+          ...foundNotification,
+          content: notification.content,
+          location: notification.location,
+          participants: [
+            ...foundNotification.participants.filter((participant) => participant.id !== foundParticipant.participant.id), 
+            foundParticipant.participant
+          ],
+        }
+
+        if(
+          foundNotification.content !== notification.content ||
+          foundNotification.location !== notification.location ||
+          foundNotification.expiration !== notification.expiration
+        ) {
+          updateNotification.mutateAsync({
+            notification: foundNotification,
+            content: updatedNotification.content,
+            location: updatedNotification.location,
+            participantIds: updatedNotification.participants.map((participant) => participant.id),
+            tagIds: updatedNotification.tags.map((tag) => tag.id),
+            options: {
+              logging: true
+            }
+          }).then(() => {
+            const notificationId = v4()
+            props.setNotifications(prev => prev.map((noti) => noti.id === updatedNotification.id ? updatedNotification : noti))
+            props.setTableNotification(prev => [...prev, {
+              id: notificationId,
+              message: `Successfully updated notification for: ${formatParticipantName(foundParticipant.participant)}`,
+              status: 'Success' as 'Success',
+              createdAt: new Date(),
+              autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
+            }])
+          }).catch(() => {
+            props.setTableNotification(prev => [...prev, {
+              id: v4(),
+              message: `Failed to create notification for: ${formatParticipantName(foundParticipant.participant)}`,
+              status: 'Error' as 'Error',
+              createdAt: new Date(),
+              autoClose: null
+            }])
+          })
+        }
+      }
+      else {
+        props.updateValue(notification.id)
+        createNotification.mutateAsync({
+          notification: notification,
+          options: {
+            logging: true
+          }
+        }).then(() => {
+          const notificationId = v4()
+          props.setNotifications(prev => [...prev, notification])
+          props.setTableNotification(prev => [...prev, {
+            id: notificationId,
+            message: `Successfully created new notification for: ${formatParticipantName(foundParticipant.participant)}`,
+            status: 'Success' as 'Success',
+            createdAt: new Date(),
+            autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
+          }])
+        }).catch(() => {
+          props.setTableNotification(prev => [...prev, {
+            id: v4(),
+            message: `Failed to create notification for: ${formatParticipantName(foundParticipant.participant)}`,
+            status: 'Error' as 'Error',
+            createdAt: new Date(),
+            autoClose: null
+          }])
+        })
+      }
+    }
+    //remove participant from the notification
+    else if(foundParticipant && selectedNotification !== undefined && notification.content === '') {
+      updateNotification.mutateAsync({
+        notification: selectedNotification,
+        content: selectedNotification.content,
+        location: selectedNotification.location,
+        participantIds: selectedNotification.participants
+          .filter((participant) => participant.id !== foundParticipant.participant.id)
+          .map((participant) => participant.id),
+        tagIds: selectedNotification.tags.map((tag) => tag.id),
+        options: {
+          logging: true
+        }
+      }).catch(() => {
+        props.setTableNotification(prev => [...prev, {
+          id: v4(),
+          message: `Failed to remove notification from: ${formatParticipantName(foundParticipant.participant)}`,
+          status: 'Error' as 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+      })
+    }
+  }
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if(
+        isFocused &&
+        actionWindowRef.current && 
+        inputRef.current &&
+        !actionWindowRef.current.contains(event.target as Node) &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setIsFocused(false)
+        setSearch('')
+        setSearchHidden(true)
+        handleSubmit()
+      }
+    }
+
+    if(isFocused) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isFocused])
+
   if(props.notifications.some((pNotification) => pNotification.id === notification.id)) {
     // console.log(notification)
   }
@@ -162,6 +290,7 @@ export const NotificationCell = (props: NotificationCellProps) => {
       ${cellColoring}
     `}>
       <input 
+        ref={inputRef}
         placeholder="Note..."
         className={`
           font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400
@@ -170,139 +299,29 @@ export const NotificationCell = (props: NotificationCellProps) => {
         `}
         value={notification.content}
         onFocus={() => setIsFocused(true)}
-        onBlur={() => {
-          if(foundParticipant && !actionWindowInteraction && notification.content !== '') {
-            const foundNotification = props.notifications.find((noti) => notification.id === noti.id)
-            if(foundNotification !== undefined) {
-              const updatedNotification: Notification = {
-                ...foundNotification,
-                content: notification.content,
-                location: notification.location,
-                participants: [
-                  ...foundNotification.participants.filter((participant) => participant.id !== foundParticipant.participant.id), 
-                  foundParticipant.participant
-                ],
-              }
-
-              if(
-                foundNotification.content !== notification.content ||
-                foundNotification.location !== notification.location ||
-                foundNotification.expiration !== notification.expiration
-              ) {
-                updateNotification.mutateAsync({
-                  notification: foundNotification,
-                  content: updatedNotification.content,
-                  location: updatedNotification.location,
-                  participantIds: updatedNotification.participants.map((participant) => participant.id),
-                  tagIds: updatedNotification.tags.map((tag) => tag.id),
-                  options: {
-                    logging: true
-                  }
-                }).then(() => {
-                  const notificationId = v4()
-                  props.setNotifications(prev => prev.map((noti) => noti.id === updatedNotification.id ? updatedNotification : noti))
-                  props.setTableNotification(prev => [...prev, {
-                    id: notificationId,
-                    message: `Successfully updated notification for: ${formatParticipantName(foundParticipant.participant)}`,
-                    status: 'Success' as 'Success',
-                    createdAt: new Date(),
-                    autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
-                  }])
-                }).catch(() => {
-                  props.setTableNotification(prev => [...prev, {
-                    id: v4(),
-                    message: `Failed to create notification for: ${formatParticipantName(foundParticipant.participant)}`,
-                    status: 'Error' as 'Error',
-                    createdAt: new Date(),
-                    autoClose: null
-                  }])
-                })
-              }
-            }
-            else {
-              props.updateValue(notification.id)
-              createNotification.mutateAsync({
-                notification: notification,
-                options: {
-                  logging: true
-                }
-              }).then(() => {
-                const notificationId = v4()
-                props.setNotifications(prev => [...prev, notification])
-                props.setTableNotification(prev => [...prev, {
-                  id: notificationId,
-                  message: `Successfully created new notification for: ${formatParticipantName(foundParticipant.participant)}`,
-                  status: 'Success' as 'Success',
-                  createdAt: new Date(),
-                  autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id === notificationId)), 5 * 1000)
-                }])
-              }).catch(() => {
-                props.setTableNotification(prev => [...prev, {
-                  id: v4(),
-                  message: `Failed to create notification for: ${formatParticipantName(foundParticipant.participant)}`,
-                  status: 'Error' as 'Error',
-                  createdAt: new Date(),
-                  autoClose: null
-                }])
-              })
-            }
-          }
-          //remove participant from the notification
-          else if(foundParticipant && !actionWindowInteraction && selectedNotification !== undefined && notification.content === '') {
-            updateNotification.mutateAsync({
-              notification: selectedNotification,
-              content: selectedNotification.content,
-              location: selectedNotification.location,
-              participantIds: selectedNotification.participants
-                .filter((participant) => participant.id !== foundParticipant.participant.id)
-                .map((participant) => participant.id),
-              tagIds: selectedNotification.tags.map((tag) => tag.id),
-              options: {
-                logging: true
-              }
-            }).catch(() => {
-              props.setTableNotification(prev => [...prev, {
-                id: v4(),
-                message: `Failed to remove notification from: ${formatParticipantName(foundParticipant.participant)}`,
-                status: 'Error' as 'Error',
-                createdAt: new Date(),
-                autoClose: null
-              }])
-            })
-          }
-          
-          setIsFocused(actionWindowInteraction ? true : false)
-          setActionWindowInteraction(false)
-        }}
         onChange={(event) => {
-          setActionWindowInteraction(false)
           setNotification({
             ...notification,
             content: event.target.value
           })
         }}
         onKeyDown={(event) => {
-          setActionWindowInteraction(false)
           const foundNotification = props.notifications.find((noti) => notification.id === noti.id)
           if(event.code === 'Escape') {
             setNotification({
               ...notification,
               content: foundNotification ? foundNotification.content : ''
             })
-            setTimeout(() => event.currentTarget.blur(), 1)
           }
           else if(event.code === 'Enter') {
-            setTimeout(() => event.currentTarget.blur(), 1)
+            handleSubmit()
           }
         }}
       />
       {isFocused && foundParticipant !== undefined && (
         <div 
           className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]"
-          onMouseDown={() => {
-            setActionWindowInteraction(true)
-          }}
-          ref={containerRef}
+          ref={actionWindowRef}
         >
           {sendEmailNotificationResult !== null && (
             <div className="absolute z-20 top-0 w-full mt-2">
@@ -357,8 +376,8 @@ export const NotificationCell = (props: NotificationCellProps) => {
                 onMouseEnter={() => setHoveredItem(selectedNotification.id)}
                 onMouseLeave={() => setHoveredItem(null)}
                 style={{
-                  maxWidth: containerRef.current ? containerRef.current.clientWidth - 36 : '184px',
-                  minWidth: containerRef.current ? containerRef.current.clientWidth - 36 : '184px'
+                  maxWidth: actionWindowRef.current ? actionWindowRef.current.clientWidth - 36 : '184px',
+                  minWidth: actionWindowRef.current ? actionWindowRef.current.clientWidth - 36 : '184px'
                 }}
                 onClick={() => {
                   const updatedNotification: Notification = {
@@ -429,8 +448,8 @@ export const NotificationCell = (props: NotificationCellProps) => {
                         ${hoveredItem === n.id ? '' : 'truncate'}
                       `}
                       style={{
-                        maxWidth: containerRef.current ? containerRef.current.clientWidth - 36 : '184px',
-                        minWidth: containerRef.current ? containerRef.current.clientWidth - 36 : '184px'
+                        maxWidth: actionWindowRef.current ? actionWindowRef.current.clientWidth - 36 : '184px',
+                        minWidth: actionWindowRef.current ? actionWindowRef.current.clientWidth - 36 : '184px'
                       }}
                       onClick={() => {
                         const foundNotification = props.notifications.find((parentNotification) => parentNotification.id === n.id)

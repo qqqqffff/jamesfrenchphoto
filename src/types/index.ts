@@ -241,6 +241,7 @@ export interface Table {
     temporary?: boolean,
     edit?: boolean,
     createdAt: string,
+    order: number
 }
 
 export interface TableColumn {

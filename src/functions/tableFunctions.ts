@@ -110,6 +110,59 @@ export const reorderRows = (
   }
 }
 
+const createUserArray = (tempUsers: UserProfile[], users: UserData[]): (UserProfile & { temp: boolean})[] => {
+  return [
+    ...tempUsers.map((profile) => ({ ...profile, temp: true })),
+    ...users.map((data) => data.profile).filter((profile) => profile !== undefined).map((profile) => ({ ...profile, temp: false }))
+  ].reduce((prev, cur) => {
+    if(!prev.some((profile) => profile.email.toLowerCase() === cur.email.toLowerCase())) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as (UserProfile & { temp: boolean })[])
+}
+
+const createParticipantArray = (
+  userArray?: (UserProfile & { temp: boolean })[],
+  tempUsers?: UserProfile[],
+  users?: UserData[]
+): (Participant & { temp: boolean })[] => {
+  const participantArray: (Participant & { temp: boolean })[] = []
+
+  if(userArray) {
+    participantArray.push(...userArray.flatMap((profile) => {
+      const participant: (Participant & { temp: boolean })[] = profile.participant.map((participant) => ({
+        ...participant, 
+        temp: profile.temp
+      }))
+      return participant
+    })
+    .reduce((prev, cur) => {
+      if(!prev.some((participant) => participant.id === cur.id)) {
+        prev.push(cur)
+      }
+      return prev
+    }, [] as (Participant & { temp: boolean })[]))
+  }
+  else if(tempUsers && users) {
+    participantArray.push(...createUserArray(tempUsers, users).flatMap((profile) => {
+      const participant: (Participant & { temp: boolean })[] = profile.participant.map((participant) => ({
+        ...participant, 
+        temp: profile.temp
+      }))
+      return participant
+    })
+    .reduce((prev, cur) => {
+      if(!prev.some((participant) => participant.id === cur.id)) {
+        prev.push(cur)
+      }
+      return prev
+    }, [] as (Participant & { temp: boolean })[]))
+  }
+
+  return participantArray
+}
+
 export const processTableLinks = (
   column: TableColumn, 
   text: string,
@@ -132,29 +185,9 @@ export const processTableLinks = (
   const field = column.type === 'value' && (participantLink || userLink) ? 
     evaluateField(column.choices?.[index]) : undefined
 
-  const userArray: (UserProfile & { temp: boolean })[] = [
-    ...tempUsers.map((profile) => ({ ...profile, temp: true })),
-    ...users.map((data) => data.profile).filter((profile) => profile !== undefined).map((profile) => ({ ...profile, temp: false }))
-  ].reduce((prev, cur) => {
-    if(!prev.some((profile) => profile.email.toLowerCase() === cur.email.toLowerCase())) {
-      prev.push(cur)
-    }
-    return prev
-  }, [] as (UserProfile & { temp: boolean })[])
+  const userArray: (UserProfile & { temp: boolean })[] = createUserArray(tempUsers, users)
 
-  const participantArray = userArray.flatMap((profile) => {
-    const participant: (Participant & { temp: boolean })[] = profile.participant.map((participant) => ({
-      ...participant, 
-      temp: profile.temp
-    }))
-    return participant
-  })
-  .reduce((prev, cur) => {
-    if(!prev.some((participant) => participant.id === cur.id)) {
-      prev.push(cur)
-    }
-    return prev
-  }, [] as (Participant & { temp: boolean })[])
+  const participantArray = createParticipantArray(userArray)
 
   if(
     (
@@ -620,6 +653,131 @@ export const processTableLinks = (
   }
 }
 
+export const generateTableLinks = (
+  userDetection: [UserDetection, string],
+  participantDetection: Participant[],
+  table: Table,
+  index: number,
+  participantFieldLinks: ParticipantFieldLinks[],
+  userFieldLinks?: UserFieldLinks,
+): [UserFieldLinks, ParticipantFieldLinks[]] => {
+  const linkedParticipants = [...participantFieldLinks]
+  const linkedUser: UserFieldLinks = userFieldLinks ? {
+    ...userFieldLinks
+  } : {
+    email: ['', ''],
+    first: null,
+    last: null,
+    sitting: null
+  }
+
+  //detected participant means that there are participant ids in this row
+  //temp or user means the same
+  if(
+    participantDetection.length > 0 ||
+    userDetection[0] === 'temp' ||
+    userDetection[0] === 'user'
+  ) {
+    for(let i = 0; i < table.columns.length; i++) {
+      const column = table.columns[i]
+      const choice = (column.choices ?? [])?.[index]
+      if(choice === undefined || choice === null) continue
+      const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
+      if(choice.includes('participantId:')) {
+        const mappedParticipant = choice.substring(choice.indexOf(':') + 1, endIndex)
+        const foundParticipant = participantDetection.some((participant) => participant.id === mappedParticipant)
+        if(!foundParticipant) continue
+        const linkedIndex = linkedParticipants.findIndex((link) => link.id === mappedParticipant)
+        let participantIndex = linkedIndex === -1 ? linkedParticipants.length : linkedIndex
+        if(linkedIndex === -1) {
+          linkedParticipants.push({
+            id: mappedParticipant,
+            first: null,
+            last: null,
+            middle: null,
+            preferred: null,
+            email: null,
+            tags: null,
+            timeslot: null,
+            notifications: null
+          })
+        }
+        switch(evaluateField(choice)){
+          case 'first': {
+            linkedParticipants[participantIndex].first = [column.id, 'update']
+            break;
+          }
+          case 'last': {
+            linkedParticipants[participantIndex].last = [column.id, 'update']
+            break;
+          }
+          case 'middle': {
+            linkedParticipants[participantIndex].middle = [column.id, 'update']
+            break;
+          }
+          case 'preferred': {
+            linkedParticipants[participantIndex].preferred = [column.id, 'update']
+            break;
+          }
+          case 'email': {
+            linkedParticipants[participantIndex].email = [column.id, 'update']
+            break;
+          }
+          default: {
+            if(column.type === 'tag') {
+              linkedParticipants[participantIndex].tags = [column.id, 'update']
+            }
+            else if(column.type === 'date') {
+              linkedParticipants[participantIndex].timeslot = [column.id, 'update']
+            }
+            else if(column.type === 'notification') {
+              linkedParticipants[participantIndex].notifications = [column.id, 'update']
+            }
+            break;
+          }
+        }
+      }
+      else if(choice.includes('userEmail:')) {
+        const mappedUser = choice.substring(choice.indexOf(':') + 1, endIndex)
+        if(userDetection[1] !== mappedUser && linkedUser.email[0] !== '') {
+          continue
+        }
+
+        const field = evaluateField(choice)
+
+        if(
+          linkedUser.email[0] === '' && 
+          userDetection[1] === mappedUser &&
+          field === 'email'
+        ) {
+          linkedUser.email = [mappedUser, column.id]
+        }
+        else if(
+          linkedUser.first === null &&
+          field === 'first'
+        ) {
+          linkedUser.first = [column.id, 'update']
+        }
+        else if(
+          linkedUser.last === null &&
+          field === 'last'
+        ) {
+          linkedUser.last = [column.id, 'update']
+        }
+        else if(
+          linkedUser.sitting === null &&
+          field === 'sitting'
+        ) {
+          linkedUser.sitting = [column.id, 'update']
+        }
+      }
+    }
+  }
+
+
+  return [linkedUser, linkedParticipants]
+}
+
 const evaluateField = (choice: string | undefined): 'first' | 'last' | 'sitting' | 'email' | 'preferred' | 'middle' | undefined => {
   if(!choice) return undefined
   const field = choice.substring(choice.indexOf(',') + 1)
@@ -639,6 +797,231 @@ const evaluateField = (choice: string | undefined): 'first' | 'last' | 'sitting'
     default:
       return undefined
   }
+}
+
+type UserDetection = 'user' | 'temp' | 'potential' | 'unlinked' | 'false'
+
+
+export const tableUserDetection = (
+  table: Table,
+  row: [string, TableColumn['type'], string][],
+  index: number,
+  tempUsers: UserProfile[],
+  users: UserData[]
+) : [UserDetection, string] => {
+  for(let i = 0; i < table.columns.length; i++) {
+    const choice = ((table.columns[i].choices ?? [])?.[index] ?? '')
+      
+    const foundUser = choice.includes('userEmail:')
+    const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
+    if(foundUser) {
+      const userEmail = choice.substring(choice.indexOf(':') + 1, endIndex)
+      const foundTemp = tempUsers.find((user) => user.email === userEmail)
+      if(foundTemp) {
+        return ['temp', foundTemp.email]
+      }
+      const foundUser = users.find((user) => user.email === userEmail)
+      if(foundUser) {
+        return ['user', foundUser.email]
+      }
+    }
+  }
+  for(let i = 0; i < row.length; i++) {
+    const foundColumn = table.columns.find((column) => column.id == row[i][2])
+    if(!foundColumn) continue
+    const normalHeader = foundColumn.header.toLocaleLowerCase()
+    const normalizedValue = row[i][0].toLocaleLowerCase()
+    if(
+      validator.isEmail(normalizedValue) && 
+      !normalHeader.includes('participant') &&
+      !normalHeader.includes('duchess') &&
+      !normalHeader.includes('deb') &&
+      !normalHeader.includes('escort') &&
+      !normalHeader.includes('daughter') &&
+      !normalHeader.includes('son') &&
+      !normalHeader.includes('child')
+    ) {
+      //comparision check against normalized values but return visual value for display purposes
+      if(
+        users.some((user) => user.email.toLocaleLowerCase() === normalizedValue) ||
+        tempUsers.some((temp) => temp.email.toLocaleLowerCase() === normalizedValue)
+      ) {
+        return ['unlinked', row[i][0]]
+      }
+      return ['potential', row[i][0]]
+    }
+  }
+  return ['false', '']
+}
+
+export const tableParticipantDetection = (
+  table: Table,
+  index: number,
+  tempUsers: UserProfile[],
+  users: UserData[]
+): Participant[] => {
+  const participants: Participant[] = []
+  const participantMap = createParticipantArray(undefined, tempUsers, users)
+
+  for(let i = 0; i < table.columns.length; i++) {
+    const column = table.columns[i]
+    const choice = ((column.choices ?? [])?.[index] ?? '')
+    const participantMapping = choice.includes('participantId:')
+    const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
+    if(participantMapping) {
+      const participantId = choice.substring(choice.indexOf(':') + 1, endIndex)
+      const foundParticipant = participantMap.find((participant) => participant.id === participantId)
+      if(foundParticipant && !participants.some((participant) => participant.id === foundParticipant.id)) {
+        participants.push(foundParticipant)
+      }
+    }
+  }
+
+  return participants
+}
+
+export const rowLinkParticipantAvailable = (
+  userDetection: [UserDetection, string],
+  row: [string, TableColumn['type'], string][],
+  table: Table,
+  index: number,
+  data: {
+    tags: UserTag[],
+    timeslots: Timeslot[],
+    notifications: Notification[]
+  }
+): Participant | undefined => {
+  if(
+    (
+      userDetection[0] === 'temp' || 
+      userDetection[0] === 'unlinked' || 
+      userDetection[0] === 'user'
+    ) && 
+    validator.isEmail(userDetection[1])
+  ) {
+    let foundFirst: string | undefined = undefined
+    let foundLast: string | undefined = undefined
+    let foundMiddle: string | undefined = undefined
+    let foundPreferred: string | undefined = undefined
+    let foundEmail: string | undefined = undefined
+    let foundTags: UserTag[] = []
+    let foundTimeslots: Timeslot[] = []
+    let foundNotifications: Notification[] = []
+
+    for(let i = 0; i < row.length; i++) {
+      const foundColumn = table.columns.find((column) => column.id === row[i][2])
+      if(
+        !foundColumn || 
+        ((foundColumn.choices ?? [])?.[index] ?? '').includes('participantId:')
+      ) continue;
+      const normalHeader = foundColumn.header.toLocaleLowerCase()
+      if(
+        foundColumn.type === 'value' &&
+        (
+          normalHeader.includes('participant') ||
+          normalHeader.includes('duchess') ||
+          normalHeader.includes('deb') ||
+          normalHeader.includes('escort') ||
+          normalHeader.includes('daughter') ||
+          normalHeader.includes('son') ||
+          normalHeader.includes('child')
+        )
+      ) {
+        if(
+          normalHeader.includes('first') &&
+          row[i][0] !== ''
+        ) {
+          foundFirst = row[i][0]
+        }
+        else if(
+          normalHeader.includes('last') &&
+          row[i][0] !== ''
+        ) {
+          foundLast = row[i][0]
+        }
+        else if(
+          normalHeader.includes('middle') &&
+          row[i][0] !== ''
+        ) {
+          foundMiddle = row[i][0]
+        }
+        else if(
+          normalHeader.includes('prefer') &&
+          row[i][0] !== ''
+        ) {
+          foundPreferred = row[i][0]
+        }
+        else if(
+          normalHeader.includes('email') &&
+          validator.isEmail(row[i][0])
+        ) {
+          foundEmail = row[i][0]
+        }
+      }
+      else if(foundColumn.type === 'tag') {
+        const value = foundColumn.values[index]
+        const cellTags = (value.split(',') ?? [])
+        .filter((tag) => tag !== '')
+        .reduce((prev, tag) => {
+          const foundTag = data.tags.find((uTag) => tag === uTag.id)
+          if(foundTag !== undefined && !foundTags.some((uTag) => uTag.id === tag)) {
+            prev.push(foundTag)
+          }
+          return prev
+        }, [] as UserTag[])
+
+        foundTags.push(...cellTags)
+      }
+      else if(foundColumn.type === 'date') {
+        const value = foundColumn.values[index]
+        const timeslots = (value.split(',') ?? [])
+        .filter((timeslot) => timeslot !== '')
+        .reduce((prev, timeslot) => {
+          const foundTimeslot = data.timeslots.find((ts) => timeslot === ts.id)
+          if(foundTimeslot !== undefined && !foundTimeslots.some((ts) => ts.id === timeslot)) {
+            prev.push(foundTimeslot)
+          }
+          return prev
+        }, [] as Timeslot[])
+
+        foundTimeslots.push(...timeslots)
+      }
+      else if(foundColumn.type === 'notification') {
+        const value = foundColumn.values[index]
+        const cellNotification = data.notifications.find((notification) => notification.id === value)
+        if(
+          cellNotification !== undefined && 
+          !foundNotifications.some((notification) => notification.id === cellNotification.id)
+        ) {
+          foundNotifications.push(cellNotification)
+        }
+      }
+    }
+
+    if(
+      foundFirst !== undefined && 
+      foundLast !== undefined
+    ) {
+      const participant: Participant = {
+        id: v4(),
+        firstName: foundFirst,
+        lastName: foundLast,
+        createdAt: new Date().toISOString(),
+        middleName: foundMiddle,
+        preferredName: foundPreferred,
+        email: foundEmail,
+        userEmail: userDetection[1],
+        userTags: foundTags,
+        contact: false,
+        //not required
+        notifications: foundNotifications,
+        timeslot: foundTimeslots,
+        collections: [],
+      }
+      return participant
+    }
+  }
+  return undefined
 }
 
 export const sortColumnValues = (
@@ -833,7 +1216,8 @@ export const possibleLinkDetection = (userProfile: UserProfile, rowIndex: number
         normalHeader.includes('deb') || 
         normalHeader.includes('escort') ||
         column.type === 'tag' ||
-        column.type === 'date'
+        column.type === 'date' ||
+        column.type === 'notification' 
       ) &&
       linkedParticipants.length > 0
     ) {

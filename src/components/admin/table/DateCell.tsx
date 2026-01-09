@@ -40,6 +40,9 @@ interface DateCellProps extends ComponentProps<'td'> {
 
 //TODO: state is not getting updated when rows are reordered
 export const DateCell = (props: DateCellProps) => {
+  const dateRef = useRef<HTMLButtonElement | null>(null)
+  const actionWindowRef = useRef<HTMLDivElement | null>(null)
+
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile, participant: Participant }  | undefined>()
@@ -124,6 +127,30 @@ export const DateCell = (props: DateCellProps) => {
     props.tagsQuery,
     props.registerTimeslot.isPending,
   ])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if(
+        isFocused &&
+        actionWindowRef.current &&
+        dateRef.current &&
+        !actionWindowRef.current.contains(event.target as Node) &&
+        !dateRef.current.contains(event.target as Node)
+      ) {
+        setIsFocused(false)
+        setFilterOption('date')
+        setSelectedTag(undefined)
+        setTagSearch('')
+      }
+    }
+
+    if(isFocused) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isFocused])
   
   // const updateParticipant = useMutation({
   //   mutationFn: (params: UpdateParticipantMutationParams) => updateParticipantMutation(params)
@@ -321,6 +348,7 @@ export const DateCell = (props: DateCellProps) => {
         ${cellColoring}
       `}>
         <button
+          ref={dateRef}
           className={`
             font-thin p-0 text-sm border-transparent ring-transparent w-full border
           `}
@@ -328,20 +356,10 @@ export const DateCell = (props: DateCellProps) => {
         >
           {timeslotValue}
         </button>
-        {/* <input
-          placeholder="Pick Timeslots..."
-          className={`
-            font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
-            border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
-            hover:cursor-pointer bg-transparent
-          `}
-          value={timeslotValue}
-          onFocus={() => setIsFocused(true)}
-          readOnly
-        /> */}
         {isFocused && (
           <div 
             className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]"
+            ref={actionWindowRef}
           >
             <div className="w-full whitespace-nowrap border-b p-1 text-base self-center flex flex-row justify-between">
               {foundParticipant ? (

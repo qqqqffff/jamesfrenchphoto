@@ -74,25 +74,25 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
           for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'left' ? 0 : 1); i++) {
             if(i === indexOfSource) continue
             updatedTableColumns.push({
-              ...props.table.columns[i],
+              ...tableColumns[i],
               order: i
             })
           }
           updatedTableColumns.push({
-            ...props.table.columns[indexOfSource],
+            ...tableColumns[indexOfSource],
             order: indexOfTarget
           })
           for(let i = indexOfTarget + (closestEdgeOfTarget === 'left' ? 0 : 1); i < props.table.columns.length; i++) {
             if(i === indexOfSource) continue
             updatedTableColumns.push({
-              ...props.table.columns[i],
+              ...tableColumns[i],
               order: i
             })
           }
           
           flushSync(() => {
             const updateGroup = (prev: TableGroup[]): TableGroup[] => {
-              return prev.map((group) => group.tables.some((table) => table.id === props.table.id) ? ({
+              return prev.map((group) => group.id === props.table.tableGroupId ? ({
                 ...group,
                 tables: group.tables.map((table) => table.id === props.table.id ? ({
                   ...table,

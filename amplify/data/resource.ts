@@ -220,6 +220,7 @@ const schema = a.schema({
       id: a.id().required(),
       name: a.string().required(),
       tableGroupId: a.id().required(),
+      order: a.integer().required(),
       tableGroup: a.belongsTo('TableGroup', 'tableGroupId'),
       tableColumns: a.hasMany('TableColumn', 'tableId')
     })

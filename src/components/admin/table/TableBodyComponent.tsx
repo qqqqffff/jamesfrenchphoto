@@ -3,7 +3,7 @@ import { AggregateCell } from "./AggregateCell"
 import { AdminRegisterTimeslotMutationParams, TimeslotService } from "../../../services/timeslotService"
 import { Dispatch, SetStateAction, useEffect } from "react"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
-import { AppendTableRowParams, CreateChoiceParams, DeleteTableRowParams, ReorderTableRowsParams, TableService, UpdateTableColumnParams } from "../../../services/tableService"
+import { AppendTableRowParams, CreateChoiceParams, DeleteChoiceParams, DeleteTableRowParams, ReorderTableRowsParams, TableService, UpdateChoiceParams, UpdateTableColumnParams } from "../../../services/tableService"
 import { CreateParticipantParams, UpdateParticipantMutationParams, UpdateUserAttributesMutationParams, UpdateUserProfileParams, UserService } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 import { HiOutlinePlusCircle } from "react-icons/hi2"
@@ -22,6 +22,7 @@ interface TableBodyComponentProps {
   TableService: TableService
   PhotoPathService: PhotoPathService,
   NotificationService: NotificationService,
+
   table: Table
   tableRows: [string, TableColumn['type'], string][][],
   search: string,
@@ -32,6 +33,7 @@ interface TableBodyComponentProps {
   selectedDate: Date
   baseLink: string
   refRow: React.MutableRefObject<number>
+
   allTableTimeslotsQuery: UseQueryResult<Timeslot | null, Error>[]
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
   tagTimeslotQuery: UseQueryResult<Timeslot[], Error>
@@ -39,16 +41,20 @@ interface TableBodyComponentProps {
   userData: UseQueryResult<UserData[] | undefined, Error>
   tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
   notificationsData: UseQueryResult<Notification[], Error>
+
   deleteRow: UseMutationResult<void, Error, DeleteTableRowParams, unknown>
   appendRow: UseMutationResult<void, Error, AppendTableRowParams, unknown>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
-  createChoice: UseMutationResult<[string, string] | undefined, Error, CreateChoiceParams, unknown>
+  createChoice: UseMutationResult<void, Error, CreateChoiceParams, unknown>
+  updateChoice: UseMutationResult<void, Error, UpdateChoiceParams, unknown>
+  deleteChoice: UseMutationResult<void, Error, DeleteChoiceParams, unknown>
   reorderTableRows: UseMutationResult<void, Error, ReorderTableRowsParams, unknown>
   updateUserAttribute: UseMutationResult<unknown, Error, UpdateUserAttributesMutationParams, unknown>
   updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
   updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
   createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
   adminRegisterTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
+
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
   setTableNotifications: Dispatch<SetStateAction<TablePanelNotification[]>>
@@ -214,6 +220,8 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               updateColumn={props.updateColumn}
               deleteRow={props.deleteRow}
               createChoice={props.createChoice}
+              updateChoice={props.updateChoice}
+              deleteChoice={props.deleteChoice}
               updateUserAttribute={props.updateUserAttribute}
               updateUserProfile={props.updateUserProfile}
               updateParticipant={props.updateParticipant}

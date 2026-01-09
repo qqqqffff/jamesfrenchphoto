@@ -606,44 +606,46 @@ export const TableColumnComponent = (props: TableColumnProps) => {
 
             console.log(Object.values(reorderedRows))
 
-            // reorderTable.mutate({
-            //   tableColumns: props.table.columns.map((column) => ({
-            //     ...column,
-            //     values: reorderedRows[column.id].values,
-            //     choices: reorderedRows[column.id].choices,
-            //   })),
-            //   options: {
-            //     logging: true
-            //   }
-            // })
+            if(props.table.id === '1') {
+              reorderTable.mutate({
+                tableColumns: props.table.columns.map((column) => ({
+                  ...column,
+                  values: reorderedRows[column.id].values,
+                  choices: reorderedRows[column.id].choices,
+                })),
+                options: {
+                  logging: true
+                }
+              })
 
-            // const updateGroups = (prev: TableGroup[]) => prev.map((group) => props.table.tableGroupId === group.id ? ({
-            //   ...group,
-            //   tables: group.tables.map((table) => table.id === props.table.id ? ({
-            //     ...table,
-            //     columns: table.columns.map((column) => ({
-            //       ...column,
-            //       values: reorderedRows[column.id].values,
-            //       choices: reorderedRows[column.id].choices
-            //     }))
-            //   }) : table)
-            // }) : group)
+              const updateGroups = (prev: TableGroup[]) => prev.map((group) => props.table.tableGroupId === group.id ? ({
+                ...group,
+                tables: group.tables.map((table) => table.id === props.table.id ? ({
+                  ...table,
+                  columns: table.columns.map((column) => ({
+                    ...column,
+                    values: reorderedRows[column.id].values,
+                    choices: reorderedRows[column.id].choices
+                  }))
+                }) : table)
+              }) : group)
 
-            // props.parentUpdateSelectedTableGroups(prev => updateGroups(prev))
-            // props.parentUpdateTableGroups(prev => updateGroups(prev))
-            // props.parentUpdateTable(prev => prev !== undefined ? ({
-            //   ...prev,
-            //   columns: prev.columns.map((column) => ({
-            //     ...column,
-            //     values: reorderedRows[column.id].values,
-            //     choices: reorderedRows[column.id].choices
-            //   }))
-            // }) : prev)
-            // props.parentUpdateTableColumns(prev => prev.map((column) => ({
-            //   ...column,
-            //   values: reorderedRows[column.id].values,
-            //   choices: reorderedRows[column.id].choices
-            // })))
+              props.parentUpdateSelectedTableGroups(prev => updateGroups(prev))
+              props.parentUpdateTableGroups(prev => updateGroups(prev))
+              props.parentUpdateTable(prev => prev !== undefined ? ({
+                ...prev,
+                columns: prev.columns.map((column) => ({
+                  ...column,
+                  values: reorderedRows[column.id].values,
+                  choices: reorderedRows[column.id].choices
+                }))
+              }) : prev)
+              props.parentUpdateTableColumns(prev => prev.map((column) => ({
+                ...column,
+                values: reorderedRows[column.id].values,
+                choices: reorderedRows[column.id].choices
+              })))
+              }
           }}
         >
           {sortOrder === 'DSC' || sortOrder === null ? (

@@ -19,7 +19,9 @@ import {
   DeleteTableRowParams, 
   UpdateTableColumnParams, 
   ReorderTableColumnsParams,
-  ReorderTableRowsParams
+  ReorderTableRowsParams,
+  UpdateChoiceParams,
+  DeleteChoiceParams
 } from "../../../services/tableService"
 import { currentDate } from "../../../utils"
 import { ConfirmationModal, CreateUserModal } from "../../modals"
@@ -149,6 +151,14 @@ export const TableComponent = (props: TableComponentProps) => {
 
   const createChoice = useMutation({
     mutationFn: (params: CreateChoiceParams) => props.TableService.createChoiceMutation(params),
+  })
+
+  const updateChoice = useMutation({
+    mutationFn: (params: UpdateChoiceParams) => props.TableService.updateChoiceMutation(params)
+  })
+  
+  const deleteChoice = useMutation({
+    mutationFn: (params: DeleteChoiceParams) => props.TableService.deleteChoiceMutation(params)
   })
 
   const inviteUser = useMutation({
@@ -316,6 +326,8 @@ export const TableComponent = (props: TableComponentProps) => {
             appendRow={appendRow}
             updateColumn={updateColumn}
             createChoice={createChoice}
+            updateChoice={updateChoice}
+            deleteChoice={deleteChoice}
             reorderTableRows={reorderTableRows}
             updateUserAttribute={updateUserAttribute}
             updateUserProfile={updateUserProfile}

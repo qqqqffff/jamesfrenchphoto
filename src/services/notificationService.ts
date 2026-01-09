@@ -3,6 +3,104 @@ import { V6Client } from '@aws-amplify/api-graphql'
 import { Notification, Participant, UserTag } from "../types";
 import { queryOptions } from "@tanstack/react-query";
 import sgMail from '@sendgrid/mail'
+import { mapParticipant } from "./userService";
+import { mapUserTag } from "./tagService";
+
+interface MapNotificationOptions {
+  siParticipants?: {
+    memo: Participant[]
+  }
+  siTags?: {
+    memo: UserTag[]
+  }
+}
+
+export async function mapNotification(notificationResponse: Schema['Notifications']['type'], options?: MapNotificationOptions): Promise<Notification> {
+  const participants: Participant[] = []
+  let participantsResponse: Promise<(Participant | undefined)[]> | undefined
+  const tags: UserTag[] = []
+  let tagsResponse: Promise<(UserTag | undefined)[]> | undefined
+
+  if(options?.siParticipants !== undefined) {
+    participantsResponse = new Promise<(Participant | undefined)[]>(async (resolve) => {
+      let participantResponse = await notificationResponse.participant()
+      const participantData = participantResponse.data
+      while(participantResponse.nextToken) {
+        participantResponse = await notificationResponse.participant({ 
+          nextToken: participantResponse.nextToken 
+        })
+        participantData.push(...participantResponse.data)
+      }
+
+      resolve(Promise.all(participantData.map(async (participantTag) => {
+        const existingParticipant = options.siParticipants?.memo.find((p) => p.id === participantTag.participantId)
+        if(existingParticipant !== undefined) return existingParticipant
+
+        const participant = await participantTag.participant()
+        if(participant.data) {
+          const mappedParticipant: Participant = await mapParticipant(participant.data, {
+            siCollections: false,
+            siNotifications: false,
+            siTags: undefined,
+            siTimeslot: false
+          })
+          return mappedParticipant
+        }
+      })))
+    })
+  }
+
+  if(options?.siTags !== undefined) {
+    tagsResponse = new Promise<(UserTag | undefined)[]>(async (resolve) => {
+      let tagResponse = await notificationResponse.tags()
+      const tagData = tagResponse.data
+      while(tagResponse.nextToken) {
+        tagResponse = await notificationResponse.tags({ 
+          nextToken: tagResponse.nextToken 
+        })
+        tagData.push(...tagResponse.data)
+      }
+
+      resolve(Promise.all(tagData.map(async (userTagTag) => {
+        const existingTag = options.siTags?.memo.find((t) => t.id === userTagTag.tagId)
+        if(existingTag !== undefined) return existingTag
+
+        const tag = await userTagTag.tag()
+        if(tag.data) {
+          const mappedTag: UserTag = await mapUserTag(tag.data, {
+            siPackages: undefined,
+            siTimeslots: false,
+            siParticipants: false,
+            siNotifications: false,
+            siChildren: false,
+            siCollections: false,
+            memos: undefined
+          })
+          return mappedTag
+        }
+      })))
+    })
+  }
+
+  await Promise.all([
+    participantsResponse !== undefined ? participantsResponse.then((p) => {
+      participants.push(...(p.filter((part) => part !== undefined)))
+    }) : Promise.resolve(),
+    tagsResponse !== undefined ? tagsResponse.then((t) => {
+      tags.push(...(t.filter((tag) => tag !== undefined)))
+    }) : Promise.resolve()
+  ])
+
+  const mappedNotification: Notification = {
+    ...notificationResponse,
+    participants: participants,
+    location: notificationResponse.location ?? undefined,
+    tags: tags,
+    expiration: notificationResponse.expiration ?? undefined
+  }
+
+  return mappedNotification
+}
 
 interface GetAllNotificationOptions {
   siParticipants?: boolean

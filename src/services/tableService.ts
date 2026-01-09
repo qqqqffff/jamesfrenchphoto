@@ -109,7 +109,7 @@ export interface DeleteTableGroupParams {
 export interface CreateTableParams {
   id: string,
   name: string,
-  tableGroupId: string,
+  tableGroup: TableGroup,
   columns: TableColumn[],
   options?: {
     logging?: boolean
@@ -164,6 +164,28 @@ export interface CreateChoiceParams {
   }
 }
 
+export interface UpdateChoiceParams {
+  column: TableColumn,
+  choice: ColumnColor,
+  color: string,
+  customColor?: [string, string], 
+  value: string
+  tableValues: string[]
+  options?: {
+    logging: boolean
+  }
+}
+
+export interface DeleteChoiceParams {
+  columnId: string,
+  choices: string[]
+  tableValues: string[]
+  choiceId: string,
+  options?: {
+    logging?: boolean
+  }
+}
+
 export interface AppendTableRowParams {
   table: Table,
   length: number,
@@ -193,6 +215,13 @@ export interface UploadColumnFileParams {
   column: TableColumn,
   index: number,
   file?: File,
+  options?: {
+    logging?: boolean
+  }
+}
+
+export interface ReorderTableGroupParams {
+  tables: Table[],
   options?: {
     logging?: boolean
   }
@@ -252,7 +281,8 @@ export class TableService {
     const response = await this.client.models.Table.create({
       id: params.id,
       name: params.name,
-      tableGroupId: params.tableGroupId,
+      tableGroupId: params.tableGroup.id,
+      order: params.tableGroup.tables.length,
     })
     if(params.options?.logging) console.log(response)
     await Promise.all(params.columns.map(async (column) => {
@@ -347,7 +377,7 @@ export class TableService {
     }
   }
 
-  async createChoiceMutation(params: CreateChoiceParams): Promise<[string, string] | undefined> {
+  async createChoiceMutation(params: CreateChoiceParams) {
     const columnResponse = await this.client.models.TableColumn.update({
       id: params.column.id,
       choices: [...(params.column.choices ?? []), params.choice]
@@ -363,8 +393,37 @@ export class TableService {
     })
 
     if(params.options?.logging) console.log(createColor)
+  }
 
-    return
+  async updateChoiceMutation(params: UpdateChoiceParams) {
+    const columnResponse = await this.client.models.TableColumn.update({
+      id: params.column.id,
+      choices: params.column.choices,
+      values: params.tableValues,
+    })
+    if(params.options?.logging) console.log(columnResponse)
+    
+    const updateColor = await this.client.models.ColumnColorMapping.update({
+      id: params.choice.id,
+      textColor: params.customColor ? params.customColor[0] : defaultColumnColors[params.color].text,
+      bgColor: params.customColor ? params.customColor[1] : defaultColumnColors[params.color].bg,
+      value: params.value
+    })
+    if(params.options?.logging) console.log(updateColor)
+  }
+
+  async deleteChoiceMutation(params: DeleteChoiceParams) {
+    const columnResponse = await this.client.models.TableColumn.update({
+      id: params.columnId,
+      choices: params.choices,
+      values: params.tableValues
+    })
+    if(params.options?.logging) console.log(columnResponse)
+
+    const updateColor = await this.client.models.ColumnColorMapping.delete({
+      id: params.choiceId
+    })
+    if(params.options?.logging) console.log(updateColor)
   }
 
   async appendTableRowMutation(params: AppendTableRowParams){
@@ -485,6 +544,17 @@ export class TableService {
     else {
       return ''
     }
+  }
+
+  async reorderTableGroupMutation(params: ReorderTableGroupParams) {
+    const updateTableGroup = await Promise.all(params.tables.map((table) => {
+      return this.client.models.Table.update({
+        id: table.id,
+        order: table.order,
+      })
+    }))
+
+    if(params.options?.logging) console.log(updateTableGroup)
   }
 
   async reorderTableMutation(params: ReorderTableMutationParams) {

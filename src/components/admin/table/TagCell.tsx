@@ -1,4 +1,4 @@
-import { ComponentProps, useEffect, useState } from "react";
+import { ComponentProps, useEffect, useRef, useState } from "react";
 import { Participant, Table, UserData, UserProfile, UserTag } from "../../../types";
 import { Checkbox } from "flowbite-react";
 import { HiOutlineXMark } from "react-icons/hi2";
@@ -32,6 +32,9 @@ interface TagCellProps extends ComponentProps<'td'> {
 
 //TODO: add horizontal scrolling between all tags that are inside instead of displaying multiple tags
 export const TagCell = (props: TagCellProps) => {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const actionWindowRef = useRef<HTMLDivElement | null>(null)
+  
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [search, setSearch] = useState<string>('')
@@ -86,6 +89,27 @@ export const TagCell = (props: TagCellProps) => {
     }
   }, [props.tags])
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if(
+        isFocused &&
+        actionWindowRef.current &&
+        inputRef.current &&
+        !actionWindowRef.current.contains(event.target as Node) &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setIsFocused(false)
+      }
+    }
+
+    if(isFocused) [
+      document.addEventListener('mousedown', handleClickOutside)
+    ]
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isFocused])
+
   const updateParticipant = useMutation({
     mutationFn: (params: UpdateParticipantMutationParams) => props.UserService.updateParticipantMutation(params)
   })
@@ -122,6 +146,7 @@ export const TagCell = (props: TagCellProps) => {
         ${cellColoring}
       `}>
         <input
+          ref={inputRef}
           placeholder="Pick Tags..."
           className={`
             font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
@@ -134,7 +159,10 @@ export const TagCell = (props: TagCellProps) => {
           readOnly
         />
         {isFocused && (
-          <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
+          <div 
+            ref={actionWindowRef}
+            className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]"
+          >
             <div className="italic text-gray-600 w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between">
               {foundParticipant ? (
                 <span>Linked with: {formatParticipantName(foundParticipant.participant)}</span>
