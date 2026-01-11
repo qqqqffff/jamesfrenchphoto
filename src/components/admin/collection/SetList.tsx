@@ -66,33 +66,31 @@ export const SetList = (props: SetListProps) => {
 
         const updatedSets: PhotoSet[] = []
 
-        if(closestEdgeOfTarget === 'top') {
-          updatedSets.push(
-            ...sets.slice(0, indexOfTarget)
-          )
-          updatedSets.push({...sets[indexOfSource], order: indexOfTarget})
-          updatedSets.push(
-            ...sets.slice(indexOfTarget)
-          )
+        for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
+          if(i === indexOfSource) continue
+          updatedSets.push({
+            ...sets[i],
+            order: i
+          })
         }
-        else if(closestEdgeOfTarget === 'bottom') {
-          updatedSets.push(
-            ...sets.slice(0, indexOfTarget + 1)
-          )
-          updatedSets.push({...sets[indexOfSource], order: indexOfTarget})
-          updatedSets.push(
-            ...sets.slice(indexOfTarget + 1)
-          )
+        updatedSets.push({
+          ...sets[indexOfSource],
+          order: indexOfTarget
+        })
+        for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < sets.length; i++) {
+          if(i === indexOfSource) continue
+          updatedSets.push({
+            ...sets[i],
+            order: i
+          })
         }
 
         flushSync(() => {
-          const newSets = updatedSets.filter((set) => set.order !== indexOfSource).map((set, index) => ({ ...set, order: index }))
-          console.log(newSets)
-          setSets(newSets);
-          props.reorderSets(newSets)
+          setSets(updatedSets);
+          props.reorderSets(updatedSets)
           reorderSets.mutate({
             collectionId: props.collection.id,
-            sets: newSets,
+            sets: updatedSets,
             options: {
               logging: true
             }

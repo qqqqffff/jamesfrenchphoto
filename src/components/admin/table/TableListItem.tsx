@@ -60,14 +60,16 @@ export const TableListItem = (props: TableListItemProps) => {
 
   useEffect(() => {
     const element = container.current
+
     invariant(element)
+
     return combine(
       draggable({
         element,
         getInitialData() {
           return getTableListData(props.table)
         },
-        canDrag: () => props.table.temporary === false,
+        canDrag: () => props.table.temporary === undefined || props.table.temporary === false,
         onGenerateDragPreview({ nativeSetDragImage }) {
           setCustomNativeDragPreview({
             nativeSetDragImage,
@@ -127,10 +129,16 @@ export const TableListItem = (props: TableListItemProps) => {
 
   return (
     <>
-      {tableState.type === 'is-dragging-over' && tableState.closestEdge === 'top' && (
-        <DropIndicator edge='top' gap="4px" />
-      )}
-      <div ref={container} className={`${stateStyles[tableState.type]}`}>
+      <div className="w-full relative">
+        {tableState.type === 'is-dragging-over' && tableState.closestEdge === 'top' && (
+          <DropIndicator edge='top' gap="2px" />
+        )}
+      </div>
+      <div 
+        ref={container} 
+        className={`${stateStyles[tableState.type]}`}
+        data-table-list-id={props.table.id}
+      >
       {(props.table.temporary ? (
         <div className="ps-6 pe-8 py-0.5">
           <EditableTextField 
@@ -205,6 +213,7 @@ export const TableListItem = (props: TableListItemProps) => {
           }}
           className={`
             text-sm font-light border w-full hover:text-gray-500 hover:cursor-pointer rounded-md px-6 py-0.5 flex flex-row items-center
+            ${stateStyles[tableState.type] ?? ''}
             ${selected ? 'border-gray-800 bg-gray-100 hover:bg-gray-200 hover:border-gray-600' : 'hover:border-gray-200 border-transparent'}
           `}
         >
@@ -215,16 +224,30 @@ export const TableListItem = (props: TableListItemProps) => {
       {tableState.type === 'preview' && createPortal(
         <DragPreview 
           table={props.table}
+          containerWidth={container.current?.clientWidth}
         />, tableState.container
       )}
+      </div>
+      <div className="w-full relative">
+        {tableState.type === 'is-dragging-over' && tableState.closestEdge === 'bottom' && (
+          <DropIndicator edge='bottom' gap="2px" />
+        )}
       </div>
     </>
     )
 }
 
-function DragPreview({ table }: { table: Table}) {
+function DragPreview({ table, containerWidth }: { table: Table, containerWidth?: number }) {
   return (
-    <div className={`text-sm font-light border w-full rounded-md px-6 py-0.5 flex flex-row items-center`}>
+    <div 
+      className={`
+        text-sm font-light border w-full rounded-md px-6 py-0.5 
+        flex flex-row items-center min-w-max
+      `}
+      style={{
+        width: containerWidth ? `${containerWidth}px` : 'auto'
+      }}
+    >
       <li style={{ listStyleType: 'circle' }} />
       <span>{table.name}</span>
     </div>
