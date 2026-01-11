@@ -4,15 +4,8 @@ import { EditableTextField } from "../../common/EditableTextField"
 import { UseMutationResult } from "@tanstack/react-query"
 import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react"
 import { CreateTableParams } from "../../../services/tableService"
-import {
-  attachClosestEdge,
-  type Edge,
-  extractClosestEdge,
-} from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
-import {
-  draggable,
-  dropTargetForElements,
-} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { attachClosestEdge, type Edge, extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
+import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
 import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
@@ -28,6 +21,7 @@ interface TableListItemProps {
   parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
+  parentUpdateTemporarySelection: Dispatch<SetStateAction<boolean>>
   createTable: UseMutationResult<string | undefined, Error, CreateTableParams, unknown>
 }
 
@@ -87,6 +81,7 @@ export const TableListItem = (props: TableListItemProps) => {
         },
         onDrop() {
           setTableState(idle)
+          props.parentUpdateTemporarySelection(false)
         },
       }),
       dropTargetForElements({
