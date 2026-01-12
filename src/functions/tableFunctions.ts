@@ -1,7 +1,7 @@
 import { UseMutationResult } from "@tanstack/react-query";
 import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
-import { Notification, Participant, ParticipantFields, Table, TableColumn, TableGroup, Timeslot, UserData, UserFields, UserProfile, UserTag } from "../types";
-import { parsePathName } from "../utils";
+import { ColumnColor, Notification, Participant, ParticipantFields, Table, TableColumn, TableGroup, Timeslot, UserData, UserFields, UserProfile, UserTag } from "../types";
+import { defaultColumnColors, parsePathName } from "../utils";
 import { UpdateParticipantMutationParams, UpdateUserProfileParams } from "../services/userService";
 import { Dispatch, SetStateAction } from "react";
 import { v4 } from 'uuid'
@@ -9,7 +9,7 @@ import { TablePanelNotification } from "../components/admin/table/TablePanel";
 import { formatParticipantName, formatUserName } from "./clientFunctions";
 import validator from 'validator'
 import { isTableGroupData, isTableListData, TableGroupData, TableListData } from "../components/admin/table/TableListData";
-import { ReorderTableGroupParams } from "../services/tableService";
+import { CreateChoiceParams, DeleteChoiceParams, ReorderTableGroupParams, UpdateChoiceParams } from "../services/tableService";
 import { flushSync } from "react-dom";
 import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
@@ -1619,3 +1619,246 @@ export const tableItemOnDrop = (props: {
     }
   } 
 }
+
+export const updateChoices = (props: {
+  table: Table,
+  id: string, 
+  data: { choice: string, color: string, customColor?: [string, string], id?: string }, 
+  mode: 'create' | 'delete' | 'update'
+  mutations: {
+    createChoice: UseMutationResult<void, Error, CreateChoiceParams, unknown>
+    updateChoice: UseMutationResult<void, Error, UpdateChoiceParams, unknown>
+    deleteChoice: UseMutationResult<void, Error, DeleteChoiceParams, unknown>
+    setTableNotification: Dispatch<SetStateAction<TablePanelNotification[]>>
+    parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
+    parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
+    parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
+    parentUpdateTableColumns: Dispatch<SetStateAction<TableColumn[]>>
+  }
+}) => {
+    const column = props.table.columns.find((column) => column.id === props.id)
+    
+    if(!column){
+      return
+    } 
+
+    if(props.mode === 'create') {
+      const tempColor: ColumnColor = {
+        id: v4(),
+        textColor: props.data.customColor !== undefined ? props.data.customColor[0] : defaultColumnColors[props.data.color].text,
+        bgColor: props.data.customColor !== undefined ? props.data.customColor[1] : defaultColumnColors[props.data.color].bg,
+        value: props.data.choice,
+        columnId: column.id,
+      }
+
+      props.mutations.createChoice.mutateAsync({
+        column: column,
+        colorId: tempColor.id,
+        choice: props.data.choice,
+        color: props.data.color,
+        customColor: props.data.customColor,
+        options: {
+          logging: true
+        }
+      }).then(() => {
+        const notificationId = v4()
+        props.mutations.setTableNotification(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully created new choice: ${props.data.choice}`,
+          status: 'Success',
+          createdAt: new Date(),
+          autoClose: setTimeout(() => props.mutations.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
+      }).catch(() => {
+        props.mutations.setTableNotification(prev => [...prev, {
+          id: v4(),
+          message: `Failed to create new choice: ${props.data.choice}.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+      })
+
+      const temp: Table = {
+        ...props.table,
+        columns: props.table.columns.map((parentColumn) => {
+          if(parentColumn.id === column.id) {
+            return {
+              ...parentColumn,
+              choices: [...(parentColumn.choices ?? []), props.data.choice],
+              color: [...(parentColumn.color ?? []), tempColor]
+            }
+          }
+          return parentColumn
+        })
+      }
+
+      const updateGroup = (prev: TableGroup[]) => {
+        const pTemp: TableGroup[] = [...prev]
+          .map((group) => {
+            if(group.id === temp.tableGroupId) {
+              return {
+                ...group,
+                tables: group.tables.map((table) => {
+                  if(table.id === temp.id) return temp
+                  return table
+                })
+              }
+            }
+            return group
+          })
+
+        return pTemp
+      }
+
+      props.mutations.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+      props.mutations.parentUpdateTableGroups((prev) => updateGroup(prev))
+      props.mutations.parentUpdateTable(temp)
+      props.mutations.parentUpdateTableColumns(temp.columns)
+    }
+    else if(
+      props.mode === 'delete' && 
+      props.data.id !== undefined && 
+      (column.color ?? []).some((choice) => choice.id === props.data.id) &&
+      (column.choices ?? []).some((choice) => choice === props.data.choice)
+    ) {
+      const foundChoice = (column.color ?? []).find((choice) => choice.id === props.data.id)
+      if(foundChoice === undefined) {
+        props.mutations.setTableNotification(prev => [...prev, {
+          id: v4(),
+          message: `Failed to delete choice: ${props.data.choice}.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+        return
+      }
+      const updatedChoices = (column.choices ?? []).filter((choice) => choice !== foundChoice.value)
+      const previousChoice = foundChoice.value
+      //data.choice => color id
+      props.mutations.deleteChoice.mutateAsync({
+        columnId: column.id,
+        choiceId: props.data.choice,
+        choices: updatedChoices,
+        tableValues: column.values.map((value => value === previousChoice ? '' : value)), 
+        options: {
+          logging: true
+        }
+      }).then(() => {
+        const notificationId = v4()
+        props.mutations.setTableNotification(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully deleted choice: ${props.data.choice}`,
+          status: 'Success',
+          createdAt: new Date(),
+          autoClose: setTimeout(() => props.mutations.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
+      }).catch(() => {
+        props.mutations.setTableNotification(prev => [...prev, {
+          id: v4(),
+          message: `Failed to delete choice: ${props.data.choice}.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+      })
+
+      const temp: Table = {
+        ...props.table,
+        columns: props.table.columns.map((parentColumn) => (parentColumn.id === column.id ? ({
+          ...parentColumn,
+          choices: updatedChoices,
+          values: parentColumn.values.map((value) => (value === previousChoice ? '' : value))
+        }) : parentColumn))
+      }
+
+      const updateGroup = (prev: TableGroup[]) => prev.map((group) => group.id === temp.tableGroupId ? ({
+        ...group,
+        tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
+      }) : group)
+
+      props.mutations.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+      props.mutations.parentUpdateTableGroups((prev) => updateGroup(prev))
+      props.mutations.parentUpdateTable(temp)
+      props.mutations.parentUpdateTableColumns(temp.columns)
+    }
+    else if(
+      props.mode === 'update' && 
+      props.data.id && 
+      (column.color ?? []).some((choice) => choice.id === props.data.id)
+    ) {
+      const foundChoice = (column.color ?? []).find((choice) => choice.id === props.data.id)
+      if(foundChoice === undefined) {
+        props.mutations.setTableNotification(prev => [...prev, {
+          id: v4(),
+          message: `Failed to update choice: ${props.data.choice}.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+        return
+      }
+      const choiceIndex = (column.choices ?? []).findIndex((choice) => choice === foundChoice.value)
+      if(choiceIndex === -1) {
+        props.mutations.setTableNotification(prev => [...prev, {
+          id: v4(),
+          message: `Failed to update choice: ${props.data.choice}.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+        return
+      }
+      const updatedChoices = [...(column.choices ?? [])]
+      const previousChoice = updatedChoices[choiceIndex]
+      updatedChoices[choiceIndex] = props.data.choice
+
+      props.mutations.updateChoice.mutateAsync({
+        column: { ...column, choices: updatedChoices },
+        choice: foundChoice,
+        color: props.data.color,
+        customColor: props.data.customColor,
+        tableValues: column.values.map((value => value === previousChoice ? props.data.choice : value)),
+        value: props.data.choice,
+        options: {
+          logging: true
+        }
+      }).then(() => {
+        const notificationId = v4()
+        props.mutations.setTableNotification(prev => [...prev, {
+          id: notificationId,
+          message: `Successfully updated choice: ${props.data.choice}`,
+          status: 'Success',
+          createdAt: new Date(),
+          autoClose: setTimeout(() => props.mutations.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+        }])
+      }).catch(() => {
+        props.mutations.setTableNotification(prev => [...prev, {
+          id: v4(),
+          message: `Failed to update choice: ${props.data.choice}.`,
+          status: 'Error',
+          createdAt: new Date(),
+          autoClose: null
+        }])
+      })
+
+      const temp: Table = {
+        ...props.table,
+        columns: props.table.columns.map((parentColumn) => (parentColumn.id === column.id ? ({
+          ...parentColumn,
+          choices: updatedChoices,
+          values: parentColumn.values.map((value) => (value === previousChoice ? props.data.choice : value))
+        }) : parentColumn))
+      }
+
+      const updateGroup = (prev: TableGroup[]) => prev.map((group) => group.id === temp.tableGroupId ? ({
+        ...group,
+        tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
+      }) : group)
+
+      props.mutations.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+      props.mutations.parentUpdateTableGroups((prev) => updateGroup(prev))
+      props.mutations.parentUpdateTable(temp)
+      props.mutations.parentUpdateTableColumns(temp.columns)
+    }
+  }

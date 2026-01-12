@@ -1,6 +1,6 @@
 import { Button, Dropdown, Tooltip } from "flowbite-react"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
-import { ColumnColor, Notification, Participant, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
+import { Notification, Participant, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
 import { ChoiceCell } from "./ChoiceCell"
 import { DateCell } from "./DateCell"
 import { FileCell } from "./FileCell"
@@ -9,7 +9,6 @@ import { ValueCell } from "./ValueCell"
 import { AdminRegisterTimeslotMutationParams, TimeslotService } from "../../../services/timeslotService"
 import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query"
 import { Dispatch, HTMLAttributes, SetStateAction, useEffect, useRef, useState } from "react"
-import { defaultColumnColors } from "../../../utils"
 import { UpdateTableColumnParams, CreateChoiceParams, TableService, DeleteTableRowParams, UpdateChoiceParams, DeleteChoiceParams } from "../../../services/tableService"
 import { v4 } from 'uuid'
 import { 
@@ -44,7 +43,7 @@ import { LinkParticipantModal } from "../../modals/LinkParticipant"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
 import { NotificationCell } from "./NotificationCell"
 import { NotificationService } from "../../../services/notificationService"
-import { generateTableLinks, possibleLinkDetection, processTableLinks, rowLinkParticipantAvailable, rowUnlinkAvailable, tableParticipantDetection, tableUserDetection } from "../../../functions/tableFunctions"
+import { generateTableLinks, possibleLinkDetection, processTableLinks, rowLinkParticipantAvailable, rowUnlinkAvailable, tableParticipantDetection, tableUserDetection, updateChoices } from "../../../functions/tableFunctions"
 import { CgSpinner } from "react-icons/cg"
 import { TablePanelNotification } from "./TablePanel"
 import { formatParticipantName } from "../../../functions/clientFunctions"
@@ -93,7 +92,7 @@ interface TableRowComponentProps {
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
-  setTableNotifaction: Dispatch<SetStateAction<TablePanelNotification[]>>
+  setTableNotification: Dispatch<SetStateAction<TablePanelNotification[]>>
 
   setSelectedDate: Dispatch<SetStateAction<Date>>
   setSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
@@ -230,7 +229,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         {
           updateUserProfile: props.updateUserProfile,
           updateParticipant: props.updateParticipant,
-          setTableNotifications: props.setTableNotifaction,
+          setTableNotifications: props.setTableNotification,
           setTempUsers: props.setTempUsers,
           setUsers: props.setUsers
         }
@@ -291,238 +290,26 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     props.parentUpdateTableColumns(temp.columns)
   }
 
-  //TODO: handle custom colors -> split colors with hashtags into text and bg colors
-  const updateChoices = (id: string, data: { choice: string, color: string, customColor?: [string, string], id?: string }, mode: 'create' | 'delete' | 'update') => {
-    const column = props.table.columns.find((column) => column.id === id)
-    
-    if(!column){
-      //TODO: handle error
-      return
-    } 
-
-    if(mode === 'create') {
-      const tempColor: ColumnColor = {
-        id: v4(),
-        textColor: data.customColor !== undefined ? data.customColor[0] : defaultColumnColors[data.color].text,
-        bgColor: data.customColor !== undefined ? data.customColor[1] : defaultColumnColors[data.color].bg,
-        value: data.choice,
-        columnId: column.id,
-      }
-
-      props.createChoice.mutateAsync({
-        column: column,
-        colorId: tempColor.id,
-        choice: data.choice,
-        color: data.color,
-        customColor: data.customColor,
-        options: {
-          logging: true
-        }
-      }).then(() => {
-        const notificationId = v4()
-        props.setTableNotifaction(prev => [...prev, {
-          id: notificationId,
-          message: `Successfully created new choice: ${data.choice}`,
-          status: 'Success',
-          createdAt: new Date(),
-          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
-        }])
-      }).catch(() => {
-        props.setTableNotifaction(prev => [...prev, {
-          id: v4(),
-          message: `Failed to create new choice: ${data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-      })
-
-      const temp: Table = {
-        ...props.table,
-        columns: props.table.columns.map((parentColumn) => {
-          if(parentColumn.id === column.id) {
-            return {
-              ...parentColumn,
-              choices: [...(parentColumn.choices ?? []), data.choice],
-              color: [...(parentColumn.color ?? []), tempColor]
-            }
-          }
-          return parentColumn
-        })
-      }
-
-      const updateGroup = (prev: TableGroup[]) => {
-        const pTemp: TableGroup[] = [...prev]
-          .map((group) => {
-            if(group.id === temp.tableGroupId) {
-              return {
-                ...group,
-                tables: group.tables.map((table) => {
-                  if(table.id === temp.id) return temp
-                  return table
-                })
-              }
-            }
-            return group
-          })
-
-        return pTemp
-      }
-
-      props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-      props.parentUpdateTableGroups((prev) => updateGroup(prev))
-      props.parentUpdateTable(temp)
-      props.parentUpdateTableColumns(temp.columns)
+  const updateTableChoices = (
+    id: string, 
+    data: { choice: string, color: string, customColor?: [string, string], id?: string }, 
+    mode: 'create' | 'delete' | 'update'
+  ) => updateChoices({
+    table: props.table,
+    id: id,
+    data: data,
+    mode: mode,
+    mutations: {
+      createChoice: props.createChoice,
+      updateChoice: props.updateChoice,
+      deleteChoice: props.deleteChoice,
+      setTableNotification: props.setTableNotification,
+      parentUpdateSelectedTableGroups: props.parentUpdateSelectedTableGroups,
+      parentUpdateTable: props.parentUpdateTable,
+      parentUpdateTableColumns: props.parentUpdateTableColumns,
+      parentUpdateTableGroups: props.parentUpdateTableGroups
     }
-    else if(
-      mode === 'delete' && 
-      data.id !== undefined && 
-      (column.color ?? []).some((choice) => choice.id === data.id) &&
-      (column.choices ?? []).some((choice) => choice === data.choice)
-    ) {
-      //TODO: propegate updates to all values
-      const foundChoice = (column.color ?? []).find((choice) => choice.id === data.id)
-      if(foundChoice === undefined) {
-        props.setTableNotifaction(prev => [...prev, {
-          id: v4(),
-          message: `Failed to delete choice: ${data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-        return
-      }
-      const updatedChoices = (column.choices ?? []).filter((choice) => choice !== foundChoice.value)
-      const previousChoice = foundChoice.value
-      //data.choice => color id
-      props.deleteChoice.mutateAsync({
-        columnId: column.id,
-        choiceId: data.choice,
-        choices: updatedChoices,
-        tableValues: column.values.map((value => value === previousChoice ? '' : value)), 
-        options: {
-          logging: true
-        }
-      }).then(() => {
-        const notificationId = v4()
-        props.setTableNotifaction(prev => [...prev, {
-          id: notificationId,
-          message: `Successfully deleted choice: ${data.choice}`,
-          status: 'Success',
-          createdAt: new Date(),
-          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
-        }])
-      }).catch(() => {
-        props.setTableNotifaction(prev => [...prev, {
-          id: v4(),
-          message: `Failed to delete choice: ${data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-      })
-
-      const temp: Table = {
-        ...props.table,
-        columns: props.table.columns.map((parentColumn) => (parentColumn.id === column.id ? ({
-          ...parentColumn,
-          choices: updatedChoices,
-          values: parentColumn.values.map((value) => (value === previousChoice ? '' : value))
-        }) : parentColumn))
-      }
-
-      const updateGroup = (prev: TableGroup[]) => prev.map((group) => group.id === temp.tableGroupId ? ({
-        ...group,
-        tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
-      }) : group)
-
-      props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-      props.parentUpdateTableGroups((prev) => updateGroup(prev))
-      props.parentUpdateTable(temp)
-      props.parentUpdateTableColumns(temp.columns)
-    }
-    else if(
-      mode === 'update' && 
-      data.id && 
-      (column.color ?? []).some((choice) => choice.id === data.id)
-    ) {
-      //TODO: propegate updates to all values
-      const foundChoice = (column.color ?? []).find((choice) => choice.id === data.id)
-      if(foundChoice === undefined) {
-        props.setTableNotifaction(prev => [...prev, {
-          id: v4(),
-          message: `Failed to update choice: ${data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-        return
-      }
-      const choiceIndex = (column.choices ?? []).findIndex((choice) => choice === foundChoice.value)
-      if(choiceIndex === -1) {
-        props.setTableNotifaction(prev => [...prev, {
-          id: v4(),
-          message: `Failed to update choice: ${data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-        return
-      }
-      const updatedChoices = [...(column.choices ?? [])]
-      const previousChoice = updatedChoices[choiceIndex]
-      updatedChoices[choiceIndex] = data.choice
-
-      props.updateChoice.mutateAsync({
-        column: { ...column, choices: updatedChoices },
-        choice: foundChoice,
-        color: data.color,
-        customColor: data.customColor,
-        tableValues: column.values.map((value => value === previousChoice ? data.choice : value)),
-        value: data.choice,
-        options: {
-          logging: true
-        }
-      }).then(() => {
-        const notificationId = v4()
-        props.setTableNotifaction(prev => [...prev, {
-          id: notificationId,
-          message: `Successfully updated choice: ${data.choice}`,
-          status: 'Success',
-          createdAt: new Date(),
-          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
-        }])
-      }).catch(() => {
-        props.setTableNotifaction(prev => [...prev, {
-          id: v4(),
-          message: `Failed to update choice: ${data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-      })
-
-      const temp: Table = {
-        ...props.table,
-        columns: props.table.columns.map((parentColumn) => (parentColumn.id === column.id ? ({
-          ...parentColumn,
-          choices: updatedChoices,
-          values: parentColumn.values.map((value) => (value === previousChoice ? data.choice : value))
-        }) : parentColumn))
-      }
-
-      const updateGroup = (prev: TableGroup[]) => prev.map((group) => group.id === temp.tableGroupId ? ({
-        ...group,
-        tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
-      }) : group)
-
-      props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-      props.parentUpdateTableGroups((prev) => updateGroup(prev))
-      props.parentUpdateTable(temp)
-      props.parentUpdateTableColumns(temp.columns)
-    }
-  }
-
+  })
 
   //user means that the user has been created and columns have been linked
   //temp means that invite user has been called and columns have been linked
@@ -597,16 +384,16 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           columns: data.columns
         }) : prev)
         props.parentUpdateTableColumns(data.columns)
-        props.setTableNotifaction(prev => [...prev, {
+        props.setTableNotification(prev => [...prev, {
           id: notificationId,
           message: `Successfully linked user: ${data.user.email}`,
           createdAt: new Date(),
           status: 'Success' as 'Success',
-          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+          autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
         }])
       }
       else {
-        props.setTableNotifaction(prev => [...prev, {
+        props.setTableNotification(prev => [...prev, {
           id: v4(),
           message: 'Failed to link user.',
           createdAt: new Date(),
@@ -616,7 +403,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       }
     },
     onError: () => {
-      props.setTableNotifaction(prev => [...prev, {
+      props.setTableNotification(prev => [...prev, {
         id: v4(),
         message: 'Failed to link user.',
         createdAt: new Date(),
@@ -646,16 +433,16 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           columns: data.columns
         }) : prev)
         props.parentUpdateTableColumns(data.columns)
-        props.setTableNotifaction(prev => [...prev, {
+        props.setTableNotification(prev => [...prev, {
           id: notificationId,
           message: `Successfully linked participant: ${formatParticipantName(data.participant)}`,
           createdAt: new Date(),
           status: 'Success' as 'Success',
-          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+          autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
         }])
       }
       else {
-        props.setTableNotifaction(prev => [...prev, {
+        props.setTableNotification(prev => [...prev, {
           id: v4(),
           message: 'Failed to link participant.',
           createdAt: new Date(),
@@ -665,7 +452,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       }
     },
     onError: () => {
-      props.setTableNotifaction(prev => [...prev, {
+      props.setTableNotification(prev => [...prev, {
         id: v4(),
         message: 'Failed to link participant.',
         createdAt: new Date(),
@@ -698,16 +485,16 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
         props.parentUpdateTableColumns(data.columns)
         setLinkedParticipantFields([])
         setLinkedUserFields(undefined)
-        props.setTableNotifaction(prev => [...prev, {
+        props.setTableNotification(prev => [...prev, {
           id: notificationId,
           message: `Successfully unlinked user: ${data.user.email}`,
           createdAt: new Date(),
           status: 'Success' as 'Success',
-          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+          autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
         }])
       }
       else {
-        props.setTableNotifaction(prev => [...prev, {
+        props.setTableNotification(prev => [...prev, {
           id: v4(),
           message: 'Failed to unlink user.',
           createdAt: new Date(),
@@ -717,7 +504,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       }
     },
     onError: () => {
-      props.setTableNotifaction(prev => [...prev, {
+      props.setTableNotification(prev => [...prev, {
         id: v4(),
         message: 'Failed to unlink user.',
         createdAt: new Date(),
@@ -732,15 +519,15 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     onSuccess: (data) => {
       if(data.success) {
         const notificationId = v4()
-        props.setTableNotifaction(prev => [...prev, {
+        props.setTableNotification(prev => [...prev, {
           id: notificationId,
           message: `Successfully sent invite to user: ${data.email}`,
           createdAt: new Date(),
           status: 'Success' as 'Success',
-          autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+          autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
         }])
       } else {
-        props.setTableNotifaction(prev => [...prev, {
+        props.setTableNotification(prev => [...prev, {
           id: v4(),
           message: 'Failed to invite user.',
           createdAt: new Date(),
@@ -750,7 +537,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
       }
     },
     onError: () => {
-      props.setTableNotifaction(prev => [...prev, {
+      props.setTableNotification(prev => [...prev, {
         id: v4(),
         message: 'Failed to invite user.',
         createdAt: new Date(),
@@ -871,7 +658,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   rowIndex={props.i}
                   updateValue={(text) => updateValue(id, text, props.i)}
                   column={props.table.columns.find((col) => col.id === id)!}
-                  modifyChoice={(choice, color, action, customColor, colorId) => updateChoices(id, { choice: choice, color: color, customColor: customColor, id: colorId }, action,)}
+                  modifyChoice={(choice, color, action, customColor, colorId) => updateTableChoices(id, { choice: choice, color: color, customColor: customColor, id: colorId }, action,)}
                 />
               )
             }
@@ -948,7 +735,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   rowIndex={props.i}
                   NotificationService={props.NotificationService}
                   notifications={props.notifications}
-                  setTableNotification={props.setTableNotifaction}
+                  setTableNotification={props.setTableNotification}
                   setNotifications={props.setNotifications}
                   updateValue={(value) => updateValue(id, value, props.i)}
                   linkedParticipantId={(() => {
@@ -1179,12 +966,12 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     onClick={() => {
                       const notificationId = v4()
                       navigator.clipboard.writeText(props.baseLink + `?token=${detectedUser.temporary}`)
-                      props.setTableNotifaction((prev) => [...prev, {
+                      props.setTableNotification((prev) => [...prev, {
                         id: notificationId,
                         message: 'Link copied successfully',
                         status: 'Success',
                         createdAt: new Date(),
-                        autoClose: setTimeout(() => props.setTableNotifaction(prev => prev.filter((notification) => notification.id !== notificationId)))
+                        autoClose: setTimeout(() => props.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)))
                       }])
                     }}
                   >Copy Invite Link
