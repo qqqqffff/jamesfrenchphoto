@@ -237,7 +237,7 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               parentUpdateTableGroups={props.parentUpdateTableGroups}
               parentUpdateTable={props.parentUpdateTable}
               parentUpdateTableColumns={props.parentUpdateTableColumns} 
-              setTableNotifaction={props.setTableNotifications}            
+              setTableNotification={props.setTableNotifications}            
             />
           )
         })
