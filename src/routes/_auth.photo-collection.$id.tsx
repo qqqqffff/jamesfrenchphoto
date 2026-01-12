@@ -48,7 +48,6 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
         !context.auth.admin
       )
     ) throw redirect({ to: destination })
-    console.log('det')
 
     const coverUrl = (await context.queryClient.ensureQueryData(
       collectionService.getPathQueryOptions(collection.coverPath ?? '')
@@ -172,10 +171,10 @@ function RouteComponent() {
           collectionRef={collectionRef}
           coverRef={coverPhotoRef}
         />
-        <div className='flex flex-row items-center px-8 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
+        <div className='flex flex-row items-center px-6 sticky gap-4 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
           {dimensions.width > 800 && (
-            <div className='flex flex-col items-start font-bodoni'>
-              <span className='font-bold text-lg whitespace-nowrap'>James French Photograpahy</span>
+            <div className='flex flex-col items-start font-bodoni border rounded-lg px-2 py-1'>
+              <span className='font-bold whitespace-nowrap'>James French Photograpahy</span>
               <span className='italic text-sm'>{collection.name}</span>
               <span className='text-sm'>{set.name}</span>
             </div>

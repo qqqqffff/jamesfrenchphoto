@@ -1,4 +1,4 @@
-import { Dispatch, FC, SetStateAction, useRef, useState } from "react"
+import { Dispatch, FC, SetStateAction, useEffect, useRef, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet, ShareTemplate } from "../../../types"
 import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
@@ -42,6 +42,7 @@ import { CollectionSidePanelButton } from "./CollectionSidePanelButton"
 import { v4 } from 'uuid'
 import { PhotoPathService } from "../../../services/photoPathService"
 import { PhotoSetService } from "../../../services/photoSetService"
+import { Cover } from "../../collection/Cover"
 
 interface PhotoCollectionPanelProps {
   CollectionService: CollectionService,
@@ -82,10 +83,22 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   const [selectedTemplate, setSelectedTemplate] = useState<ShareTemplate>()
   const [deleteCollectionVisible, setDeleteCollectionVisible] = useState(false)
   const fileUpload = useRef<File | null>(null)
+  const collectionTitleRef = useRef<HTMLParagraphElement | null>(null)
   const [uploadCoverPhotoVisible, setUploadCoverPhotoVisible] = useState(false)
   const [expandTitle, setExpandTitle] = useState(false)
+  const [imagePreviewSRC, setImagePreviewSRC] = useState<string>()
 
   const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share' | 'users' | 'cover'>(parentActiveConsole)
+
+  useEffect(() => {
+    if(fileUpload.current !== null) {
+      fileUpload.current.arrayBuffer().then((arrayBuffer) => {
+        if(fileUpload.current) {
+          setImagePreviewSRC(URL.createObjectURL(new Blob([arrayBuffer], { type: fileUpload.current.type})))
+        }
+      })
+    }
+  }, [fileUpload.current])
 
   const navigate = useNavigate()
 
@@ -96,8 +109,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   const updateCollection = useMutation({
     mutationFn: (params: UpdateCollectionParams) => CollectionService.updateCollectionMutation(params)
   })
-  
-  //TODO: parent state management
 
   const deleteCollection = useMutation({
     mutationFn: (params: DeleteCollectionParams) => CollectionService.deleteCollectionMutation(params)
@@ -115,6 +126,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     mutationFn: (params: DeleteShareTemplateParams) => ShareService.deleteShareTemplateMutation(params)
   })
 
+  //TODO: move me to parent
   const watermarkPaths = useQueries({
     queries: watermarkObjects.map((watermark) => {
       return CollectionService.getPathQueryOptions(watermark.path, watermark.id)
@@ -231,10 +243,10 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     return publishable
   })()
 
-  const confirmationBody = coverPath?.data ? (
-    `This action will <b>Replace</b> the previous cover for this collection with the selected file.\nPress continue or cancel to proceed.`
+  const confirmationBody = coverPath?.data && coverPath.data[1] !== '' ? (
+    `This action will <b>REPLACE</b> the previous cover for this collection with the selected file.\nPress continue or cancel to proceed.\nPreview Below:`
   ) : (
-    `This action will <b>Set</b> the cover for this collection to the selected file.\nPress continue or cancel to proceed.`
+    `This action will <b>SET</b> the cover for this collection to the selected file.\nPress continue or cancel to proceed.\nPreview Below:`
   )
 
   const wrapPublishableItem = (): JSX.Element => {
@@ -338,6 +350,8 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     return item
   }
 
+  console.log(uploadCoverPhotoVisible)
+
   return (
     <>
       <CreateCollectionModal
@@ -382,12 +396,14 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
         open={deleteCollectionVisible}
       />
       <ConfirmationModal 
-        title={coverPath?.data ? 'Replace Collection Cover' : 'Set Collection Cover'}
+        title={coverPath?.data !== undefined && coverPath.data[1] !== '' ? 'Replace Collection Cover' : 'Set Collection Cover'}
         body={confirmationBody}
         denyText="Cancel"
         confirmText="Continue"
         confirmAction={() => {
           setUploadCoverPhotoVisible(false)
+          setImagePreviewSRC(undefined)
+          fileUpload.current = null
           if(fileUpload.current){
             if(coverPath?.data){
               deleteCover.mutate({
@@ -402,17 +418,29 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
             }
           }
         }}
-        onClose={() => setUploadCoverPhotoVisible(false)}
+        onClose={() => {
+          setUploadCoverPhotoVisible(false)
+          setImagePreviewSRC(undefined)
+          fileUpload.current = null
+        }}
         open={uploadCoverPhotoVisible}
+        children={fileUpload.current && imagePreviewSRC !== undefined ? (
+          <Cover 
+            collection={collection}
+            path={imagePreviewSRC}
+            style={{
+              maxHeight: 'fit-content'
+            }}
+          />
+        ) : undefined}
       />
       <div className="flex flex-row mx-4 mt-4 gap-4">
         <div className="items-center border border-gray-400 flex flex-col gap-2 rounded-2xl p-4 max-w-[400px] min-w-[400px]">
           <CollectionThumbnail 
             CollectionService={CollectionService}
-            collectionId={collection.id}
+            collection={collection}
             cover={coverPath}
             allowUpload
-            onClick={() => {}}
             contentChildren={(
               <div className='flex flex-row justify-between w-full'>
                 <div className="flex flex-col gap-1 justify-start">
@@ -425,8 +453,15 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                       )}
                     >
                       <p 
-                        onMouseEnter={() => setExpandTitle(true)}
-                        onMouseLeave={() => setExpandTitle(false)}
+                        ref={collectionTitleRef}
+                        onMouseEnter={() => {
+                          if(collectionTitleRef.current && collectionTitleRef.current.clientWidth >= 220) {
+                            setExpandTitle(true)
+                          }
+                        }}
+                        onMouseLeave={() => {
+                          if(expandTitle) setExpandTitle(false)
+                        }}
                         className={`
                           max-w-[220px] hover:cursor-pointer
                           ${expandTitle ? '' : 'truncate'}
@@ -499,7 +534,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
             updateParentCollections={updateParentCollections}
             updatePublishStatus={publishCollection}
           />
-          <div className="grid grid-cols-3 w-full place-items-center border border-gray-400 rounded-lg py-0.5">
+          <div className="grid grid-cols-3 w-full place-items-center border border-gray-400 rounded-lg py-1 px-2">
             <CollectionSidePanelButton
               console="sets"
               activeConsole={activeConsole} 
@@ -565,6 +600,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                 }
               }}
               title="Cover"
+              disable={coverPath?.data === undefined || coverPath.data[1] === ''}
             />
           </div>
           { activeConsole === 'sets' ? (

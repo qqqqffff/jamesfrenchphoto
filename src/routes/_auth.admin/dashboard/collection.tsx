@@ -278,7 +278,7 @@ function RouteComponent() {
                         return (
                           <CollectionThumbnail 
                             CollectionService={data.CollectionService}
-                            collectionId={collection.id}
+                            collection={collection}
                             cover={path}
                             onClick={() => {
                               navigate({to: '.', search: { collection: collection.id }})

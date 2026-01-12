@@ -65,7 +65,11 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('collectionId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get', 'list'])]),
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.authenticated('userPools').to(['get', 'list']), 
+      allow.guest().to(['get', 'list'])]
+    ),
   Watermark: a
     .model({
       id: a.id().required(),
@@ -88,7 +92,11 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index('setId').sortKeys(['order']),
     ])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['read'])]),
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.authenticated('userPools').to(['get', 'list']), 
+      allow.guest().to(['get', 'list'])
+    ]),
   UserFavorites: a
     .model({
       id: a.id().required(),
@@ -102,13 +110,17 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index('participantId').sortKeys(['collectionId']),
     ])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'delete', 'create', 'list']), allow.guest().to(['get', 'delete', 'create', 'list'])]),
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.authenticated('userPools').to(['get', 'delete', 'create', 'list']), 
+      allow.guest().to(['get', 'delete', 'create', 'list'])
+    ]),
   UserTag: a
     .model({
       id: a.id().required(),
       name: a.string().required(),
       color: a.string(),
-      collectionTags: a.hasMany('CollectionTag', 'tagId'), //TODO: improve authorization
+      collectionTags: a.hasMany('CollectionTag', 'tagId'),
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
       packages: a.hasOne('Package', 'tagId'),
       notifications: a.hasMany('NotificationUserTags', 'tagId'),
@@ -116,7 +128,11 @@ const schema = a.schema({
       childTags: a.hasMany('PackageParentTag', 'tagId')
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get', 'list'])]),
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.authenticated('userPools').to(['get', 'list']), 
+      allow.guest().to(['get', 'list'])
+    ]),
   CollectionTag: a
     .model({
       id: a.id().required(),
@@ -538,7 +554,7 @@ const schema = a.schema({
     })
     .handler(a.handler.function(repairPaths))
     .authorization((allow) => [allow.group('ADMINS')])
-    .returns(a.string()),
+    .returns(a.json()),
   DeletePublicPhoto: a
     .query()
     .arguments({
@@ -576,7 +592,7 @@ const schema = a.schema({
   allow.resource(registerUser),
   allow.resource(registerTimeslot),
   allow.resource(notifyUser),
-  allow.resource(sendTimeslotConfirmation)
+  allow.resource(sendTimeslotConfirmation),
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

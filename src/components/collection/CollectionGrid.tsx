@@ -35,10 +35,10 @@ export const CollectionGrid = (props: CollectionGridProps) => {
       3 : 1
     )
 
-  const bottomObserverRef = useRef<IntersectionObserver | null>(null)
-  const topObserverRef = useRef<IntersectionObserver | null>(null)
-  const unrenderedObserverRef = useRef<IntersectionObserver | null>(null)
-  const currentOffsetIndex = useRef<number | undefined>()
+  // const bottomObserverRef = useRef<IntersectionObserver | null>(null)
+  // const topObserverRef = useRef<IntersectionObserver | null>(null)
+  // const unrenderedObserverRef = useRef<IntersectionObserver | null>(null)
+  // const currentOffsetIndex = useRef<number | undefined>()
   
   const pathsQuery = useInfiniteQuery(
     props.PhotoPathService.getInfinitePathsQueryOptions(props.set.id, {
@@ -49,7 +49,7 @@ export const CollectionGrid = (props: CollectionGridProps) => {
   )
 
   const [pictures, setPictures] = useState<PicturePath[]>(pathsQuery.data ? pathsQuery.data.pages[pathsQuery.data.pages.length - 1].memo : [])
-  const [pictureColumns, setPictureColumns] = useState<PicturePath[][]>([])
+  
   const [currentControlDisplay, setCurrentControlDisplay] = useState<string>()
   const topIndex = useRef<number>(0)
   const bottomIndex = useRef<number>(columnMultiplier * 6) //initial load 6 rows
@@ -63,39 +63,39 @@ export const CollectionGrid = (props: CollectionGridProps) => {
     }
   }, [pathsQuery.data])
 
-  const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): { 
-    bottom: PicturePath, 
-    top?: PicturePath
-  } => {
-    //4 rows per page * 3 pages
-    const pageMultiplier = Math.ceil(4 * 3 * columnMultiplier)
-    if(offset) {
-      //bottom index = offset + (offset + multiplier >= length ? length - offset - 1 : multiplier)
-      //if offset + multiplier >= length set to length otherwise add multiplier to offset
-      bottomIndex.current = offset + ((offset + pageMultiplier) >= allItems.length ? allItems.length - offset - 1 : pageMultiplier)
-      //top index = offset - (offset - multiplier > 0 ? multiplier : offset)
-      //if offset - multiplier < 0 then set to 0 otherwise subtract mutiplier from offset
-      topIndex.current = offset - ((offset - pageMultiplier) < 0 ? offset : pageMultiplier)
-      //halfway until the bottom/top
-      const halfMultiplier = (pageMultiplier - (columnMultiplier * 2))
-      const bottomMidpoint = offset + ((offset + halfMultiplier) >= allItems.length ? allItems.length - offset - 1 : halfMultiplier)
-      const topMidpoint = offset - ((offset - halfMultiplier) < 0 ? offset : halfMultiplier)
-      return {
-        bottom: allItems[bottomMidpoint],
-        top: allItems[topMidpoint]
-      }
-    }
-    //if no offset
-    bottomIndex.current = allItems.length - 1
-    topIndex.current = allItems.length - ((allItems.length - pageMultiplier) < 0 ? allItems.length : pageMultiplier)
+  // const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): { 
+  //   bottom: PicturePath, 
+  //   top?: PicturePath
+  // } => {
+  //   //4 rows per page * 3 pages
+  //   const pageMultiplier = Math.ceil(4 * 3 * columnMultiplier)
+  //   if(offset) {
+  //     //bottom index = offset + (offset + multiplier >= length ? length - offset - 1 : multiplier)
+  //     //if offset + multiplier >= length set to length otherwise add multiplier to offset
+  //     bottomIndex.current = offset + ((offset + pageMultiplier) >= allItems.length ? allItems.length - offset - 1 : pageMultiplier)
+  //     //top index = offset - (offset - multiplier > 0 ? multiplier : offset)
+  //     //if offset - multiplier < 0 then set to 0 otherwise subtract mutiplier from offset
+  //     topIndex.current = offset - ((offset - pageMultiplier) < 0 ? offset : pageMultiplier)
+  //     //halfway until the bottom/top
+  //     const halfMultiplier = (pageMultiplier - (columnMultiplier * 2))
+  //     const bottomMidpoint = offset + ((offset + halfMultiplier) >= allItems.length ? allItems.length - offset - 1 : halfMultiplier)
+  //     const topMidpoint = offset - ((offset - halfMultiplier) < 0 ? offset : halfMultiplier)
+  //     return {
+  //       bottom: allItems[bottomMidpoint],
+  //       top: allItems[topMidpoint]
+  //     }
+  //   }
+  //   //if no offset
+  //   bottomIndex.current = allItems.length - 1
+  //   topIndex.current = allItems.length - ((allItems.length - pageMultiplier) < 0 ? allItems.length : pageMultiplier)
 
-    const bottomMidpoint = allItems.length - (allItems.length / 4)
-    const topMidpoint = allItems.length / 4
-    return {
-      bottom: allItems[bottomMidpoint],
-      top: allItems[topMidpoint]
-    }
-  }, [])
+  //   const bottomMidpoint = allItems.length - (allItems.length / 4)
+  //   const topMidpoint = allItems.length / 4
+  //   return {
+  //     bottom: allItems[bottomMidpoint],
+  //     top: allItems[topMidpoint]
+  //   }
+  // }, [])
 
   const a = Object.fromEntries(useQueries({
     queries: pictures
@@ -111,114 +111,114 @@ export const CollectionGrid = (props: CollectionGridProps) => {
     ])
   )
 
-  useEffect(() => {
-    if(pictures.length === 0) return
+  // useEffect(() => {
+  //   if(pictures.length === 0) return
 
-    if(!bottomObserverRef.current) {
-      bottomObserverRef.current = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if(entry.isIntersecting &&
-            currentOffsetIndex.current &&
-            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) > pictures.length
-          ) {
-            currentOffsetIndex.current = undefined
-          }
-          else if(
-            entry.isIntersecting &&
-            currentOffsetIndex.current &&
-            (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) < pictures.length
-          ) {
-            const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-            currentOffsetIndex.current = foundIndex
-          }
-          if(
-            entry.isIntersecting && 
-            pathsQuery.hasNextPage && 
-            !pathsQuery.isFetchingNextPage &&
-            currentOffsetIndex.current === undefined
-          ) {
-            pathsQuery.fetchNextPage()
-          }
-        })
-      }, {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-      })
-    }
+  //   if(!bottomObserverRef.current) {
+  //     bottomObserverRef.current = new IntersectionObserver((entries) => {
+  //       entries.forEach(entry => {
+  //         if(entry.isIntersecting &&
+  //           currentOffsetIndex.current &&
+  //           (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) > pictures.length
+  //         ) {
+  //           currentOffsetIndex.current = undefined
+  //         }
+  //         else if(
+  //           entry.isIntersecting &&
+  //           currentOffsetIndex.current &&
+  //           (currentOffsetIndex.current + (2 * 3 * columnMultiplier * 1.5 - columnMultiplier)) < pictures.length
+  //         ) {
+  //           const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+  //           currentOffsetIndex.current = foundIndex
+  //         }
+  //         if(
+  //           entry.isIntersecting && 
+  //           pathsQuery.hasNextPage && 
+  //           !pathsQuery.isFetchingNextPage &&
+  //           currentOffsetIndex.current === undefined
+  //         ) {
+  //           pathsQuery.fetchNextPage()
+  //         }
+  //       })
+  //     }, {
+  //       root: null,
+  //       rootMargin: '0px',
+  //       threshold: 0.1
+  //     })
+  //   }
 
-    if(!unrenderedObserverRef.current) {
-      unrenderedObserverRef.current = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if(entry.isIntersecting) {
-            const pictureId = entry.target.getAttribute('data-unrendered-id')
-            const foundIndex = pictures.findIndex((path) => path.id === pictureId)
-            if(foundIndex !== -1) {
-              const pageMultiplier = Math.ceil(4 * 3 * columnMultiplier * 1.5)
-              topIndex.current = Math.max(0, foundIndex - Math.floor(pageMultiplier / 2))
-              bottomIndex.current = Math.min(pictures.length - 1, foundIndex + Math.floor(pageMultiplier / 2))
-              currentOffsetIndex.current = foundIndex
-            }
-          }
-        })
-      }, {
-        root: null,
-        rootMargin: '50px',
-        threshold: 0.1
-      })
-    }
-    if(!topObserverRef.current) {
-      topObserverRef.current = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-          if(entry.isIntersecting && foundIndex !== 0) {
-            currentOffsetIndex.current = foundIndex
-          }
-        })
-      }, {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-      })
-    }
-    const triggerReturn = getTriggerItems(pictures, currentOffsetIndex.current)
+  //   if(!unrenderedObserverRef.current) {
+  //     unrenderedObserverRef.current = new IntersectionObserver((entries) => {
+  //       entries.forEach(entry => {
+  //         if(entry.isIntersecting) {
+  //           const pictureId = entry.target.getAttribute('data-unrendered-id')
+  //           const foundIndex = pictures.findIndex((path) => path.id === pictureId)
+  //           if(foundIndex !== -1) {
+  //             const pageMultiplier = Math.ceil(4 * 3 * columnMultiplier * 1.5)
+  //             topIndex.current = Math.max(0, foundIndex - Math.floor(pageMultiplier / 2))
+  //             bottomIndex.current = Math.min(pictures.length - 1, foundIndex + Math.floor(pageMultiplier / 2))
+  //             currentOffsetIndex.current = foundIndex
+  //           }
+  //         }
+  //       })
+  //     }, {
+  //       root: null,
+  //       rootMargin: '50px',
+  //       threshold: 0.1
+  //     })
+  //   }
+  //   if(!topObserverRef.current) {
+  //     topObserverRef.current = new IntersectionObserver((entries) => {
+  //       entries.forEach(entry => {
+  //         const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+  //         if(entry.isIntersecting && foundIndex !== 0) {
+  //           currentOffsetIndex.current = foundIndex
+  //         }
+  //       })
+  //     }, {
+  //       root: null,
+  //       rootMargin: '0px',
+  //       threshold: 0.1
+  //     })
+  //   }
+  //   const triggerReturn = getTriggerItems(pictures, currentOffsetIndex.current)
 
-    const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
-    const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
+  //   const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
+  //   const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
 
-    if(Tel && topObserverRef.current && triggerReturn.top?.id) {
-      Tel.setAttribute('data-id', triggerReturn.top.id)
-      topObserverRef.current.observe(Tel)
-    }
-    if(Bel && bottomObserverRef.current) {
-      Bel.setAttribute('data-id', triggerReturn.bottom.id)
-      bottomObserverRef.current.observe(Bel)
-    }
+  //   if(Tel && topObserverRef.current && triggerReturn.top?.id) {
+  //     Tel.setAttribute('data-id', triggerReturn.top.id)
+  //     topObserverRef.current.observe(Tel)
+  //   }
+  //   if(Bel && bottomObserverRef.current) {
+  //     Bel.setAttribute('data-id', triggerReturn.bottom.id)
+  //     bottomObserverRef.current.observe(Bel)
+  //   }
 
-    return () => {
-      if(bottomObserverRef.current) {
-        bottomObserverRef.current.disconnect()
-      }
-      if(topObserverRef.current) {
-        topObserverRef.current.disconnect()
-      }
-      if(unrenderedObserverRef.current) {
-        unrenderedObserverRef.current.disconnect()
-      }
-      topObserverRef.current = null
-      bottomObserverRef.current = null
-      unrenderedObserverRef.current = null
-    }
-  }, [
-    pictures,
-    picturesRef.current,
-    currentOffsetIndex.current,
-    pathsQuery.fetchNextPage,
-    pathsQuery.hasNextPage,
-    pathsQuery.isFetchingNextPage,
-    getTriggerItems,
-    a
-  ])
+  //   return () => {
+  //     if(bottomObserverRef.current) {
+  //       bottomObserverRef.current.disconnect()
+  //     }
+  //     if(topObserverRef.current) {
+  //       topObserverRef.current.disconnect()
+  //     }
+  //     if(unrenderedObserverRef.current) {
+  //       unrenderedObserverRef.current.disconnect()
+  //     }
+  //     topObserverRef.current = null
+  //     bottomObserverRef.current = null
+  //     unrenderedObserverRef.current = null
+  //   }
+  // }, [
+  //   pictures,
+  //   picturesRef.current,
+  //   currentOffsetIndex.current,
+  //   pathsQuery.fetchNextPage,
+  //   pathsQuery.hasNextPage,
+  //   pathsQuery.isFetchingNextPage,
+  //   getTriggerItems,
+  //   a
+  // ])
 
   const setPicturesRef = useCallback((el: HTMLDivElement | null, id: string) => {
     if(el) {
@@ -247,75 +247,11 @@ export const CollectionGrid = (props: CollectionGridProps) => {
   })
 
   //if columnmultiplier changes
-  useEffect(() => {
-    if(pictureColumns.flatMap((pictures) => pictures).length > 0) {
-      setPictureColumns([])
-    }
-  }, [columnMultiplier])
-
-  //if there is some picture that is in the data list but not in the columns add it to the columns
-  const flatDisplayPictures = pictureColumns.flatMap((pictures) => pictures)
-  if(
-    !pictures
-      .some((parentPicture) => flatDisplayPictures.some((picture) => picture.id === parentPicture.id))
-  ) {
-    const newPictures = pictures
-      .filter((parentPicture) => !flatDisplayPictures.some((picture) => parentPicture.id === picture.id))
-      .sort((a, b) => a.order - b.order)
-    const columnMap = columnsRef.current
-      .filter((column) => column != null)
-      .map((column) => ({height: column.clientHeight, column: column}))
-      .sort((a, b) => Number(a.column.id) - Number(b.column.id))
-      .map((column, index) => ({ height: column.height, pictureColumn: pictureColumns[index], index: index }))
-
-    if(columnMap.length === 0) {
-      //fill columnMap
-      for(let i = 0; i < columnMultiplier; i++) {
-        columnMap.push({
-          height: 0,
-          pictureColumn: [],
-          index: i
-        })
-      }
-
-      //greedily add to smallest column
-      for(let i = 0; i < newPictures.length; i++) {
-        const shortestColumn = columnMap.reduce((prev, cur) => {
-          if(cur.height < prev.height) {
-            return cur
-          }
-          return prev
-        })
-
-        columnMap[shortestColumn.index] = {
-          ...shortestColumn,
-          height: columnMap[shortestColumn.index].height + newPictures[i].height + 4, //4px gap on bottom
-          pictureColumn: [...shortestColumn.pictureColumn, newPictures[i]]
-        }
-      }
-    }
-    else {
-      for(let i = 0; i < newPictures.length; i++) {
-        const shortestColumn = columnMap.reduce((prev, cur) => {
-          if(cur.height < prev.height) {
-            return cur
-          }
-          return prev
-        })
-
-        columnMap[shortestColumn.index] = {
-          ...shortestColumn,
-          height: columnMap[shortestColumn.index].height + newPictures[i].height + 4, //4px gap on bottom
-          pictureColumn: [...shortestColumn.pictureColumn, newPictures[i]]
-        }
-      }
-    }
-
-    setPictureColumns(columnMap
-        .sort((a, b) => a.index - b.index)
-        .map((columns) => columns.pictureColumn)
-      )
-  }
+  // useEffect(() => {
+  //   if(pictureColumns.flatMap((pictures) => pictures).length > 0) {
+  //     setPictureColumns([])
+  //   }
+  // }, [columnMultiplier])
 
   function controlsEnabled(id: string): string{
     if(id === currentControlDisplay) return 'flex'

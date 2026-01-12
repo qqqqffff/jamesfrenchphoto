@@ -17,6 +17,7 @@ interface TableListProps {
   tableGroup: TableGroup,
   tableGroups: TableGroup[]
   selectedTableGroups: TableGroup[]
+  tableSearch: string
   tableGroupSelected: boolean
   tableSelected?: string
   selectedGroupId: MutableRefObject<string | null>
@@ -201,9 +202,16 @@ export const TableList = (props: TableListProps) => {
             }}
           >
             <div className="flex flex-row items-center text-lg font-light gap-2">
-              <span>{props.tableGroup.name}</span>
+              <span className={`${
+                props.tableGroup.name.toLowerCase().includes(props.tableSearch.toLowerCase()) && 
+                props.tableSearch !== '' ? 'text-blue-500' : ''}
+              `}>{props.tableGroup.name}</span>
             </div>
-            {props.tableGroupSelected ? (
+            {props.tableGroupSelected || 
+            (
+              props.tableGroup.name.toLowerCase().includes(props.tableSearch.toLowerCase()) &&
+              props.tableSearch !== ''
+            ) ? (
               <HiOutlineChevronDown size={20} />
             ) : (
               <HiOutlineChevronLeft size={20} />
@@ -323,7 +331,16 @@ export const TableList = (props: TableListProps) => {
           </Dropdown>
         </div>
       )}
-      {props.tableGroupSelected && !props.tableGroup.temporary && (
+      {(
+        props.tableGroupSelected || 
+        (
+          (
+            props.tableGroup.name.toLowerCase().includes(props.tableSearch.toLowerCase()) ||
+            props.tableGroup.tables.some((table) => table.name.toLowerCase().includes(props.tableSearch.toLowerCase()))
+          ) &&
+          props.tableSearch !== ''
+        )
+      ) && !props.tableGroup.temporary && (
         <ol className="ps-10">
           {props.tableGroup.tables.length === 0 ? (
             <button
@@ -409,6 +426,10 @@ export const TableList = (props: TableListProps) => {
           ) : (
             props.tableGroup.tables
             .sort((a, b) => b.order - a.order)
+            .filter((table) => (
+              table.name.toLowerCase().includes(props.tableSearch.toLowerCase()) || 
+              props.tableGroup.name.toLowerCase().includes(props.tableSearch.toLowerCase()))
+            )
             .map((table, index) => {
               return (
                 <TableListItem 
@@ -416,6 +437,7 @@ export const TableList = (props: TableListProps) => {
                   table={table}
                   tableGroup={props.tableGroup}
                   tableSelected={props.tableSelected}
+                  tableSearch={props.tableSearch}
                   parentUpdateSelectedTable={props.parentUpdateSelectedTable}
                   parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
                   parentUpdateTableGroups={props.parentUpdateTableGroups}

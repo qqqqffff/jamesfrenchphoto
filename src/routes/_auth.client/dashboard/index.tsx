@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Package, Timeslot, UserTag } from '../../../types'
+import { Notification, Package, Timeslot, UserTag } from '../../../types'
 import { Alert, Badge } from 'flowbite-react'
 import useWindowDimensions from '../../../hooks/windowDimensions'
 import { useAuth } from '../../../auth'
@@ -79,9 +79,6 @@ function RouteComponent() {
     mutationFn: (params: RegisterTimeslotMutationParams) => data.TimeslotService.registerTimeslotMutation(params)
   })
 
-  console.log(tags.map((tag) => !(tag.timeslots ?? []).some((tagTimeslot) => registeredTimeslots.some((timeslot) => timeslot.id === tagTimeslot.id))), registrationAvailable)
-
-
   return (
     <>
       <div className='flex flex-col w-full items-center justify-center mt-4 relative'>
@@ -109,6 +106,12 @@ function RouteComponent() {
               .filter((notification) => 
                 !notification.expiration || 
                 currentDate.getTime() < new Date(notification.expiration).getTime())
+              .reduce((prev, cur) => {
+                if(!prev.some((notification) => notification.id === cur.id)) {
+                  prev.push(cur)
+                }
+                return prev
+              }, [] as Notification[])
               .map((notification, index) => {
                 return (
                   <Alert color="gray" key={index} className='w-full items-center text-lg border'>
@@ -126,7 +129,7 @@ function RouteComponent() {
                   if(a.timeslotAvailable && b.timeslotAvailable) return 0
                   if(!a.timeslotAvailable && b.timeslotAvailable) return -1
                   return 1
-                }).map((registration) => {
+                }).map((registration, index) => {
                   const foundTimeslot = (registration.tag.timeslots ?? []).find((timeslot) => registeredTimeslots.some((registeredTimeslot) => registeredTimeslot.id === timeslot.id))
                   const mappedTimeslot: Timeslot | undefined = foundTimeslot ? {
                     ...foundTimeslot,
@@ -135,7 +138,7 @@ function RouteComponent() {
                   return (
                     mappedTimeslot !== undefined 
                   ? (
-                    <div className={`flex flex-row items-center gap-1`}>
+                    <div className={`flex flex-row items-center gap-1`} key={index}>
                       <span>Registration for</span>
                       <span className={`text-${registration.tag.color ?? 'black'} underline`}>{registration.tag.name}:</span>
                       <button
@@ -212,7 +215,7 @@ function RouteComponent() {
                   return (
                     <CollectionThumbnail 
                       CollectionService={data.CollectionService}
-                      collectionId={collection.id} 
+                      collection={collection} 
                       cover={coverPath}
                       key={index} 
                       onClick={() => {

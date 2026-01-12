@@ -714,7 +714,7 @@ export class CollectionService {
 
     if(repairPathsResponse.data) {
       try {
-        const returnResponse = JSON.parse(repairPathsResponse.data) as 
+        const returnResponse = JSON.parse(repairPathsResponse.data.toString()) as 
         {
           paths: PicturePath[],
           responses: {

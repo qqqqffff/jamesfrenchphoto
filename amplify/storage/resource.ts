@@ -11,7 +11,7 @@ export const storage = defineStorage({
             allow.groups(['ADMINS']).to(['read', 'write', 'delete']),
             allow.groups(['USERS']).to(['read']),
             allow.resource(downloadImages).to(['read']),
-            allow.resource(repairPaths).to(['list']),
+            allow.resource(repairPaths).to(['list', 'get']),
             allow.guest.to(['read']),
         ],
         'photo-collections/covers/*': [

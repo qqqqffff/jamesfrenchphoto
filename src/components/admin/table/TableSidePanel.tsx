@@ -11,6 +11,8 @@ import { TableList } from "./TableList"
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { isTableGroupData, isTableListData } from "./TableListData"
 import { tableItemOnDrop } from "../../../functions/tableFunctions"
+import { TextInput } from "flowbite-react"
+import { textInputTheme } from "../../../utils"
 
 interface TableSidePanelParams {
   TableService: TableService,
@@ -28,6 +30,7 @@ interface TableSidePanelParams {
 export const TableSidePanel = (props: TableSidePanelParams) => {
   const selectedGroupId = useRef<string | null>(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
+  const [tableSearch, setTableSearch] = useState<string>('')
 
   useEffect(() => {
     return monitorForElements({
@@ -86,6 +89,13 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
   const createTable = useMutation({
     mutationFn: (params: CreateTableParams) => props.TableService.createTableMutation(params),
   })
+
+  const filteredTableGroups = props.tableGroups
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .filter((group) => (
+      group.name.toLowerCase().includes(tableSearch.toLowerCase()) || 
+      group.tables.some((table) => table.name.toLowerCase().includes(tableSearch.toLowerCase())))
+    )
 
   return (
     <>
@@ -157,7 +167,7 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
         </div>
         {!props.sidePanelExpanded && (
           <button 
-            className="mt-4"
+            className="mt-4 hover:text-gray-500 p-1"
             onClick={() => {
               props.setSidePanelExpanded(true)
             }}
@@ -167,35 +177,59 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
         )}
         {props.sidePanelExpanded && (
           <div className="flex flex-col w-full">
+            <div className="flex flex-row w-full px-6">
+              <TextInput 
+                theme={textInputTheme} 
+                sizing="sm" 
+                className="w-full max-w-[400px] place-self-center" 
+                placeholder="Search"
+                onChange={(event) => {
+                  setTableSearch(event.target.value)
+                }}
+                value={tableSearch}
+              />
+            </div>
           {props.tableGroupsQuery.isLoading ? (
             <span className="flex flex-row text-start gap-1 italic font-light ms-4">
               <span>Loading</span>
               <Loading />
             </span>
           ) : (
-            props.tableGroups
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .map((group, index) => {
-              const selected = props.selectedTableGroups.some((selectedGroup) => group.id === selectedGroup.id)
-              return (
-                <TableList 
-                  key={index} 
-                  tableGroup={group}
-                  tableGroups={props.tableGroups}
-                  selectedTableGroups={props.selectedTableGroups}
-                  tableGroupSelected={selected}
-                  tableSelected={props.selectedTable?.id}
-                  selectedGroupId={selectedGroupId}
-                  parentUpdateSelectedTable={props.parentUpdateSelectedTable}
-                  parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
-                  parentUpdateTableGroups={props.parentUpdateTableGroups}
-                  setDeleteConfirmation={setDeleteConfirmation}
-                  createTable={createTable}
-                  createTableGroup={createTableGroup}
-                  updateTableGroup={updateTableGroup}
-                />
+            filteredTableGroups.length > 0 ? (
+              filteredTableGroups
+              .map((group, index) => {
+                const selected = props.selectedTableGroups.some((selectedGroup) => group.id === selectedGroup.id)
+                return (
+                  <TableList 
+                    key={index} 
+                    tableGroup={group}
+                    tableGroups={props.tableGroups}
+                    selectedTableGroups={props.selectedTableGroups}
+                    tableSearch={tableSearch}
+                    tableGroupSelected={selected}
+                    tableSelected={props.selectedTable?.id}
+                    selectedGroupId={selectedGroupId}
+                    parentUpdateSelectedTable={props.parentUpdateSelectedTable}
+                    parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
+                    parentUpdateTableGroups={props.parentUpdateTableGroups}
+                    setDeleteConfirmation={setDeleteConfirmation}
+                    createTable={createTable}
+                    createTableGroup={createTableGroup}
+                    updateTableGroup={updateTableGroup}
+                  />
+                )
+              })
+            ) : (
+              tableSearch === '' ? (
+                <span className="flex flex-row text-start gap-1 italic font-light ms-4">
+                  <span>No Table Groups</span>
+                </span>
+              ) : (
+                <span className="flex flex-row text-start gap-1 italic font-light ms-4">
+                  <span>No Results</span>
+                </span>
               )
-            })
+            )
           )}
           </div>
         )}

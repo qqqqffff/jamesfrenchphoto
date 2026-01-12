@@ -18,6 +18,7 @@ interface TableListItemProps {
   table: Table,
   tableGroup: TableGroup,
   tableSelected?: string,
+  tableSearch: string,
   parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
@@ -208,7 +209,7 @@ export const TableListItem = (props: TableListItemProps) => {
           }}
           className={`
             text-sm font-light border w-full hover:text-gray-500 hover:cursor-pointer rounded-md px-6 py-0.5 flex flex-row items-center
-            ${stateStyles[tableState.type] ?? ''}
+            ${stateStyles[tableState.type] ?? ''} ${props.tableSearch !== '' ? 'text-blue-500' : ''}
             ${selected ? 'border-gray-800 bg-gray-100 hover:bg-gray-200 hover:border-gray-600' : 'hover:border-gray-200 border-transparent'}
           `}
         >

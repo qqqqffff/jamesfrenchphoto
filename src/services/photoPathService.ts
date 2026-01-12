@@ -64,11 +64,12 @@ interface GetInfinitePathsOptions {
   maxWindow?: number
 }
 async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePathsData, setId?: string, options?: GetInfinitePathsOptions): Promise<GetInfinitePathsData> {
+  console.log('infinite api call')
   if(!setId) return initial;
 
   //TODO: conditional checking if the previous exists in the memo and fetch only if it doesnt
-  const response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder(
-    { setId: setId }, 
+  const response = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder( 
+    { setId: setId },
     {
       sortDirection: 'ASC',
       limit: options?.maxItems ?? 12,
@@ -76,6 +77,8 @@ async function getInfinitePaths(client: V6Client<Schema>, initial: GetInfinitePa
       authMode: options?.unauthenticated ? 'identityPool' : 'userPool'
     }
   )
+
+  console.log(response.data.map((data) => data))
 
   const newPaths: PicturePath[] = []
 

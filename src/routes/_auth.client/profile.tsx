@@ -144,10 +144,12 @@ function RouteComponent() {
       <div className="flex flex-col my-4 w-full gap-4 justify-center items-center font-main">
         <div className="flex flex-row gap-4 items-center">
           <Dropdown color="light" className="" label={dropdownText}>
-            <Dropdown.Item disabled onClick={() => {
-              setActiveParticipant(undefined)
-              setCreateParticipantFormVisible(false)
-            }}>
+            <Dropdown.Item 
+              onClick={() => {
+                setActiveParticipant(undefined)
+                setCreateParticipantFormVisible(false)
+              }}
+            >
               {`Parent: ${userStorage?.attributes.given_name}, ${userStorage?.attributes.family_name}`}
             </Dropdown.Item>
             {user?.participant.map((participant, index) => {
@@ -159,13 +161,6 @@ function RouteComponent() {
                 }}>{`Participant: ${participantFirstName}, ${participant.lastName}`}</Dropdown.Item>
               )
             })}
-            <Dropdown.Item className="border-t" 
-              disabled={user !== null && user.participant.length >= 5}
-              onClick={() => {
-                setActiveParticipant(undefined)
-                setCreateParticipantFormVisible(true)
-              }}
-            >{user !== null && user.participant.length >= 5 ? 'Maximum Participants Created' : 'Add Participant'}</Dropdown.Item>
           </Dropdown>
         </div>
         <ContentRenderer />
