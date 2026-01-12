@@ -11,11 +11,29 @@ interface GetAllTableGroupsOptions {
   metrics?: boolean
 }
 async function getAllTableGroups(client: V6Client<Schema>, options?: GetAllTableGroupsOptions){
-  //TODO: implement nexting/convert me to infinite
-  const mappedGroups: TableGroup[] = await Promise.all((await client.models.TableGroup.list()).data.map(async (group) => {
-    const tables: Table[] = (await group.tables()).data.map((table) => {
+  //TODO: convert me to infinite
+  let tableGroupsResponse = await client.models.TableGroup.list()
+  const tableGroupData = tableGroupsResponse.data
+  while(tableGroupsResponse.nextToken) {
+    tableGroupsResponse = await client.models.TableGroup.list({ nextToken: tableGroupsResponse.nextToken })
+    tableGroupData.push(...tableGroupsResponse.data)
+  }
+
+
+  const mappedGroups: TableGroup[] = await Promise.all(tableGroupData.map(async (group) => {
+    let tablesResponse = await group.tables()
+    const tablesData = tablesResponse.data
+    while(tablesResponse.nextToken) {
+      tablesResponse = await group.tables({ nextToken: tablesResponse.nextToken })
+      tablesData.push(...tablesResponse.data)
+    }
+
+    const tables: Table[] = tablesData
+    .sort((a, b) => a.order - b.order)
+    .map((table, index) => {
       const mappedTable: Table = {
         ...table,
+        order: index,
         columns: [],
       }
       return mappedTable
@@ -222,6 +240,7 @@ export interface UploadColumnFileParams {
 
 export interface ReorderTableGroupParams {
   tables: Table[],
+  originalTables: Table[],
   options?: {
     logging?: boolean
   }
@@ -548,10 +567,16 @@ export class TableService {
 
   async reorderTableGroupMutation(params: ReorderTableGroupParams) {
     const updateTableGroup = await Promise.all(params.tables.map((table) => {
-      return this.client.models.Table.update({
+      const originalTable = params.originalTables.find((oTable) => oTable.id === table.id)
+
+      return originalTable === undefined || (
+        originalTable.order !== table.order ||
+        originalTable.tableGroupId !== table.tableGroupId
+      ) ? this.client.models.Table.update({
         id: table.id,
         order: table.order,
-      })
+        tableGroupId: table.tableGroupId
+      }) : null
     }))
 
     if(params.options?.logging) console.log(updateTableGroup)

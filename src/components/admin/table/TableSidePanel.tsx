@@ -73,7 +73,10 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
           if(sourceTableGroup.id === targetData.tableGroupId) return
 
           const updatedTargetTables: Table[] = [...foundTargetGroup.tables, foundTable]
-          const updatedSourceTables: Table[] = sourceTableGroup.tables.filter((table) => table.id !== sourceData.tableId)
+          const updatedSourceTables: Table[] = sourceTableGroup.tables
+          .filter((table) => table.id !== sourceData.tableId)
+          .sort((a, b) => a.order - b.order)
+          .map((table, index) => ({ ...table, order: index }))
 
           flushSync(() => {
             const updateGroups = (prev: TableGroup[]) => prev.map((parentGroup) => {
@@ -92,7 +95,21 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
               return parentGroup
             })
 
-            //TODO: implement api call
+            reorderTables.mutate({
+              tables: updatedTargetTables,
+              originalTables: foundTargetGroup.tables,
+              options: {
+                logging: true
+              }
+            })
+
+            reorderTables.mutate({
+              tables: updatedSourceTables,
+              originalTables: sourceTableGroup.tables,
+              options: {
+                logging: true
+              }
+            })
 
             props.parentUpdateSelectedTableGroups((prev) => updateGroups(prev))
             props.parentUpdateTableGroups((prev) => updateGroups(prev))
@@ -106,7 +123,7 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
           return
         }
 
-        if(sourceTableGroup.id !== foundTargetGroup.id) {
+        else if(sourceTableGroup.id !== foundTargetGroup.id) {
           const tables = foundTargetGroup.tables.sort((a, b) => a.order - b.order)
           const indexOfTarget = tables.findIndex((table) => table.id === targetData.tableId)
           const foundTable = sourceTableGroup.tables.find((table) => table.id === sourceData.tableId)
@@ -114,9 +131,11 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
           const closestEdgeOfTarget = extractClosestEdge(targetData)
 
           const updatedTables: Table[] = []
-          const updatedSourceTables = sourceTableGroup.tables.filter((table) => table.id !== sourceData.tableId)
+          const updatedSourceTables: Table[] = sourceTableGroup.tables
+          .filter((table) => table.id !== sourceData.tableId)
+          .sort((a, b) => a.order - b.order)
+          .map((table, index) => ({ ...table, order: index }))
 
-          //TODO: investigate bug in insertion algo
           for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
             updatedTables.push({
               ...tables[i],
@@ -125,7 +144,8 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
           }
           updatedTables.push({
             ...foundTable,
-            order: indexOfTarget
+            order: indexOfTarget,
+            tableGroupId: foundTargetGroup.id
           })
           for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < tables.length; i++) {
             updatedTables.push({
@@ -151,12 +171,21 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
               return parentGroup
             })
 
-            // reorderTables.mutate({
-            //   tables: updatedTables,
-            //   options: {
-            //     logging: true
-            //   }
-            // })
+            reorderTables.mutate({
+              tables: updatedTables,
+              originalTables: foundTargetGroup.tables,
+              options: {
+                logging: true
+              }
+            })
+
+            reorderTables.mutate({
+              tables: updatedSourceTables,
+              originalTables: sourceTableGroup.tables,
+              options: {
+                logging: true
+              }
+            })
 
             const selectedTable = tables.find((table) => table.id === props.selectedTable?.id)
             props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
@@ -171,59 +200,62 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
           return
         }
         
-        const tables = foundTargetGroup.tables.sort((a, b) => a.order - b.order)
-        const indexOfSource = tables.findIndex((table) => table.id === sourceData.tableId)
-        const indexOfTarget = tables.findIndex((table) => table.id === targetData.tableId)
+        else {
+          const tables = foundTargetGroup.tables.sort((a, b) => a.order - b.order)
+          const indexOfSource = tables.findIndex((table) => table.id === sourceData.tableId)
+          const indexOfTarget = tables.findIndex((table) => table.id === targetData.tableId)
 
-        if(indexOfSource === -1 || indexOfTarget === -1 || indexOfSource === indexOfTarget) {
-          return
-        }
+          if(indexOfSource === -1 || indexOfTarget === -1 || indexOfSource === indexOfTarget) {
+            return
+          }
 
-        const closestEdgeOfTarget = extractClosestEdge(targetData)
+          const closestEdgeOfTarget = extractClosestEdge(targetData)
 
-        const updatedTables: Table[] = []
+          const updatedTables: Table[] = []
 
-        for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
-          if(i === indexOfSource) continue
+          for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
+            if(i === indexOfSource) continue
+            updatedTables.push({
+              ...tables[i],
+              order: i
+            })
+          }
           updatedTables.push({
-            ...tables[i],
-            order: i
+            ...tables[indexOfSource],
+            order: indexOfTarget
           })
-        }
-        updatedTables.push({
-          ...tables[indexOfSource],
-          order: indexOfTarget
-        })
-        for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < tables.length; i++) {
-          if(i === indexOfSource) continue
-          updatedTables.push({
-            ...tables[i],
-            order: i
+          for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < tables.length; i++) {
+            if(i === indexOfSource) continue
+            updatedTables.push({
+              ...tables[i],
+              order: i
+            })
+          }
+
+          flushSync(() => {
+            const updateGroup = (prev: TableGroup[]) => prev.map((parentGroup) => parentGroup.id === foundTargetGroup.id ? ({
+              ...parentGroup,
+              tables: updatedTables
+            }) : parentGroup)
+
+            reorderTables.mutate({
+              tables: updatedTables,
+              originalTables: foundTargetGroup.tables,
+              options: {
+                logging: true
+              }
+            })
+
+            const selectedTable = tables.find((table) => table.id === props.selectedTable?.id)
+            props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+            props.parentUpdateTableGroups((prev) => updateGroup(prev))
+            props.parentUpdateSelectedTable((prev) => selectedTable?.id === prev?.id ? selectedTable : prev)
           })
-        }
 
-        flushSync(() => {
-          const updateGroup = (prev: TableGroup[]) => prev.map((parentGroup) => parentGroup.id === foundTargetGroup.id ? ({
-            ...parentGroup,
-            tables: updatedTables
-          }) : parentGroup)
-
-          // reorderTables.mutate({
-          //   tables: updatedTables,
-          //   options: {
-          //     logging: true
-          //   }
-          // })
-
-          const selectedTable = tables.find((table) => table.id === props.selectedTable?.id)
-          props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-          props.parentUpdateTableGroups((prev) => updateGroup(prev))
-          props.parentUpdateSelectedTable((prev) => selectedTable?.id === prev?.id ? selectedTable : prev)
-        })
-
-        const element = document.querySelector(`[data-table-list-id="${sourceData.tableId}"]`)
-        if(element instanceof HTMLElement) {
-          triggerPostMoveFlash(element)
+          const element = document.querySelector(`[data-table-list-id="${sourceData.tableId}"]`)
+          if(element instanceof HTMLElement) {
+            triggerPostMoveFlash(element)
+          }
         }
       },
     })
