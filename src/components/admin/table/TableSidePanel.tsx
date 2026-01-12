@@ -10,9 +10,7 @@ import { v4 } from 'uuid'
 import { TableList } from "./TableList"
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { isTableGroupData, isTableListData } from "./TableListData"
-import { flushSync } from "react-dom"
-import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
-import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
+import { tableItemOnDrop } from "../../../functions/tableFunctions"
 
 interface TableSidePanelParams {
   TableService: TableService,
@@ -53,210 +51,18 @@ export const TableSidePanel = (props: TableSidePanelParams) => {
           return
         }
 
-        const foundTargetGroup = isTableListData(targetData) ? 
-          props.tableGroups.find((group) => group.tables.some((table) => table.id === targetData.tableId))
-        :
-          props.tableGroups.find((group) => group.id === targetData.tableGroupId)
-
-        if(!foundTargetGroup) return
-
-        const sourceTableGroup = props.tableGroups.find((group) => group.tables.some((table) => table.id === sourceData.tableId))
-        if(!sourceTableGroup) return
-
-        if(isTableGroupData(targetData)) {
-          const foundTable = sourceTableGroup.tables.find((table) => table.id === sourceData.tableId)
-          if(!foundTable) return
-
-          foundTable.order = foundTargetGroup.tables.length
-          foundTable.tableGroupId = foundTargetGroup.id
-
-          if(sourceTableGroup.id === targetData.tableGroupId) return
-
-          const updatedTargetTables: Table[] = [...foundTargetGroup.tables, foundTable]
-          const updatedSourceTables: Table[] = sourceTableGroup.tables
-          .filter((table) => table.id !== sourceData.tableId)
-          .sort((a, b) => a.order - b.order)
-          .map((table, index) => ({ ...table, order: index }))
-
-          flushSync(() => {
-            const updateGroups = (prev: TableGroup[]) => prev.map((parentGroup) => {
-              if(parentGroup.id === foundTargetGroup.id) {
-                return {
-                  ...parentGroup,
-                  tables: updatedTargetTables
-                }
-              }
-              else if(parentGroup.id === sourceTableGroup.id) {
-                return {
-                  ...parentGroup,
-                  tables: updatedSourceTables
-                }
-              }
-              return parentGroup
-            })
-
-            reorderTables.mutate({
-              tables: updatedTargetTables,
-              originalTables: foundTargetGroup.tables,
-              options: {
-                logging: true
-              }
-            })
-
-            reorderTables.mutate({
-              tables: updatedSourceTables,
-              originalTables: sourceTableGroup.tables,
-              options: {
-                logging: true
-              }
-            })
-
-            props.parentUpdateSelectedTableGroups((prev) => updateGroups(prev))
-            props.parentUpdateTableGroups((prev) => updateGroups(prev))
-            props.parentUpdateSelectedTable((prev) => prev?.id === foundTable.id ? foundTable : prev)
-          })
-
-          const element = document.querySelector(`[data-table-list-id="${sourceData.tableId}"]`)
-          if(element instanceof HTMLElement) {
-            triggerPostMoveFlash(element)
+        tableItemOnDrop({
+          sourceData: sourceData,
+          targetData: targetData,
+          tableGroups: props.tableGroups,
+          selectedTable: props.selectedTable,
+          mutations: {
+            parentUpdateSelectedTable: props.parentUpdateSelectedTable,
+            parentUpdateTableGroups: props.parentUpdateTableGroups,
+            parentUpdateSelectedTableGroups: props.parentUpdateSelectedTableGroups,
+            reorderTables: reorderTables,
           }
-          return
-        }
-
-        else if(sourceTableGroup.id !== foundTargetGroup.id) {
-          const tables = foundTargetGroup.tables.sort((a, b) => a.order - b.order)
-          const indexOfTarget = tables.findIndex((table) => table.id === targetData.tableId)
-          const foundTable = sourceTableGroup.tables.find((table) => table.id === sourceData.tableId)
-          if(indexOfTarget === -1 || foundTable === undefined) return
-          const closestEdgeOfTarget = extractClosestEdge(targetData)
-
-          const updatedTables: Table[] = []
-          const updatedSourceTables: Table[] = sourceTableGroup.tables
-          .filter((table) => table.id !== sourceData.tableId)
-          .sort((a, b) => a.order - b.order)
-          .map((table, index) => ({ ...table, order: index }))
-
-          for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
-            updatedTables.push({
-              ...tables[i],
-              order: i
-            })
-          }
-          updatedTables.push({
-            ...foundTable,
-            order: indexOfTarget,
-            tableGroupId: foundTargetGroup.id
-          })
-          for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < tables.length; i++) {
-            updatedTables.push({
-              ...tables[i],
-              order: i
-            })
-          }
-
-          flushSync(() => {
-            const updateGroup = (prev: TableGroup[]) => prev.map((parentGroup) => {
-              if(parentGroup.id === foundTargetGroup.id) {
-                return ({
-                  ...parentGroup,
-                  tables: updatedTables
-                })
-              }
-              else if(parentGroup.id === sourceTableGroup.id) {
-                return ({
-                  ...parentGroup,
-                  tables: updatedSourceTables
-                })
-              }
-              return parentGroup
-            })
-
-            reorderTables.mutate({
-              tables: updatedTables,
-              originalTables: foundTargetGroup.tables,
-              options: {
-                logging: true
-              }
-            })
-
-            reorderTables.mutate({
-              tables: updatedSourceTables,
-              originalTables: sourceTableGroup.tables,
-              options: {
-                logging: true
-              }
-            })
-
-            const selectedTable = tables.find((table) => table.id === props.selectedTable?.id)
-            props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-            props.parentUpdateTableGroups((prev) => updateGroup(prev))
-            props.parentUpdateSelectedTable((prev) => selectedTable?.id === prev?.id ? selectedTable : prev)
-          })
-
-          const element = document.querySelector(`[data-table-list-id="${sourceData.tableId}"]`)
-          if(element instanceof HTMLElement) {
-            triggerPostMoveFlash(element)
-          }
-          return
-        }
-        
-        else {
-          const tables = foundTargetGroup.tables.sort((a, b) => a.order - b.order)
-          const indexOfSource = tables.findIndex((table) => table.id === sourceData.tableId)
-          const indexOfTarget = tables.findIndex((table) => table.id === targetData.tableId)
-
-          if(indexOfSource === -1 || indexOfTarget === -1 || indexOfSource === indexOfTarget) {
-            return
-          }
-
-          const closestEdgeOfTarget = extractClosestEdge(targetData)
-
-          const updatedTables: Table[] = []
-
-          for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
-            if(i === indexOfSource) continue
-            updatedTables.push({
-              ...tables[i],
-              order: i
-            })
-          }
-          updatedTables.push({
-            ...tables[indexOfSource],
-            order: indexOfTarget
-          })
-          for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < tables.length; i++) {
-            if(i === indexOfSource) continue
-            updatedTables.push({
-              ...tables[i],
-              order: i
-            })
-          }
-
-          flushSync(() => {
-            const updateGroup = (prev: TableGroup[]) => prev.map((parentGroup) => parentGroup.id === foundTargetGroup.id ? ({
-              ...parentGroup,
-              tables: updatedTables
-            }) : parentGroup)
-
-            reorderTables.mutate({
-              tables: updatedTables,
-              originalTables: foundTargetGroup.tables,
-              options: {
-                logging: true
-              }
-            })
-
-            const selectedTable = tables.find((table) => table.id === props.selectedTable?.id)
-            props.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-            props.parentUpdateTableGroups((prev) => updateGroup(prev))
-            props.parentUpdateSelectedTable((prev) => selectedTable?.id === prev?.id ? selectedTable : prev)
-          })
-
-          const element = document.querySelector(`[data-table-list-id="${sourceData.tableId}"]`)
-          if(element instanceof HTMLElement) {
-            triggerPostMoveFlash(element)
-          }
-        }
+        })
       },
     })
   }, [props.tableGroups])
