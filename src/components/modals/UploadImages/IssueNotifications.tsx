@@ -6,8 +6,12 @@ export interface UploadIssue {
   message: string, 
   type: 'duplicate' | 'invalid-file' | 'small-file', 
   color: DynamicStringEnumKeysOf<FlowbiteColors>,
-  id: string[],
+  id: string,
   visible: boolean
+}
+
+export enum UploadIssueType {
+  
 }
 
 export const IssueNotifications = (props: {issues: UploadIssue[], setIssues: Dispatch<SetStateAction<UploadIssue[]>>}) => {
@@ -16,6 +20,8 @@ export const IssueNotifications = (props: {issues: UploadIssue[], setIssues: Dis
       <div className="absolute z-10 w-full flex flex-col gap-2 items-center justify-center mt-2">
         {props.issues.map((issue) => {
           if(!issue.visible) return undefined
+          let message = 'Error'
+          let color = 'red'
           return (
             <Alert 
               key={issue.type}

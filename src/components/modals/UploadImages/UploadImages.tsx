@@ -36,7 +36,7 @@ async function validateFiles(
   set: PhotoSet,
   setFilesPreview: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>,
   setFilesUpload: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }>>>,
-  setUploadIssues: Dispatch<SetStateAction<UploadIssue[]>>,
+  setUploadIssues: Dispatch<SetStateAction<Map<UploadIssue['type'], UploadIssue[]>>>,
   setTotalUpload: Dispatch<SetStateAction<number>>,
   setLoadingPreviews: Dispatch<SetStateAction<boolean>>,
   logging: boolean,
@@ -76,65 +76,72 @@ async function validateFiles(
   
   //TODO: don't await all to load previews or find issues
   const previewsMap = await Promise.all(filesArray.map(async (file) => {
-    const url = URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type}))
-    const dimensions = await new Promise(
-      (resolve: (item: {width: number, height: number}) => void) => {
-        const image: HTMLImageElement = document.createElement('img')
-        image.src = url
-        image.onload = () => {
-          resolve({
-            width: image.naturalWidth, 
-            height: image.naturalHeight
+    file.arrayBuffer().then((buffer) => {
+      const url = URL.createObjectURL(new Blob([buffer], { type: file.type}))
+
+      const dimensions = new Promise(
+        (resolve: (item: {width: number, height: number}) => void) => {
+          const image: HTMLImageElement = document.createElement('img')
+          image.src = url
+          image.onload = () => {
+            resolve({
+              width: image.naturalWidth, 
+              height: image.naturalHeight
+            })
+          } 
+        }
+      ).then((dimensions) => {
+        if(dimensions.width < 600 || dimensions.height < 400){
+          const issue: UploadIssue = {
+            type: 'small-file',
+            message: 'Uploaded image(s) may be small and display poorly',
+            color: 'yellow',
+            id: [file.name],
+            visible: true
+          }
+          setUploadIssues(prev => {
+            prev.set('small-file', [...(prev.get('small-file') ?? []), issue])
+            return prev
           })
         }
-      }
-    )
+      })
 
-    if(dimensions.width < 600 || dimensions.height < 400){
-      const dimensionIssue = issues.findIndex((issue) => issue.type === 'small-file')
-      if(dimensionIssue === -1){
-        issues.push({
+
+      const duplicate = set.paths.some((path) => parsePathName(path.path) === file.name)
+
+      if(duplicate){
+        const issue: UploadIssue = {
           type: 'small-file',
           message: 'Uploaded image(s) may be small and display poorly',
           color: 'yellow',
           id: [file.name],
           visible: true
+        }
+        setUploadIssues(prev => {
+          prev.set('small-file', [...(prev.get('small-file') ?? []), issue])
+          return prev
         })
-      }
-      else {
-        issues[dimensionIssue] = {
-          ...issues[dimensionIssue],
-          id: [
-            ...issues[dimensionIssue].id,
-            file.name,
-          ]
+        const duplicateIssue = issues.findIndex((issue) => issue.type === 'duplicate')
+        if(duplicateIssue === -1){
+          issues.push({
+            type: 'duplicate',
+            message: 'Duplicate files uploaded',
+            color: 'red',
+            id: [file.name],
+            visible: true
+          })
+        }
+        else {
+          issues[duplicateIssue] = {
+            ...issues[duplicateIssue],
+            id: [
+              ...issues[duplicateIssue].id,
+              file.name
+            ]
+          }
         }
       }
-    }
-
-    const duplicate = set.paths.findIndex((path) => parsePathName(path.path) === file.name)
-
-    if(duplicate !== -1){
-      const duplicateIssue = issues.findIndex((issue) => issue.type === 'duplicate')
-      if(duplicateIssue === -1){
-        issues.push({
-          type: 'duplicate',
-          message: 'Duplicate files uploaded',
-          color: 'red',
-          id: [file.name],
-          visible: true
-        })
-      }
-      else {
-        issues[duplicateIssue] = {
-          ...issues[duplicateIssue],
-          id: [
-            ...issues[duplicateIssue].id,
-            file.name
-          ]
-        }
-      }
-    }
+    })
 
     return {
       url: url,
@@ -152,7 +159,6 @@ async function validateFiles(
     const uploads = new Map<string, { file: File, width: number, height: number }>(filesUpload)
 
     previewsMap
-      .sort((a, b) => a.file.name.localeCompare(b.file.name))
       .forEach((preview) => {
         previews.set(preview.url, { file: preview.file, width: preview.width, height: preview.height })
         uploads.set(preview.file.name, { file: preview.file, width: preview.width, height: preview.height })

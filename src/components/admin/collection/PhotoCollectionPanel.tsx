@@ -350,8 +350,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     return item
   }
 
-  console.log(uploadCoverPhotoVisible)
-
   return (
     <>
       <CreateCollectionModal
