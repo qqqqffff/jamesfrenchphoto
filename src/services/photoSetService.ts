@@ -496,12 +496,34 @@ export class PhotoSetService {
         id: params.set.id,
         items: params.set.items + successfulItems
     })
+
+    const collectionAmount = params.collection.sets.reduce((prev, cur) => prev + cur.items, 0)
     
     const updateCollectionItemsResponse = this.client.models.PhotoCollection.update({
       id: params.collection.id,
-      items: successfulItems + params.collection.items
+      items: successfulItems + collectionAmount
     })
 
+    params.parentUpdateCollection(prev => prev ? ({
+      ...prev,
+      items: successfulItems + collectionAmount,
+      sets: prev.sets.map((set) => set.id === params.set.id ? ({
+        ...set,
+        items: set.items + successfulItems,
+      }) : set)
+    }) : prev)
+    params.parentUpdateCollections(prev => prev.map((collection) => collection.id === params.collection.id ? ({
+      ...collection,
+      items: successfulItems + collectionAmount,
+      sets: collection.sets.map((set) => set.id === params.set.id ? ({
+        ...set,
+        items: set.items + successfulItems,
+      }) : set)
+    }) : collection))
+    params.parentUpdateSet(prev => prev ? ({
+      ...prev,
+      items: prev.items + successfulItems,
+    }) : prev)
     params.updateUpload((prev) => {
       return prev.map((upload) => {
         if(upload.id === params.uploadId){

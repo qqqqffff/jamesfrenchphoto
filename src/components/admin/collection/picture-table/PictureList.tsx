@@ -1,5 +1,5 @@
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ComponentProps, Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { ComponentProps, Dispatch, MutableRefObject, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { isDraggingAPicture, isPictureData, isPictureDropTargetData } from "./PictureData";
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { flushSync } from "react-dom";
@@ -9,11 +9,11 @@ import { Picture } from "./Picture";
 import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
 import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
-import { InfiniteData, UseInfiniteQueryResult, useMutation, UseMutationResult, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
+import { useMutation, UseMutationResult, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
 import { CollectionService, RepairItemCountsParams } from '../../../../services/collectionService';
 import { PhotoSetService, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
-import { GetInfinitePathsData, PhotoPathService } from '../../../../services/photoPathService';
+import { PhotoPathService } from '../../../../services/photoPathService';
 import Loading from '../../../common/Loading';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
@@ -37,9 +37,12 @@ interface PictureListProps extends ComponentProps<'div'> {
   controlsEnabled: (id: string, override: boolean) => string
   displayTitleOverride: boolean
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
-  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>
+  setFilesUploading: Dispatch<SetStateAction<File[] | undefined>>
+
+  uploadInputRef: MutableRefObject<HTMLInputElement | null>
+
   participantId?: string,
-  pathsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePathsData, unknown>, Error>
+  pathsQuery: UseQueryResult<PicturePath[], Error>
   repairItemCounts: UseMutationResult<PhotoCollection | undefined, Error, RepairItemCountsParams, unknown>
 }
 
@@ -47,10 +50,10 @@ export const PictureList = (props: PictureListProps) => {
   const { width } = useWindowDimensions()
   const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
   const bottomObserverRef = useRef<IntersectionObserver | null>(null)
-  const topObserverRef = useRef<IntersectionObserver | null>(null)
-  const currentOffsetIndex = useRef<number | undefined>()
+  // const topObserverRef = useRef<IntersectionObserver | null>(null)
+  // const currentOffsetIndex = useRef<number | undefined>()
   const topIndex = useRef<number>(0)
-  const bottomIndex = useRef<number>(props.paths.length - 1)
+  const bottomIndex = useRef<number>(props.paths.length - 1 < 16 ? props.paths.length - 1 : 15)
   const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const [isDragging, setIsDragging] = useState<PicturePath>()
   const [watermarkPath, setWatermarkPath] = useState<string>()
@@ -64,29 +67,29 @@ export const PictureList = (props: PictureListProps) => {
     props.CollectionService.getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
   )
 
-  const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): {
-    bottom: PicturePath, 
-    top?: PicturePath,
-  } => {
-    //38 = 2.5 pages for indexes
-    //32 = 2 pages for trigger
-    if(offset) {
-      bottomIndex.current = (offset) + ((offset + 38) >= allItems.length ? allItems.length - offset - 1 : 38)
-      topIndex.current = (offset) - ((offset - 38) > 0 ? 38 : offset)
-      return {
-        bottom: allItems[(offset) + ((offset + 32) >= allItems.length ? allItems.length - offset - 1 : 32)],
-        top: allItems[(offset) - ((offset - 32) > 0 ? 32 : offset)]
-      }
-    }
-    //when downward scrolling 4 pages up will remain rendered (64 pictures )
-    //first row of bottom page will trigger
-    bottomIndex.current = allItems.length - 1
-    topIndex.current = allItems.length - 65
-    return {
-      bottom: allItems[allItems.length - allItems.length % 4 - 4],
-      top: allItems?.[allItems.length - allItems.length % 4 - 61],
-    }
-  }, [])
+  // const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): {
+  //   bottom: PicturePath, 
+  //   top?: PicturePath,
+  // } => {
+  //   //38 = 2.5 pages for indexes
+  //   //32 = 2 pages for trigger
+  //   if(offset) {
+  //     bottomIndex.current = (offset) + ((offset + 38) >= allItems.length ? allItems.length - offset - 1 : 38)
+  //     topIndex.current = (offset) - ((offset - 38) > 0 ? 38 : offset)
+  //     return {
+  //       bottom: allItems[(offset) + ((offset + 32) >= allItems.length ? allItems.length - offset - 1 : 32)],
+  //       top: allItems[(offset) - ((offset - 32) > 0 ? 32 : offset)]
+  //     }
+  //   }
+  //   //when downward scrolling 4 pages up will remain rendered (64 pictures )
+  //   //first row of bottom page will trigger
+  //   bottomIndex.current = allItems.length - 1
+  //   topIndex.current = allItems.length - 65
+  //   return {
+  //     bottom: allItems[allItems.length - allItems.length % 4 - 4],
+  //     top: allItems?.[allItems.length - allItems.length % 4 - 61],
+  //   }
+  // }, [])
 
   useEffect(() => {
     setPictures(props.paths)
@@ -239,57 +242,18 @@ export const PictureList = (props: PictureListProps) => {
   ])
 
   useEffect(() => {
-    if(props.paths.length == 0) return
-
-    if(!bottomObserverRef.current) {
+    if(!bottomObserverRef.current) {  
       bottomObserverRef.current = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-          if(entry.isIntersecting && 
-            currentOffsetIndex.current &&
-            currentOffsetIndex.current + 32 > pictures.length
-          ) {
-            currentOffsetIndex.current = undefined
-          }
-          else if(entry.isIntersecting &&
-            currentOffsetIndex.current &&
-            currentOffsetIndex.current + 32 < pictures.length
-          ) {
-            currentOffsetIndex.current = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-          }
-          if(entry.isIntersecting && 
-            props.pathsQuery.hasNextPage && 
-            !props.pathsQuery.isFetchingNextPage &&
-            !currentOffsetIndex.current
-          ) {
-            props.pathsQuery.fetchNextPage()
-          }
-          
-          else if(
+          const path = pictures.find((path) => path.id === entry.target.id)
+          if(
             entry.isIntersecting && 
-            !props.pathsQuery.hasNextPage && 
-            props.paths.length !== props.set.items &&
-            !props.repairItemCounts.isPending
+            path !== undefined &&
+            path.order >= bottomIndex.current - 4 &&
+            bottomIndex.current < pictures.length - 1
           ) {
-            props.repairItemCounts.mutate({
-              collection: props.collection,
-              options: {
-                logging: true
-              }
-            })
-          }
-        })
-      }, {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-      })
-    }
-    if(!topObserverRef.current) {
-      topObserverRef.current = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-          if(entry.isIntersecting && foundIndex !== 0) {
-            currentOffsetIndex.current = foundIndex
+            bottomIndex.current = bottomIndex.current + 
+            ((pictures.length - 1) > (bottomIndex.current + 4) ? 4 : pictures.length - 1)
           }
         })
       }, {
@@ -299,39 +263,117 @@ export const PictureList = (props: PictureListProps) => {
       })
     }
 
-    const triggerReturn = getTriggerItems(props.paths, currentOffsetIndex.current)
-    // console.log(triggerReturn, bottomIndex.current, topIndex.current, props.paths.length)
-
-    const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
-    const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
-    if(Tel && topObserverRef.current && triggerReturn.top?.id) {
-      Tel.setAttribute('data-id', triggerReturn.top.id)
-      topObserverRef.current.observe(Tel)
-    }
-    if(Bel && bottomObserverRef.current) {
-      Bel.setAttribute('data-id', triggerReturn.bottom.id)
-      bottomObserverRef.current.observe(Bel)
+    const bottomElement = picturesRef.current.get(pictures[bottomIndex.current]?.id ?? '')
+    if(bottomElement && bottomObserverRef.current) {
+      bottomObserverRef.current.observe(bottomElement)
     }
 
     return () => {
       if(bottomObserverRef.current){
         bottomObserverRef.current.disconnect()
       }
-      if(topObserverRef.current) {
-        topObserverRef.current.disconnect()
-      }
-      topObserverRef.current = null
       bottomObserverRef.current = null
     }
   }, [
     props.paths,
-    currentOffsetIndex,
-    props.pathsQuery.fetchNextPage, 
-    props.pathsQuery.hasNextPage, 
-    props.pathsQuery.isFetchingNextPage,
-    getTriggerItems,
-    props.repairItemCounts.isPending,
+
   ])
+
+  
+  // useEffect(() => {
+  //   if(props.paths.length == 0) return
+
+  //   if(!bottomObserverRef.current) {
+  //     bottomObserverRef.current = new IntersectionObserver((entries) => {
+  //       entries.forEach(entry => {
+  //         if(entry.isIntersecting && 
+  //           currentOffsetIndex.current &&
+  //           currentOffsetIndex.current + 32 > pictures.length
+  //         ) {
+  //           currentOffsetIndex.current = undefined
+  //         }
+  //         else if(entry.isIntersecting &&
+  //           currentOffsetIndex.current &&
+  //           currentOffsetIndex.current + 32 < pictures.length
+  //         ) {
+  //           currentOffsetIndex.current = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+  //         }
+  //         if(entry.isIntersecting && 
+  //           props.pathsQuery.hasNextPage && 
+  //           !props.pathsQuery.isFetchingNextPage &&
+  //           !currentOffsetIndex.current
+  //         ) {
+  //           props.pathsQuery.fetchNextPage()
+  //         }
+          
+  //         else if(
+  //           entry.isIntersecting && 
+  //           !props.pathsQuery.hasNextPage && 
+  //           props.paths.length !== props.set.items &&
+  //           !props.repairItemCounts.isPending
+  //         ) {
+  //           props.repairItemCounts.mutate({
+  //             collection: props.collection,
+  //             options: {
+  //               logging: true
+  //             }
+  //           })
+  //         }
+  //       })
+  //     }, {
+  //       root: null,
+  //       rootMargin: '0px',
+  //       threshold: 0.1
+  //     })
+  //   }
+  //   if(!topObserverRef.current) {
+  //     topObserverRef.current = new IntersectionObserver((entries) => {
+  //       entries.forEach(entry => {
+  //         const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
+  //         if(entry.isIntersecting && foundIndex !== 0) {
+  //           currentOffsetIndex.current = foundIndex
+  //         }
+  //       })
+  //     }, {
+  //       root: null,
+  //       rootMargin: '0px',
+  //       threshold: 0.1
+  //     })
+  //   }
+
+  //   const triggerReturn = getTriggerItems(props.paths, currentOffsetIndex.current)
+  //   // console.log(triggerReturn, bottomIndex.current, topIndex.current, props.paths.length)
+
+  //   const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
+  //   const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
+  //   if(Tel && topObserverRef.current && triggerReturn.top?.id) {
+  //     Tel.setAttribute('data-id', triggerReturn.top.id)
+  //     topObserverRef.current.observe(Tel)
+  //   }
+  //   if(Bel && bottomObserverRef.current) {
+  //     Bel.setAttribute('data-id', triggerReturn.bottom.id)
+  //     bottomObserverRef.current.observe(Bel)
+  //   }
+
+  //   return () => {
+  //     if(bottomObserverRef.current){
+  //       bottomObserverRef.current.disconnect()
+  //     }
+  //     if(topObserverRef.current) {
+  //       topObserverRef.current.disconnect()
+  //     }
+  //     topObserverRef.current = null
+  //     bottomObserverRef.current = null
+  //   }
+  // }, [
+  //   props.paths,
+  //   currentOffsetIndex,
+  //   props.pathsQuery.fetchNextPage, 
+  //   props.pathsQuery.hasNextPage, 
+  //   props.pathsQuery.isFetchingNextPage,
+  //   getTriggerItems,
+  //   props.repairItemCounts.isPending,
+  // ])
 
   useEffect(() => {
     if(watermarkQuery.data) {
@@ -378,6 +420,7 @@ export const PictureList = (props: PictureListProps) => {
               className="relative" 
               ref={el => setItemRef(el, item.id)}
               key={index}
+              id={item.id}
             >
               <Picture 
                 PhotoSetService={props.PhotoSetService}
@@ -399,7 +442,6 @@ export const PictureList = (props: PictureListProps) => {
                 controlsEnabled={props.controlsEnabled}
                 displayTitleOverride={props.displayTitleOverride}
                 notify={props.notify}
-                setFilesUploading={props.setFilesUploading}
                 participantId={props.participantId}
                 reorderPaths={reorderPaths}
                 watermarkQuery={watermarkQuery}
@@ -410,18 +452,15 @@ export const PictureList = (props: PictureListProps) => {
             </div>
           )
         })}
-        {props.pathsQuery.hasNextPage && (
+        {props.pathsQuery.isLoading && (
           <div id="set-picture-loading-trigger" className="h-5 my-3 text-center text-sm text-gray-500">
-            {props.pathsQuery.isFetchingNextPage && (
-              <>
-                <span>Loading</span>
-                <Loading />
-              </>
-            )}
+            <span>Loading</span>
+            <Loading />
           </div>
         )}
         <UploadImagePlaceholder
           setFilesUploading={props.setFilesUploading}
+          uploadInputRef={props.uploadInputRef}
           className="h-full place-self-center w-full"
         />
       </div>

@@ -162,7 +162,7 @@ export const CollectionThumbnail= ({
               collection={collection}
               path={imagePreviewSRC}
               style={{
-                maxHeight: '58vh',
+                maxHeight: '50vh',
                 height: 'fit-content',
               }}
             />

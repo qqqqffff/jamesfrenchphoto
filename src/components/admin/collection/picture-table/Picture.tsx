@@ -66,7 +66,6 @@ interface PictureProps {
   controlsEnabled: (id: string, override: boolean) => string,
   displayTitleOverride: boolean,
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
-  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>,
   participantId?: string,
   reorderPaths: UseMutationResult<void, Error, ReorderPathsParams, unknown>,
   watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined, Error>,

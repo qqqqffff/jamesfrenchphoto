@@ -1,7 +1,8 @@
-import { ComponentProps, Dispatch, SetStateAction } from "react"
+import { ComponentProps, Dispatch, MutableRefObject, SetStateAction } from "react"
 
 interface UploadComponentProps extends ComponentProps<'div'> {
-  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>
+  setFilesUploading: Dispatch<SetStateAction<File[] | undefined>>
+  uploadInputRef: MutableRefObject<HTMLInputElement | null>
 }
 
 export const UploadImagePlaceholder = (props: UploadComponentProps) => {
@@ -9,6 +10,7 @@ export const UploadImagePlaceholder = (props: UploadComponentProps) => {
     ...props,
   }
   delete(rootProps.setFilesUploading)
+  delete(rootProps.uploadInputRef)
   
   return (
     <div {...rootProps}>
@@ -28,33 +30,15 @@ export const UploadImagePlaceholder = (props: UploadComponentProps) => {
             <p className="text-xs text-gray-500 text-center">Image Files Supported</p>
           </div>
           <input 
+            ref={props.uploadInputRef}
             id="dropzone-set-file" 
             type="file" 
             className="hidden" 
             multiple 
             accept="image/*"
-            onChange={async (event) => {
+            onChange={(event) => {
               if(event.target.files){
-                
-                const filesMap = new Map<string, { file: File, width: number, height: number }>()
-                //TODO: add interactive upload preprocessing modal
-                await Promise.all(Array.from(event.target.files).map(async (file) => {
-                  const url = URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type }))
-                  const dimensions = await new Promise(
-                    (resolve: (item: { width: number, height: number}) => void) => {
-                      const image: HTMLImageElement = document.createElement('img')
-                      image.src = url
-                      image.onload = () => {
-                        resolve({
-                          width: image.naturalWidth,
-                          height: image.naturalHeight,
-                        })
-                      }
-                    }
-                  )
-                  filesMap.set(file.name, { file: file, width: dimensions.width, height: dimensions.height })
-                }))
-                props.setFilesUploading(filesMap)
+                props.setFilesUploading(Array.from(event.target.files))
               }
             }}
           />

@@ -1,6 +1,6 @@
 import { Dispatch, FC, SetStateAction } from "react"
 import { ListChildComponentProps } from "react-window"
-import { UploadIssue } from "./IssueNotifications"
+import { UploadIssue, UploadIssueType } from "./IssueNotifications"
 import { Tooltip } from "flowbite-react"
 import { HiOutlineExclamationTriangle, HiOutlineTrash, HiOutlineXMark } from "react-icons/hi2"
 import { HiOutlineRefresh } from "react-icons/hi"
@@ -13,22 +13,19 @@ interface ImagesRowProps extends ListChildComponentProps {
   data: {
     data: [string, File][],
     previews?: Record<string, string>, //record of filename, url
-    loadingPreviews: boolean
     onDelete: (fileName: string) => void
-    issues: UploadIssue[],
-    updateIssues: Dispatch<SetStateAction<UploadIssue[]>>,
+    issues: Map<UploadIssueType, UploadIssue[]>,
+    updateIssues: Dispatch<SetStateAction<Map<UploadIssueType, UploadIssue[]>>>,
     watermarkPath?: string
     watermarkQuery: UseQueryResult<[string | undefined, string], Error>
   }
 }
 
 export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
-  const smallUpload = data.issues
-    .find((issue) => issue.type === 'small-file')?.id
-    .includes(data.data[index][0])
-  const duplicate = data.issues
-    .find((issue) => issue.type === 'duplicate')?.id
-    .includes(data.data[index][0])
+  const smallUpload = (data.issues.get(UploadIssueType['small-file']) ?? [])
+    .find((issue) => issue.id === data.data[index][0])
+  const duplicate = (data.issues.get(UploadIssueType['duplicate']) ?? [])
+    .find((issue) => issue.id === data.data[index][0])
 
   return (
     <div key={index} className="flex flex-row items-center justify-between border-b w-full gap-2" style={style}>
@@ -57,22 +54,15 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
             >
               <button
                 onClick={() => {
-                  let tempIssues: UploadIssue[] = [
-                    ...data.issues
-                  ]
-                  
-                  const tempIndex = tempIssues.findIndex((isuse) => isuse.type === 'duplicate')
-                  
-                  if(tempIndex === -1) {
-                    //TODO: do something
-                  }
-
-                  tempIssues[tempIndex].id = tempIssues[tempIndex].id.filter((id) => id !== data.data[index][0])
-                  if(tempIssues[tempIndex].id.length === 0){
-                    tempIssues = tempIssues.filter((issue) => issue.type !== 'duplicate')
-                  }
-  
-                  data.updateIssues(tempIssues)
+                  data.updateIssues(prev => {
+                    const temp = new Map(prev)
+                    temp.set(
+                      UploadIssueType['duplicate'], 
+                      (temp.get(UploadIssueType['duplicate']) ?? [])
+                      .filter((i) => i.id === data.data[index][0])
+                    )
+                    return temp
+                  })
                 }}
               >
                 <HiOutlineRefresh size={16} className="text-red-500" />  
@@ -87,22 +77,15 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
               )}
             >
               <button onClick={() => {
-                let tempIssues: UploadIssue[] = [
-                  ...data.issues
-                ]
-                
-                const tempIndex = tempIssues.findIndex((isuse) => isuse.type === 'duplicate')
-                
-                if(tempIndex === -1) {
-                  //TODO: handle issue
-                }
-                
-                tempIssues[tempIndex].id = tempIssues[tempIndex].id.filter((id) => id !== data.data[index][0])
-                if(tempIssues[tempIndex].id.length === 0){
-                  tempIssues = tempIssues.filter((issue) => issue.type !== 'duplicate')
-                }
-
-                data.updateIssues(tempIssues)
+                data.updateIssues(prev => {
+                  const temp = new Map(prev)
+                  temp.set(
+                    UploadIssueType['duplicate'], 
+                    (temp.get(UploadIssueType['duplicate']) ?? [])
+                    .filter((i) => i.id === data.data[index][0])
+                  )
+                  return temp
+                })
                 data.onDelete(data.data[index][0])
               }}>
                 <HiOutlineTrash size={16} className="text-red-500" />  
@@ -115,7 +98,7 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
           placement='bottom-start'
           arrow={false}
           content={(
-            !data.loadingPreviews && data.previews?.[data.data[index][0]] !== undefined ? ( 
+            data.previews?.[data.data[index][0]] !== undefined ? ( 
               <LazyImage 
                 overrideSrc={data.previews[data.data[index][0]]}
                 watermarkPath={data.watermarkPath}
@@ -145,7 +128,7 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
         <button 
           className={`${duplicate ? 'text-transparent cursor-default' : 'hover:text-gray-500'} py-0.5 px-1.5 mt-0.5`}
           type='button' 
-          disabled={duplicate}
+          disabled={duplicate !== undefined}
           onClick={() => data.onDelete(data.data[index][0])}
         >
           <HiOutlineXMark size={16}/>

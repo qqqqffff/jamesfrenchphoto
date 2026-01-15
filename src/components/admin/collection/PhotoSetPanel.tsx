@@ -1,4 +1,4 @@
-import { Dispatch, FC, SetStateAction, useCallback, useEffect, useState } from "react"
+import { Dispatch, FC, SetStateAction, useCallback, useEffect, useRef, useState } from "react"
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types"
 import { 
   HiOutlineArrowDown,
@@ -12,7 +12,7 @@ import { ConfirmationModal, UploadImagesModal } from "../../modals";
 import { DynamicStringEnumKeysOf, parsePathName, textInputTheme } from "../../../utils";
 import { SetControls } from "./SetControls";
 import { EditableTextField } from "../../common/EditableTextField";
-import { useInfiniteQuery, useMutation, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, UseMutationResult, useQuery } from "@tanstack/react-query";
 import { 
   PhotoSetService, 
   DeleteImagesMutationParams, 
@@ -61,23 +61,25 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
   const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
   const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
-  const [filesUploading, setFilesUploading] = useState<Map<string, { file: File, width: number, height: number }> | undefined>()
+  const [filesUploading, setFilesUploading] = useState<File[]>()
   const [uploads, setUploads] = useState<UploadData[]>([])
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
+  const uploadInputRef = useRef<HTMLInputElement | null>(null)
 
   const navigate = useNavigate()
 
-  const pathsQuery = useInfiniteQuery(
-    PhotoPathService.getInfinitePathsQueryOptions(photoSet.id, {
-      participantId: auth.user?.profile.activeParticipant?.id,
-      maxItems: 16,
-      maxWindow: 64
-    }),
-  )
+  const pathsQuery = useQuery(PhotoPathService.getAllPathsQueryOptions(photoSet.id))
+  // useInfiniteQuery(
+  //   PhotoPathService.getInfinitePathsQueryOptions(photoSet.id, {
+  //     participantId: auth.user?.profile.activeParticipant?.id,
+  //     maxItems: 16,
+  //     maxWindow: 64
+  //   }),
+  // )
 
   useEffect(() => {
     if(pathsQuery.data) {
-      setPicturePaths(pathsQuery.data.pages[pathsQuery.data.pages.length - 1].memo)
+      setPicturePaths(pathsQuery.data)
     }
   }, [pathsQuery.data])
 
@@ -119,36 +121,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   })
 
   const uploadImages = useMutation({
-    mutationFn: (params: UploadImagesMutationParams) => PhotoSetService.uploadImagesMutation(params),
-    onSettled: () => {
-      const temp: PhotoCollection = {
-        ...photoCollection,
-        items: photoCollection.sets.reduce((prev, cur) => {
-          if(cur.id === photoSet.id){
-            return prev += picturePaths.length
-          }
-          return prev += cur.paths.length
-        }, 0),
-        sets: photoCollection.sets.map((set) => {
-          if(set.id === photoSet.id){
-            return {
-              ...set,
-              paths: picturePaths
-            }
-          }
-          return set
-        })
-      }
-      parentUpdateCollection(temp)
-      parentUpdateCollections((prev) => {
-        const pTemp = [...prev]
-
-        return pTemp.map((col) => {
-          if(col.id === temp.id) return temp
-          return col
-        })
-      })
-    }
+    mutationFn: (params: UploadImagesMutationParams) => PhotoSetService.uploadImagesMutation(params)
   })
 
   const deleteSet = useMutation({
@@ -217,25 +190,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   })
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const filesMap = new Map<string, { file: File, width: number, height: number }>()
-    //TODO: add interactive upload preprocessing modal
-    await Promise.all(acceptedFiles.map(async (file) => {
-      const url = URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type }))
-      const dimensions = await new Promise(
-        (resolve: (item: { width: number, height: number}) => void) => {
-          const image: HTMLImageElement = document.createElement('img')
-          image.src = url
-          image.onload = () => {
-            resolve({
-              width: image.naturalWidth,
-              height: image.naturalHeight,
-            })
-          }
-        }
-      )
-      filesMap.set(file.name, { file: file, width: dimensions.width, height: dimensions.height })
-    }))
-    setFilesUploading(filesMap)
+    setFilesUploading(acceptedFiles)
   }, [])
 
   const {getRootProps, getInputProps, isDragActive} = useDropzone({ 
@@ -260,10 +215,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
           .toLocaleLowerCase()
           .includes(trimmedText)
       })
-
-      if(tempFiles.length === 0 && pathsQuery.hasNextPage && !pathsQuery.isFetchingNextPage) {
-        pathsQuery.fetchNextPage()
-      }
     }
 
     return tempFiles
@@ -322,11 +273,14 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
   return (
   <>
-    {filesUploading && 
+    {filesUploading !== undefined && 
       <UploadImagesModal 
         CollectionService={CollectionService}
         collection={photoCollection}
-        set={photoSet}
+        set={{
+          ...photoSet,
+          paths: picturePaths
+        }}
         files={filesUploading}
         createUpload={(upload) => {
           const temp: UploadData[] = [...uploads, {
@@ -346,7 +300,12 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
         parentUpdateSet={parentUpdateSet}
         parentUpdateCollection={parentUpdateCollection}
         parentUpdateCollections={parentUpdateCollections}
-        onClose={() => setFilesUploading(undefined)}
+        onClose={() => {
+          setFilesUploading(undefined)
+          if(uploadInputRef.current) {
+            uploadInputRef.current.value = ''
+          }
+        }}
         open={filesUploading !== undefined}
       />
     }
@@ -461,28 +420,14 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
                 className="flex flex-row items-center px-2 justify-between w-full gap-2 disabled:cursor-wait"
                 onClick={() => {
                   if(determineSortDirection === 'ASC') {
-                    if(pathsQuery.hasNextPage) {
-                      reorderPaths.mutate({
-                        paths: [],
-                        fullRefetch: {
-                          setId: photoSet.id,
-                          order: 'DSC'
-                        },
-                        options: {
-                          logging: true
-                        }
-                      })
-                    }
-                    else {
-                      reorderPaths.mutate({
-                        paths: [...picturePaths]
-                          .sort((a, b) => parsePathName(b.path).localeCompare(parsePathName(a.path)))
-                          .map((path, index) => ({...path, order: index})),
-                        options: {
-                          logging: true
-                        }
-                      })
-                    }
+                    reorderPaths.mutate({
+                      paths: [...picturePaths]
+                        .sort((a, b) => parsePathName(b.path).localeCompare(parsePathName(a.path)))
+                        .map((path, index) => ({...path, order: index})),
+                      options: {
+                        logging: true
+                      }
+                    })
 
                     const updatedPaths: PicturePath[] = [...picturePaths]
                       .sort((a, b) => parsePathName(b.path).localeCompare(parsePathName(a.path)))
@@ -501,28 +446,14 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
                     parentUpdateCollection(updatedCollection)
                     parentUpdateCollections((prev) => prev.map((collection) => collection.id === updatedCollection.id ? updatedCollection : collection))
                   } else if(determineSortDirection === 'none' || determineSortDirection === 'DSC') {
-                    if(pathsQuery.hasNextPage) {
-                      reorderPaths.mutate({
-                        paths: [],
-                        fullRefetch: {
-                          setId: photoSet.id,
-                          order: 'ASC'
-                        },
-                        options: {
-                          logging: true
-                        }
-                      })
-                    }
-                    else {
-                      reorderPaths.mutate({
-                        paths: [...picturePaths]
-                          .sort((a, b) => parsePathName(a.path).localeCompare(parsePathName(b.path)))
-                          .map((path, index) => ({...path, order: index})),
-                        options: {
-                          logging: true
-                        }
-                      })
-                    }
+                    reorderPaths.mutate({
+                      paths: [...picturePaths]
+                        .sort((a, b) => parsePathName(a.path).localeCompare(parsePathName(b.path)))
+                        .map((path, index) => ({...path, order: index})),
+                      options: {
+                        logging: true
+                      }
+                    })
 
                     const updatedPaths: PicturePath[] = [...picturePaths]
                       .sort((a, b) => parsePathName(a.path).localeCompare(parsePathName(b.path)))
@@ -784,6 +715,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
               }, 5000)
             }}
             setFilesUploading={setFilesUploading}
+            uploadInputRef={uploadInputRef}
             participantId={auth.user?.profile.activeParticipant?.id}
             pathsQuery={pathsQuery}
             repairItemCounts={repairItemCounts}

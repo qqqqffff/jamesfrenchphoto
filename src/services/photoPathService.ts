@@ -227,4 +227,9 @@ export class PhotoPathService {
     } as GetInfinitePathsData),
     refetchOnWindowFocus: false,
   })
+
+  getAllPathsQueryOptions = (setId: string) => queryOptions({
+    queryKey: ['allPhotoPaths', setId],
+    queryFn: () => getAllPaths(this.client, setId)
+  })
 }
