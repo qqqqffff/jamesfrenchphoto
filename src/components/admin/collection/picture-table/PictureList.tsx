@@ -50,10 +50,10 @@ export const PictureList = (props: PictureListProps) => {
   const { width } = useWindowDimensions()
   const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
   const bottomObserverRef = useRef<IntersectionObserver | null>(null)
-  // const topObserverRef = useRef<IntersectionObserver | null>(null)
+  const topObserverRef = useRef<IntersectionObserver | null>(null)
   // const currentOffsetIndex = useRef<number | undefined>()
-  const topIndex = useRef<number>(0)
-  const bottomIndex = useRef<number>(props.paths.length - 1 < 16 ? props.paths.length - 1 : 15)
+  const topIndex = useRef<number>(-1)
+  const bottomIndex = useRef<number>(-1)
   const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const [isDragging, setIsDragging] = useState<PicturePath>()
   const [watermarkPath, setWatermarkPath] = useState<string>()
@@ -93,6 +93,12 @@ export const PictureList = (props: PictureListProps) => {
 
   useEffect(() => {
     setPictures(props.paths)
+    if(topIndex.current === -1) {
+      topIndex.current = 0
+    }
+    if(bottomIndex.current === -1) {
+      bottomIndex.current = props.paths.length - 1 < 16 ? props.paths.length - 1 : 15
+    }
     const element = listRef.current
     
     if(!element) {
@@ -252,8 +258,10 @@ export const PictureList = (props: PictureListProps) => {
             path.order >= bottomIndex.current - 4 &&
             bottomIndex.current < pictures.length - 1
           ) {
-            bottomIndex.current = bottomIndex.current + 
-            ((pictures.length - 1) > (bottomIndex.current + 4) ? 4 : pictures.length - 1)
+            const countOffset = ((pictures.length - 1) > (bottomIndex.current + 4) ? 4 : pictures.length - 1)
+
+            topIndex.current = topIndex.current + countOffset
+            bottomIndex.current = bottomIndex.current + countOffset
           }
         })
       }, {
@@ -262,10 +270,32 @@ export const PictureList = (props: PictureListProps) => {
         threshold: 0.1
       })
     }
+    if(!topObserverRef.current) {
+      topObserverRef.current = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const path = pictures.find((path) => path.id)
+          if(
+            entry.isIntersecting &&
+            path !== undefined &&
+            path.order <= topIndex.current + 4 &&
+            topIndex.current > 0
+          ) {
+            const countOffset = (topIndex.current - 4) > 0 ? 4 : topIndex.current
+
+            topIndex.current = topIndex.current - countOffset
+            bottomIndex.current = bottomIndex.current - countOffset
+          }
+        })
+      })
+    }
 
     const bottomElement = picturesRef.current.get(pictures[bottomIndex.current]?.id ?? '')
+    const topElement = picturesRef.current.get(pictures[topIndex.current]?.id ?? '')
     if(bottomElement && bottomObserverRef.current) {
       bottomObserverRef.current.observe(bottomElement)
+    }
+    if(topElement && topObserverRef.current) {
+      topObserverRef.current.observe(topElement)
     }
 
     return () => {
@@ -276,7 +306,6 @@ export const PictureList = (props: PictureListProps) => {
     }
   }, [
     props.paths,
-
   ])
 
   

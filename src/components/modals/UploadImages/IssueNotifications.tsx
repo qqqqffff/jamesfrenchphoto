@@ -16,25 +16,32 @@ export enum UploadIssueType {
 export const IssueNotifications = (props: {
   issues: Map<UploadIssueType, UploadIssue[]>, 
   setIssues: Dispatch<SetStateAction<Map<UploadIssueType, UploadIssue[]>>>
+  navigateTo: (id: string) => void
 }) => {
+  let renderCount = 0;
   return (
     <div className="flex relative w-full -top-6">
       <div className="absolute z-10 w-full flex flex-col gap-2 items-center justify-center mt-2">
-        {Array.from(props.issues.entries()).map(([type, issues]) => {
-          return issues.filter(issue => issue.visible).map((issue) => {
-            if(!issues) return undefined
+        {Array.from(props.issues.entries())
+        .map(([type, issues]) => {
+          if(renderCount >= 3) return null
+          return issues.filter(issue => issue.visible)
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .map((issue) => {
+            if(!issues || renderCount >= 3) return undefined
+            renderCount++;
             let message = 'Error'
             let color: DynamicStringEnumKeysOf<FlowbiteColors> = type === 'small-file' ? 'yellow' : 'red'
 
             switch(type) {
               case 'duplicate':
-                message = 'Duplicate files uploaded may have been uploaded.'
+                message = ' may be a duplicate file.'
                 break
               case 'invalid-file':
-                message = 'Invalid files have been automatically removed!'
+                message = ' is an invalid file!'
                 break
               case 'small-file':
-                message = 'Uploaded image(s) may be small and display poorly.'
+                message = ' is small and may display poorly.'
                 break
             }
 
@@ -42,14 +49,22 @@ export const IssueNotifications = (props: {
               <Alert 
                 key={issue.id}
                 color={color} 
-                className="w-[90%] opacity-75"
+                className={`w-full opacity-75 border ${renderCount > 1 ? '-mt-12' : ''}`}
                 onDismiss={() => {
                   const temp = new Map(props.issues)
                   temp.set(type, (temp.get(type) ?? []).map((i) => i.id === issue.id ? { ...i, visible: false } : i))
                   props.setIssues(temp)
                 }}
               >
-                {message}
+                <div className="flex gap-2">
+                  <button 
+                    className="font-bold flex flex-row max-w-[225px] truncate hover:underline"
+                    onClick={() => {
+                      props.navigateTo(issue.id)
+                    }}
+                  >{issue.id}</button>
+                  <span>{message}</span>
+                </div>
               </Alert>
             )
           })

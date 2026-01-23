@@ -9,7 +9,7 @@ import { UseQueryResult } from "@tanstack/react-query"
 import { LazyImage } from "../../common/LazyImage"
 import Loading from '../../common/Loading'
 
-interface ImagesRowProps extends ListChildComponentProps {
+export interface ImagesRowProps extends ListChildComponentProps {
   data: {
     data: [string, File][],
     previews?: Record<string, string>, //record of filename, url
@@ -18,6 +18,7 @@ interface ImagesRowProps extends ListChildComponentProps {
     updateIssues: Dispatch<SetStateAction<Map<UploadIssueType, UploadIssue[]>>>,
     watermarkPath?: string
     watermarkQuery: UseQueryResult<[string | undefined, string], Error>
+    navigatedIndex: number | null
   }
 }
 
@@ -53,13 +54,14 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
               )}
             >
               <button
+                type="button"
                 onClick={() => {
                   data.updateIssues(prev => {
                     const temp = new Map(prev)
                     temp.set(
                       UploadIssueType['duplicate'], 
                       (temp.get(UploadIssueType['duplicate']) ?? [])
-                      .filter((i) => i.id === data.data[index][0])
+                      .filter((i) => i.id !== data.data[index][0])
                     )
                     return temp
                   })
@@ -115,8 +117,9 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
         >
           <span 
             className={`
-              inline-block truncate max-w-[200px]
+              inline-block truncate max-w-[200px] hover:cursor-pointer
               ${duplicate ? 'text-red-500' : smallUpload ? 'text-yellow-300' : ''}
+              ${data.navigatedIndex === index ? 'font-bold' : ''}
             `}
           >
             {data.data[index][0]}

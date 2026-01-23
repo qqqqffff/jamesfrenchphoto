@@ -1,12 +1,12 @@
 import { Button, Label, Modal, TextInput } from "flowbite-react"
-import { Dispatch, FC, FormEvent, SetStateAction, useEffect, useState } from "react"
+import { Dispatch, FC, FormEvent, SetStateAction, useEffect, useRef, useState } from "react"
 import { ModalProps } from ".."
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types";
 import { formatFileSize, parsePathName, textInputTheme } from "../../../utils";
 import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { UploadImagesMutationParams } from "../../../services/photoSetService";
-import { ImagesRow } from "./ImagesRow";
+import { ImagesRow, ImagesRowProps } from "./ImagesRow";
 import { IssueNotifications, UploadIssue, UploadIssueType } from "./IssueNotifications";
 import { GoTriangleDown, GoTriangleUp } from "react-icons/go";
 import { UploadData } from "./UploadToast";
@@ -42,7 +42,10 @@ function validateFiles(
     else {
       setUploadIssues(prev => {
         const temp = new Map(prev)
-        temp.set(UploadIssueType["invalid-file"], [...(temp.get(UploadIssueType["invalid-file"]) ?? []), { id: cur.name, visible: true }])
+        temp.set(UploadIssueType["invalid-file"], [
+          ...(temp.get(UploadIssueType["invalid-file"]) ?? []).filter((issue) => issue.id !== cur.name), 
+          { id: cur.name, visible: true }
+        ])
         return temp
       })
     }
@@ -68,7 +71,10 @@ function validateFiles(
         if(dimensions.width < 600 || dimensions.height < 400){
           setUploadIssues(prev => {
             const temp = new Map(prev)
-            temp.set(UploadIssueType["small-file"], [...(temp.get(UploadIssueType["small-file"]) ?? []), { id: file.name, visible: true }])
+            temp.set(UploadIssueType["small-file"], [
+              ...(temp.get(UploadIssueType["small-file"]) ?? []).filter((issue) => issue.id !== file.name), 
+              { id: file.name, visible: true }
+            ])
             return temp
           })
         }
@@ -86,19 +92,19 @@ function validateFiles(
       })
     })
 
-    console.log(set.paths)
-
     const duplicate = set.paths.some((path) => {
-      console.log(path.path, file.name)
       return (
-        parsePathName(path.path) === file.name.replace(' ', '_')
+        parsePathName(path.path) === file.name
       )
     })
 
     if(duplicate){
       setUploadIssues(prev => {
         const temp = new Map(prev)
-        temp.set(UploadIssueType["duplicate"], [...(temp.get(UploadIssueType["duplicate"]) ?? []), { id: file.name, visible: true }])
+        temp.set(UploadIssueType["duplicate"], [
+          ...(temp.get(UploadIssueType["duplicate"]) ?? []).filter((issue) => issue.id !== file.name),
+          { id: file.name, visible: true }
+        ])
         return temp
       })
     }
@@ -115,7 +121,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
   const { height } = useWindowDimensions()
   const [filesUpload, setFilesUpload] = useState<Map<string, { file: File, width: number, height: number }>>(new Map())
   const [filesPreview, setFilesPreview] = useState<Map<string, { file: File, width: number, height: number }>>()
-  
+  const fileUploadRef = useRef<HTMLInputElement | null>(null)
   const [uploadIssues, setUploadIssues] = useState<Map<UploadIssueType, UploadIssue[]>>(new Map())
 
   const [filterText, setFilterText] = useState<string>('')
@@ -125,6 +131,9 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
     order?: 'ASC' | 'DSC', 
   }>()
   const [watermarkPath, setWatermarkPath] = useState<string>()
+
+  const listRef = useRef<FixedSizeList<ImagesRowProps['data']> | null>(null)
+  const [navigateToIndex, setNavigateToIndex] = useState<{ index: number, timeout: NodeJS.Timeout } | null>(null)
 
   const watermarkQuery = useQuery({
     ...CollectionService.getPathQueryOptions(collection.watermarkPath ?? set.watermarkPath),
@@ -253,6 +262,22 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
           <IssueNotifications 
             issues={uploadIssues}
             setIssues={setUploadIssues}
+            navigateTo={(id) => {
+              const rowIndex = Array.from(filteredPreviews.entries()).map((file) => { return [file[0], file[1].file] as [string, File] })
+              .findIndex((file) => file[0] === id)
+              if(rowIndex !== -1 && listRef.current){
+                listRef.current.scrollToItem(rowIndex, 'start')
+                if(navigateToIndex !== null) {
+                  clearTimeout(navigateToIndex.timeout)
+                }
+                setNavigateToIndex({ 
+                  index: rowIndex, 
+                  timeout: setTimeout(() => {
+                      setNavigateToIndex(null)
+                    }, 3000)
+                })
+              }
+            }}
           />
         </div>
         <form onSubmit={handleUploadPhotos}>
@@ -355,6 +380,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 <AutoSizer className="z-0" style={{ minHeight: `${height - 350}px`}}>
                   {({ height, width }: { height: number; width: number }) => (
                     <FixedSizeList
+                      ref={listRef}
                       height={height}
                       itemCount={filteredPreviews.size}
                       itemSize={35}
@@ -364,7 +390,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                         previews: Object.fromEntries(
                           Array.from(filesPreview?.entries() ?? []).map((entry) => [entry[1].file.name, entry[0]])
                         ),
-                        onDelete: (fileName) => {
+                        onDelete: (fileName: string) => {
                           const files = new Map<string, { file: File, width: number, height: number }>(
                             Array.from(filesUpload.entries()).filter((entry) => entry[0] !== fileName)
                           )
@@ -379,12 +405,24 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                             setUploadIssues,
                           )
 
+                          setUploadIssues(prev => {
+                            const temp = new Map(prev)
+                            for(const key of temp.keys()) {
+                              const issues = temp.get(key)
+                              if(issues){
+                                const filteredIssues = issues.filter((issue) => issue.id !== fileName)
+                                temp.set(key, filteredIssues)
+                              }
+                            }
+                            return temp
+                          })
                           setFilesUpload(files)
                         },
                         issues: uploadIssues,
                         updateIssues: setUploadIssues,
                         watermarkQuery: watermarkQuery,
-                        watermarkPath: watermarkPath
+                        watermarkPath: watermarkPath,
+                        navigatedIndex: navigateToIndex?.index ?? null
                       }}
                     >
                       {ImagesRow}
@@ -397,7 +435,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
             )}
           </div>
           <div className="flex flex-row justify-end border-t mt-4 gap-4">
-            { Array.from(uploadIssues.keys()).some((issue) => issue === 'duplicate') && 
+            { Array.from(uploadIssues.entries()).some((entry) => entry[0] === 'duplicate' && entry[1].length > 0) && 
               filesPreview !== undefined &&(
               <>
                 <Button 
@@ -456,36 +494,40 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
               </>
             )}
             <Button type="button" className="text-xl mt-4" color="light">
-              <label htmlFor="modal-upload-file">
-                Add Files
-                <input 
-                  id='modal-upload-file' 
-                  className="hidden"
-                  multiple
-                  type="file"
-                  accept="image/*"
-                  onChange={async (event) => {
-                    if(event.target.files){
-                      validateFiles(
-                        Array.from(event.target.files),
-                        set,
-                        setFilesPreview,
-                        setFilesUpload,
-                        setUploadIssues,
-                      )
-                      setFilterText('')
-                      setSort(undefined)
-                    }
-                  }}
-                />
-              </label>
+              <label htmlFor="file-upload">Add Files</label>
+              <input 
+                id="file-upload"
+                ref={fileUploadRef}
+                className="hidden"
+                multiple
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  if(event.target.files){
+                    validateFiles(
+                      Array.from(event.target.files),
+                      set,
+                      setFilesPreview,
+                      setFilesUpload,
+                      setUploadIssues,
+                    )
+                    setFilterText('')
+                    setSort(undefined)
+                    setTimeout(() => {
+                      if(fileUploadRef.current){
+                        fileUploadRef.current.value = ''
+                      }
+                    }, 100)
+                  }
+                }}
+              />
             </Button>
             <Button 
               className="text-xl mt-4" 
               type="submit" 
               disabled={
-                uploadIssues.has(UploadIssueType["duplicate"]) || 
-                uploadIssues.has(UploadIssueType["invalid-file"])
+                (uploadIssues.get(UploadIssueType["duplicate"]) ?? []).length > 0 || 
+                (uploadIssues.get(UploadIssueType["invalid-file"]) ?? []).length > 0
               }
             >
               Upload

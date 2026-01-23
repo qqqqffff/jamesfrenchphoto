@@ -26,6 +26,11 @@ export const ProgressMetric = (props: ProgressMetricProps) => {
     lastUpdateTime.current = now
   }, [props.currentAmount])
 
+  const divProps: Partial<ProgressMetricProps> = {
+    ...props
+  }
+  delete(divProps.currentAmount)
+
   return (
     <div {...props}>
       <span>{speed.toFixed(2)} MB/s</span>

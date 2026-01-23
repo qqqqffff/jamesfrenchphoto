@@ -356,9 +356,10 @@ export class PhotoSetService {
       const filesBatch = allFiles.slice(startIndex, endIndex)
 
       const response = (await Promise.all(filesBatch.map(async (file, index) => {
-        if(params.duplicates[file.file.name]){
+        const duplicate = params.duplicates[file.file.name]
+        if(duplicate !== undefined){
           const result = await remove({
-            path: params.duplicates[file.file.name].path
+            path: duplicate.path
           })
 
           if(params.options?.logging) console.log(result)
@@ -412,9 +413,9 @@ export class PhotoSetService {
         let mappedPath: PicturePath | undefined
         if(params.options?.logging) console.log(path)
 
-        if(params.duplicates[file.file.name]){
+        if(duplicate !== undefined){
             const response = await this.client.models.PhotoPaths.update({
-              id: params.duplicates[file.file.name].id,
+              id: duplicate.id,
               path: path,
               width: file.width,
               height: file.height
@@ -423,7 +424,7 @@ export class PhotoSetService {
             if(!response || !response.data || response.errors !== undefined) return false
             mappedPath = {
               ...response.data,
-              favorite: params.duplicates[file.file.name].favorite,
+              favorite: duplicate.favorite,
               url: ''
             }
         } else {
@@ -450,25 +451,25 @@ export class PhotoSetService {
         params.parentUpdateSet((prev) => prev?.id === params.set.id ? ({
           ...prev,
           paths: [...prev.paths, mappedPath],
-          items: prev.items + 1,
+          items: prev.items + (duplicate ? 0 : 1),
         }) : prev)
         params.parentUpdateCollection((prev) => prev?.id === params.collection.id ? ({
           ...prev,
           sets: prev.sets.map((set) => set.id === params.set.id ? ({
             ...set,
             paths: [...set.paths, mappedPath],
-            items: set.items + 1,
+            items: set.items + (duplicate ? 0 : 1),
           }) : set),
-          items: prev.items + 1
+          items: prev.items + (duplicate ? 0 : 1)
         }) : prev)
         params.parentUpdateCollections((prev) => prev.map((collection) => collection.id === params.collection.id ? ({
           ...collection,
           sets: collection.sets.map((set) => set.id === params.set.id ? ({
             ...set,
             paths: [...set.paths, mappedPath],
-            items: set.items + 1,
+            items: set.items + (duplicate ? 0 : 1),
           }) : set),
-          items: collection.items + 1
+          items: collection.items + (duplicate ? 0 : 1)
         }) : collection))
         params.updateUpload((prev) => {
           return prev.map((upload) => {
@@ -482,7 +483,7 @@ export class PhotoSetService {
             return upload
           })
         })
-        return true
+        return !duplicate
       }))).filter((item) => item)
 
       successfulItems += response.length
