@@ -30,17 +30,46 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
     responseData.push(...pathsResponse.data)
   }
 
-  const mappedPaths: PicturePath[] = (await Promise.all(responseData.map(async (path) => {
-    let favorite: undefined | string
-    if(options?.participantId){
-      favorite = (await path.favorites()).data.find((favorite) => favorite.participantId === options.participantId)?.id
+  const favorites: Record<string, string> = {} 
+
+  if(options?.participantId) {
+    let favoriteResponse = await client.models.UserFavorites.listUserFavoritesByParticipantIdAndSetId({
+      participantId: options.participantId,
+      setId: {
+        eq: setResponse.data.id
+      }
+    })
+
+    const favoriteData = favoriteResponse.data
+
+    while(favoriteResponse.nextToken) {
+      favoriteResponse = await client.models.UserFavorites.listUserFavoritesByParticipantIdAndSetId({
+        participantId: options.participantId,
+        setId: {
+          eq: setResponse.data.id
+        }
+      }, { nextToken: favoriteResponse.nextToken })
+      favoriteData.push(...favoriteResponse.data)
     }
+
+    favoriteData.forEach((favorite) => {
+      favorites[favorite.pathId] = favorite.id
+    })
+  }
+
+  const mappedPaths: PicturePath[] = (await Promise.all(responseData.map(async (path) => {
+    // let favorite: undefined | string
+    // if(options?.participantId){
+    //   start = new Date().getTime()
+    //   favorite = (await path.favorites()).data.find((favorite) => favorite.participantId === options.participantId)?.id
+    //   console.log(`FAVORITE: ${new Date().getTime() - start}ms`)
+    // }
     const mappedPath: PicturePath = {
       ...path,
       url: options?.resolveUrls ? (await getUrl({
           path: path.path,
       })).url.toString() : '',
-      favorite: favorite
+      favorite: favorites[path.id] ?? undefined
     }
     return mappedPath
   }))).sort((a, b) => a.order - b.order)
@@ -234,6 +263,7 @@ export interface DeleteSetMutationParams {
 
 export interface FavoriteImageMutationParams {
   collectionId: string,
+  setId: string,
   pathId: string,
   participantId: string,
   options?: {
@@ -493,6 +523,8 @@ export class PhotoSetService {
       }
     }
 
+    console.log(successfulItems)
+
     const updateSetItemsResponse = this.client.models.PhotoSet.update({
         id: params.set.id,
         items: params.set.items + successfulItems
@@ -624,7 +656,8 @@ export class PhotoSetService {
     const response = await this.client.models.UserFavorites.create({
       pathId: params.pathId,
       participantId: params.participantId,
-      collectionId: params.collectionId
+      collectionId: params.collectionId,
+      setId: params.setId,
     })
     if(params.options?.logging) console.log(response)
     if(!response.data?.id) return undefined

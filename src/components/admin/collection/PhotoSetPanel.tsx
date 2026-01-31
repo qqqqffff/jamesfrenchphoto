@@ -58,7 +58,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const [picturePaths, setPicturePaths] = useState<PicturePath[]>([])
   const [searchText, setSearchText] = useState<string>('')
   const [selectedPhotos, setSelectedPhotos] = useState<PicturePath[]>([])
-  const [displayPhotoControls, setDisplayPhotoControls] = useState<string | undefined>()
   const [displayTitleOverride, setDisplayTitleOverride] = useState(false)
   const [notification, setNotification] = useState<{text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>}>()
   const [filesUploading, setFilesUploading] = useState<File[]>()
@@ -68,7 +67,10 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
   const navigate = useNavigate()
 
-  const pathsQuery = useQuery(PhotoPathService.getAllPathsQueryOptions(photoSet.id))
+  const pathsQuery = useQuery(PhotoSetService.getPhotoSetByIdQueryOptions(photoSet.id, {
+    resolveUrls: false,
+    participantId: auth.user?.profile.activeParticipant?.id
+  }))
   // useInfiniteQuery(
   //   PhotoPathService.getInfinitePathsQueryOptions(photoSet.id, {
   //     participantId: auth.user?.profile.activeParticipant?.id,
@@ -79,7 +81,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
   useEffect(() => {
     if(pathsQuery.data) {
-      setPicturePaths(pathsQuery.data)
+      setPicturePaths(pathsQuery.data.paths)
     }
   }, [pathsQuery.data])
 
@@ -100,17 +102,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
   const updateSet = useMutation({
     mutationFn: (params: UpdateSetParams) => PhotoSetService.updateSetMutation(params),
   })
-
-  function pictureStyle(id: string){
-    const conditionalBackground = selectedPhotos.find((path) => path.id === id) !== undefined ? 
-    `bg-gray-100 border-cyan-400` : `bg-transparent border-gray-500`
-    return 'relative px-8 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent min-w-max ' + conditionalBackground
-  }
-
-  function controlsEnabled(id: string, override: boolean){
-    if(id == displayPhotoControls || override) return 'flex'
-    return 'hidden'
-  }
 
   let activeTimeout: NodeJS.Timeout | undefined
 
@@ -700,11 +691,8 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
             parentUpdateSet={parentUpdateSet}
             parentUpdateCollection={parentUpdateCollection}
             parentUpdateCollections={parentUpdateCollections}
-            pictureStyle={pictureStyle}
             selectedPhotos={selectedPhotos}
             setSelectedPhotos={setSelectedPhotos}
-            setDisplayPhotoControls={setDisplayPhotoControls}
-            controlsEnabled={controlsEnabled}
             displayTitleOverride={displayTitleOverride}
             notify={(text, color) => {
               setNotification({text, color})

@@ -101,6 +101,7 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       collectionId: a.id().required(),
+      setId: a.id().required(),
       pathId: a.id().required(),
       path: a.belongsTo('PhotoPaths', 'pathId'),
       participantId: a.id().required(),
@@ -108,7 +109,8 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [
-      index('participantId').sortKeys(['collectionId']),
+      index('participantId').sortKeys(['setId']),
+      index('participantId').sortKeys(['collectionId'])
     ])
     .authorization((allow) => [
       allow.group('ADMINS'), 

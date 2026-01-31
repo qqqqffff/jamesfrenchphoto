@@ -1,4 +1,4 @@
-import { Button, Label, Modal, TextInput } from "flowbite-react"
+import { Button, Modal, TextInput } from "flowbite-react"
 import { Dispatch, FC, FormEvent, SetStateAction, useEffect, useRef, useState } from "react"
 import { ModalProps } from ".."
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types";
@@ -130,14 +130,14 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
     visible: boolean,
     order?: 'ASC' | 'DSC', 
   }>()
-  const [watermarkPath, setWatermarkPath] = useState<string>()
 
   const listRef = useRef<FixedSizeList<ImagesRowProps['data']> | null>(null)
-  const [navigateToIndex, setNavigateToIndex] = useState<{ index: number, timeout: NodeJS.Timeout } | null>(null)
+  const [navigateToIndex, setNavigateToIndex] = useState<{ index: number } | null>(null)
 
+  //TODO: import me from parent
   const watermarkQuery = useQuery({
     ...CollectionService.getPathQueryOptions(collection.watermarkPath ?? set.watermarkPath),
-    enabled: collection.watermarkPath !== undefined || set.watermarkPath !== undefined
+    enabled: (collection.watermarkPath !== undefined || set.watermarkPath !== undefined) && open
   })
   
   useEffect(() => {
@@ -151,13 +151,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
       )
     }
   }, [files])
-
-  useEffect(() => {
-    if(watermarkQuery.data) {
-      setWatermarkPath(watermarkQuery.data[1])
-    }
-  }, [watermarkQuery.data])
-
+  
   const filesUploadSize = Array.from(filesUpload.values()).reduce((prev, cur) => prev += cur.file.size, 0)
 
   async function handleUploadPhotos(event: FormEvent){
@@ -267,14 +261,8 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
               .findIndex((file) => file[0] === id)
               if(rowIndex !== -1 && listRef.current){
                 listRef.current.scrollToItem(rowIndex, 'start')
-                if(navigateToIndex !== null) {
-                  clearTimeout(navigateToIndex.timeout)
-                }
                 setNavigateToIndex({ 
-                  index: rowIndex, 
-                  timeout: setTimeout(() => {
-                      setNavigateToIndex(null)
-                    }, 3000)
+                  index: rowIndex
                 })
               }
             }}
@@ -282,9 +270,9 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
         </div>
         <form onSubmit={handleUploadPhotos}>
           <div className="flex flex-col">
-            <div className="flex flex-row w-full mb-1 items-center justify-between">
+            <div className="grid grid-cols-4 w-full mb-1 items-center justify-between gap-4">
               <div 
-                className="flex flex-row items-center justify-start w-[25%]"
+                className="flex flex-row items-center"
                 onMouseEnter={() => setSort((prev) => {
                   if(prev?.type == 'size'){
                     return {
@@ -297,11 +285,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 })}
                 onMouseLeave={() => setSort({...sort, type: 'name', visible: false})}
               >
-                <Label className="text-xl" htmlFor="name">
+                <div className="text-lg">
                   <span className="font-semibold mr-1">Files</span>
                   <span>({filesUpload.size})</span>
                   <span>:</span>
-                </Label>
+                </div>
                 <div className="mt-1">
                   {(sort?.visible && sort.type === 'name') && (
                     <button 
@@ -326,7 +314,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
               <TextInput 
                 theme={textInputTheme} 
                 sizing="sm" 
-                className="mt-1 text-opacity-90 max-w-[30%] min-w-max" 
+                className="mt-1 text-opacity-90 w-full col-span-2" 
                 placeholder="Search Files..."
                 onChange={(event) => {
                   setFilterText(event.target.value)
@@ -334,7 +322,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 value={filterText}
               />
               <div 
-                className="flex flex-row gap-1 items-center text-xl justify-end max-w-[35%]"
+                className="flex flex-row gap-1 items-center text-lg"
                 onMouseEnter={() => setSort((prev) => {
                   if(prev?.type == 'name'){
                     return {
@@ -350,7 +338,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 {filesUpload && filesUpload.size > 0 && (
                   <>
                     <span className="font-semibold">Total:</span>
-                    <span className="">{formatFileSize(filesUploadSize, 2)}</span>
+                    <span className="">{formatFileSize(filesUploadSize, 0)}</span>
                     <div className="-ml-1">
                       {(sort?.visible && sort.type === 'size') && (
                           <button 
@@ -420,8 +408,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                         },
                         issues: uploadIssues,
                         updateIssues: setUploadIssues,
-                        watermarkQuery: watermarkQuery,
-                        watermarkPath: watermarkPath,
+                        watermarkQuery: collection.watermarkPath !== undefined || set.watermarkPath !== undefined ? watermarkQuery : undefined,
                         navigatedIndex: navigateToIndex?.index ?? null
                       }}
                     >

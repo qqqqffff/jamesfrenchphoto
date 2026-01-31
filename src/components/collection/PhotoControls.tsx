@@ -74,6 +74,7 @@ export const PhotoControls = (props: PhotoControlsProps) => {
               pathId: props.picture.id,
               collectionId: props.collection.id,
               participantId: props.profile.email,
+              setId: props.set.id,
               options: {
                 logging: true
               }

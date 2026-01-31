@@ -32,7 +32,7 @@ export const ProgressMetric = (props: ProgressMetricProps) => {
   delete(divProps.currentAmount)
 
   return (
-    <div {...props}>
+    <div {...divProps}>
       <span>{speed.toFixed(2)} MB/s</span>
     </div>
   )

@@ -16,8 +16,7 @@ export interface ImagesRowProps extends ListChildComponentProps {
     onDelete: (fileName: string) => void
     issues: Map<UploadIssueType, UploadIssue[]>,
     updateIssues: Dispatch<SetStateAction<Map<UploadIssueType, UploadIssue[]>>>,
-    watermarkPath?: string
-    watermarkQuery: UseQueryResult<[string | undefined, string], Error>
+    watermarkQuery?: UseQueryResult<[string | undefined, string], Error>
     navigatedIndex: number | null
   }
 }
@@ -67,7 +66,7 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
                   })
                 }}
               >
-                <HiOutlineRefresh size={16} className="text-red-500" />  
+                <HiOutlineRefresh size={16} className="text-red-500 hover:text-red-700" />  
               </button>
             </Tooltip>
             <Tooltip
@@ -90,7 +89,7 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
                 })
                 data.onDelete(data.data[index][0])
               }}>
-                <HiOutlineTrash size={16} className="text-red-500" />  
+                <HiOutlineTrash size={16} className="text-red-500 hover:text-red-700" />  
               </button>
             </Tooltip>
           </>
@@ -103,13 +102,12 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
             data.previews?.[data.data[index][0]] !== undefined ? ( 
               <LazyImage 
                 overrideSrc={data.previews[data.data[index][0]]}
-                watermarkPath={data.watermarkPath}
                 watermarkQuery={data.watermarkQuery}
-                className="max-w-[300px]"
+                className="max-w-[300px] max-h-[200px]"
               />
             ) : (
               <div className="flex flex-row gap-1">
-                <span className="italic text-sm ms-6">Loading Previews</span>
+                <span className="italic text-sm ms-6">Loading Preview</span>
                 <Loading />
               </div>
             )
@@ -129,10 +127,25 @@ export const ImagesRow: FC<ImagesRowProps> = ({ index, data, style }) => {
       <div className="justify-end items-center flex flex-row gap-2 -ml-[10%]">
         <span className="text-nowrap">{formatFileSize(data.data[index][1].size, 0)}</span>
         <button 
-          className={`${duplicate ? 'text-transparent cursor-default' : 'hover:text-gray-500'} py-0.5 px-1.5 mt-0.5`}
+          className={`hover:text-gray-500 py-0.5 px-1.5 mt-0.5`}
           type='button' 
-          disabled={duplicate !== undefined}
-          onClick={() => data.onDelete(data.data[index][0])}
+          onClick={() => {
+            if(duplicate) {
+              data.updateIssues(prev => {
+                const temp = new Map(prev)
+                temp.set(
+                  UploadIssueType['duplicate'], 
+                  (temp.get(UploadIssueType['duplicate']) ?? [])
+                  .filter((i) => i.id === data.data[index][0])
+                )
+                return temp
+              })
+              data.onDelete(data.data[index][0])
+            }
+            else {
+              data.onDelete(data.data[index][0])
+            }
+          }}
         >
           <HiOutlineXMark size={16}/>
         </button>

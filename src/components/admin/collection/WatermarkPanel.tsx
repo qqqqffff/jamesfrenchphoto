@@ -38,8 +38,6 @@ export const WatermarkPanel = (props: WatermarkPanelProps) => {
     mutationFn: (params: ApplyWatermarkParams) => props.WatermarkService.applyWatermarkMutation(params),
     onSettled: () => setLoading(false)
   })
-
-
   
   return (
     <>
@@ -50,7 +48,6 @@ export const WatermarkPanel = (props: WatermarkPanelProps) => {
             <LazyImage 
               overrideSrc={tempImage}
               className="rounded-lg border-2 max-w-full"
-              watermarkPath={props.selectedWatermark?.url}
               watermarkQuery={props.watermarkPaths.find((path) => path.data?.[0] === props.selectedWatermark?.id)}
             />
           </div>

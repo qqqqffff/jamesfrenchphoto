@@ -30,8 +30,8 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
   }, [props.data, imageRefs.current[currentIndex]])
 
   return (
-    <div className="relative w-screen overflow-hidden border-t-gray-300 border-t-2">
-      <div className='h-[150px] relative'>
+    <div className="relative w-screen overflow-hidden">
+      <div className='h-[150px] relative py-1'>
         <div 
           className="flex transition-transform duration-500 ease-out h-full"
           style={{
@@ -66,8 +66,9 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                         }
                       }}
                       src={url.data[1]} 
-                      className='rounded-sm hover:border-gray-300 border-2 border-transparent
-                        hover:opacity-100 opacity-90 scale-75 duration-500 ease-in-out' 
+                      className={`rounded-sm border-2 hover:opacity-100 opacity-90 scale-75 duration-500 ease-in-out
+                        ${props.selectedPath.id === url.data[0] ? 'border-gray-300' : 'border-transparent hover:border-gray-300'}
+                      `} 
                       style={{ height: '140px', transform: props.selectedPath.id === url.data[0] ? 'scale(1)' : '' }}
                     />
                   ) : (

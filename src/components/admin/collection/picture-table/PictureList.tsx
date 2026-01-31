@@ -30,11 +30,8 @@ interface PictureListProps extends ComponentProps<'div'> {
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
-  pictureStyle: (id: string) => string,
   selectedPhotos: PicturePath[]
   setSelectedPhotos: (photos: PicturePath[]) => void
-  setDisplayPhotoControls: (id?: string) => void
-  controlsEnabled: (id: string, override: boolean) => string
   displayTitleOverride: boolean
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
   setFilesUploading: Dispatch<SetStateAction<File[] | undefined>>
@@ -42,7 +39,7 @@ interface PictureListProps extends ComponentProps<'div'> {
   uploadInputRef: MutableRefObject<HTMLInputElement | null>
 
   participantId?: string,
-  pathsQuery: UseQueryResult<PicturePath[], Error>
+  pathsQuery: UseQueryResult<PhotoSet | null, Error>
   repairItemCounts: UseMutationResult<PhotoCollection | undefined, Error, RepairItemCountsParams, unknown>
 }
 
@@ -297,6 +294,10 @@ export const PictureList = (props: PictureListProps) => {
     if(topElement && topObserverRef.current) {
       topObserverRef.current.observe(topElement)
     }
+    if(bottomIndex.current - topIndex.current <= 8) {
+      bottomIndex.current = topIndex.current + 8 < pictures.length - 1 ? topIndex.current + 8 : pictures.length - 1
+      topIndex.current = bottomIndex.current - 8 >= 0 ? bottomIndex.current - 8 : 0
+    }
 
     return () => {
       if(bottomObserverRef.current){
@@ -306,6 +307,8 @@ export const PictureList = (props: PictureListProps) => {
     }
   }, [
     props.paths,
+    bottomIndex.current,
+    topIndex.current
   ])
 
   
@@ -433,6 +436,8 @@ export const PictureList = (props: PictureListProps) => {
     })
   )
 
+  console.log(topIndex.current, bottomIndex.current)
+
   
 
   const gridClassName = ` 
@@ -464,11 +469,8 @@ export const PictureList = (props: PictureListProps) => {
                 parentUpdateSet={props.parentUpdateSet}
                 parentUpdateCollection={props.parentUpdateCollection}
                 parentUpdateCollections={props.parentUpdateCollections}
-                pictureStyle={props.pictureStyle}
                 selectedPhotos={props.selectedPhotos}
                 setSelectedPhotos={props.setSelectedPhotos}
-                setDisplayPhotoControls={props.setDisplayPhotoControls}
-                controlsEnabled={props.controlsEnabled}
                 displayTitleOverride={props.displayTitleOverride}
                 notify={props.notify}
                 participantId={props.participantId}
