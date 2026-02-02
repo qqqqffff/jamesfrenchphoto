@@ -1,33 +1,45 @@
 import { UseQueryResult } from "@tanstack/react-query"
 import { PicturePath } from "../../../types"
 import { useLocation, useNavigate } from "@tanstack/react-router"
-import { useEffect, useRef, useState } from "react"
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
+import { LazyImage } from "../../common/LazyImage"
 
 interface PhotoCarouselProps {
   paths: PicturePath[],
   setId?: string,
   favorites?: string[]
   data: UseQueryResult<[string | undefined, string] | undefined>[]
-  setSelectedPath: (path: PicturePath) => void,
-  selectedPath: PicturePath,
+  watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined>
+  setSelectedPath: Dispatch<SetStateAction<string>>,
+  selectedPath: string,
 }
 
 export const PhotoCarousel = (props: PhotoCarouselProps) => {
-  const imageRefs = useRef<(HTMLImageElement | null)[]>([])
+  const imageRefs = useRef<(HTMLDivElement | null)[]>([])
   const [offset, setOffset] = useState(0)
   const navigate = useNavigate()
   const location = useLocation()
 
-  const currentIndex = props.paths.findIndex((path) => path.id === props.selectedPath.id)
+  const currentIndex = props.paths.findIndex((path) => path.id === props.selectedPath)
 
   useEffect(() => {
+    const currentRef = imageRefs.current[currentIndex]
+  if (!currentRef) return
+
+  const observer = new ResizeObserver(() => {
     setOffset(imageRefs.current.reduce((prev, cur, index) => {
       if(index <= currentIndex){
         return prev + ((cur?.clientWidth === undefined || cur.clientWidth === 0 ? 100 : cur.clientWidth) + 4)
       }
       return prev
     }, 0) - ((imageRefs.current[currentIndex]?.clientWidth ?? 0) / 2))
-  }, [props.data, imageRefs.current[currentIndex]])
+  })
+
+  observer.observe(currentRef)
+  return () => observer.disconnect()
+  }, [
+    props.data, currentIndex, props.paths
+  ])
 
   return (
     <div className="relative w-screen overflow-hidden">
@@ -40,43 +52,36 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
         >
           {props.data.map((url, index) => {
             return (
-                url.isLoading ? (
-                  <div key={index} className="flex items-center justify-center h-[140px] bg-gray-300 rounded-sm">
-                    <svg className="w-10 h-10 text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
-                      <path d="M18 0H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2Zm-5.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm4.376 10.481A1 1 0 0 1 16 15H4a1 1 0 0 1-.895-1.447l3.5-7A1 1 0 0 1 7.468 6a.965.965 0 0 1 .9.5l2.775 4.757 1.546-1.887a1 1 0 0 1 1.618.1l2.541 4a1 1 0 0 1 .028 1.011Z"/>
-                    </svg>
-                  </div>
-                ) : (
-                  url.data ? (
-                    <img 
-                      key={index}
-                      ref={el => imageRefs.current[index] = el} 
-                      onClick={() => {
-                        const foundItem = props.paths.find((path) => path.id === url.data?.[0])
+              <div
+                key={index}
+                ref={el => imageRefs.current[index] = el}
+                onClick={() => {
+                  const foundItem = props.paths.find((path) => path.id === url.data?.[0])
 
-                        if(!foundItem) {
-                          return
-                        }
+                  if(!foundItem) {
+                    return
+                  }
 
-                        props.setSelectedPath(foundItem)
-                        if(location.href.includes('favorites-fullscreen')){
-                          navigate({ to: '.', search: { favorites: props.favorites, path: foundItem.id }})
-                        } else if(location.href.includes('photo-fullscreen')) {
-                          navigate({ to: '.', search: { set: props.setId, path: foundItem.id }})
-                        }
-                      }}
-                      src={url.data[1]} 
-                      className={`rounded-sm border-2 hover:opacity-100 opacity-90 scale-75 duration-500 ease-in-out
-                        ${props.selectedPath.id === url.data[0] ? 'border-gray-300' : 'border-transparent hover:border-gray-300'}
-                      `} 
-                      style={{ height: '140px', transform: props.selectedPath.id === url.data[0] ? 'scale(1)' : '' }}
-                    />
-                  ) : (
-                    <span>Failed to retrieve data</span>
-                  )
-                )
-              )
-            }
+                  props.setSelectedPath(foundItem.id)
+                  if(location.href.includes('favorites-fullscreen')){
+                    navigate({ to: '.', search: { favorites: props.favorites, path: foundItem.id }})
+                  } else if(location.href.includes('photo-fullscreen')) {
+                    navigate({ to: '.', search: { set: props.setId, path: foundItem.id }})
+                  }
+                }}
+                className={`rounded-sm border-2 hover:opacity-100 hover:border-opacity-100 opacity-80 border-opacity-60 scale-75 duration-500 ease-in-out
+                  ${props.selectedPath === url.data?.[0] ? 'border-gray-300' : 'border-transparent hover:border-gray-300'}
+                `} 
+                style={{ height: '140px', transform: props.selectedPath === url.data?.[0] ? 'scale(1)' : '' }}
+              >
+                <LazyImage 
+                  srcPathQuery={url}
+                  watermarkQuery={props.watermarkQuery}
+                  loading="lazy"
+                  draggable={false}
+                />
+              </div>
+            )}
           )}
         </div>
       </div>

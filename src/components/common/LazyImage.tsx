@@ -66,17 +66,15 @@ export const LazyImage = (props: LazyImageProps) => {
         props.watermarkQuery.isFetching ||
         props.watermarkQuery.data?.[1] === undefined
       )
-    )
+    ) 
   ) {
     return (
       <div 
-        className={`${props.className} flex items-center animate-pulse duration-500 `}
-        style={props.style?.minHeight !== undefined && props.style.minWidth !== undefined ? {
-          minHeight: props.style.minHeight,
-          minWidth: props.style.minWidth
-        } : {
-          minHeight: `${height}px`,
-          minWidth: `${width}px`
+        className={`flex items-center animate-pulse duration-500`}
+        style={{
+          minHeight: props.style?.minHeight !== undefined ? props.style.minHeight : `${height}px`,
+          minWidth: props.style?.minWidth !== undefined ? props.style.minWidth : `${width}px`,
+          maxHeight: props.style?.maxHeight,
         }}
       >
         <svg className="text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
