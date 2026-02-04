@@ -60,7 +60,7 @@ interface PictureProps {
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
   parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>,
   selectedPhotos: PicturePath[],
-  setSelectedPhotos: (photos: PicturePath[]) => void,
+  setSelectedPhotos: Dispatch<SetStateAction<PicturePath[]>>,
   displayTitleOverride: boolean,
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
   participantId?: string,
@@ -117,12 +117,13 @@ export const Picture = (props: PictureProps) => {
     }, 300);
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>, selectedPhotos: PicturePath[]) => {
-    if(selectedPhotos[selectedPhotos.length - 1].id === props.picture.id) {
-      if(event.key === ' ') handleExpand()
-      if(event.ctrlKey && event.key.toLowerCase() == 'a') {
-        props.setSelectedPhotos(props.set.paths)
-      }
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if(event.key === ' ') handleExpand()
+    else if(event.ctrlKey && event.key.toLowerCase() == 'a') {
+      props.setSelectedPhotos(props.paths)
+    }
+    else if(event.key === 'Backspace' && props.selectedPhotos.some((path) => path.id === props.picture.id)) {
+      props.setSelectedPhotos(prev => prev.filter((path) => path.id !== props.picture.id))
     }
   }
 
@@ -322,7 +323,7 @@ export const Picture = (props: PictureProps) => {
   const pictureStyle = (id: string) => {
     const conditionalBackground = props.selectedPhotos.find((path) => path.id === id) !== undefined ? 
     `bg-gray-100 border-cyan-400` : `bg-transparent border-gray-500`
-    return 'relative px-8 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent min-w-max ' + conditionalBackground
+    return 'relative px-8 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent min-w-max focus:outline-none ' + conditionalBackground
   }
 
   return (
@@ -369,18 +370,19 @@ export const Picture = (props: PictureProps) => {
             }
           }
         }}
-        onMouseEnter={() => {
+        onMouseEnter={(event) => {
           setDisplayControls(true)
+          event.currentTarget.focus({ preventScroll: true })
         }}  
-        onMouseLeave={() => {
+        onMouseLeave={(event) => {
           setDisplayControls(false)
+          event.currentTarget.blur()
         }}
         onKeyDown={(e) => {
+          console.log(e.key)
           e.preventDefault()
-          if(props.selectedPhotos.length > 0) {
-            if(!expanded) {
-              handleKeyDown(e, props.selectedPhotos)
-            }
+          if(!expanded) {
+            handleKeyDown(e)
           }
           else if(expanded || e.key === 'Escape') {
             handleClose()

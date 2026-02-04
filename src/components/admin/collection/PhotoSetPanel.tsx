@@ -69,7 +69,8 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
 
   const pathsQuery = useQuery(PhotoSetService.getPhotoSetByIdQueryOptions(photoSet.id, {
     resolveUrls: false,
-    participantId: auth.user?.profile.activeParticipant?.id
+    participantId: auth.user?.profile.activeParticipant?.id,
+    metric: true
   }))
   // useInfiniteQuery(
   //   PhotoPathService.getInfinitePathsQueryOptions(photoSet.id, {

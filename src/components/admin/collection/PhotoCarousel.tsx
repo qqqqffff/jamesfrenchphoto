@@ -69,7 +69,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                     navigate({ to: '.', search: { set: props.setId, path: foundItem.id }})
                   }
                 }}
-                className={`rounded-sm border-2 hover:opacity-100 hover:border-opacity-100 opacity-80 border-opacity-60 scale-75 duration-500 ease-in-out
+                className={`flex flex-row items-center rounded-sm border-2 hover:opacity-100 hover:border-opacity-100 opacity-80 border-opacity-60 scale-75 duration-500 ease-in-out
                   ${props.selectedPath === url.data?.[0] ? 'border-gray-300' : 'border-transparent hover:border-gray-300'}
                 `} 
                 style={{ height: '140px', transform: props.selectedPath === url.data?.[0] ? 'scale(1)' : '' }}
@@ -79,6 +79,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                   watermarkQuery={props.watermarkQuery}
                   loading="lazy"
                   draggable={false}
+                  style={{ height: '140px', transform: props.selectedPath === url.data?.[0] ? 'scale(1)' : '' }}
                 />
               </div>
             )}

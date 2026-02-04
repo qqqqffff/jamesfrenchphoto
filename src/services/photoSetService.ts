@@ -12,22 +12,33 @@ import { parsePathName } from '../utils'
 interface GetPhotoSetByIdOptions { 
   resolveUrls?: boolean,
   participantId?: string,
-  unauthenticated?: boolean
+  unauthenticated?: boolean,
+  metric?: boolean
 }
 async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options?: GetPhotoSetByIdOptions): Promise<PhotoSet | null> {
+  let start = new Date().getTime()
   if(!setId) return null
   const setResponse = await client.models.PhotoSet.get({
     id: setId,
   })
+  if(options?.metric) {
+    console.log(`SETRESPONSE: ${new Date().getTime() - start}ms`)
+    start = new Date().getTime()
+  }
+  
 
   if(!setResponse || !setResponse.data) return null
 
-  let pathsResponse = await setResponse.data.paths()
+  let pathsResponse = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder({ setId: setResponse.data.id })
   
   let responseData = pathsResponse.data
   while(pathsResponse.nextToken) {
-    pathsResponse = await setResponse.data.paths({ nextToken: pathsResponse.nextToken })
+    pathsResponse = await client.models.PhotoPaths.listPhotoPathsBySetIdAndOrder({ setId: setResponse.data.id }, { nextToken: pathsResponse.nextToken })
     responseData.push(...pathsResponse.data)
+  }
+  if(options?.metric) {
+    console.log(`PATHS RESPONSE: ${new Date().getTime() - start}ms`)
+    start = new Date().getTime()
   }
 
   const favorites: Record<string, string> = {} 
@@ -56,6 +67,10 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
       favorites[favorite.pathId] = favorite.id
     })
   }
+  if(options?.metric) {
+    console.log(`FAVORITES RESPONSE: ${new Date().getTime() - start}ms`)
+    start = new Date().getTime()
+  }
 
   const mappedPaths: PicturePath[] = (await Promise.all(responseData.map(async (path) => {
     // let favorite: undefined | string
@@ -73,6 +88,10 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
     }
     return mappedPath
   }))).sort((a, b) => a.order - b.order)
+
+  if(options?.metric) {
+    console.log(`MAPPING: ${new Date().getTime() - start}ms`)
+  }
   
   return {
     ...setResponse.data,
