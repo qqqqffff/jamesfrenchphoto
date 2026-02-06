@@ -12,6 +12,7 @@ interface PhotoCarouselProps {
   watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined>
   setSelectedPath: Dispatch<SetStateAction<string>>,
   selectedPath: string,
+  dimensions: { width: number, height: number }
 }
 
 export const PhotoCarousel = (props: PhotoCarouselProps) => {
@@ -51,35 +52,48 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
           }}
         >
           {props.data.map((url, index) => {
+            const foundItem = props.paths.find((path) => path.id === url.data?.[0])
+            const maxHeight = foundItem !== undefined ? (
+              ((foundItem.width > foundItem.height && props.dimensions.width > props.dimensions.height) ? 
+                (foundItem.width / foundItem.height) : (foundItem.height / foundItem.width)
+              ) * 140
+            ) : (
+              140
+            )
+
             return (
               <div
                 key={index}
                 ref={el => imageRefs.current[index] = el}
                 onClick={() => {
-                  const foundItem = props.paths.find((path) => path.id === url.data?.[0])
-
-                  if(!foundItem) {
-                    return
-                  }
-
-                  props.setSelectedPath(foundItem.id)
-                  if(location.href.includes('favorites-fullscreen')){
-                    navigate({ to: '.', search: { favorites: props.favorites, path: foundItem.id }})
-                  } else if(location.href.includes('photo-fullscreen')) {
-                    navigate({ to: '.', search: { set: props.setId, path: foundItem.id }})
+                  if(foundItem && props.selectedPath !== foundItem?.id) {
+                    props.setSelectedPath(foundItem.id)
+                    if(location.href.includes('favorites-fullscreen')){
+                      navigate({ to: '.', search: { favorites: props.favorites, path: foundItem.id }})
+                    } else if(location.href.includes('photo-fullscreen')) {
+                      navigate({ to: '.', search: { set: props.setId, path: foundItem.id }})
+                    }
                   }
                 }}
                 className={`flex flex-row items-center rounded-sm border-2 hover:opacity-100 hover:border-opacity-100 opacity-80 border-opacity-60 scale-75 duration-500 ease-in-out
-                  ${props.selectedPath === url.data?.[0] ? 'border-gray-300' : 'border-transparent hover:border-gray-300'}
+                  ${props.selectedPath === foundItem?.id ? 'border-gray-300' : 'border-transparent hover:border-gray-300'}
                 `} 
-                style={{ height: '140px', transform: props.selectedPath === url.data?.[0] ? 'scale(1)' : '' }}
+                style={{ 
+                  height: '140px',
+                  maxHeight: `${maxHeight}px`, 
+                  transform: props.selectedPath === foundItem?.id ? 'scale(1)' : '' 
+                }}
               >
                 <LazyImage 
                   srcPathQuery={url}
                   watermarkQuery={props.watermarkQuery}
                   loading="lazy"
                   draggable={false}
-                  style={{ height: '140px', transform: props.selectedPath === url.data?.[0] ? 'scale(1)' : '' }}
+                  style={{ 
+                    height: '140px', 
+                    maxHeight: `${maxHeight}px`,
+                    transform: props.selectedPath === foundItem?.id ? 'scale(1)' : '' 
+                  }}
                 />
               </div>
             )}

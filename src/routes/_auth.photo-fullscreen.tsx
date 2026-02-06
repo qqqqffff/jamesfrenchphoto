@@ -191,18 +191,24 @@ function RouteComponent() {
   })
 
   const currentPath = (set?.paths ?? []).find((path) => path.id === current)
+  console.log(currentPath?.order)
   const centerPicture = sliding === null || sliding.finished === null ? (
     currentPath
   ) : (
     sliding.finished
   )
+  const calculatePictureHeight = (path: PicturePath) => {
+    return (
+      //portrait vs landscape display ratio
+      (path.width > path.height && dimensions.width > dimensions.height) ? 
+      //ratio - changes for different orientations
+      (path.width / path.height) : (path.height / path.width)) * 
+      //available height
+      (dimensions.height - (carouselHidden ? 50 : 200)
+    )
+  }
   const maxPictureHeight = centerPicture !== undefined ? (
-    //portrait vs landscape display ratio
-    (centerPicture.width > centerPicture.height && dimensions.width > dimensions.height) ? 
-    //ratio - changes for different orientations
-    (centerPicture.width / centerPicture.height) : (centerPicture.height / centerPicture.width)) * 
-    //available height
-    (dimensions.height - (carouselHidden ? 50 : 200)
+    calculatePictureHeight(centerPicture)
   ) : (
     dimensions.height - (carouselHidden ? 50 : 200)
   )
@@ -224,8 +230,6 @@ function RouteComponent() {
     ) : (
       centerPicture.order + 1 >= set.paths.length ? 0 : centerPicture.order + 1
     )
-
-    // console.log(`current: ${currentPath.order}, next: ${nextIndex}`)
 
     const path = set.paths[nextIndex]
 
@@ -424,18 +428,7 @@ function RouteComponent() {
           width: sliding !== null && differential !== 0 ? `${dimensions.width * 2}px` : '100%',
           transition: sliding !== null && sliding.finished !== null ? 'translate 500ms' : undefined
         }}
-        onDragStart={(event) => {
-          // const slide: React.Touch = {
-          //   identifier: 0,
-          //   clientX: event.clientX,
-          //   clientY: event.clientY,
-          //   target: event.target,
-          //   screenX: event.screenX,
-          //   screenY: event.screenY,
-          //   pageX: event.pageX,
-          //   pageY: event.pageY
-          // }
-          // console.log(`Drag start: ` + slide)
+        onMouseDown={(event) => {
           if(sliding === null || sliding.finished === null) {
             const slide: React.Touch = {
               identifier: 0,
@@ -454,18 +447,7 @@ function RouteComponent() {
             })
           }
         }}
-        onDrag={(event) => {
-          // const slide: React.Touch = {
-          //   identifier: 0,
-          //   clientX: event.clientX,
-          //   clientY: event.clientY,
-          //   target: event.target,
-          //   screenX: event.screenX,
-          //   screenY: event.screenY,
-          //   pageX: event.pageX,
-          //   pageY: event.pageY
-          // }
-          // console.log('Dragging: ' + slide)
+        onMouseMove={(event) => {
           if(sliding !== null && sliding.finished === null) {
             const slide: React.Touch = {
               identifier: 0,
@@ -484,7 +466,7 @@ function RouteComponent() {
             })
           }
         }}
-        onDragEnd={(event) => {
+        onMouseUp={(event) => {
           const end: React.Touch = {
             identifier: 0,
             clientX: event.clientX,
@@ -497,7 +479,6 @@ function RouteComponent() {
           }
           const endDifferential = end.clientX - (sliding?.start.clientX ?? 0)
           const minThreshold = 50
-          // console.log(`Drag end: ` + end, event)
           if(
             end !== undefined &&
             sliding !== null && 
@@ -521,7 +502,9 @@ function RouteComponent() {
               current: end,
               finished: currentPath
             })
+            return
           }
+          setSliding(null)
         }}
         onTouchStart={(event) => {
           event.preventDefault()
@@ -570,26 +553,30 @@ function RouteComponent() {
               current: end,
               finished: currentPath
             })
+            return
           }
           setSliding(null)
         }}
       >
         <NextImage side='left' differential={differential} />
-        <LazyImage 
-          srcPathQuery={sliding === null || sliding.finished === null ? paths[current] : paths[sliding.finished.id]}
-          watermarkQuery={collection?.watermarkPath !== undefined || set?.watermarkPath !== undefined ? watermarkQuery : undefined}
-          style={{ 
-            // minHeight: `calc(100vh - ${carouselHeight}px)`,
-            height: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`,
-            maxHeight: `${maxPictureHeight}px`,
-            transition: 'height 300ms',
-            minWidth: '200px',
-            minHeight: '200px',
-            maxWidth: '100vw'
-          }}
-          className='flex-shrink-0 ease-in-out'
-          loading='lazy'
-        />
+        <div className='flex items-center justify-center w-[100vw]'>
+          <LazyImage 
+            srcPathQuery={sliding === null || sliding.finished === null ? paths[current] : paths[sliding.finished.id]}
+            watermarkQuery={collection?.watermarkPath !== undefined || set?.watermarkPath !== undefined ? watermarkQuery : undefined}
+            style={{ 
+              // minHeight: `calc(100vh - ${carouselHeight}px)`,
+              height: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`,
+              maxHeight: `${maxPictureHeight}px`,
+              transition: 'height 300ms',
+              minWidth: '200px',
+              minHeight: '200px',
+              maxWidth: '100vw'
+            }}
+            className='flex-shrink-0 ease-in-out'
+            loading='lazy'
+            draggable={false}
+          />
+        </div>
         <NextImage side='right' differential={differential} />
       </div>
       {(
@@ -611,10 +598,11 @@ function RouteComponent() {
             setSelectedPath={setCurrent} 
             selectedPath={current}
             setId={data.set}
+            dimensions={dimensions}
           />
         </div>
       )}
-      {set !== undefined && sliding === null && (
+      {set !== undefined && sliding === null && (currentPath?.order ?? 0) !== 0 && (
         <button 
           className={`
             fixed left-4 -translate-y-1/2 text-gray-700 rounded-lg p-4 z-50 
@@ -629,7 +617,34 @@ function RouteComponent() {
             if(currentIndex == -1) {
               //TODO: handle the error
             }
+            
             const nextIndex = currentIndex - 1 < 0 ? set.paths.length - 1 : currentIndex - 1
+
+            setTimeout(() => {
+              setSliding(null)
+            }, 500)
+            const ghostTouch: React.Touch = {
+              identifier: 0,
+              clientX: 0,
+              clientY: 0,
+              screenX: 0,
+              screenY: 0,
+              pageX: 0,
+              pageY: 0,
+              target: {} as EventTarget
+            }
+            setSliding({
+              current: {...ghostTouch, clientX: 50},
+              start: ghostTouch,
+              finished: null
+            })
+            setTimeout(() => {
+              setSliding({
+                current: {...ghostTouch, clientX: 50},
+                start: ghostTouch,
+                finished: set.paths[currentIndex]
+              })
+            }, 1)
             setCurrent(set.paths[nextIndex].id)
             navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
           }}
@@ -637,7 +652,7 @@ function RouteComponent() {
           <HiOutlineArrowLeft size={32} />
         </button>
       )}
-      {set !== undefined && sliding === null && (
+      {set !== undefined && sliding === null && (currentPath?.order ?? set.paths.length - 1) !== set.paths.length - 1 && (
         <button 
           className={`
             fixed right-4 -translate-y-1/2 text-gray-700 rounded-lg p-4 z-50 
@@ -652,7 +667,28 @@ function RouteComponent() {
             if(currentIndex == -1) {
               //TODO: handle the error
             }
+            
             const nextIndex = currentIndex + 1 >= set.paths.length ? 0 : currentIndex + 1
+
+            setTimeout(() => {
+              setSliding(null)
+            }, 500)
+            const ghostTouch: React.Touch = {
+              identifier: 0,
+              clientX: 0,
+              clientY: 0,
+              screenX: 0,
+              screenY: 0,
+              pageX: 0,
+              pageY: 0,
+              target: {} as EventTarget
+            }
+            setSliding({
+              current: {...ghostTouch, clientX: -50},
+              start: ghostTouch,
+              finished: set.paths[currentIndex]
+            })
+
             setCurrent(set.paths[nextIndex].id)
             navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
           }}
