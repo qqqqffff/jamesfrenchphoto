@@ -12,7 +12,7 @@ import { DownloadImageMutationParams, PhotoPathService } from '../services/photo
 import { Schema } from '../../amplify/data/resource'
 import { LazyImage } from '../components/common/LazyImage'
 import { HiOutlineBars3, HiOutlineCheckCircle, HiOutlineMinus, HiOutlinePlus } from 'react-icons/hi2'
-import { PhotoCollection, PhotoSet } from '../types'
+import { PhotoCollection, PhotoSet, PicturePath } from '../types'
 import Loading from '../components/common/Loading'
 import { Dropdown } from 'flowbite-react'
 
@@ -51,7 +51,7 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
 interface SlideInformation {
   start: React.Touch,
   current: React.Touch,
-  finished: NodeJS.Timeout | null
+  finished: PicturePath | null
 }
 
 function RouteComponent() {
@@ -191,11 +191,18 @@ function RouteComponent() {
   })
 
   const currentPath = (set?.paths ?? []).find((path) => path.id === current)
-  const maxPictureHeight = currentPath !== undefined ? (
+  const centerPicture = sliding === null || sliding.finished === null ? (
+    currentPath
+  ) : (
+    sliding.finished
+  )
+  const maxPictureHeight = centerPicture !== undefined ? (
+    //portrait vs landscape display ratio
+    (centerPicture.width > centerPicture.height && dimensions.width > dimensions.height) ? 
     //ratio - changes for different orientations
-    (currentPath.width > currentPath.height && dimensions.width > dimensions.height ? (currentPath.width / currentPath.height) : (currentPath.height / currentPath.width)) * 
+    (centerPicture.width / centerPicture.height) : (centerPicture.height / centerPicture.width)) * 
     //available height
-    (dimensions.height - (carouselHidden ? 50 : 200)) 
+    (dimensions.height - (carouselHidden ? 50 : 200)
   ) : (
     dimensions.height - (carouselHidden ? 50 : 200)
   )
@@ -206,16 +213,16 @@ function RouteComponent() {
   function NextImage(props: { side: 'left' | 'right', differential: number }): JSX.Element | null {
     if(
       set === undefined || 
-      currentPath === undefined ||
+      centerPicture === undefined ||
       (
         props.differential >= 0 && props.side === 'right' ||
         props.differential <= 0 && props.side === 'left'
       )
     ) return null
     const nextIndex = props.side === 'left' ? (
-      currentPath.order - 1 < 0 ? set.paths.length - 1 : currentPath.order - 1 
+      centerPicture.order - 1 < 0 ? set.paths.length - 1 : centerPicture.order - 1 
     ) : (
-      currentPath.order + 1 >= set.paths.length ? 0 : currentPath.order + 1
+      centerPicture.order + 1 >= set.paths.length ? 0 : centerPicture.order + 1
     )
 
     // console.log(`current: ${currentPath.order}, next: ${nextIndex}`)
@@ -417,6 +424,105 @@ function RouteComponent() {
           width: sliding !== null && differential !== 0 ? `${dimensions.width * 2}px` : '100%',
           transition: sliding !== null && sliding.finished !== null ? 'translate 500ms' : undefined
         }}
+        onDragStart={(event) => {
+          // const slide: React.Touch = {
+          //   identifier: 0,
+          //   clientX: event.clientX,
+          //   clientY: event.clientY,
+          //   target: event.target,
+          //   screenX: event.screenX,
+          //   screenY: event.screenY,
+          //   pageX: event.pageX,
+          //   pageY: event.pageY
+          // }
+          // console.log(`Drag start: ` + slide)
+          if(sliding === null || sliding.finished === null) {
+            const slide: React.Touch = {
+              identifier: 0,
+              clientX: event.clientX,
+              clientY: event.clientY,
+              target: event.target,
+              screenX: event.screenX,
+              screenY: event.screenY,
+              pageX: event.pageX,
+              pageY: event.pageY
+            }
+            setSliding({
+              start: slide,
+              current: slide,
+              finished: null
+            })
+          }
+        }}
+        onDrag={(event) => {
+          // const slide: React.Touch = {
+          //   identifier: 0,
+          //   clientX: event.clientX,
+          //   clientY: event.clientY,
+          //   target: event.target,
+          //   screenX: event.screenX,
+          //   screenY: event.screenY,
+          //   pageX: event.pageX,
+          //   pageY: event.pageY
+          // }
+          // console.log('Dragging: ' + slide)
+          if(sliding !== null && sliding.finished === null) {
+            const slide: React.Touch = {
+              identifier: 0,
+              clientX: event.clientX,
+              clientY: event.clientY,
+              target: event.target,
+              screenX: event.screenX,
+              screenY: event.screenY,
+              pageX: event.pageX,
+              pageY: event.pageY
+            }
+            setSliding({
+              start: sliding.start,
+              current: slide,
+              finished: null
+            })
+          }
+        }}
+        onDragEnd={(event) => {
+          const end: React.Touch = {
+            identifier: 0,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            target: event.target,
+            screenX: event.screenX,
+            screenY: event.screenY,
+            pageX: event.pageX,
+            pageY: event.pageY
+          }
+          const endDifferential = end.clientX - (sliding?.start.clientX ?? 0)
+          const minThreshold = 50
+          // console.log(`Drag end: ` + end, event)
+          if(
+            end !== undefined &&
+            sliding !== null && 
+            sliding.finished === null &&
+            currentPath !== undefined &&
+            set !== undefined &&
+            Math.abs(endDifferential) > minThreshold
+          ) {
+            const nextIndex = endDifferential > 0 ? (
+              currentPath.order - 1 < 0 ? set.paths.length - 1 : currentPath.order - 1
+            ) : (
+              currentPath.order + 1 >= set.paths.length ? 0 : currentPath.order + 1
+            )
+            setTimeout(() => {
+              setSliding(null)
+            }, 500)
+            setCurrent(set.paths[nextIndex].id)
+            navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
+            setSliding({
+              ...sliding,
+              current: end,
+              finished: currentPath
+            })
+          }
+        }}
         onTouchStart={(event) => {
           event.preventDefault()
           if(sliding === null || sliding.finished === null) {
@@ -449,44 +555,28 @@ function RouteComponent() {
             set !== undefined && 
             Math.abs(endDifferential) > minThreshold
           ) {  
-            if(endDifferential > 0) {
-              //swipe right - go to previous (path - 1)
-              const nextIndex = currentPath.order - 1 < 0 ? set.paths.length - 1 : currentPath.order - 1
-              const timeout = setTimeout(() => {
-                setCurrent(set.paths[nextIndex].id)
-                navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
-                setSliding(null)
-              }, 500)
-              setSliding({
-                ...sliding,
-                current: end,
-                finished: timeout
-              })
-              return
-            }
-
-            else if(endDifferential < 0) {
-              //swipe left - go to next (path + 1)
-              const nextIndex = currentPath.order + 1 >= set.paths.length ? 0 : currentPath.order + 1
-              const timeout = setTimeout(() => {
-                setCurrent(set.paths[nextIndex].id)
-                navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
-                setSliding(null)
-              }, 500)
-              setSliding({
-                ...sliding,
-                current: end,
-                finished: timeout
-              })
-              return
-            }
+            const nextIndex = endDifferential > 0 ? (
+              currentPath.order - 1 < 0 ? set.paths.length - 1 : currentPath.order - 1
+            ) : (
+              currentPath.order + 1 >= set.paths.length ? 0 : currentPath.order + 1
+            )
+            setTimeout(() => {
+              setSliding(null)
+            }, 500)
+            setCurrent(set.paths[nextIndex].id)
+            navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
+            setSliding({
+              ...sliding,
+              current: end,
+              finished: currentPath
+            })
           }
           setSliding(null)
         }}
       >
         <NextImage side='left' differential={differential} />
         <LazyImage 
-          srcPathQuery={paths[current]}
+          srcPathQuery={sliding === null || sliding.finished === null ? paths[current] : paths[sliding.finished.id]}
           watermarkQuery={collection?.watermarkPath !== undefined || set?.watermarkPath !== undefined ? watermarkQuery : undefined}
           style={{ 
             // minHeight: `calc(100vh - ${carouselHeight}px)`,
@@ -499,7 +589,6 @@ function RouteComponent() {
           }}
           className='flex-shrink-0 ease-in-out'
           loading='lazy'
-          draggable={false}
         />
         <NextImage side='right' differential={differential} />
       </div>
