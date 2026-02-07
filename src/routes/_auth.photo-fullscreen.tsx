@@ -15,6 +15,7 @@ import { HiOutlineBars3, HiOutlineCheckCircle, HiOutlineMinus, HiOutlinePlus } f
 import { PhotoCollection, PhotoSet, PicturePath } from '../types'
 import Loading from '../components/common/Loading'
 import { Dropdown } from 'flowbite-react'
+import { calculatePictureHeight } from '../functions/photoFunctions'
 
 interface PhotoFullScreenParams {
   set: string,
@@ -191,24 +192,14 @@ function RouteComponent() {
   })
 
   const currentPath = (set?.paths ?? []).find((path) => path.id === current)
-  console.log(currentPath?.order)
   const centerPicture = sliding === null || sliding.finished === null ? (
     currentPath
   ) : (
     sliding.finished
   )
-  const calculatePictureHeight = (path: PicturePath) => {
-    return (
-      //portrait vs landscape display ratio
-      (path.width > path.height && dimensions.width > dimensions.height) ? 
-      //ratio - changes for different orientations
-      (path.width / path.height) : (path.height / path.width)) * 
-      //available height
-      (dimensions.height - (carouselHidden ? 50 : 200)
-    )
-  }
+
   const maxPictureHeight = centerPicture !== undefined ? (
-    calculatePictureHeight(centerPicture)
+    calculatePictureHeight(centerPicture, dimensions, (dimensions.height - (carouselHidden ? 50 : 200)))
   ) : (
     dimensions.height - (carouselHidden ? 50 : 200)
   )
@@ -221,24 +212,20 @@ function RouteComponent() {
       set === undefined || 
       centerPicture === undefined ||
       (
-        props.differential >= 0 && props.side === 'right' ||
-        props.differential <= 0 && props.side === 'left'
+        props.side === 'right' && (props.differential >= 0 || centerPicture.order === set.paths.length - 1) 
+      ||
+        props.side === 'left' && (props.differential <= 0 || centerPicture.order === 0)
       )
     ) return null
     const nextIndex = props.side === 'left' ? (
-      centerPicture.order - 1 < 0 ? set.paths.length - 1 : centerPicture.order - 1 
+      centerPicture.order - 1 
     ) : (
-      centerPicture.order + 1 >= set.paths.length ? 0 : centerPicture.order + 1
+      centerPicture.order + 1
     )
 
     const path = set.paths[nextIndex]
 
-    const maxPictureHeight = (
-      //ratio - changes for different orientations
-      (path.width > path.height && dimensions.width > dimensions.height ? (path.width / path.height) : (path.height / path.width)) * 
-      //available height
-      (dimensions.height - (carouselHidden ? 50 : 200)) 
-    )
+    const maxPictureHeight = calculatePictureHeight(path, dimensions, (dimensions.height - (carouselHidden ? 50 : 200)))
 
     return (
       <div className='flex justify-center h-full items-center overflow-hidden w-[100vw]'>
@@ -246,8 +233,8 @@ function RouteComponent() {
           srcPathQuery={paths[path.id]}
           watermarkQuery={collection?.watermarkPath !== undefined || set?.watermarkPath !== undefined ? watermarkQuery : undefined}
           style={{ 
-            height: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`,
-            maxHeight: `${maxPictureHeight}px`,
+            maxHeight: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`,
+            height: `${maxPictureHeight}px`,
             transition: 'height 300ms',
             minWidth: `200px`,
             minHeight: '200px',
@@ -260,6 +247,14 @@ function RouteComponent() {
       </div>
     )
   }
+
+  const validSlide = centerPicture !== undefined && set !== undefined && (
+    (
+      differential > 0 && centerPicture.order !== 0
+    ) || (
+      differential < 0 && centerPicture.order !== set.paths.length - 1
+    )
+  )
 
   return (
     <div className="bg-white flex flex-col" style={{ height: dimensions.height }}>
@@ -412,12 +407,13 @@ function RouteComponent() {
           )}
         </div>
       </div>
+      <div className='border-y-2 border-y-gray-300'>
       <div 
-        className='flex border-y-2 border-y-gray-300 h-full justify-center items-center overflow-hidden touch-none'
+        className='flex h-full justify-center items-center overflow-hidden touch-none'
         style={{
           translate: 
             sliding !== null && differential !== 0 && sliding.finished === null ? (
-              `${differential + (differential > 0 ? -dimensions.width : 0)}px` 
+              `${differential + (validSlide && differential > 0 ? -dimensions.width : 0)}px` 
             ) : (
               sliding !== null && sliding.finished !== null ? (
                 `${differential > 0 ? 0 : -dimensions.width}px`
@@ -425,7 +421,7 @@ function RouteComponent() {
                 '0px'
               )
             ),
-          width: sliding !== null && differential !== 0 ? `${dimensions.width * 2}px` : '100%',
+          width: sliding !== null && validSlide ? `${dimensions.width * 2}px` : '100%',
           transition: sliding !== null && sliding.finished !== null ? 'translate 500ms' : undefined
         }}
         onMouseDown={(event) => {
@@ -485,6 +481,7 @@ function RouteComponent() {
             sliding.finished === null &&
             currentPath !== undefined &&
             set !== undefined &&
+            validSlide &&
             Math.abs(endDifferential) > minThreshold
           ) {
             const nextIndex = endDifferential > 0 ? (
@@ -507,7 +504,6 @@ function RouteComponent() {
           setSliding(null)
         }}
         onTouchStart={(event) => {
-          event.preventDefault()
           if(sliding === null || sliding.finished === null) {
             setSliding({
               start:event.touches[0],
@@ -517,11 +513,29 @@ function RouteComponent() {
           }
         }}
         onTouchMove={(event) => {
-          event.preventDefault()
-          if(sliding && sliding.finished === null) {
+          if(
+            sliding && 
+            sliding.finished === null && 
+            currentPath !== undefined && 
+            set !== undefined
+          ) {
+            const foundTouch = Array.from(event.changedTouches).find(touch => touch.identifier === sliding.start.identifier) ?? sliding.current
+            if(
+              (
+                currentPath.order === set.paths.length - 1 &&
+                (foundTouch.clientX - sliding.start.clientX) <= -100
+              ) 
+                || 
+              (
+                currentPath.order === 0 &&
+                (foundTouch.clientX - sliding.start.clientX) >= 100
+              )
+            ) {
+              return
+            }
             setSliding({
               start: sliding.start,
-              current: Array.from(event.changedTouches).find(touch => touch.identifier === sliding.start.identifier) ?? sliding.current,
+              current: foundTouch,
               finished: null
             })
           }
@@ -536,6 +550,7 @@ function RouteComponent() {
             sliding.finished === null && 
             currentPath !== undefined && 
             set !== undefined && 
+            validSlide &&
             Math.abs(endDifferential) > minThreshold
           ) {  
             const nextIndex = endDifferential > 0 ? (
@@ -559,15 +574,20 @@ function RouteComponent() {
         }}
       >
         <NextImage side='left' differential={differential} />
-        <div className='flex items-center justify-center w-[100vw]'>
+        <div 
+          className='flex items-center justify-center w-[100vw]'
+          style={{
+            height: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`
+          }}
+        >
           <LazyImage 
             srcPathQuery={sliding === null || sliding.finished === null ? paths[current] : paths[sliding.finished.id]}
             watermarkQuery={collection?.watermarkPath !== undefined || set?.watermarkPath !== undefined ? watermarkQuery : undefined}
             style={{ 
               // minHeight: `calc(100vh - ${carouselHeight}px)`,
-              height: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`,
-              maxHeight: `${maxPictureHeight}px`,
-              transition: 'height 300ms',
+              maxHeight: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`,
+              height: `${maxPictureHeight}px`,
+              transition: 'maxHeight 300ms',
               minWidth: '200px',
               minHeight: '200px',
               maxWidth: '100vw'
@@ -578,6 +598,7 @@ function RouteComponent() {
           />
         </div>
         <NextImage side='right' differential={differential} />
+      </div>
       </div>
       {(
         set !== undefined &&
@@ -597,7 +618,7 @@ function RouteComponent() {
             watermarkQuery={collection?.watermarkPath !== undefined || set?.watermarkPath !== undefined ? watermarkQuery : undefined}
             setSelectedPath={setCurrent} 
             selectedPath={current}
-            setId={data.set}
+            set={set}
             dimensions={dimensions}
           />
         </div>

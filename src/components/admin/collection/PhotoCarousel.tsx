@@ -1,12 +1,13 @@
 import { UseQueryResult } from "@tanstack/react-query"
-import { PicturePath } from "../../../types"
+import { PhotoSet, PicturePath } from "../../../types"
 import { useLocation, useNavigate } from "@tanstack/react-router"
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
+import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
 import { LazyImage } from "../../common/LazyImage"
+import { calculatePictureHeight } from "../../../functions/photoFunctions"
 
 interface PhotoCarouselProps {
   paths: PicturePath[],
-  setId?: string,
+  set: PhotoSet,
   favorites?: string[]
   data: UseQueryResult<[string | undefined, string] | undefined>[]
   watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined>
@@ -15,9 +16,16 @@ interface PhotoCarouselProps {
   dimensions: { width: number, height: number }
 }
 
+interface SlideInformation {
+  start: React.Touch,
+  current: React.Touch,
+  finished: PicturePath | null
+}
+
 export const PhotoCarousel = (props: PhotoCarouselProps) => {
   const imageRefs = useRef<(HTMLDivElement | null)[]>([])
   const [offset, setOffset] = useState(0)
+  const [sliding, setSliding] = useState<SlideInformation | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -25,22 +33,25 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
 
   useEffect(() => {
     const currentRef = imageRefs.current[currentIndex]
-  if (!currentRef) return
+    if (!currentRef) return
 
-  const observer = new ResizeObserver(() => {
-    setOffset(imageRefs.current.reduce((prev, cur, index) => {
-      if(index <= currentIndex){
-        return prev + ((cur?.clientWidth === undefined || cur.clientWidth === 0 ? 100 : cur.clientWidth) + 4)
-      }
-      return prev
-    }, 0) - ((imageRefs.current[currentIndex]?.clientWidth ?? 0) / 2))
-  })
+    const observer = new ResizeObserver(() => {
+      setOffset(imageRefs.current.reduce((prev, cur, index) => {
+        if(index <= currentIndex){
+          return prev + ((cur?.clientWidth === undefined || cur.clientWidth === 0 ? 100 : cur.clientWidth) + 4)
+        }
+        return prev
+      }, 0) - ((imageRefs.current[currentIndex]?.clientWidth ?? 0) / 2))
+    })
 
-  observer.observe(currentRef)
-  return () => observer.disconnect()
+    observer.observe(currentRef)
+    return () => observer.disconnect()
   }, [
     props.data, currentIndex, props.paths
   ])
+
+  const differential = (sliding?.current.clientX ?? 0) - (sliding?.start.clientX ?? 0)
+  const currentPath = props.paths[currentIndex]
 
   return (
     <div className="relative w-screen overflow-hidden">
@@ -49,14 +60,150 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
           className="flex transition-transform duration-500 ease-out h-full"
           style={{
             transform: `translateX(calc(50vw - ${offset}px))`,
+            translate: differential
+          }}
+          onMouseDown={(event) => {
+            if(sliding === null || sliding.finished === null) {
+              const slide: React.Touch = {
+                identifier: 0,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                target: event.target,
+                screenX: event.screenX,
+                screenY: event.screenY,
+                pageX: event.pageX,
+                pageY: event.pageY
+              }
+              setSliding({
+                start: slide,
+                current: slide,
+                finished: null
+              })
+            }
+          }}
+          onMouseMove={(event) => {
+            console.log((props.dimensions.width / 2) - offset + differential)
+            if(sliding !== null && sliding.finished === null) {
+              const slide: React.Touch = {
+                identifier: 0,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                target: event.target,
+                screenX: event.screenX,
+                screenY: event.screenY,
+                pageX: event.pageX,
+                pageY: event.pageY
+              }
+              setSliding({
+                start: sliding.start,
+                current: slide,
+                finished: null
+              })
+            }
+          }}
+          onMouseUp={(event) => {
+            const end: React.Touch = {
+              identifier: 0,
+              clientX: event.clientX,
+              clientY: event.clientY,
+              target: event.target,
+              screenX: event.screenX,
+              screenY: event.screenY,
+              pageX: event.pageX,
+              pageY: event.pageY
+            }
+            const endDifferential = end.clientX - (sliding?.start.clientX ?? 0)
+            const minThreshold = 50
+            // if(
+            //   end !== undefined &&
+            //   sliding !== null && 
+            //   sliding.finished === null &&
+            //   currentPath !== undefined &&
+            //   props.set !== undefined &&
+            //   Math.abs(endDifferential) > minThreshold
+            // ) {
+            //   const nextIndex = endDifferential > 0 ? (
+            //     currentPath.order - 1 < 0 ? props.set.paths.length - 1 : currentPath.order - 1
+            //   ) : (
+            //     currentPath.order + 1 >= props.set.paths.length ? 0 : currentPath.order + 1
+            //   )
+            if(minThreshold > 50) {
+              setTimeout(() => {
+                setSliding(null)
+              }, 500)
+            }
+            setSliding(null)
+              
+            //   props.setSelectedPath(props.set.paths[nextIndex].id)
+            //   navigate({ to: '.', search: { set: props.set.id, path: props.set.paths[nextIndex].id }})
+            //   setSliding({
+            //     ...sliding,
+            //     current: end,
+            //     finished: currentPath
+            //   })
+            //   return
+            // }
+            // setSliding(null)
+          }}
+          onTouchStart={(event) => {
+            if(sliding === null || sliding.finished === null) {
+              setSliding({
+                start:event.touches[0],
+                current: event.touches[0],
+                finished: null
+              })
+            }
+          }}
+          onTouchMove={(event) => {
+            if(sliding && sliding.finished === null) {
+              setSliding({
+                start: sliding.start,
+                current: Array.from(event.changedTouches).find(touch => touch.identifier === sliding.start.identifier) ?? sliding.current,
+                finished: null
+              })
+            }
+          }}
+          onTouchEnd={(event) => {
+            const end = Array.from(event.changedTouches).find(touch => touch.identifier === sliding?.start.identifier)
+            const endDifferential = (end?.clientX ?? 0) - (sliding?.start.clientX ?? 0)
+            const minThreshold = 50
+            // if(
+            //   end !== undefined &&
+            //   sliding !== null && 
+            //   sliding.finished === null && 
+            //   currentPath !== undefined && 
+            //   props.set !== undefined && 
+            //   Math.abs(endDifferential) > minThreshold
+            // ) {  
+            //   const nextIndex = endDifferential > 0 ? (
+            //     currentPath.order - 1 < 0 ? props.set.paths.length - 1 : currentPath.order - 1
+            //   ) : (
+            //     currentPath.order + 1 >= props.set.paths.length ? 0 : currentPath.order + 1
+            //   )
+            //   setTimeout(() => {
+            //     setSliding(null)
+            //   }, 500)
+            //   props.setSelectedPath(props.set.paths[nextIndex].id)
+            //   navigate({ to: '.', search: { set: props.set.id, path: props.set.paths[nextIndex].id }})
+            //   setSliding({
+            //     ...sliding,
+            //     current: end,
+            //     finished: currentPath
+            //   })
+            //   return
+            // }
+            if(minThreshold > 50) {
+              setTimeout(() => {
+                setSliding(null)
+              }, 500)
+            }
+            setSliding(null)
           }}
         >
           {props.data.map((url, index) => {
             const foundItem = props.paths.find((path) => path.id === url.data?.[0])
             const maxHeight = foundItem !== undefined ? (
-              ((foundItem.width > foundItem.height && props.dimensions.width > props.dimensions.height) ? 
-                (foundItem.width / foundItem.height) : (foundItem.height / foundItem.width)
-              ) * 140
+              calculatePictureHeight(foundItem, props.dimensions, 140)
             ) : (
               140
             )
@@ -66,21 +213,22 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                 key={index}
                 ref={el => imageRefs.current[index] = el}
                 onClick={() => {
-                  if(foundItem && props.selectedPath !== foundItem?.id) {
+                  if(foundItem && props.selectedPath !== foundItem?.id && sliding === null) {
                     props.setSelectedPath(foundItem.id)
                     if(location.href.includes('favorites-fullscreen')){
                       navigate({ to: '.', search: { favorites: props.favorites, path: foundItem.id }})
                     } else if(location.href.includes('photo-fullscreen')) {
-                      navigate({ to: '.', search: { set: props.setId, path: foundItem.id }})
+                      navigate({ to: '.', search: { set: props.set.id, path: foundItem.id }})
                     }
                   }
                 }}
-                className={`flex flex-row items-center rounded-sm border-2 hover:opacity-100 hover:border-opacity-100 opacity-80 border-opacity-60 scale-75 duration-500 ease-in-out
+                className={`
+                  flex flex-row items-center rounded-sm border-2 hover:opacity-100 hover:border-opacity-100 
+                  opacity-80 border-opacity-60 scale-75 duration-500 ease-in-out justify-center
                   ${props.selectedPath === foundItem?.id ? 'border-gray-300' : 'border-transparent hover:border-gray-300'}
                 `} 
                 style={{ 
                   height: '140px',
-                  maxHeight: `${maxHeight}px`, 
                   transform: props.selectedPath === foundItem?.id ? 'scale(1)' : '' 
                 }}
               >
