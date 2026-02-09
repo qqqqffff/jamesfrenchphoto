@@ -52,7 +52,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
   ])
 
   const differential = (sliding?.current.clientX ?? 0) - (sliding?.start.clientX ?? 0)
-  console.log(offset)
+  // console.log(offset)
 
   return (
     <div className="relative w-screen overflow-hidden">
@@ -167,7 +167,6 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                 finished: true
               })
               setOffset(imageRefs.current.reduce((prev, cur, index) => {
-                console.log(cur?.clientWidth)
                 if(index <= currentIndex){
                   return prev + ((cur?.clientWidth === undefined || cur.clientWidth === 0 ? 100 : cur.clientWidth) + 4)
                 }
