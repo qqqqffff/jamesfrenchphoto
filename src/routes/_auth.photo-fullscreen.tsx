@@ -250,7 +250,7 @@ function RouteComponent() {
 
   const validSlide = centerPicture !== undefined && set !== undefined && (
     (
-      differential > 0 && centerPicture.order !== 0
+      differential > 0 && centerPicture.order !== 0 
     ) || (
       differential < 0 && centerPicture.order !== set.paths.length - 1
     )

@@ -19,7 +19,8 @@ interface PhotoCarouselProps {
 interface SlideInformation {
   start: React.Touch,
   current: React.Touch,
-  finished: PicturePath | null
+  finished: boolean,
+  startIndex: number
 }
 
 export const PhotoCarousel = (props: PhotoCarouselProps) => {
@@ -36,7 +37,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
     if (!currentRef) return
 
     const observer = new ResizeObserver(() => {
-      setOffset(imageRefs.current.reduce((prev, cur, index) => {
+      setOffset(prev => sliding !== null && !sliding.finished ? prev : imageRefs.current.reduce((prev, cur, index) => {
         if(index <= currentIndex){
           return prev + ((cur?.clientWidth === undefined || cur.clientWidth === 0 ? 100 : cur.clientWidth) + 4)
         }
@@ -51,7 +52,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
   ])
 
   const differential = (sliding?.current.clientX ?? 0) - (sliding?.start.clientX ?? 0)
-  const currentPath = props.paths[currentIndex]
+  console.log(offset)
 
   return (
     <div className="relative w-screen overflow-hidden">
@@ -63,7 +64,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
             translate: differential
           }}
           onMouseDown={(event) => {
-            if(sliding === null || sliding.finished === null) {
+            if(sliding === null || !sliding.finished) {
               const slide: React.Touch = {
                 identifier: 0,
                 clientX: event.clientX,
@@ -75,15 +76,15 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                 pageY: event.pageY
               }
               setSliding({
+                startIndex: currentIndex,
                 start: slide,
                 current: slide,
-                finished: null
+                finished: false
               })
             }
           }}
           onMouseMove={(event) => {
-            console.log((props.dimensions.width / 2) - offset + differential)
-            if(sliding !== null && sliding.finished === null) {
+            if(sliding !== null && !sliding.finished) {
               const slide: React.Touch = {
                 identifier: 0,
                 clientX: event.clientX,
@@ -94,10 +95,40 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                 pageX: event.pageX,
                 pageY: event.pageY
               }
+              const currentPicture = imageRefs.current[currentIndex]
+              if(currentPicture) {
+                const currentBounding = currentPicture.getBoundingClientRect()
+                const currentWidth = currentBounding.width
+                const currentX = currentBounding.x
+
+                props.setSelectedPath(prev => {
+                  const midPoint = props.dimensions.width / 2
+                  if((currentX + currentWidth) < midPoint && currentIndex !== props.set.paths.length - 1) {
+                    const nextPath = props.set.paths[currentIndex + 1]
+                    navigate({ to: '.', search: { set: props.set.id, path: nextPath.id }})
+                    return nextPath.id
+                  }
+                  else if(currentX > midPoint && currentIndex !== 0) {
+                    const nextPath = props.set.paths[currentIndex - 1]
+                    navigate({ to: '.', search: { set: props.set.id, path: nextPath.id }})
+                    return nextPath.id
+                  }
+                  return prev
+                })
+                setSliding({
+                  start: sliding.start,
+                  startIndex: sliding.startIndex,
+                  current: slide,
+                  finished: false
+                })
+                return
+              }
+
               setSliding({
                 start: sliding.start,
+                startIndex: sliding.startIndex,
                 current: slide,
-                finished: null
+                finished: false
               })
             }
           }}
@@ -127,10 +158,22 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
             //   ) : (
             //     currentPath.order + 1 >= props.set.paths.length ? 0 : currentPath.order + 1
             //   )
-            if(minThreshold > 50) {
+            if(sliding && sliding.startIndex !== currentIndex) {
               setTimeout(() => {
                 setSliding(null)
               }, 500)
+              setSliding({
+                ...sliding,
+                finished: true
+              })
+              setOffset(imageRefs.current.reduce((prev, cur, index) => {
+                console.log(cur?.clientWidth)
+                if(index <= currentIndex){
+                  return prev + ((cur?.clientWidth === undefined || cur.clientWidth === 0 ? 100 : cur.clientWidth) + 4)
+                }
+                return prev
+              }, 0) - ((imageRefs.current[currentIndex]?.clientWidth ?? 0)))
+              return
             }
             setSliding(null)
               
@@ -146,20 +189,22 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
             // setSliding(null)
           }}
           onTouchStart={(event) => {
-            if(sliding === null || sliding.finished === null) {
+            if(sliding === null || !sliding.finished) {
               setSliding({
-                start:event.touches[0],
+                start: event.touches[0],
+                startIndex: currentIndex,
                 current: event.touches[0],
-                finished: null
+                finished: false
               })
             }
           }}
           onTouchMove={(event) => {
-            if(sliding && sliding.finished === null) {
+            if(sliding && !sliding.finished) {
               setSliding({
                 start: sliding.start,
+                startIndex: sliding.startIndex,
                 current: Array.from(event.changedTouches).find(touch => touch.identifier === sliding.start.identifier) ?? sliding.current,
-                finished: null
+                finished: false
               })
             }
           }}
