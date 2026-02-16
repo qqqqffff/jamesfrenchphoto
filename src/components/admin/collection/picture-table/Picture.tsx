@@ -15,11 +15,12 @@ import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-
 import { DynamicStringEnumKeysOf, parsePathName } from "../../../../utils";
 import { FlowbiteColors } from "flowbite-react";
 import { LazyImage } from "../../../common/LazyImage";
-import { PhotoSetService, DeleteImagesMutationParams, FavoriteImageMutationParams, ReorderPathsParams, UnfavoriteImageMutationParams } from "../../../../services/photoSetService";
+import { PhotoSetService, DeleteImagesMutationParams, ReorderPathsParams } from "../../../../services/photoSetService";
 import { HiOutlineDownload, HiOutlineHeart } from 'react-icons/hi'
 import { DownloadImageMutationParams, PhotoPathService } from "../../../../services/photoPathService";
 import { CgArrowsExpandRight, CgSpinner } from "react-icons/cg";
 import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash, HiOutlineXCircle } from "react-icons/hi2";
+import { FavoriteImageMutationParams, FavoriteService, UnfavoriteImageMutationParams } from "../../../../services/favoriteService";
 
 type PictureState = 
   | {
@@ -49,6 +50,7 @@ const idle: PictureState = { type: 'idle' }
 interface PictureProps {
   PhotoPathService: PhotoPathService,
   PhotoSetService: PhotoSetService,
+  FavoriteService: FavoriteService,
   index: number,
   paths: PicturePath[],
   set: PhotoSet,
@@ -282,7 +284,7 @@ export const Picture = (props: PictureProps) => {
   })
 
   const favorite = useMutation({
-    mutationFn: (params: FavoriteImageMutationParams) => props.PhotoSetService.favoriteImageMutation(params),
+    mutationFn: (params: FavoriteImageMutationParams) => props.FavoriteService.favoriteImageMutation(params),
     onSettled: (favorite) => {
       if(favorite) {
         props.parentUpdatePaths(props.paths.map((path) => {
@@ -299,7 +301,7 @@ export const Picture = (props: PictureProps) => {
   })
 
   const unfavorite = useMutation({
-    mutationFn: (params: UnfavoriteImageMutationParams) => props.PhotoSetService.unfavoriteImageMutation(params)
+    mutationFn: (params: UnfavoriteImageMutationParams) => props.FavoriteService.unfavoriteImageMutation(params)
   })
 
   const downloadImage = useMutation({

@@ -246,7 +246,7 @@ export async function mapUserTag(tagResponse: Schema['UserTag']['type'], options
 interface GetTagByIdOptions extends MapUserTagOptions { 
   metric?: boolean
 }
-async function getTagById(client: V6Client<Schema>, tagId?: string, options?: GetTagByIdOptions): Promise<UserTag | null> {
+export async function getTagById(client: V6Client<Schema>, tagId?: string, options?: GetTagByIdOptions): Promise<UserTag | null> {
   const start = new Date()
   if(!tagId) return null
 

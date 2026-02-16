@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { PhotoSetService, FavoriteImageMutationParams, UnfavoriteImageMutationParams } from '../services/photoSetService'
+import { PhotoSetService } from '../services/photoSetService'
 import { useMutation, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query'
 import { CollectionService } from '../services/collectionService'
 import { V6Client } from '@aws-amplify/api-graphql'
@@ -16,6 +16,7 @@ import { PhotoCollection, PhotoSet, PicturePath } from '../types'
 import Loading from '../components/common/Loading'
 import { Dropdown } from 'flowbite-react'
 import { calculatePictureHeight } from '../functions/photoFunctions'
+import { FavoriteImageMutationParams, FavoriteService, UnfavoriteImageMutationParams } from '../services/favoriteService'
 
 interface PhotoFullScreenParams {
   set: string,
@@ -27,20 +28,19 @@ export const Route = createFileRoute('/_auth/photo-fullscreen')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): PhotoFullScreenParams => ({
     set: (search.set as string) || '',
-    path: (search.path as string) || undefined,
+    path: (search.path as string) ?? undefined,
   }),
   beforeLoad: ({ search }) => {
     return search
   },
   loader: ({ context }) => {
     const client = context.client as V6Client<Schema>
-    const collectionService = new CollectionService(client)
-    const photoSetService = new PhotoSetService(client)
 
     return {
-      CollectionService: collectionService,
+      CollectionService: new CollectionService(client),
       PhotoPathService: new PhotoPathService(client),
-      PhotoSetService: photoSetService,
+      PhotoSetService: new PhotoSetService(client),
+      FavoriteService: new FavoriteService(client),
       auth: context.auth,
       path: context.path,
       set: context.set
@@ -61,8 +61,10 @@ function RouteComponent() {
   const [current, setCurrent] = useState<string>(data.path ?? '')
   const [set, setSet] = useState<PhotoSet>()
   const [collection, setCollection] = useState<PhotoCollection>()
+
   const dimensions = useWindowDimensions()
   const navigate = useNavigate()
+
   const [carouselHidden, setCarouselHidden] = useState(false)
   const [sliding, setSliding] = useState<SlideInformation | null>(null)
 
@@ -101,22 +103,22 @@ function RouteComponent() {
 
   const { top, bottom } = (() => {
     if(!set) return { top: 0, bottom: 0 }
-    const halfLength = dimensions.width;
+    const length = dimensions.width;
     const path = set.paths.find((path) => path.id === current)
     if(!path) return { top: 0, bottom: 0 }
     const currentIndex = path.order
 
     let bottom = currentIndex > 0 ? currentIndex - 1 : 0
     let bottomAccumulatedWidth = (140 / path.height) * (path.width + 4) * 0.5
-    let top = currentIndex < Object.entries(set.paths).length - 1 ? currentIndex + 1 : currentIndex
+    let top = currentIndex < set.paths.length - 1 ? currentIndex + 1 : currentIndex
     let topAccumulatedWidth = bottomAccumulatedWidth
 
-    while(bottom > 0 && bottomAccumulatedWidth < halfLength) {
+    while(bottom > 0 && bottomAccumulatedWidth < length) {
       bottomAccumulatedWidth += (140 / set.paths[bottom].height) * (set.paths[bottom].width + 4) * 0.75
       bottom -= 1
     }
 
-    while(top < set.paths.length && topAccumulatedWidth < halfLength) {
+    while(top < set.paths.length && topAccumulatedWidth < length) {
       topAccumulatedWidth += (140 / set.paths[top].height) * (set.paths[top].width + 4) * 0.75
       top += 1
     }
@@ -150,7 +152,7 @@ function RouteComponent() {
   })
 
   const favorite = useMutation({
-    mutationFn: (params: FavoriteImageMutationParams) => data.PhotoSetService.favoriteImageMutation(params),
+    mutationFn: (params: FavoriteImageMutationParams) => data.FavoriteService.favoriteImageMutation(params),
     onSettled: (favorite) => {
       if(favorite && set !== undefined){
         const pathIndex = set.paths.findIndex((path) => path.id === favorite[1])
@@ -170,7 +172,7 @@ function RouteComponent() {
   })
 
   const unfavorite = useMutation({
-    mutationFn: (params: UnfavoriteImageMutationParams) => data.PhotoSetService.unfavoriteImageMutation(params),
+    mutationFn: (params: UnfavoriteImageMutationParams) => data.FavoriteService.unfavoriteImageMutation(params),
   })
 
   const downloadImage = useMutation({
@@ -283,7 +285,7 @@ function RouteComponent() {
         <div className='font-bodoni italic font-semibold truncate text-center'>{currentPath !== undefined ? (
           parsePathName(currentPath.path) 
         ) : (
-          <span className='flex flex-row gap-1'>
+          <span className='flex flex-row gap-1 self-center'>
             <span>Loading</span>
             <Loading />
           </span>
@@ -408,25 +410,62 @@ function RouteComponent() {
         </div>
       </div>
       <div className='border-y-2 border-y-gray-300'>
-      <div 
-        className='flex h-full justify-center items-center overflow-hidden touch-none'
-        style={{
-          translate: 
-            sliding !== null && differential !== 0 && sliding.finished === null ? (
-              `${differential + (validSlide && differential > 0 ? -dimensions.width : 0)}px` 
-            ) : (
-              sliding !== null && sliding.finished !== null ? (
-                `${differential > 0 ? 0 : -dimensions.width}px`
-              )  : (
-                '0px'
-              )
-            ),
-          width: sliding !== null && validSlide ? `${dimensions.width * 2}px` : '100%',
-          transition: sliding !== null && sliding.finished !== null ? 'translate 500ms' : undefined
-        }}
-        onMouseDown={(event) => {
-          if(sliding === null || sliding.finished === null) {
-            const slide: React.Touch = {
+        <div 
+          className='flex h-full justify-center items-center overflow-hidden touch-none'
+          style={{
+            translate: 
+              sliding !== null && differential !== 0 && sliding.finished === null ? (
+                `${differential + (validSlide && differential > 0 ? -dimensions.width : 0)}px` 
+              ) : (
+                sliding !== null && sliding.finished !== null ? (
+                  `${differential > 0 ? 0 : -dimensions.width}px`
+                )  : (
+                  '0px'
+                )
+              ),
+            width: sliding !== null && validSlide ? `${dimensions.width * 2}px` : '100%',
+            transition: sliding !== null && sliding.finished !== null ? 'translate 500ms' : undefined
+          }}
+          onMouseDown={(event) => {
+            if(sliding === null || sliding.finished === null) {
+              const slide: React.Touch = {
+                identifier: 0,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                target: event.target,
+                screenX: event.screenX,
+                screenY: event.screenY,
+                pageX: event.pageX,
+                pageY: event.pageY
+              }
+              setSliding({
+                start: slide,
+                current: slide,
+                finished: null
+              })
+            }
+          }}
+          onMouseMove={(event) => {
+            if(sliding !== null && sliding.finished === null) {
+              const slide: React.Touch = {
+                identifier: 0,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                target: event.target,
+                screenX: event.screenX,
+                screenY: event.screenY,
+                pageX: event.pageX,
+                pageY: event.pageY
+              }
+              setSliding({
+                start: sliding.start,
+                current: slide,
+                finished: null
+              })
+            }
+          }}
+          onMouseUp={(event) => {
+            const end: React.Touch = {
               identifier: 0,
               clientX: event.clientX,
               clientY: event.clientY,
@@ -436,169 +475,132 @@ function RouteComponent() {
               pageX: event.pageX,
               pageY: event.pageY
             }
-            setSliding({
-              start: slide,
-              current: slide,
-              finished: null
-            })
-          }
-        }}
-        onMouseMove={(event) => {
-          if(sliding !== null && sliding.finished === null) {
-            const slide: React.Touch = {
-              identifier: 0,
-              clientX: event.clientX,
-              clientY: event.clientY,
-              target: event.target,
-              screenX: event.screenX,
-              screenY: event.screenY,
-              pageX: event.pageX,
-              pageY: event.pageY
-            }
-            setSliding({
-              start: sliding.start,
-              current: slide,
-              finished: null
-            })
-          }
-        }}
-        onMouseUp={(event) => {
-          const end: React.Touch = {
-            identifier: 0,
-            clientX: event.clientX,
-            clientY: event.clientY,
-            target: event.target,
-            screenX: event.screenX,
-            screenY: event.screenY,
-            pageX: event.pageX,
-            pageY: event.pageY
-          }
-          const endDifferential = end.clientX - (sliding?.start.clientX ?? 0)
-          const minThreshold = 50
-          if(
-            end !== undefined &&
-            sliding !== null && 
-            sliding.finished === null &&
-            currentPath !== undefined &&
-            set !== undefined &&
-            validSlide &&
-            Math.abs(endDifferential) > minThreshold
-          ) {
-            const nextIndex = endDifferential > 0 ? (
-              currentPath.order - 1 < 0 ? set.paths.length - 1 : currentPath.order - 1
-            ) : (
-              currentPath.order + 1 >= set.paths.length ? 0 : currentPath.order + 1
-            )
-            setTimeout(() => {
-              setSliding(null)
-            }, 500)
-            setCurrent(set.paths[nextIndex].id)
-            navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
-            setSliding({
-              ...sliding,
-              current: end,
-              finished: currentPath
-            })
-            return
-          }
-          setSliding(null)
-        }}
-        onTouchStart={(event) => {
-          if(sliding === null || sliding.finished === null) {
-            setSliding({
-              start:event.touches[0],
-              current: event.touches[0],
-              finished: null
-            })
-          }
-        }}
-        onTouchMove={(event) => {
-          if(
-            sliding && 
-            sliding.finished === null && 
-            currentPath !== undefined && 
-            set !== undefined
-          ) {
-            const foundTouch = Array.from(event.changedTouches).find(touch => touch.identifier === sliding.start.identifier) ?? sliding.current
+            const endDifferential = end.clientX - (sliding?.start.clientX ?? 0)
+            const minThreshold = 50
             if(
-              (
-                currentPath.order === set.paths.length - 1 &&
-                (foundTouch.clientX - sliding.start.clientX) <= -100
-              ) 
-                || 
-              (
-                currentPath.order === 0 &&
-                (foundTouch.clientX - sliding.start.clientX) >= 100
-              )
+              end !== undefined &&
+              sliding !== null && 
+              sliding.finished === null &&
+              currentPath !== undefined &&
+              set !== undefined &&
+              validSlide &&
+              Math.abs(endDifferential) > minThreshold
             ) {
+              const nextIndex = endDifferential > 0 ? (
+                currentPath.order - 1 < 0 ? set.paths.length - 1 : currentPath.order - 1
+              ) : (
+                currentPath.order + 1 >= set.paths.length ? 0 : currentPath.order + 1
+              )
+              setTimeout(() => {
+                setSliding(null)
+              }, 500)
+              setCurrent(set.paths[nextIndex].id)
+              navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
+              setSliding({
+                ...sliding,
+                current: end,
+                finished: currentPath
+              })
               return
             }
-            setSliding({
-              start: sliding.start,
-              current: foundTouch,
-              finished: null
-            })
-          }
-        }}
-        onTouchEnd={(event) => {
-          const end = Array.from(event.changedTouches).find(touch => touch.identifier === sliding?.start.identifier)
-          const endDifferential = (end?.clientX ?? 0) - (sliding?.start.clientX ?? 0)
-          const minThreshold = 50
-          if(
-            end !== undefined &&
-            sliding !== null && 
-            sliding.finished === null && 
-            currentPath !== undefined && 
-            set !== undefined && 
-            validSlide &&
-            Math.abs(endDifferential) > minThreshold
-          ) {  
-            const nextIndex = endDifferential > 0 ? (
-              currentPath.order - 1 < 0 ? set.paths.length - 1 : currentPath.order - 1
-            ) : (
-              currentPath.order + 1 >= set.paths.length ? 0 : currentPath.order + 1
-            )
-            setTimeout(() => {
-              setSliding(null)
-            }, 500)
-            setCurrent(set.paths[nextIndex].id)
-            navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
-            setSliding({
-              ...sliding,
-              current: end,
-              finished: currentPath
-            })
-            return
-          }
-          setSliding(null)
-        }}
-      >
-        <NextImage side='left' differential={differential} />
-        <div 
-          className='flex items-center justify-center w-[100vw]'
-          style={{
-            height: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`
+            setSliding(null)
+          }}
+          onTouchStart={(event) => {
+            if(sliding === null || sliding.finished === null) {
+              setSliding({
+                start:event.touches[0],
+                current: event.touches[0],
+                finished: null
+              })
+            }
+          }}
+          onTouchMove={(event) => {
+            if(
+              sliding && 
+              sliding.finished === null && 
+              currentPath !== undefined && 
+              set !== undefined
+            ) {
+              const foundTouch = Array.from(event.changedTouches).find(touch => touch.identifier === sliding.start.identifier) ?? sliding.current
+              if(
+                (
+                  currentPath.order === set.paths.length - 1 &&
+                  (foundTouch.clientX - sliding.start.clientX) <= -100
+                ) 
+                  || 
+                (
+                  currentPath.order === 0 &&
+                  (foundTouch.clientX - sliding.start.clientX) >= 100
+                )
+              ) {
+                return
+              }
+              setSliding({
+                start: sliding.start,
+                current: foundTouch,
+                finished: null
+              })
+            }
+          }}
+          onTouchEnd={(event) => {
+            const end = Array.from(event.changedTouches).find(touch => touch.identifier === sliding?.start.identifier)
+            const endDifferential = (end?.clientX ?? 0) - (sliding?.start.clientX ?? 0)
+            const minThreshold = 50
+            if(
+              end !== undefined &&
+              sliding !== null && 
+              sliding.finished === null && 
+              currentPath !== undefined && 
+              set !== undefined && 
+              validSlide &&
+              Math.abs(endDifferential) > minThreshold
+            ) {  
+              const nextIndex = endDifferential > 0 ? (
+                currentPath.order - 1 < 0 ? set.paths.length - 1 : currentPath.order - 1
+              ) : (
+                currentPath.order + 1 >= set.paths.length ? 0 : currentPath.order + 1
+              )
+              setTimeout(() => {
+                setSliding(null)
+              }, 500)
+              setCurrent(set.paths[nextIndex].id)
+              navigate({ to: '.', search: { set: set.id, path: set.paths[nextIndex].id }})
+              setSliding({
+                ...sliding,
+                current: end,
+                finished: currentPath
+              })
+              return
+            }
+            setSliding(null)
           }}
         >
-          <LazyImage 
-            srcPathQuery={sliding === null || sliding.finished === null ? paths[current] : paths[sliding.finished.id]}
-            watermarkQuery={collection?.watermarkPath !== undefined || set?.watermarkPath !== undefined ? watermarkQuery : undefined}
-            style={{ 
-              // minHeight: `calc(100vh - ${carouselHeight}px)`,
-              maxHeight: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`,
-              height: `${maxPictureHeight}px`,
-              transition: 'maxHeight 300ms',
-              minWidth: '200px',
-              minHeight: '200px',
-              maxWidth: '100vw'
+          <NextImage side='left' differential={differential} />
+          <div 
+            className='flex items-center justify-center w-[100vw]'
+            style={{
+              height: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`
             }}
-            className='flex-shrink-0 ease-in-out'
-            loading='lazy'
-            draggable={false}
-          />
+          >
+            <LazyImage 
+              srcPathQuery={sliding === null || sliding.finished === null ? paths[current] : paths[sliding.finished.id]}
+              watermarkQuery={collection?.watermarkPath !== undefined || set?.watermarkPath !== undefined ? watermarkQuery : undefined}
+              style={{ 
+                // minHeight: `calc(100vh - ${carouselHeight}px)`,
+                maxHeight: `calc(100vh - ${(carouselHidden ? 50 : 200)}px)`,
+                height: `${maxPictureHeight}px`,
+                transition: 'maxHeight 300ms',
+                minWidth: '200px',
+                minHeight: '200px',
+                maxWidth: '100vw'
+              }}
+              className='flex-shrink-0 ease-in-out'
+              loading='lazy'
+              draggable={false}
+            />
+          </div>
+          <NextImage side='right' differential={differential} />
         </div>
-        <NextImage side='right' differential={differential} />
-      </div>
       </div>
       {(
         set !== undefined &&
@@ -614,11 +616,14 @@ function RouteComponent() {
         >
           <PhotoCarousel 
             paths={set.paths} 
-            data={Object.values(paths)} 
+            data={{
+              type: 'fullscreen',
+              setId: set.id
+            }}
+            pictureData={Object.values(paths)} 
             watermarkQuery={collection?.watermarkPath !== undefined || set?.watermarkPath !== undefined ? watermarkQuery : undefined}
             setSelectedPath={setCurrent} 
             selectedPath={current}
-            set={set}
             dimensions={dimensions}
           />
         </div>

@@ -43,6 +43,7 @@ import { v4 } from 'uuid'
 import { PhotoPathService } from "../../../services/photoPathService"
 import { PhotoSetService } from "../../../services/photoSetService"
 import { Cover } from "../../collection/Cover"
+import { FavoriteService } from "../../../services/favoriteService"
 
 interface PhotoCollectionPanelProps {
   CollectionService: CollectionService,
@@ -51,6 +52,8 @@ interface PhotoCollectionPanelProps {
   ShareService: ShareService,
   UserService: UserService,
   WatermarkService: WatermarkService,
+  FavoriteService: FavoriteService,
+
   watermarkObjects: Watermark[],
   updateWatermarkObjects: Dispatch<SetStateAction<Watermark[]>>,
   availableTags: UserTag[],
@@ -75,7 +78,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   CollectionService, watermarkObjects, updateWatermarkObjects, availableTags, collection, 
   set, updateParentCollection, auth, parentActiveConsole, shareTemplates,
   updateShareTemplates, coverPath, updateParentCollections, PhotoPathService,
-  PhotoSetService, ShareService, UserService, WatermarkService,
+  PhotoSetService, ShareService, UserService, WatermarkService, FavoriteService
 }) => {
   const [selectedWatermark, setSelectedWatermark] = useState<Watermark>()
   const [selectedSet, setSelectedSet] = useState<PhotoSet | undefined>(set)
@@ -820,6 +823,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                 PhotoSetService={PhotoSetService}
                 PhotoPathService={PhotoPathService}
                 CollectionService={CollectionService}
+                FavoriteService={FavoriteService}
                 photoCollection={collection} 
                 photoSet={selectedSet} 
                 deleteParentSet={(setId) => {
@@ -856,7 +860,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
           activeConsole === 'favorites' ? (
           <div className="border-gray-400 border rounded-2xl p-4 flex flex-col w-full h-auto">
             <FavoritePanel 
-              PhotoSetService={PhotoSetService}
+              FavoriteService={FavoriteService}
               PhotoPathService={PhotoPathService}
               collection={collection}
             />

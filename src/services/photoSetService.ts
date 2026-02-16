@@ -1,6 +1,6 @@
 import { v4 } from 'uuid'
 import { Schema } from '../../amplify/data/resource'
-import { Favorite, Participant, PhotoCollection, PhotoSet, PicturePath } from '../types'
+import { PhotoCollection, PhotoSet, PicturePath } from '../types'
 import { getUrl, remove, uploadData } from 'aws-amplify/storage'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
@@ -101,120 +101,6 @@ async function getPhotoSetById(client: V6Client<Schema>, setId?: string, options
   }
 }
 
-
-//TODO: use the user service for participant mapping
-interface GetFavoritesFromPhotoCollectionOptions {
-  logging?: boolean
-  metric?: boolean
-}
-async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collection: PhotoCollection,  options?: GetFavoritesFromPhotoCollectionOptions): Promise<Map<Participant, Favorite[]>> {
-  console.log('api call')
-  const start = new Date().getTime()
-
-  const participantMemo: Participant[] = []
-
-  await Promise.all((await client.models.ParticipantCollections
-    .listParticipantCollectionsByCollectionId({ collectionId: collection.id }))
-    .data.map(async (colP) => {
-      const participant = (await colP.participant()).data
-      if(participant && !participantMemo.some((pMemo) => participant.id === pMemo.id)) {
-        const mappedParticipant: Participant = {
-          ...participant,
-          middleName: participant.middleName ?? undefined,
-          preferredName: participant.preferredName ?? undefined,
-          email: participant.email ?? undefined,
-          contact: participant.contact ?? false,
-          //not necessary
-          notifications: [],
-          timeslot: [], 
-          userTags: [],
-          collections: []
-        }
-        participantMemo.push(mappedParticipant)
-      }
-    })
-  )
-
-  await Promise.all(collection.tags.map(async (tag) => {
-    let participantTagResponse = await client.models.ParticipantUserTag
-      .listParticipantUserTagByTagId({ tagId: tag.id })
-    const participantTagData = participantTagResponse.data
-
-    while(participantTagResponse.nextToken) {
-      participantTagResponse = await client.models.ParticipantUserTag
-        .listParticipantUserTagByTagId(
-          { tagId: tag.id }, 
-          { nextToken: participantTagResponse.nextToken }
-        )
-      participantTagData.push(...participantTagResponse.data)
-    }
-
-    await Promise.all(participantTagData.map(async (pTag) => {
-      const participant = (await pTag.participant()).data
-      if(participant && !participantMemo.some((pMemo) => pMemo.id === participant.id)) {
-        const mappedParticipant: Participant = {
-          ...participant,
-          middleName: participant.middleName ?? undefined,
-          preferredName: participant.preferredName ?? undefined,
-          email: participant.email ?? undefined,
-          contact: participant.contact ?? false,
-          //not necessary
-          notifications: [],
-          timeslot: [], 
-          userTags: [],
-          collections: []
-        }
-        participantMemo.push(mappedParticipant)
-      }
-    }))
-  }))
-
-  console.log(await client.models.UserFavorites.list(), participantMemo)
-  
-  const returnMap = new Map<Participant, Favorite[]>()
-  await Promise.all(participantMemo.map(async (participant) => {
-    let favoriteResponse = await client.models.UserFavorites
-      .listUserFavoritesByParticipantIdAndCollectionId({ 
-        participantId: participant.id, 
-        collectionId: {
-          eq: collection.id
-        }
-      })
-    
-    const favoriteData = favoriteResponse.data
-
-    while(favoriteResponse.nextToken) {
-      favoriteResponse = await client.models.UserFavorites
-        .listUserFavoritesByParticipantIdAndCollectionId({ 
-          participantId: participant.id, 
-          collectionId: {
-            eq: collection.id
-          }
-        }, { nextToken: favoriteResponse.nextToken })
-
-      favoriteData.push(...favoriteResponse.data)
-    }
-
-    const mappedFavorites: Favorite[] = favoriteData.map((favorite) => {
-      const mappedFavorite: Favorite = {
-        ...favorite,
-        createdAt: new Date(favorite.createdAt),
-        updatedAt: new Date(favorite.updatedAt),
-      }
-      return mappedFavorite
-    })
-
-    returnMap.set(participant, mappedFavorites)
-  }))
-  
-  const end = new Date().getTime()
-
-  if(options?.metric) console.log(`GETFAVORITESFROMPHOTOCOLLECTION:${new Date(end - start).getTime()}ms`)
-
-  return returnMap
-}
-
-
 export interface CreateSetParams {
   photoSet: PhotoSet
   options?: {
@@ -275,23 +161,6 @@ export interface DeleteImagesMutationParams {
 export interface DeleteSetMutationParams {
   collection: PhotoCollection
   set: PhotoSet
-  options?: {
-    logging?: boolean
-  }
-}
-
-export interface FavoriteImageMutationParams {
-  collectionId: string,
-  setId: string,
-  pathId: string,
-  participantId: string,
-  options?: {
-    logging?: boolean
-  }
-}
-
-export interface UnfavoriteImageMutationParams {
-  id: string,
   options?: {
     logging?: boolean
   }
@@ -671,32 +540,8 @@ export class PhotoSetService {
     if(params.options?.logging) console.log(setUpdatesResponses)
   }
 
-  async favoriteImageMutation(params: FavoriteImageMutationParams): Promise<[string, string] | undefined> {
-    const response = await this.client.models.UserFavorites.create({
-      pathId: params.pathId,
-      participantId: params.participantId,
-      collectionId: params.collectionId,
-      setId: params.setId,
-    })
-    if(params.options?.logging) console.log(response)
-    if(!response.data?.id) return undefined
-    return [response.data.id, params.pathId]
-  }
-
-  async unfavoriteImageMutation(params: UnfavoriteImageMutationParams){
-    const response = this.client.models.UserFavorites.delete({
-      id: params.id,
-    })
-    if(params.options?.logging) console.log(response)
-  }
-
   getPhotoSetByIdQueryOptions = (setId?: string, options?: GetPhotoSetByIdOptions) => queryOptions({
     queryKey: ['photoSet', setId, options],
     queryFn: () => getPhotoSetById(this.client, setId, options),
-  })
-
-  getFavoritesFromPhotoCollectionQueryOptions = (collection: PhotoCollection, options?: GetFavoritesFromPhotoCollectionOptions) => queryOptions({
-    queryKey: ['favorites', collection, options],
-    queryFn: () => getFavoritesFromPhotoCollection(this.client, collection, options)
   })
 }

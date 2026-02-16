@@ -110,13 +110,33 @@ const schema = a.schema({
     .identifier(['id'])
     .secondaryIndexes((index) => [
       index('participantId').sortKeys(['setId']),
-      index('participantId').sortKeys(['collectionId'])
+      index('participantId').sortKeys(['collectionId']),
+      index('collectionId')
     ])
     .authorization((allow) => [
       allow.group('ADMINS'), 
       allow.authenticated('userPools').to(['get', 'delete', 'create', 'list']), 
       allow.guest().to(['get', 'delete', 'create', 'list'])
     ]),
+  // UserTagFavorites: a
+  //   .model({
+  //     id: a.id().required(),
+  //     tagId: a.id().required(),
+  //     tag: a.belongsTo('UserTag', 'tagId'),
+  //     participantId: a.id().required(),
+  //     participant: a.belongsTo('Participant', 'participantId'),
+  //     favoriteId: a.id().required(),
+  //     favorite: a.belongsTo('UserFavorites', 'favoriteId'),
+  //   })
+  //   .identifier(['id'])
+  //   .secondaryIndexes((index) => [
+  //     index('participantId').sortKeys(['tagId']),
+  //   ])
+  //   .authorization((allow) => [
+  //     allow.group('ADMINS'),
+  //     allow.authenticated('userPools').to(['get', 'delete', 'create', 'list']),
+  //     allow.guest().to(['get', 'delete', 'create', 'list'])
+  //   ]),
   UserTag: a
     .model({
       id: a.id().required(),

@@ -18,6 +18,7 @@ import { PhotoSetService } from '../../../services/photoSetService'
 import { TagService } from '../../../services/tagService'
 import { WatermarkService } from '../../../services/watermarkService'
 import { UserService } from '../../../services/userService'
+import { FavoriteService } from '../../../services/favoriteService'
 
 interface CollectionSearchParams {
   collection?: string,
@@ -45,6 +46,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/collection')({
       TagService: new TagService(client),
       WatermarkService: new WatermarkService(client),
       UserService: new UserService(client),
+      FavoriteService: new FavoriteService(client),
       set: context.set,
       collection: context.collection,
       auth: context.auth,
@@ -200,6 +202,7 @@ function RouteComponent() {
             PhotoPathService={data.PhotoPathService}
             PhotoSetService={data.PhotoSetService}
             ShareService={data.ShareService}
+            FavoriteService={data.FavoriteService}
             coverPath={selectedCoverPath}
             collection={selectedCollection}
             updateParentCollection={setSelectedCollection}

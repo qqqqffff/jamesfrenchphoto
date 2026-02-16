@@ -18,11 +18,13 @@ import Loading from '../../../common/Loading';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import useWindowDimensions from '../../../../hooks/windowDimensions';
+import { FavoriteService } from '../../../../services/favoriteService';
 
 interface PictureListProps extends ComponentProps<'div'> {
   CollectionService: CollectionService,
   PhotoPathService: PhotoPathService,
   PhotoSetService: PhotoSetService,
+  FavoriteService: FavoriteService,
   set: PhotoSet,
   collection: PhotoCollection
   paths: PicturePath[],
@@ -337,6 +339,7 @@ export const PictureList = (props: PictureListProps) => {
               <Picture 
                 PhotoSetService={props.PhotoSetService}
                 PhotoPathService={props.PhotoPathService}
+                FavoriteService={props.FavoriteService}
                 index={index}
                 set={props.set}
                 collection={props.collection}

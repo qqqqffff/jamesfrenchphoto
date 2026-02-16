@@ -33,11 +33,13 @@ import { CgSpinner } from "react-icons/cg";
 import { Publishable } from "./PhotoCollectionPanel";
 import { PublishableItems } from "./PublishableItems";
 import { useNavigate } from "@tanstack/react-router";
+import { FavoriteService } from "../../../services/favoriteService";
 
 export type PhotoSetPanelProps = {
   PhotoPathService: PhotoPathService,
   PhotoSetService: PhotoSetService,
   CollectionService: CollectionService,
+  FavoriteService: FavoriteService,
   photoCollection: PhotoCollection,
   photoSet: PhotoSet,
   deleteParentSet: (setId: string) => void,
@@ -52,7 +54,7 @@ export type PhotoSetPanelProps = {
 export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
   CollectionService, PhotoPathService, PhotoSetService,
   photoCollection, photoSet, publishable, publishCollection,
-  deleteParentSet, parentUpdateSet,
+  deleteParentSet, parentUpdateSet, FavoriteService,
   parentUpdateCollection, auth, parentUpdateCollections
 }) => {
   const [picturePaths, setPicturePaths] = useState<PicturePath[]>([])
@@ -682,6 +684,7 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
             PhotoSetService={PhotoSetService}
             CollectionService={CollectionService}
             PhotoPathService={PhotoPathService}
+            FavoriteService={FavoriteService}
             collection={photoCollection}
             set={photoSet}
             paths={filteredPhotos

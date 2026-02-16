@@ -1,15 +1,22 @@
 import { UseQueryResult } from "@tanstack/react-query"
-import { PhotoSet, PicturePath } from "../../../types"
-import { useLocation, useNavigate } from "@tanstack/react-router"
+import { PicturePath } from "../../../types"
+import { useNavigate } from "@tanstack/react-router"
 import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react"
 import { LazyImage } from "../../common/LazyImage"
 import { calculatePictureHeight } from "../../../functions/photoFunctions"
 
 interface PhotoCarouselProps {
   paths: PicturePath[],
-  set: PhotoSet,
+  data: | {
+    type: 'favorite'
+    collectionId?: string,
+    tagId?: string,
+  } | {
+    type: 'fullscreen',
+    setId: string
+  }
   favorites?: string[]
-  data: UseQueryResult<[string | undefined, string] | undefined>[]
+  pictureData: UseQueryResult<[string | undefined, string] | undefined>[]
   watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined>
   setSelectedPath: Dispatch<SetStateAction<string>>,
   selectedPath: string,
@@ -28,7 +35,6 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
   const [offset, setOffset] = useState(0)
   const [sliding, setSliding] = useState<SlideInformation | null>(null)
   const navigate = useNavigate()
-  const location = useLocation()
 
   const currentIndex = props.paths.findIndex((path) => path.id === props.selectedPath)
 
@@ -103,14 +109,24 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
 
                 props.setSelectedPath(prev => {
                   const midPoint = props.dimensions.width / 2
-                  if((currentX + currentWidth) < midPoint && currentIndex !== props.set.paths.length - 1) {
-                    const nextPath = props.set.paths[currentIndex + 1]
-                    navigate({ to: '.', search: { set: props.set.id, path: nextPath.id }})
+                  if((currentX + currentWidth) < midPoint && currentIndex !== props.paths.length - 1) {
+                    const nextPath = props.paths[currentIndex + 1]
+                    if(props.data.type === 'favorite') {
+                      navigate({ to: '.', search: { collection: props.data.collectionId, tag: props.data.tagId, path: nextPath.id }})
+                    }
+                    else if(props.data.type === 'fullscreen'){
+                      navigate({ to: '.', search: { set: props.data.setId, path: nextPath.id }})
+                    }
                     return nextPath.id
                   }
                   else if(currentX > midPoint && currentIndex !== 0) {
-                    const nextPath = props.set.paths[currentIndex - 1]
-                    navigate({ to: '.', search: { set: props.set.id, path: nextPath.id }})
+                    const nextPath = props.paths[currentIndex - 1]
+                    if(props.data.type === 'favorite') {
+                      navigate({ to: '.', search: { collection: props.data.collectionId, tag: props.data.tagId, path: nextPath.id }})
+                    }
+                    else if(props.data.type === 'fullscreen'){
+                      navigate({ to: '.', search: { set: props.data.setId, path: nextPath.id }})
+                    }
                     return nextPath.id
                   }
                   return prev
@@ -132,19 +148,19 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
               })
             }
           }}
-          onMouseUp={(event) => {
-            const end: React.Touch = {
-              identifier: 0,
-              clientX: event.clientX,
-              clientY: event.clientY,
-              target: event.target,
-              screenX: event.screenX,
-              screenY: event.screenY,
-              pageX: event.pageX,
-              pageY: event.pageY
-            }
-            const endDifferential = end.clientX - (sliding?.start.clientX ?? 0)
-            const minThreshold = 50
+          onMouseUp={() => {
+            // const end: React.Touch = {
+            //   identifier: 0,
+            //   clientX: event.clientX,
+            //   clientY: event.clientY,
+            //   target: event.target,
+            //   screenX: event.screenX,
+            //   screenY: event.screenY,
+            //   pageX: event.pageX,
+            //   pageY: event.pageY
+            // }
+            // const endDifferential = end.clientX - (sliding?.start.clientX ?? 0)
+            // const minThreshold = 50
             // if(
             //   end !== undefined &&
             //   sliding !== null && 
@@ -207,9 +223,9 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
               })
             }
           }}
-          onTouchEnd={(event) => {
-            const end = Array.from(event.changedTouches).find(touch => touch.identifier === sliding?.start.identifier)
-            const endDifferential = (end?.clientX ?? 0) - (sliding?.start.clientX ?? 0)
+          onTouchEnd={() => {
+            // const end = Array.from(event.changedTouches).find(touch => touch.identifier === sliding?.start.identifier)
+            // const endDifferential = (end?.clientX ?? 0) - (sliding?.start.clientX ?? 0)
             const minThreshold = 50
             // if(
             //   end !== undefined &&
@@ -244,7 +260,7 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
             setSliding(null)
           }}
         >
-          {props.data.map((url, index) => {
+          {props.pictureData.map((url, index) => {
             const foundItem = props.paths.find((path) => path.id === url.data?.[0])
             const maxHeight = foundItem !== undefined ? (
               calculatePictureHeight(foundItem, props.dimensions, 140)
@@ -259,10 +275,10 @@ export const PhotoCarousel = (props: PhotoCarouselProps) => {
                 onClick={() => {
                   if(foundItem && props.selectedPath !== foundItem?.id && sliding === null) {
                     props.setSelectedPath(foundItem.id)
-                    if(location.href.includes('favorites-fullscreen')){
-                      navigate({ to: '.', search: { favorites: props.favorites, path: foundItem.id }})
-                    } else if(location.href.includes('photo-fullscreen')) {
-                      navigate({ to: '.', search: { set: props.set.id, path: foundItem.id }})
+                    if(props.data.type === 'favorite') {
+                      navigate({ to: '.', search: { collection: props.data.collectionId, tag: props.data.tagId, path: foundItem.id }})
+                    } else if(props.data.type === 'fullscreen') {
+                      navigate({ to: '.', search: { set: props.data.setId, path: foundItem.id }})
                     }
                   }
                 }}
