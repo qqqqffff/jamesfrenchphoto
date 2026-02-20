@@ -5,9 +5,8 @@ import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
 import { signUp, updateUserAttributes } from "aws-amplify/auth";
 import { Duration } from "luxon";
-import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
+// import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
 import { RegistrationProfile } from "../components/register/RegisterForm";
-import { v4 } from 'uuid'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
 import validator from 'validator'
@@ -16,21 +15,13 @@ import sgMail from '@sendgrid/mail'
 import { mapNotification } from "./notificationService";
 import { mapUserTag } from "./tagService";
 
-interface GetUserProfileByEmailOptions {
-  siTags?: boolean,
-  siTimeslot?: boolean,
-  siCollections?: boolean,
-  siSets?: boolean,
+interface GetUserProfileByEmailOptions extends MapParticipantOptions {
   siTemporaryToken?: boolean,
-  siNotifications?: boolean
-  unauthenticated?: boolean,
-  memo?: {
-    tags?: UserTag[]
-  }
 }
 
 interface GetAuthUsersOptions {
   siProfiles?: boolean,
+  nextToken?: string,
   logging?: boolean
   metric?: boolean
 }
@@ -76,6 +67,8 @@ export interface MapParticipantOptions {
     collectionsMemo?: PhotoCollection[]
   }
 }
+
+//TODO: investigate if passing client and directly calling si is quicker than si by reference.
 export async function mapParticipant(participantResponse: Schema['Participant']['type'], options?: MapParticipantOptions): Promise<Participant> {
   const userTags: UserTag[] = []
   let userTagsResponse: Promise<(UserTag | undefined)[]> | undefined
@@ -130,226 +123,6 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
         }
       })))
     })
-    
-
-
-    // if(tagsData.length === 0) {
-    //   tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId(
-    //     { participantId: participantResponse.id }, 
-    //     { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' }
-    //   )
-    //   tagsData.push(...tagsResponse.data)
-    //   while(tagsResponse.nextToken) {
-    //     tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId(
-    //       { participantId: participantResponse.id }, 
-    //       { nextToken: tagsResponse.nextToken, authMode: options?.unauthenticated ? 'identityPool' : 'userPool' }
-    //     )
-    //     tagsData.push(...tagsResponse.data)
-    //   }
-    // }
-    
-    // userTags.push(...(
-    //   (await Promise.all(
-    //     tagsData.map(async (tag) => {
-    //       let mappedTag: UserTag | undefined = options.memos?.tagsMemo?.find((mTag) => tag.tagId === mTag.id)
-    //       if(mappedTag) {
-    //         return mappedTag
-    //       }
-    //       if(!tag) return
-    //       const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
-    //       //when unauthenticated shallow auth required
-    //       if(tagResponse.data) {
-    //         const children: UserTag[] = []
-    //         let childrenResponse: Promise<(UserTag | undefined)[]> | undefined
-    //         const notifications: Notification[] = []
-    //         let notificationsResponse: Promise<(Notification | undefined)[]> | undefined
-    //         const collections: PhotoCollection[] = []
-    //         let collectionsResponse: Promise<(PhotoCollection | undefined)[]> | undefined
-    //         const timeslots: Timeslot[] = []
-    //         let timeslotsResponse: Promise<(Timeslot | undefined)[]> | undefined 
-    //         let pack: Package | undefined
-
-    //         if(options.siTags?.siChildren && !options.unauthenticated) {
-    //           //assume that a parent's children are unique and will not show up in a different tag therefore memoization will make no difference
-    //           //TODO: next tokening, preform all operations simultaneously, children, notifications, collections and timeslots instead of synchronously in order
-    //           childrenResponse = new Promise<(UserTag | undefined)[]>(async (resolve) => {
-    //             if(tagResponse.data) {
-    //               let childTagResponse = await tagResponse.data.childTags()
-    //               const childTagData = childTagResponse.data
-    //               while(childTagResponse.nextToken) {
-    //                 childTagResponse = await tagResponse.data.childTags({ nextToken: childTagResponse.nextToken })
-    //                 childTagData.push(...childTagResponse.data)
-    //               }
-    //               resolve(Promise.all(childTagData.map(async (child) => {
-    //                 const packageResponse = (await child.package()).data
-    //                 if(!packageResponse) return
-    //                 const foundTag = options.memos?.tagsMemo?.find((tag) => tag.id === packageResponse.tagId)
-    //                 if(foundTag) {
-    //                   return foundTag
-    //                 }
-    //                 const childResponse = (await packageResponse.tag()).data
-    //                 //package required for si inside of dashboard
-    //                 const pack: Package = {
-    //                   ...packageResponse,
-    //                   parentTagId: tag.id,
-    //                   items: [],
-    //                   pdfPath: packageResponse.pdfPath ?? undefined,
-    //                   description: packageResponse.description ?? undefined,
-    //                   price: packageResponse.price ?? undefined
-    //                 }
-    //                 if(childResponse) {
-    //                   //only shallow depth required for children since they will not be included in the tag memo
-    //                   const mappedTag: UserTag = {
-    //                     ...childResponse,
-    //                     color: childResponse.color ?? undefined,
-    //                     notifications: [],
-    //                     package: pack,
-    //                     children: [],
-    //                     participants: []
-    //                   }
-    //                   return mappedTag
-    //                 }
-    //               })))
-    //             }
-                
-    //           })
-    //         }
-
-    //         if(options?.siNotifications && !options.unauthenticated) {
-    //           notificationsResponse = new Promise<(Notification | undefined)[]>(async (resolve) => {
-    //             if(tagResponse.data) {
-    //               let notificationResponse = await tagResponse.data.notifications()
-    //               const notificationData = notificationResponse.data
-    //               while(notificationResponse.nextToken) {
-    //                 notificationResponse = await tagResponse.data.notifications({ nextToken: notificationResponse.nextToken })
-    //                 notificationData.push(...notificationResponse.data)
-    //               }
-
-                  
-    //               resolve(Promise.all(notificationData.map(async (notification) => {
-    //                 const foundNotification = notificationMemo.find((noti) => noti.id === notification.id)
-    //                 if(foundNotification) return foundNotification
-    //                 const notificationResponse = await notification.notification()
-    //                 if(notificationResponse.data) {
-    //                   const mappedNotification: Notification = await mapNotification(notificationResponse.data)
-    //                   notificationMemo.push(mappedNotification)
-    //                   return mappedNotification
-    //                 }
-    //               })))
-    //             }
-    //           })
-    //         }
-
-    //         if(options?.siTags?.siCollections && !options.unauthenticated) {
-    //           collectionsResponse = new Promise<(PhotoCollection | undefined)[]>(async (resolve) => {
-    //             if(tagResponse.data) {
-    //               let tagCollectionResponse = await tagResponse.data.collectionTags()
-    //               const tagCollectionData = tagCollectionResponse.data
-    //               while(tagCollectionResponse.nextToken) {
-    //                 tagCollectionResponse = await tagResponse.data.collectionTags({ nextToken: tagCollectionResponse.nextToken })
-    //                 tagCollectionData.push(...tagCollectionResponse.data)
-    //               }
-    //               resolve(Promise.all(tagCollectionData.map(async (collection) => {
-    //                 const foundCollection = collectionsMemo.find((col) => col.id === collection.collectionId)
-    //                 if(foundCollection) return foundCollection
-    //                 const collectionResponse = await collection.collection()
-
-    //                 if(collectionResponse.data) {
-    //                   const mappedCollection: PhotoCollection = {
-    //                     ...collectionResponse.data,
-    //                     coverPath: collectionResponse.data.coverPath ?? undefined,
-    //                     coverType: {
-    //                       textColor: collectionResponse.data.coverType?.textColor ?? undefined,
-    //                       bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
-    //                       placement: collectionResponse.data.coverType?.placement ?? undefined,
-    //                       textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
-    //                       date: collectionResponse.data.coverType?.date ?? undefined,
-    //                     },
-    //                     publicCoverPath: collectionResponse.data.publicCoverPath ?? undefined,
-    //                     watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
-    //                     downloadable: collectionResponse.data.downloadable ?? false,
-    //                     items: collectionResponse.data.items ?? 0,
-    //                     published: collectionResponse.data.published ?? false,
-    //                     //unnecessary or shallow depth only
-    //                     tags: [],
-    //                     sets: []
-    //                   }
-    //                   collectionsMemo.push(mappedCollection)
-
-    //                   return mappedCollection
-    //                 }
-    //               })))
-    //             }
-    //           })
-    //         }
-
-    //         if(options?.siTags?.siTimeslots && !options.unauthenticated) {
-    //           //timeslots are not memoized since they are unique for user tags
-    //           timeslotsResponse = new Promise<(Timeslot | undefined)[]>(async (resolve) => {
-    //             if(tagResponse.data) {
-    //               let tagTimeslotResponse = await tagResponse.data.timeslotTags()
-    //               const tagTimeslotData = tagTimeslotResponse.data
-    //               while(tagTimeslotResponse.nextToken) {
-    //                 tagTimeslotResponse = await tagResponse.data.timeslotTags({ nextToken: tagTimeslotResponse.nextToken })
-    //                 tagTimeslotData.push(...tagTimeslotResponse.data)
-    //               }
-    //               resolve(Promise.all(tagTimeslotData.map(async (timeslot) => {
-    //                 const timeslotResponse = await timeslot.timeslot()
-    //                 if(timeslotResponse.data) {
-    //                   const mappedTimeslot: Timeslot = await mapTimeslot(timeslotResponse.data)
-    //                   return mappedTimeslot
-    //                 }
-    //               })))
-    //             }
-    //           })
-    //         }
-
-    //         if(options?.siTags?.siPackages && !options.unauthenticated) {
-    //           //packages are tag unique, memo not required
-    //           const packageResponse = await tagResponse.data.packages()
-    //           if(packageResponse.data) {
-    //             pack = {
-    //               ...packageResponse.data,
-    //               parentTagId: (await packageResponse.data.packageParentTag()).data?.tagId,
-    //               description: packageResponse.data.description ?? undefined,
-    //               pdfPath: packageResponse.data.pdfPath ?? undefined,
-    //               price: packageResponse.data.price ?? undefined,
-    //               //shallow depth
-    //               items: []
-    //             }
-    //           }
-    //         }
-
-    //         await Promise.all([
-    //           childrenResponse !== undefined ? childrenResponse.then((c) => {
-    //             children.push(...c.filter((child) => child !== undefined))
-    //           }) : Promise.resolve(),
-    //           notificationsResponse !== undefined? notificationsResponse.then((n) => {
-    //             notifications.push(...n.filter((noti) => noti !== undefined))
-    //           }) : Promise.resolve(),
-    //           collectionsResponse !== undefined ? collectionsResponse.then((c) => {
-    //             collections.push(...c.filter((col) => col !== undefined))
-    //           }) : Promise.resolve(),
-    //           timeslotsResponse !== undefined ? timeslotsResponse.then((t) => {
-    //             timeslots.push(...t.filter((time) => time !== undefined))
-    //           }) : Promise.resolve(),
-    //         ])
-
-    //         mappedTag = {
-    //           ...tagResponse.data,
-    //           color: tagResponse.data.color ?? undefined,
-    //           children: children,
-    //           notifications: notifications,
-    //           collections: collections,
-    //           timeslots: timeslots,
-    //           package: pack,
-    //           participants: []
-    //         }
-    //       }
-    //       return mappedTag
-    //     })
-    //   ))).filter((tag) => tag !== undefined)
-    // )
   }
 
   if(options?.siNotifications && !options.unauthenticated) {
@@ -690,7 +463,7 @@ export class UserService {
       if(options?.logging) console.log(tokenResponse)
       if(!tokenResponse.data) return null
 
-      const mappedResponse = await this.getUserProfileByEmail(client, tokenResponse.data.userEmail, { siTags: true, unauthenticated: true })
+      const mappedResponse = await this.getUserProfileByEmail(client, tokenResponse.data.userEmail, { siTags: { }, unauthenticated: true })
       if(options?.logging) console.log(mappedResponse)
 
       return mappedResponse ?? null
@@ -714,8 +487,8 @@ export class UserService {
       const userProfile = await this.getUserProfileByEmail(
         client, 
         token.userEmail, { 
-          siTags: options?.siTags, 
-          memo: { tags: tagsMemo } 
+          siTags: options?.siTags ? { } : undefined, 
+          memos: { tagsMemo: tagsMemo }
         }
       )
       if(userProfile) {
@@ -750,31 +523,30 @@ export class UserService {
     console.log(profileResponse, email)
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data?.id : undefined
-    let participantResponse = (await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
-    console.log(participantResponse)
-    if(participantResponse.length === 0) {
-      participantResponse = (await client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
-      console.log(participantResponse)
-      if(participantResponse.length === 0 && profileResponse.data.activeParticipant !== null) {
-        const getActiveParticipant = (await client.models.Participant.get({ id: profileResponse.data.activeParticipant }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
-        console.log(getActiveParticipant)
-        if(getActiveParticipant) participantResponse = [getActiveParticipant]
-      }
+    
+    let participantResponse = await client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    const participantData = participantResponse.data
+
+    while(participantResponse.nextToken) {
+      participantResponse = await client.models.Participant.listParticipantByUserEmail(
+        { userEmail: email }, 
+        { 
+          authMode: options?.unauthenticated ? 'identityPool' : 'userPool',
+          nextToken: participantResponse.nextToken
+        }
+      )
+      participantData.push(...participantResponse.data)
     }
 
-    const notificationMemo: Notification[] = []
-    const collectionsMemo: PhotoCollection[] = []
-    const tagsMemo: UserTag[] = options?.memo?.tags ?? []
+    const notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
+    const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
+    const tagsMemo: UserTag[] = options?.memos?.tagsMemo ?? []
 
-    const mappedParticipants: Participant[] = await Promise.all(participantResponse.map(async (participant) => {
+    const mappedParticipants: Participant[] = await Promise.all(participantData.map(async (participant) => {
       const newParticipant = await mapParticipant(participant, {
         siCollections: options?.siCollections,
         siNotifications: options?.siNotifications,
-        siTags: options?.siTags ? {
-          siChildren: true, //TODO: remove the hard coding
-          siPackages: true,
-          siTimeslots: options.siTimeslot
-        } : undefined,
+        siTags: options?.siTags,
         siTimeslot: options?.siTimeslot,
         unauthenticated: options?.unauthenticated,
         memos: {
@@ -823,48 +595,6 @@ export class UserService {
       return newParticipant
     }))
 
-    if(
-      mappedParticipants.length === 0 && 
-      profileResponse.data.participantFirstName && 
-      profileResponse.data.participantLastName
-    ){
-      try {
-        const participant: Participant = {
-          id: v4(),
-          firstName: profileResponse.data.participantFirstName,
-          lastName: profileResponse.data.participantLastName,
-          middleName: profileResponse.data.participantMiddleName ?? undefined,
-          preferredName: profileResponse.data.participantPreferredName ?? undefined,
-          contact: profileResponse.data.participantContact ?? false,
-          email: profileResponse.data.participantEmail ?? undefined,
-          createdAt: new Date().toISOString(),
-          userTags: (profileResponse.data.userTags ?? []).map((tagString) => {
-            if(!tagString) return
-            const mappedTag: UserTag = {
-              id: tagString,
-              name: '',
-              children: [],
-              participants: [],
-              createdAt: new Date().toISOString()
-            }
-            return mappedTag
-          }).filter((tag) => tag !== undefined),
-          userEmail: email,
-          collections: [],
-          notifications: []
-        }
-
-        await this.createParticipantMutation({
-          participant: participant,
-          authMode: options?.unauthenticated ? 'identityPool' : 'userPool',
-        })
-
-        mappedParticipants.push(participant)
-      } catch(err) {
-        //TODO: do something with the error
-      }
-    }
-
     //in theory there should be at least one participant upon reaching this point
     let activeParticipant = mappedParticipants.find((participant) => participant.id === profileResponse.data?.activeParticipant)
     if(!profileResponse.data.activeParticipant && mappedParticipants.length > 0){
@@ -881,15 +611,6 @@ export class UserService {
       participant: mappedParticipants,
       activeParticipant: activeParticipant,
       preferredContact: profileResponse.data.preferredContact ?? 'EMAIL',
-      //deprecated
-      userTags: [],
-      timeslot: undefined,
-      participantFirstName: profileResponse.data.participantFirstName ?? undefined,
-      participantLastName: profileResponse.data.participantLastName ?? undefined,
-      participantMiddleName: profileResponse.data.participantMiddleName ?? undefined,
-      participantPreferredName: profileResponse.data.participantPreferredName ?? undefined,
-      participantContact: undefined,
-      participantEmail: undefined,
       firstName: profileResponse.data.firstName ?? undefined,
       lastName: profileResponse.data.lastName ?? undefined,
       temporary: temporaryToken
@@ -898,19 +619,27 @@ export class UserService {
     return userProfile
   }
 
+  async getParticipantById(client: V6Client<Schema>, id?: string, options?: MapParticipantOptions): Promise<Participant | undefined> {
+    if(!id) return
+    const participantResponse = await client.models.Participant.get({ id: id }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    if(!participantResponse.data) return
+
+    return mapParticipant(participantResponse.data, options)
+  }
+
+  //TODO: convert me to infinite query with pagination token
   async getAuthUsers(client: V6Client<Schema>, filter?: string | null, options?: GetAuthUsersOptions): Promise<UserData[] | undefined> {
     const start = new Date().getTime()
-    const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
-        
-    const usersResponse = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput[]
+    const json = await client.queries.GetAuthUsers({ paginationToken: options?.nextToken }, {authMode: 'userPool'})
     
-    let users = usersResponse.reduce((prev, cur) => {
-      if(cur.Users) {
-        prev.push(...cur.Users)
-      }
+    if(!json.data) return
 
-      return prev
-    }, [] as UserType[])
+    const usersResponse = JSON.parse(json.data.toString()) as {
+      response: ListUsersCommandOutput,
+      paginationToken?: string,
+    }
+    
+    let users = usersResponse.response.Users ?? []
 
     const parsedUsersData = (await Promise.all(users.map(async (user) => {
       let attributes = new Map<string, string>()
@@ -930,8 +659,7 @@ export class UserService {
       if(options?.siProfiles && email){
         profile = await this.getUserProfileByEmail(client, email, {
           siCollections: true,
-          siSets: true,
-          siTags: true,
+          siTags: { },
           siTimeslot: true
         })
       }
@@ -1148,16 +876,8 @@ export class UserService {
       const mappedProfile: UserProfile = {
         ...response.data,
         sittingNumber: -1,
-        userTags: [],
-        timeslot: undefined,
         participant: [],
-        participantFirstName: undefined,
-        participantLastName: undefined,
-        participantPreferredName: undefined,
-        participantMiddleName: undefined,
         preferredContact: 'EMAIL',
-        participantContact: false,
-        participantEmail: undefined,
         activeParticipant: undefined,
         firstName: response.data.firstName ?? undefined,
         lastName: response.data.lastName ?? undefined
@@ -1275,8 +995,7 @@ export class UserService {
     const profile = await this.getUserProfileByEmail(this.client, params.userEmail, {
       siCollections: false, // check if individual collections / notifications are needed too 
       siNotifications: false,
-      siSets: false,
-      siTags: true, //tags needed
+      siTags: { }, //tags needed
       siTimeslot: false, //not possible to register for a timeslot if user is temporary
       siTemporaryToken: true
     })

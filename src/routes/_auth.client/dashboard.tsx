@@ -52,11 +52,7 @@ function RouteComponent() {
       userProfile.activeParticipant ? (
         `${userProfile.activeParticipant.preferredName ? userProfile.activeParticipant.preferredName : userProfile.activeParticipant.firstName} ${userProfile.activeParticipant.lastName}`
       ) : (
-        userProfile.participantFirstName && userProfile.participantFirstName ? (
-          `${userProfile.participantPreferredName ? userProfile.participantPreferredName : userProfile.participantFirstName} ${userProfile.participantLastName}`
-        ) : (
-          'Error'
-        )
+        'Error'
       )
     )
   }

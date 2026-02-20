@@ -61,7 +61,8 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
           id: existingTimeslot ? existingTimeslot.id : v4(),
           start: temp,
           end: end,
-          tag: existingTimeslot?.tag
+          tag: existingTimeslot?.tag,
+          updatedAt: existingTimeslot ? existingTimeslot.updatedAt : new Date().toISOString(),
         }
         timeslots.push(timeslot)
         temp = end
@@ -208,6 +209,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                                   id: v4(),
                                   start: temp,
                                   end: end,
+                                  updatedAt: new Date().toISOString(),
                                 }
                                 timeslots.push(timeslot)
                               }
@@ -275,6 +277,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                                 id: v4(),
                                 start: temp,
                                 end: end,
+                                updatedAt: new Date().toISOString(),
                               }
                               timeslots.push(timeslot)
                             }
@@ -344,6 +347,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                               id: '',
                               start: temp,
                               end: end,
+                              updatedAt: new Date().toISOString(),
                           }
                           timeslots.push(timeslot)
                           temp = end

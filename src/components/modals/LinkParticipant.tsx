@@ -1,4 +1,4 @@
-import { UseMutationResult, useQueries, UseQueryResult } from "@tanstack/react-query";
+import { UseMutationResult, useQueries } from "@tanstack/react-query";
 import { ModalProps } from ".";
 import { TimeslotService } from "../../services/timeslotService";
 import { LinkParticipantMutationParams, UserService } from "../../services/userService";
@@ -14,7 +14,7 @@ interface LinkParticipantModalProps extends ModalProps {
   participant: Participant,
   tableColumns: TableColumn[],
   rowIndex: number,
-  tags: UseQueryResult<UserTag[] | undefined, Error>
+  tags: UserTag[],
   linkParticipant: UseMutationResult<{ columns: TableColumn[], participant: Participant }, Error, LinkParticipantMutationParams, unknown>,
   notifications: Notification[]
 }
@@ -193,7 +193,7 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
               linkedFields: {
                 participantLinks: linkedParticipantFields[0],
                 rowIndex: props.rowIndex,
-                tags: props.tags.data ?? [],
+                tags: props.tags,
                 timeslotQueries: timeslotQueries,
                 availableOptions: filteredUserFields,
                 allColumns: props.tableColumns,
@@ -228,7 +228,7 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
                 rowIndex: props.rowIndex,
                 participantFieldLinks: linkedParticipantFields[0],
                 participant: props.participant,
-                availableTags: props.tags.data ?? [],
+                availableTags: props.tags,
                 options: {
                   logging: true
                 }

@@ -26,21 +26,20 @@ interface TableBodyComponentProps {
   table: Table
   tableRows: [string, TableColumn['type'], string][][],
   search: string,
+
   users: UserData[],
   tempUsers: UserProfile[],
   notifications: Notification[],
+  timeslots: Timeslot[],
+  tags: UserTag[],
+
   selectedTag: UserTag | undefined,
   selectedDate: Date
   baseLink: string
   refRow: React.MutableRefObject<number>
 
-  allTableTimeslotsQuery: UseQueryResult<Timeslot | null, Error>[]
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
   tagTimeslotQuery: UseQueryResult<Timeslot[], Error>
-  tagData: UseQueryResult<UserTag[] | undefined, Error>
-  userData: UseQueryResult<UserData[] | undefined, Error>
-  tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
-  notificationsData: UseQueryResult<Notification[], Error>
 
   deleteRow: UseMutationResult<void, Error, DeleteTableRowParams, unknown>
   appendRow: UseMutationResult<void, Error, AppendTableRowParams, unknown>
@@ -206,17 +205,14 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               users={props.users}
               tempUsers={props.tempUsers}
               notifications={props.notifications}
+              timeslots={props.timeslots}
+              tags={props.tags}
               selectedTag={props.selectedTag}
               selectedDate={props.selectedDate}
               baseLink={props.baseLink}
               refRow={props.refRow}
               timeslotsQuery={props.timeslotsQuery}
               tagTimeslotQuery={props.tagTimeslotQuery}
-              allTableTimeslotsQuery={props.allTableTimeslotsQuery}
-              tagData={props.tagData}
-              userData={props.userData}
-              tempUsersData={props.tempUsersData}
-              notificationData={props.notificationsData}
               updateColumn={props.updateColumn}
               deleteRow={props.deleteRow}
               createChoice={props.createChoice}

@@ -43,7 +43,7 @@ import { LinkParticipantModal } from "../../modals/LinkParticipant"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
 import { NotificationCell } from "./NotificationCell"
 import { NotificationService } from "../../../services/notificationService"
-import { generateTableLinks, possibleLinkDetection, processTableLinks, rowLinkParticipantAvailable, rowUnlinkAvailable, tableParticipantDetection, tableUserDetection, updateChoices } from "../../../functions/tableFunctions"
+import { generateTableLinks, possibleLinkDetection, processTableColumnUpdateLinks, rowLinkParticipantAvailable, rowUnlinkAvailable, tableParticipantDetection, tableUserDetection, updateChoices } from "../../../functions/tableFunctions"
 import { CgSpinner } from "react-icons/cg"
 import { TablePanelNotification } from "./TablePanel"
 import { formatParticipantName } from "../../../functions/clientFunctions"
@@ -69,14 +69,11 @@ interface TableRowComponentProps {
   users: UserData[],
   tempUsers: UserProfile[],
   notifications: Notification[]  
-  
-  allTableTimeslotsQuery: UseQueryResult<Timeslot | null, Error>[]
+  timeslots: Timeslot[]
+  tags: UserTag[]
+
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
   tagTimeslotQuery: UseQueryResult<Timeslot[], Error>
-  tagData: UseQueryResult<UserTag[] | undefined, Error>
-  userData: UseQueryResult<UserData[] | undefined, Error>
-  tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
-  notificationData: UseQueryResult<Notification[], Error>
 
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   deleteRow: UseMutationResult<void, Error, DeleteTableRowParams, unknown>
@@ -218,7 +215,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     }
 
     if(!skipLinks) {
-      processTableLinks(
+      processTableColumnUpdateLinks(
         column,
         text,
         i,
@@ -328,8 +325,8 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
     props.table, 
     props.i, 
     {
-      tags: props.tagData.data ?? [],
-      timeslots: props.allTableTimeslotsQuery.map((query) => query.data).filter((timeslot) => timeslot !== undefined && timeslot !== null),
+      tags: props.tags,
+      timeslots: props.timeslots,
       notifications: props.notifications
     }
   )
@@ -569,7 +566,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           }}
           notifications={props.notifications}
           rowIndex={props.i}
-          tags={props.tagData}
+          tags={props.tags}
           linkUser={linkUser}
           tableColumns={props.table.columns.filter((column) => {
             const choice = (column.choices ?? [])?.[props.i]
@@ -585,7 +582,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           onClose={() => setLinkParticipantVisible(false)}
           participant={linkParticipantAvailable}
           rowIndex={props.i}
-          tags={props.tagData}
+          tags={props.tags}
           tableColumns={props.table.columns.filter((column) => {
             const choice = (column.choices ?? [])?.[props.i]
             return choice === undefined || (!choice.includes('userEmail') && !choice.includes('participantId'))
@@ -631,7 +628,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     }
                   })()}
                   timeslotsQuery={props.selectedTag !== undefined ? props.tagTimeslotQuery : props.timeslotsQuery}
-                  tagsQuery={props.tagData}
+                  tags={props.tags}
                   userData={{
                     users: props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
                     tempUsers: props.tempUsers
@@ -639,8 +636,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   registerTimeslot={props.adminRegisterTimeslot}
                   setUsers={props.setUsers}
                   setTempUsers={props.setTempUsers}
-                  usersQuery={props.userData}
-                  tempUsersQuery={props.tempUsersData}
                   selectedDate={props.selectedDate}
                   updateDateSelection={props.setSelectedDate}
                   updateTagSelection={props.setSelectedTag}
@@ -670,7 +665,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                   value={v}
                   search={props.search}
                   updateValue={(text) => updateValue(id, text, props.i)}
-                  tags={props.tagData}
+                  tags={props.tags}
                   table={props.table}
                   columnId={id}
                   rowIndex={props.i}
@@ -692,8 +687,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     users: props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
                     tempUsers: props.tempUsers
                   }}
-                  usersQuery={props.userData}
-                  tempUsersQuery={props.tempUsersData}
                   updateParticipant={(userTags, participantId, userEmail, tempUser) => {
                     if(tempUser) {
                       props.setTempUsers((prev) => prev.map((profile) => {
@@ -756,9 +749,6 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                     users: props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
                     tempUsers: props.tempUsers
                   }}
-                  usersQuery={props.userData}
-                  tempUsersQuery={props.tempUsersData}
-                  notificationQuery={props.notificationData}
                 />
               )
             }
@@ -864,7 +854,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
                       userProfile: detectedUser,
                       participantFieldLinks: links.participantLinks,
                       userFieldLinks: links.userLinks,
-                      availableTags: props.tagData.data ?? [],
+                      availableTags: props.tags,
                       options: {
                         logging: true
                       }
@@ -1043,7 +1033,7 @@ export const TableRowComponent = (props: TableRowComponentProps) => {
           <DragPreview 
             index={props.i} 
             columns={props.table.columns.sort((a, b) => a.order - b.order)} 
-            tags={props.tagData.data ?? []}
+            tags={props.tags}
           />, rowState.container
         )}
       </tr>

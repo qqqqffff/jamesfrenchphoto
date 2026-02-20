@@ -9,7 +9,7 @@ import {
   Notification,
   Timeslot
 } from "../../../types"
-import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { 
   TableService,
   AppendTableRowParams,
@@ -44,6 +44,8 @@ interface TableComponentProps {
   tempUsers: UserProfile[],
   users: UserData[],
   notifications: Notification[],
+  tags: UserTag[],
+  timeslots: Timeslot[],
   sidePanelExpanded: boolean,
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
@@ -53,10 +55,6 @@ interface TableComponentProps {
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
   parentUpdateTableColumns: Dispatch<SetStateAction<TableColumn[]>>
-  userData: UseQueryResult<UserData[] | undefined, Error>
-  tagData: UseQueryResult<UserTag[] | undefined, Error>
-  tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
-  notificationsData: UseQueryResult<Notification[], Error>
 }
 
 export const TableComponent = (props: TableComponentProps) => {
@@ -66,22 +64,7 @@ export const TableComponent = (props: TableComponentProps) => {
   const [selectedTag, setSelectedTag] = useState<UserTag | undefined>()
   const [createUser, setCreateUser] = useState(false)
 
-  //TODO: remove redundancy
   const timeslotsQuery = useQuery(props.TimeslotService.getAllTimeslotsByDateQueryOptions(selectedDate))
-  const allTableTimeslots: UseQueryResult<Timeslot | null, Error>[] = useQueries({
-    queries: props.table.columns
-      .filter((column) => column.type === 'date')
-      .flatMap((column) => column.values)
-      .filter((value) => value !== '')
-      .flatMap((value) => value.split(','))
-      .reduce((prev, cur) => {
-        if(!prev.some((timeslotId) => timeslotId === cur)) {
-          prev.push(cur)
-        }
-        return prev
-      }, [] as string[])
-      .map((timeslotId) => props.TimeslotService.getTimeslotByIdQueryOptions(timeslotId, { siTag: false }))
-  })
   const tagTimeslotQuery = useQuery({
     ...props.TimeslotService.getAllTimeslotsByUserTagQueryOptions(selectedTag?.id),
     enabled: selectedTag !== undefined
@@ -109,16 +92,13 @@ export const TableComponent = (props: TableComponentProps) => {
               value[1] === 'file'
             ) && value[0].toLowerCase().includes(props.search.toLowerCase())) ||
             (value[1] === 'notification' && props.notifications.find((notification) => notification.content.toLowerCase().includes(props.search.toLowerCase()))) ||
-            (value[1] === 'date' && allTableTimeslots
-              .map((query) => query.data)
-              .filter((timeslot) => timeslot !== undefined && timeslot !== null)
-              .filter((timeslot) => value[0].includes(timeslot.id))
+            (value[1] === 'date' && props.timeslots
               .some((timeslot) => (
                 new Date(timeslot.start).toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase()) ||
                 new Date(timeslot.end).toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase())
               ))
             ) ||
-            (value[1] === 'tag' && (props.tagData.data ?? [])
+            (value[1] === 'tag' && (props.tags)
               .filter((tag) => value[0].includes(tag.id))
               .some((tag) => tag.name.toLowerCase().includes(props.search.toLowerCase()))
             )
@@ -270,7 +250,7 @@ export const TableComponent = (props: TableComponentProps) => {
         }}
         tableColumns={props.table.columns}
         rowNumber={refRow.current}
-        tags={props.tagData}
+        tags={props.tags}
         open={createUser}
         onClose={() => {
           setCreateUser(false)
@@ -285,10 +265,10 @@ export const TableComponent = (props: TableComponentProps) => {
             TableService={props.TableService}
             table={props.table}
             refColumn={refColumn}
-            tagData={props.tagData}
+            tags={props.tags}
             users={props.users}
             notifications={props.notifications}
-            timeslots={allTableTimeslots.map((data) => data.data).filter((timeslot) => timeslot !== undefined && timeslot !== null)}
+            timeslots={props.timeslots}
             tempUsers={props.tempUsers}
             createColumn={createColumn}
             updateColumn={updateColumn}
@@ -311,17 +291,14 @@ export const TableComponent = (props: TableComponentProps) => {
             users={props.users}
             tempUsers={props.tempUsers}
             notifications={props.notifications}
+            timeslots={props.timeslots}
+            tags={props.tags}
             selectedTag={selectedTag}
             selectedDate={selectedDate}
             baseLink={link}
             refRow={refRow}
-            allTableTimeslotsQuery={allTableTimeslots}
             timeslotsQuery={timeslotsQuery}
             tagTimeslotQuery={tagTimeslotQuery}
-            tagData={props.tagData}
-            userData={props.userData}
-            tempUsersData={props.tempUsersData}
-            notificationsData={props.notificationsData}
             deleteRow={deleteRow}
             appendRow={appendRow}
             updateColumn={updateColumn}

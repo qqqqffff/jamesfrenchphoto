@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react"
-import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag, Notification } from "../../../types"
-import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
+import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag, Notification, Timeslot } from "../../../types"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { DeleteTableParams, TableService, UpdateTableParams } from "../../../services/tableService"
 import { EditableTextField } from "../../common/EditableTextField"
 import { textInputTheme } from "../../../utils"
@@ -12,28 +12,20 @@ import { PhotoPathService } from "../../../services/photoPathService"
 import { TimeslotService } from "../../../services/timeslotService"
 import { UserService } from "../../../services/userService"
 import { NotificationService } from "../../../services/notificationService"
+import { TagService } from "../../../services/tagService"
 
 interface TablePanelProps {
   TableService: TableService,
   PhotoPathService: PhotoPathService,
   TimeslotService: TimeslotService,
   UserService: UserService,
-  NotificationService: NotificationService
+  NotificationService: NotificationService,
+  TagService: TagService,
   selectedTable: Table,
-  tempUsers: UserProfile[],
-  users: UserData[],
-  notifications: Notification[],
   sidePanelExpanded: boolean,
-  setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
-  setUsers: Dispatch<SetStateAction<UserData[]>>
-  setNotifications: Dispatch<SetStateAction<Notification[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>>
-  tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
-  usersQuery: UseQueryResult<UserData[] | undefined, Error>
-  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>
-  notificationsQuery: UseQueryResult<Notification[], Error>
 }
 
 export interface TablePanelNotification { 
@@ -44,17 +36,30 @@ export interface TablePanelNotification {
   autoClose: NodeJS.Timeout | null
 }
 
-//TODO: fix row deletion
+//TODO: fix row deletion - validate works
+//TODO: add implementation of the table participants/users
+//TODO: lazily load rest of data with inf queries
 export const TablePanel = (props: TablePanelProps) => {
   const [searchText, setSearchText] = useState('')
   const [tableColumns, setTableColumns] = useState<TableColumn[]>([])
   const [tableNotifications, setTableNotifications] = useState<TablePanelNotification[]>([])
 
+  const [tempUsers, setTempUsers] = useState<UserProfile[]>([])
+  const [users, setUsers] = useState<UserData[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [tags, setTags] = useState<UserTag[]>([])
+  const [timeslots, setTimeslots] = useState<Timeslot[]>([])
+
   const table = useQuery(props.TableService.getTableQueryOptions(props.selectedTable.id, { siUserTags: true, logging: true }))
 
   useEffect(() => {
-    if(table.data?.columns) {
-      setTableColumns(table.data.columns)
+    if(table.data) {
+      setTableColumns(table.data.table.columns)
+      setTempUsers(table.data.tableData.tempUsers)
+      setUsers(table.data.tableData.userData)
+      setNotifications(table.data.tableData.notifications)
+      setTags(table.data.tableData.tags)
+      setTimeslots(table.data.tableData.timeslots)
     }
     else {
       setTableColumns(props.selectedTable.columns)
@@ -221,21 +226,19 @@ export const TablePanel = (props: TablePanelProps) => {
                 columns: tableColumns,
               }}
               search={searchText}
-              tempUsers={props.tempUsers}
-              users={props.users}
-              notifications={props.notifications}
-              setTempUsers={props.setTempUsers}
-              setUsers={props.setUsers}
-              setNotifications={props.setNotifications}
+              tempUsers={tempUsers}
+              users={users}
+              notifications={notifications}
+              tags={tags}
+              timeslots={timeslots}
+              setTempUsers={setTempUsers}
+              setUsers={setUsers}
+              setNotifications={setNotifications}
               setTableNotifications={setTableNotifications}
               parentUpdateTable={props.parentUpdateSelectedTable}
               parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
               parentUpdateTableGroups={props.parentUpdateTableGroups}
               parentUpdateTableColumns={setTableColumns}
-              userData={props.usersQuery}
-              tagData={props.tagsQuery}
-              tempUsersData={props.tempUsersQuery}
-              notificationsData={props.notificationsQuery}
             />
           </>
         )}

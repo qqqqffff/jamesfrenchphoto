@@ -55,7 +55,6 @@ export const RegisterForm = (props: RegisterFormProps) => {
   const [userProfile, setUserProfile] = useState<RegistrationProfile>(props.temporaryProfile ?? ({
     email: '',
     sittingNumber: -1,
-    userTags: [],
     preferredContact: 'EMAIL',
     participant: [],
     password: '',
@@ -79,7 +78,6 @@ export const RegisterForm = (props: RegisterFormProps) => {
       setUserProfile({
         email: '',
         sittingNumber: -1,
-        userTags: [],
         preferredContact: 'EMAIL',
         participant: [],
         password: '',

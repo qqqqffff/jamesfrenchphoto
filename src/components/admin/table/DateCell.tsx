@@ -25,10 +25,8 @@ interface DateCellProps extends ComponentProps<'td'> {
   }
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
-  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>
-  usersQuery: UseQueryResult<UserData[] | undefined, Error>
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
-  tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
+  tags: UserTag[]
   selectedDate: Date,
   updateDateSelection: Dispatch<SetStateAction<Date>>
   updateTagSelection: Dispatch<SetStateAction<UserTag | undefined>>
@@ -48,7 +46,6 @@ export const DateCell = (props: DateCellProps) => {
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile, participant: Participant }  | undefined>()
   
   const [availableTimeslots, setAvailableTimeslots] = useState<Timeslot[]>(props.timeslotsQuery.data ?? [])
-  const [availableTags, setAvailableTags] = useState<UserTag[]>(props.tagsQuery.data ?? [])
   const [filterOption, setFilterOption] = useState<'date' | 'tag'>('date')
   const [selectedTag, setSelectedTag] = useState<UserTag>()
   const [tagSearch, setTagSearch] = useState<string>('')
@@ -99,13 +96,11 @@ export const DateCell = (props: DateCellProps) => {
       setValue(prev => parentValue !== prev ? parentValue : prev)
       setFoundParticipant(prev => foundUser !== undefined ? foundUser : prev)
       setAvailableTimeslots(prev => props.timeslotsQuery.data ? props.timeslotsQuery.data : prev)
-      setAvailableTags(prev => props.tagsQuery.data ? props.tagsQuery.data : prev)
     }
   }, [
     props.value,
     props.linkedParticipantId,
     props.timeslotsQuery.data,
-    props.tagsQuery,
     props.registerTimeslot.isPending,
   ])
 
@@ -140,6 +135,7 @@ export const DateCell = (props: DateCellProps) => {
   // })
 
   const cellTimeslotIds = (value.split(',') ?? []).filter((timeslotId) => timeslotId !== '')
+  //TODO: don't have queries here
   const cellTimeslotQueries = useQueries({
     queries: cellTimeslotIds.map((timeslotId) => {
       return props.TimeslotService.getTimeslotByIdQueryOptions(timeslotId, { siTag: true })
@@ -172,7 +168,7 @@ export const DateCell = (props: DateCellProps) => {
     return 'Pick Timeslot(s)...'
   })()
 
-  const filteredTags = availableTags.filter((tag) => tag.name.trim().toLocaleLowerCase().includes(tagSearch.trim().toLocaleLowerCase()))
+  const filteredTags = props.tags.filter((tag) => tag.name.trim().toLocaleLowerCase().includes(tagSearch.trim().toLocaleLowerCase()))
   const filteredTimeslots = availableTimeslots.filter((timeslot) => {
     if(filterOption === 'date') {
       const timeslotDate = new Date(timeslot.start)
@@ -383,7 +379,7 @@ export const DateCell = (props: DateCellProps) => {
                 </button>
               </div>
             </div>
-            {props.tagsQuery.isLoading || props.usersQuery.isLoading || props.tempUsersQuery.isLoading || cellTimeslotQueries.some((query) => query.isLoading) ? (  
+            {cellTimeslotQueries.some((query) => query.isLoading) ? (  
               <div className="flex flex-row">
                 <span>Loading</span>
                 <Loading />
@@ -608,7 +604,7 @@ export const DateCell = (props: DateCellProps) => {
                         user.participant.some((participant) => participant.id === timeslot.participantId))
                       )
                       const foundRegisterParticipant = register !== undefined ? register.participant.find((participant) => participant.id === timeslot.participantId) : undefined
-                      const tag = availableTags.find((tag) => tag.id === timeslot.tag?.id)
+                      const tag = props.tags.find((tag) => tag.id === timeslot.tag?.id)
 
                       return (
                         <Tooltip

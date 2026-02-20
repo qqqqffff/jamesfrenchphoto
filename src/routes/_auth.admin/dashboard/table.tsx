@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { TableService } from '../../../services/tableService'
 import { useEffect, useState } from 'react'
-import { Table, TableGroup, UserData, UserProfile, Notification } from '../../../types'
+import { Table, TableGroup } from '../../../types'
 import { TableSidePanel } from '../../../components/admin/table/TableSidePanel'
 import { TablePanel } from '../../../components/admin/table/TablePanel'
 import { useQuery } from '@tanstack/react-query'
@@ -51,23 +51,12 @@ function RouteComponent() {
   const [tableGroups, setTableGroups] = useState<TableGroup[]>([])
   const [selectedGroups, setSelectedGroups] = useState<TableGroup[]>([])
   const [selectedTable, setSelectedTable] = useState<Table | undefined>()
-  const [tempUsers, setTempUsers] = useState<UserProfile[]>([])
-  const [users, setUsers] = useState<UserData[]>([])
-  const [notifications, setNotifications] = useState<Notification[]>([])
   const [sidePanelExpanded, setSidePanelExpanded] = useState(true)
 
   const tableGroupsQuery = useQuery(TableService.getAllTableGroupsQueryOptions({ metrics: true }))
 
-  const usersQuery = useQuery(UserService.getAuthUsersQueryOptions(undefined, { siProfiles: true, logging: true, metric: true }))
-  
-  const tagsQuery = useQuery(TagService.getAllUserTagsQueryOptions({ siCollections: true, siTimeslots: false }))
-
-  const tempUsersQuery = useQuery(UserService.getAllTemporaryUsersQueryOptions({ siTags: true }))
-
-  const notificationsQuery = useQuery(NotificationService.getAllNotificationsQueryOptions({ logging: true }))
-
   useEffect(() => {
-    if(tableGroupsQuery.data && tableGroupsQuery.data.length > 0) {
+    if(tableGroupsQuery.data) {
       setTableGroups(tableGroupsQuery.data)
       if(searchTable) {
         const foundGroup = tableGroupsQuery.data.find((group) => group.tables.some((table) => searchTable === table.id))
@@ -76,25 +65,9 @@ function RouteComponent() {
         setSelectedTable(foundTable)
       }
     }
-  }, [tableGroupsQuery.data])
-
-  useEffect(() => {
-    if(notificationsQuery.data) {
-      setNotifications(notificationsQuery.data)
-    }
-  }, [notificationsQuery.data])
-
-  useEffect(() => {
-    if(tempUsersQuery.data) {
-      setTempUsers(tempUsersQuery.data)
-    }
-  }, [tempUsersQuery.data])
-
-  useEffect(() => {
-    if(usersQuery.data) { 
-      setUsers(usersQuery.data)
-    }
-  }, [usersQuery.data])
+  }, [
+    tableGroupsQuery.data
+  ])
 
   return (
     <>
@@ -118,21 +91,12 @@ function RouteComponent() {
             TimeslotService={TimeslotService}
             PhotoPathService={PhotoPathService}
             NotificationService={NotificationService}
+            TagService={TagService}
             selectedTable={selectedTable}
-            tempUsers={tempUsers}
-            users={users}
-            notifications={notifications}
             sidePanelExpanded={sidePanelExpanded}
-            setTempUsers={setTempUsers}
-            setUsers={setUsers}
-            setNotifications={setNotifications}
             parentUpdateSelectedTableGroups={setSelectedGroups}
             parentUpdateTableGroups={setTableGroups}
             parentUpdateSelectedTable={setSelectedTable}
-            tagsQuery={tagsQuery}
-            usersQuery={usersQuery}
-            tempUsersQuery={tempUsersQuery}
-            notificationsQuery={notificationsQuery}
           />
         ) : (
           <div className="flex flex-col w-full items-center border border-gray-400 gap-2 rounded-2xl p-4">

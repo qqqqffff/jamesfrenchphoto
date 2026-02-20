@@ -2,7 +2,7 @@ import { UseMutationResult } from "@tanstack/react-query";
 import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
 import { ColumnColor, Notification, Participant, ParticipantFields, Table, TableColumn, TableGroup, Timeslot, UserData, UserFields, UserProfile, UserTag } from "../types";
 import { defaultColumnColors, parsePathName } from "../utils";
-import { UpdateParticipantMutationParams, UpdateUserProfileParams } from "../services/userService";
+import { UpdateParticipantMutationParams, UpdateUserProfileParams, UserService } from "../services/userService";
 import { Dispatch, SetStateAction } from "react";
 import { v4 } from 'uuid'
 import { TablePanelNotification } from "../components/admin/table/TablePanel";
@@ -13,6 +13,9 @@ import { CreateChoiceParams, DeleteChoiceParams, ReorderTableGroupParams, Update
 import { flushSync } from "react-dom";
 import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
+import { Schema } from "../../amplify/data/resource";
+import { V6Client } from '@aws-amplify/api-graphql'
+import { TimeslotService } from "../services/timeslotService";
 
 export const mapParticipantField = (props: { field: ParticipantFields['type'], participant: Participant }): string => {
   switch(props.field) {
@@ -26,6 +29,19 @@ export const mapParticipantField = (props: { field: ParticipantFields['type'], p
       return props.participant.email ?? ''
     case "last":
       return props.participant.lastName
+    default:
+      return ''
+  }
+}
+
+export const mapUserField = (props: { field: UserFields['type'], user: UserProfile }): string => {
+  switch(props.field) {
+    case "first":
+      return props.user.firstName ?? ''
+    case "last":
+      return props.user.lastName ?? ''
+    case 'sitting':
+      return String(props.user.sittingNumber) ?? ''
     default:
       return ''
   }
@@ -168,7 +184,7 @@ const createParticipantArray = (
   return participantArray
 }
 
-export const processTableLinks = (
+export const processTableColumnUpdateLinks = (
   column: TableColumn, 
   text: string,
   index: number,
@@ -184,10 +200,7 @@ export const processTableLinks = (
     setUsers: Dispatch<SetStateAction<UserData[]>>
   }
 ) => {
-  const userLink = ((column.choices ?? [])[index] ?? '').includes('userEmail')
-  const participantLink = ((column.choices ?? [])[index] ?? '').includes('participantId')
-
-  const field = column.type === 'value' && (participantLink || userLink) ? 
+  const field = column.type === 'value' ? 
     evaluateField(column.choices?.[index]) : undefined
 
   const userArray: (UserProfile & { temp: boolean })[] = createUserArray(tempUsers, users)
@@ -199,8 +212,8 @@ export const processTableLinks = (
       tempUsers.some((profile) => profile.email.toLowerCase() === userLinks?.email[0].toLowerCase()) ||
       users.some((user) => user.email.toLowerCase() === userLinks?.email[0].toLowerCase())
     ) &&
-    userLink &&
-    field !== undefined
+    field !== undefined &&
+    field.type === 'user'
   ) {
     const foundUser: UserProfile & { temp: boolean } | undefined = userArray
     .find((profile) => profile.email.toLowerCase() === userLinks?.email[0].toLowerCase())
@@ -210,7 +223,7 @@ export const processTableLinks = (
     if(column.id === userLinks?.email[1]) {
       //TODO: figure out how to handle
     }
-    else if(userLinks?.first && column.id === userLinks.first[0] && field === 'first') {
+    else if(userLinks?.first && column.id === userLinks.first[0] && field.field === 'first') {
       mutations.updateUserProfile.mutateAsync({
         profile: foundUser,
         first: text,
@@ -252,7 +265,7 @@ export const processTableLinks = (
         }) : data))
       }
     }
-    else if(userLinks?.last && column.id === userLinks.last[0] && field === 'last') {
+    else if(userLinks?.last && column.id === userLinks.last[0] && field.field === 'last') {
       mutations.updateUserProfile.mutateAsync({
         profile: foundUser,
         last: text,
@@ -294,7 +307,7 @@ export const processTableLinks = (
         }) : data))
       }
     }
-    else if(userLinks?.sitting && column.id === userLinks.sitting[0] && field === 'sitting') {
+    else if(userLinks?.sitting && column.id === userLinks.sitting[0] && field.field === 'sitting') {
       if(isNaN(Number(text))) {
         mutations.setTableNotifications(prev => [...prev, {
           id: v4(),
@@ -347,8 +360,11 @@ export const processTableLinks = (
       }
     }
   }
-  else if(participantLink) {
-    if(participantLinks.some((link) => link.first && link.first[0] === column.id) && field === 'first') {
+  else if(
+    field !== undefined &&
+    field.type === 'participant'
+  ) {
+    if(participantLinks.some((link) => link.first && link.first[0] === column.id) && field.field === 'first') {
       participantLinks.forEach((link) => {
         const foundParticipant = participantArray.find((participant) => participant.id === link.id)
         if(foundParticipant !== undefined) {
@@ -407,7 +423,7 @@ export const processTableLinks = (
         }
       })
     }
-    else if(participantLinks.some((link) => link.last && link.last[0] === column.id) && field === 'last') {
+    else if(participantLinks.some((link) => link.last && link.last[0] === column.id) && field.field === 'last') {
       participantLinks.forEach((link) => {
         const foundParticipant = participantArray.find((participant) => participant.id === link.id)
         if(foundParticipant !== undefined) {
@@ -466,7 +482,7 @@ export const processTableLinks = (
         }
       })
     }
-    else if(participantLinks.some((link) => link.preferred && link.preferred[0] === column.id) && field === 'preferred') {
+    else if(participantLinks.some((link) => link.preferred && link.preferred[0] === column.id) && field.field === 'preferred') {
       participantLinks.forEach((link) => {
         const foundParticipant = participantArray.find((participant) => participant.id === link.id)
         if(foundParticipant !== undefined) {
@@ -526,7 +542,7 @@ export const processTableLinks = (
         }
       })
     }
-    else if(participantLinks.some((link) => link.middle && link.middle[0] === column.id) && field === 'middle') {
+    else if(participantLinks.some((link) => link.middle && link.middle[0] === column.id) && field.field === 'middle') {
       participantLinks.forEach((link) => {
         const foundParticipant = participantArray.find((participant) => participant.id === link.id)
         if(foundParticipant !== undefined) {
@@ -586,7 +602,7 @@ export const processTableLinks = (
         }
       })
     }
-    else if(participantLinks.some((link) => link.email && link.email[0] === column.id) && field === 'email') {
+    else if(participantLinks.some((link) => link.email && link.email[0] === column.id) && field.field === 'email') {
       participantLinks.forEach((link) => {
         const foundParticipant = participantArray.find((participant) => participant.id === link.id)
         if(foundParticipant !== undefined) {
@@ -685,18 +701,16 @@ export const generateTableLinks = (
   ) {
     for(let i = 0; i < table.columns.length; i++) {
       const column = table.columns[i]
-      const choice = (column.choices ?? [])?.[index]
-      if(choice === undefined || choice === null) continue
-      const endIndex = choice.indexOf(',') === -1 ? choice.length : choice.indexOf(',')
-      if(choice.includes('participantId:')) {
-        const mappedParticipant = choice.substring(choice.indexOf(':') + 1, endIndex)
-        const foundParticipant = participantDetection.some((participant) => participant.id === mappedParticipant)
+      const choice = evaluateField((column.choices ?? [])?.[index])
+      if(choice === undefined) continue
+      if(choice.type === 'participant') {
+        const foundParticipant = participantDetection.some((participant) => participant.id === choice.id)
         if(!foundParticipant) continue
-        const linkedIndex = linkedParticipants.findIndex((link) => link.id === mappedParticipant)
+        const linkedIndex = linkedParticipants.findIndex((link) => link.id === choice.id)
         let participantIndex = linkedIndex === -1 ? linkedParticipants.length : linkedIndex
         if(linkedIndex === -1) {
           linkedParticipants.push({
-            id: mappedParticipant,
+            id: choice.id,
             first: null,
             last: null,
             middle: null,
@@ -707,7 +721,7 @@ export const generateTableLinks = (
             notifications: null
           })
         }
-        switch(evaluateField(choice)){
+        switch(choice.field){
           case 'first': {
             linkedParticipants[participantIndex].first = [column.id, 'update']
             break;
@@ -742,36 +756,34 @@ export const generateTableLinks = (
           }
         }
       }
-      else if(choice.includes('userEmail:')) {
-        const mappedUser = choice.substring(choice.indexOf(':') + 1, endIndex)
+      else if(choice.type === 'user') {
+        const mappedUser = choice.id
         if(userDetection[1] !== mappedUser && linkedUser.email[0] !== '') {
           continue
         }
 
-        const field = evaluateField(choice)
-
         if(
           linkedUser.email[0] === '' && 
           userDetection[1] === mappedUser &&
-          field === 'email'
+          choice.field === 'email'
         ) {
           linkedUser.email = [mappedUser, column.id]
         }
         else if(
           linkedUser.first === null &&
-          field === 'first'
+          choice.field === 'first'
         ) {
           linkedUser.first = [column.id, 'update']
         }
         else if(
           linkedUser.last === null &&
-          field === 'last'
+          choice.field === 'last'
         ) {
           linkedUser.last = [column.id, 'update']
         }
         else if(
           linkedUser.sitting === null &&
-          field === 'sitting'
+          choice.field === 'sitting'
         ) {
           linkedUser.sitting = [column.id, 'update']
         }
@@ -783,24 +795,37 @@ export const generateTableLinks = (
   return [linkedUser, linkedParticipants]
 }
 
-const evaluateField = (choice: string | undefined): 'first' | 'last' | 'sitting' | 'email' | 'preferred' | 'middle' | undefined => {
+const evaluateField = (choice: string | undefined): {
+  type: 'participant'
+  id: string,
+  field: 'first' | 'last' | 'email' | 'preferred' | 'middle' | undefined
+} | {
+  type: 'user',
+  id: string,
+  field: 'first' | 'last' | 'sitting' | 'email' | undefined,
+} | undefined => {
   if(!choice) return undefined
   const field = choice.substring(choice.indexOf(',') + 1)
+  const id = choice.substring(choice.indexOf(':') + 1, choice.indexOf(','))
+  const type = choice.includes('participantId:') ? 'participant' : choice.includes('userEmail:') ? 'user' : undefined
+
+  if(!type) return undefined
+
   switch(field) {
     case 'first':
-      return 'first'
+      return { type: type, id, field: field } 
     case 'last':
-      return 'last'
+      return { type: type, id, field: field }
     case 'sitting':
-      return 'sitting'
+      return type === 'user' ? { type: type, id, field: field } : undefined
     case 'email':
-      return 'email'
+      return { type: type, id, field: field }
     case 'preferred':
-      return 'preferred'
+      return type === 'participant' ? { type: type, id, field: field } : undefined
     case 'middle':
-      return 'middle'
+      return type === 'participant' ? { type: type, id, field: field } : undefined
     default:
-      return undefined
+      return { type: type, id, field: undefined }
   }
 }
 
@@ -1307,31 +1332,29 @@ export const possibleLinkDetection = (userProfile: UserProfile, rowIndex: number
   }
 }
 
-export const mapUserField = (props: { field: UserFields['type'], user: UserProfile }): string => {
-  switch(props.field) {
-    case "first":
-      return props.user.firstName ?? ''
-    case "last":
-      return props.user.lastName ?? ''
-    case 'sitting':
-      return String(props.user.sittingNumber) ?? ''
-    default:
-      return ''
-  }
-}
-
-export const validateMapField = (field: string, participant?: { participant: Participant, value: string }, user?: { user: UserData, value: string }): [
-  UserFields['type'] | ParticipantFields['type'] | null, 
-  Participant | UserData | undefined
-] => {
+export const validateMapField = (field: string, participant?: { participant: Participant, value: string }, user?: { user: UserData, value: string }): 
+{
+  type: 'user',
+  field: UserFields['type'],
+  data: UserData
+} | {
+  type: 'participant',
+  field: ParticipantFields['type'],
+  data: Participant,
+} | null => {
   switch(field) {
-    case 'first':
-      return [
-        'first',
-        participant ? {
+    case 'first': {
+      return participant ? {
+        type: 'participant',
+        field: 'first',
+        data: {
           ...participant.participant,
           firstName: participant.value
-        } : user ? {
+        }
+      } : user ? {
+        type: 'user',
+        field: 'first',
+        data: {
           ...user.user,
           first: user.value,
           profile: {
@@ -1339,51 +1362,62 @@ export const validateMapField = (field: string, participant?: { participant: Par
             firstName: user.value,
             sittingNumber: user.user.profile?.sittingNumber ?? -1,
             email: user.user.email,
-            userTags: [],
             preferredContact: user.user.profile?.preferredContact ?? 'EMAIL',
             participant: user.user.profile?.participant ?? []
           }
-        } : undefined
-      ]
-    case 'middle':
-      return [
-        'middle',
-        participant ? {
+        }
+      } : null
+    }
+    case 'middle': {
+      return participant ? {
+        type: 'participant',
+        field: 'middle',
+        data: {
           ...participant.participant,
           middleName: participant.value
-        } : undefined
-      ]
-    case 'preferred':
-      return [
-        'preferred',
-        participant ? {
+        }
+      } : null
+    }
+    case 'preferred': {
+      return participant ? {
+        type: 'participant',
+        field: 'preferred',
+        data: {
           ...participant.participant,
           preferredName: participant.value
-        } : undefined
-      ]
-    case 'sitting':
-      return [
-        'sitting',
-        user ? {
+        }
+      } : null
+    }
+    case 'sitting': {
+      return user && !isNaN(Number(user.value)) ? {
+        type: 'user',
+        field: 'sitting',
+        data: {
           ...user.user,
           profile: {
             ...user.user.profile,
-            firstName: user.value,
-            sittingNumber: !isNaN(parseInt(user.value)) ? parseInt(user.value) : user.user.profile?.sittingNumber ?? -1,
+            firstName: user.user.profile?.firstName ?? '',
+            lastName: user.user.profile?.lastName ?? '',
+            sittingNumber: Number(user.value),
             email: user.user.email,
-            userTags: [],
             preferredContact: user.user.profile?.preferredContact ?? 'EMAIL',
             participant: user.user.profile?.participant ?? []
           }
-        } : undefined
-      ]
-    case 'last':
-      return [
-        'last',
-        participant ? {
+        }
+       } : null
+    }
+    case 'last': {
+      return participant ? {
+        type: 'participant',
+        field: 'last',
+        data: {
           ...participant.participant,
           lastName: participant.value
-        } : user ? {
+        }
+      } : user ? {
+        type: 'user',
+        field: 'last',
+        data: {
           ...user.user,
           last: user.value,
           profile: {
@@ -1391,14 +1425,40 @@ export const validateMapField = (field: string, participant?: { participant: Par
             lastName: user.value,
             sittingNumber: user.user.profile?.sittingNumber ?? -1,
             email: user.user.email,
-            userTags: [],
             preferredContact: user.user.profile?.preferredContact ?? 'EMAIL',
             participant: user.user.profile?.participant ?? []
           }
-        } : undefined
-      ]
+        }
+      } : null
+    }
+    case 'email': {
+      return participant && validator.isEmail(participant.value) ? {
+        type: 'participant',
+        field: 'email',
+        data: {
+          ...participant.participant,
+          email: participant.value
+        }
+      } : user && validator.isEmail(user.value) ? {
+        type: 'user',
+        field: 'email',
+        data: {
+          ...user.user,
+          email: user.value,
+          profile: {
+            ...user.user.profile,
+            firstName: user.user.profile?.firstName ?? '',
+            lastName: user.user.profile?.lastName ?? '',
+            sittingNumber: user.user.profile?.sittingNumber ?? -1,
+            email: user.value,
+            preferredContact: user.user.profile?.preferredContact ?? 'EMAIL',
+            participant: user.user.profile?.participant ?? []
+          }
+        }
+      } : null
+    }
     default:
-      return [null, undefined]
+      return null
   }
 }
 
@@ -1636,229 +1696,428 @@ export const updateChoices = (props: {
     parentUpdateTableColumns: Dispatch<SetStateAction<TableColumn[]>>
   }
 }) => {
-    const column = props.table.columns.find((column) => column.id === props.id)
-    
-    if(!column){
-      return
-    } 
+  const column = props.table.columns.find((column) => column.id === props.id)
+  
+  if(!column){
+    return
+  } 
 
-    if(props.mode === 'create') {
-      const tempColor: ColumnColor = {
-        id: v4(),
-        textColor: props.data.customColor !== undefined ? props.data.customColor[0] : defaultColumnColors[props.data.color].text,
-        bgColor: props.data.customColor !== undefined ? props.data.customColor[1] : defaultColumnColors[props.data.color].bg,
-        value: props.data.choice,
-        columnId: column.id,
+  if(props.mode === 'create') {
+    const tempColor: ColumnColor = {
+      id: v4(),
+      textColor: props.data.customColor !== undefined ? props.data.customColor[0] : defaultColumnColors[props.data.color].text,
+      bgColor: props.data.customColor !== undefined ? props.data.customColor[1] : defaultColumnColors[props.data.color].bg,
+      value: props.data.choice,
+      columnId: column.id,
+    }
+
+    props.mutations.createChoice.mutateAsync({
+      column: column,
+      colorId: tempColor.id,
+      choice: props.data.choice,
+      color: props.data.color,
+      customColor: props.data.customColor,
+      options: {
+        logging: true
       }
+    }).then(() => {
+      const notificationId = v4()
+      props.mutations.setTableNotification(prev => [...prev, {
+        id: notificationId,
+        message: `Successfully created new choice: ${props.data.choice}`,
+        status: 'Success',
+        createdAt: new Date(),
+        autoClose: setTimeout(() => props.mutations.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+      }])
+    }).catch(() => {
+      props.mutations.setTableNotification(prev => [...prev, {
+        id: v4(),
+        message: `Failed to create new choice: ${props.data.choice}.`,
+        status: 'Error',
+        createdAt: new Date(),
+        autoClose: null
+      }])
+    })
 
-      props.mutations.createChoice.mutateAsync({
-        column: column,
-        colorId: tempColor.id,
-        choice: props.data.choice,
-        color: props.data.color,
-        customColor: props.data.customColor,
-        options: {
-          logging: true
+    const temp: Table = {
+      ...props.table,
+      columns: props.table.columns.map((parentColumn) => {
+        if(parentColumn.id === column.id) {
+          return {
+            ...parentColumn,
+            choices: [...(parentColumn.choices ?? []), props.data.choice],
+            color: [...(parentColumn.color ?? []), tempColor]
+          }
         }
-      }).then(() => {
-        const notificationId = v4()
-        props.mutations.setTableNotification(prev => [...prev, {
-          id: notificationId,
-          message: `Successfully created new choice: ${props.data.choice}`,
-          status: 'Success',
-          createdAt: new Date(),
-          autoClose: setTimeout(() => props.mutations.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
-        }])
-      }).catch(() => {
-        props.mutations.setTableNotification(prev => [...prev, {
-          id: v4(),
-          message: `Failed to create new choice: ${props.data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
+        return parentColumn
       })
+    }
 
-      const temp: Table = {
-        ...props.table,
-        columns: props.table.columns.map((parentColumn) => {
-          if(parentColumn.id === column.id) {
+    const updateGroup = (prev: TableGroup[]) => {
+      const pTemp: TableGroup[] = [...prev]
+        .map((group) => {
+          if(group.id === temp.tableGroupId) {
             return {
-              ...parentColumn,
-              choices: [...(parentColumn.choices ?? []), props.data.choice],
-              color: [...(parentColumn.color ?? []), tempColor]
+              ...group,
+              tables: group.tables.map((table) => {
+                if(table.id === temp.id) return temp
+                return table
+              })
             }
           }
-          return parentColumn
+          return group
         })
-      }
 
-      const updateGroup = (prev: TableGroup[]) => {
-        const pTemp: TableGroup[] = [...prev]
-          .map((group) => {
-            if(group.id === temp.tableGroupId) {
-              return {
-                ...group,
-                tables: group.tables.map((table) => {
-                  if(table.id === temp.id) return temp
-                  return table
-                })
+      return pTemp
+    }
+
+    props.mutations.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+    props.mutations.parentUpdateTableGroups((prev) => updateGroup(prev))
+    props.mutations.parentUpdateTable(temp)
+    props.mutations.parentUpdateTableColumns(temp.columns)
+  }
+  else if(
+    props.mode === 'delete' && 
+    props.data.id !== undefined && 
+    (column.color ?? []).some((choice) => choice.id === props.data.id) &&
+    (column.choices ?? []).some((choice) => choice === props.data.choice)
+  ) {
+    const foundChoice = (column.color ?? []).find((choice) => choice.id === props.data.id)
+    if(foundChoice === undefined) {
+      props.mutations.setTableNotification(prev => [...prev, {
+        id: v4(),
+        message: `Failed to delete choice: ${props.data.choice}.`,
+        status: 'Error',
+        createdAt: new Date(),
+        autoClose: null
+      }])
+      return
+    }
+    const updatedChoices = (column.choices ?? []).filter((choice) => choice !== foundChoice.value)
+    const previousChoice = foundChoice.value
+    //data.choice => color id
+    props.mutations.deleteChoice.mutateAsync({
+      columnId: column.id,
+      choiceId: props.data.choice,
+      choices: updatedChoices,
+      tableValues: column.values.map((value => value === previousChoice ? '' : value)), 
+      options: {
+        logging: true
+      }
+    }).then(() => {
+      const notificationId = v4()
+      props.mutations.setTableNotification(prev => [...prev, {
+        id: notificationId,
+        message: `Successfully deleted choice: ${props.data.choice}`,
+        status: 'Success',
+        createdAt: new Date(),
+        autoClose: setTimeout(() => props.mutations.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+      }])
+    }).catch(() => {
+      props.mutations.setTableNotification(prev => [...prev, {
+        id: v4(),
+        message: `Failed to delete choice: ${props.data.choice}.`,
+        status: 'Error',
+        createdAt: new Date(),
+        autoClose: null
+      }])
+    })
+
+    const temp: Table = {
+      ...props.table,
+      columns: props.table.columns.map((parentColumn) => (parentColumn.id === column.id ? ({
+        ...parentColumn,
+        choices: updatedChoices,
+        values: parentColumn.values.map((value) => (value === previousChoice ? '' : value))
+      }) : parentColumn))
+    }
+
+    const updateGroup = (prev: TableGroup[]) => prev.map((group) => group.id === temp.tableGroupId ? ({
+      ...group,
+      tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
+    }) : group)
+
+    props.mutations.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+    props.mutations.parentUpdateTableGroups((prev) => updateGroup(prev))
+    props.mutations.parentUpdateTable(temp)
+    props.mutations.parentUpdateTableColumns(temp.columns)
+  }
+  else if(
+    props.mode === 'update' && 
+    props.data.id && 
+    (column.color ?? []).some((choice) => choice.id === props.data.id)
+  ) {
+    const foundChoice = (column.color ?? []).find((choice) => choice.id === props.data.id)
+    if(foundChoice === undefined) {
+      props.mutations.setTableNotification(prev => [...prev, {
+        id: v4(),
+        message: `Failed to update choice: ${props.data.choice}.`,
+        status: 'Error',
+        createdAt: new Date(),
+        autoClose: null
+      }])
+      return
+    }
+    const choiceIndex = (column.choices ?? []).findIndex((choice) => choice === foundChoice.value)
+    if(choiceIndex === -1) {
+      props.mutations.setTableNotification(prev => [...prev, {
+        id: v4(),
+        message: `Failed to update choice: ${props.data.choice}.`,
+        status: 'Error',
+        createdAt: new Date(),
+        autoClose: null
+      }])
+      return
+    }
+    const updatedChoices = [...(column.choices ?? [])]
+    const previousChoice = updatedChoices[choiceIndex]
+    updatedChoices[choiceIndex] = props.data.choice
+
+    props.mutations.updateChoice.mutateAsync({
+      column: { ...column, choices: updatedChoices },
+      choice: foundChoice,
+      color: props.data.color,
+      customColor: props.data.customColor,
+      tableValues: column.values.map((value => value === previousChoice ? props.data.choice : value)),
+      value: props.data.choice,
+      options: {
+        logging: true
+      }
+    }).then(() => {
+      const notificationId = v4()
+      props.mutations.setTableNotification(prev => [...prev, {
+        id: notificationId,
+        message: `Successfully updated choice: ${props.data.choice}`,
+        status: 'Success',
+        createdAt: new Date(),
+        autoClose: setTimeout(() => props.mutations.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
+      }])
+    }).catch(() => {
+      props.mutations.setTableNotification(prev => [...prev, {
+        id: v4(),
+        message: `Failed to update choice: ${props.data.choice}.`,
+        status: 'Error',
+        createdAt: new Date(),
+        autoClose: null
+      }])
+    })
+
+    const temp: Table = {
+      ...props.table,
+      columns: props.table.columns.map((parentColumn) => (parentColumn.id === column.id ? ({
+        ...parentColumn,
+        choices: updatedChoices,
+        values: parentColumn.values.map((value) => (value === previousChoice ? props.data.choice : value))
+      }) : parentColumn))
+    }
+
+    const updateGroup = (prev: TableGroup[]) => prev.map((group) => group.id === temp.tableGroupId ? ({
+      ...group,
+      tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
+    }) : group)
+
+    props.mutations.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
+    props.mutations.parentUpdateTableGroups((prev) => updateGroup(prev))
+    props.mutations.parentUpdateTable(temp)
+    props.mutations.parentUpdateTableColumns(temp.columns)
+  }
+}
+
+export const processTableColumnLoadLinks = async (props: {
+  column: TableColumn,
+  client: V6Client<Schema>
+  UserService: UserService,
+  TimeslotService: TimeslotService
+  participantsMemo: Participant[],
+  usersMemo: UserProfile[],
+}): Promise<{
+  column: TableColumn,
+  participantsMemo: Participant[],
+  usersMemo: UserProfile[],
+}> => {
+  const updatedColumn = {...props.column}
+  const usersMemo: Map<string, UserProfile> = new Map(props.usersMemo.map((user) => [user.email, user]))
+  const participantsMemo: Map<string, Participant> = new Map(props.participantsMemo.map((participant) => [participant.id, participant]))
+  
+  const retrieveProfile = async (id: string) => {
+    let profile = usersMemo.get(id)
+    if(!profile) {
+      profile = await props.UserService.getUserProfileByEmail(props.client, id, {
+        siNotifications: true,
+        siTags: { },
+        siTimeslot: true,
+        siTemporaryToken: true,
+        memos: {
+          notificationsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.notifications),
+          tagsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.userTags),
+          collectionsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.collections)
+        }
+      })
+      if(profile) {
+        usersMemo.set(id, profile)
+        for(const participant of profile.participant) {
+          participantsMemo.set(participant.id, participant)
+        }
+      }
+    }
+    return profile
+  }
+
+  const retrieveParticipant = async (id: string) => {
+    let participant = participantsMemo.get(id)
+    if(!participant) {
+      participant = await props.UserService.getParticipantById(props.client, id, {
+        siNotifications: true,
+        siTags: { },
+        siTimeslot: true,
+        memos: {
+          notificationsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.notifications),
+          tagsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.userTags),
+          collectionsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.collections)
+        }
+      })
+      if(participant) {
+        participantsMemo.set(id, participant)
+      }
+    }
+    return participant
+  }
+
+  switch(props.column.type) {
+    case 'value': {
+      for(let i = 0; i < props.column.values.length; i++) {
+        const choice = (props.column.choices ?? [])?.[i]
+        const field = evaluateField(choice)
+
+        if(!field) continue
+
+        switch(field.field) {
+          case 'email':
+            if(field.type === 'user') {
+              let profile = await retrieveProfile(field.id)
+              
+              if(profile?.email !== undefined && profile.email !== props.column.values[i] && validator.isEmail(profile.email)) {
+                updatedColumn.values[i] = profile.email
               }
             }
-            return group
-          })
+            else {
+              let participant = await retrieveParticipant(field.id)
 
-        return pTemp
-      }
+              if(participant?.email !== undefined && participant.email !== props.column.values[i] && validator.isEmail(participant.email)) {
+                updatedColumn.values[i] = participant.email
+              }
+            }
+            break;
+          case 'first':
+            if(field.type === 'user') {
+              let profile = await retrieveProfile(field.id)
+              
+              if(profile?.firstName !== undefined && profile.firstName !== props.column.values[i]) {
+                updatedColumn.values[i] = profile.firstName
+              }
+            }
+            else {
+              let participant = await retrieveParticipant(field.id)
 
-      props.mutations.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-      props.mutations.parentUpdateTableGroups((prev) => updateGroup(prev))
-      props.mutations.parentUpdateTable(temp)
-      props.mutations.parentUpdateTableColumns(temp.columns)
-    }
-    else if(
-      props.mode === 'delete' && 
-      props.data.id !== undefined && 
-      (column.color ?? []).some((choice) => choice.id === props.data.id) &&
-      (column.choices ?? []).some((choice) => choice === props.data.choice)
-    ) {
-      const foundChoice = (column.color ?? []).find((choice) => choice.id === props.data.id)
-      if(foundChoice === undefined) {
-        props.mutations.setTableNotification(prev => [...prev, {
-          id: v4(),
-          message: `Failed to delete choice: ${props.data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-        return
-      }
-      const updatedChoices = (column.choices ?? []).filter((choice) => choice !== foundChoice.value)
-      const previousChoice = foundChoice.value
-      //data.choice => color id
-      props.mutations.deleteChoice.mutateAsync({
-        columnId: column.id,
-        choiceId: props.data.choice,
-        choices: updatedChoices,
-        tableValues: column.values.map((value => value === previousChoice ? '' : value)), 
-        options: {
-          logging: true
+              if(participant?.firstName !== undefined && participant.firstName !== props.column.values[i]) {
+                updatedColumn.values[i] = participant.firstName
+              }
+            }
+            break;
+          case 'last':
+            if(field.type === 'user') {
+              let profile = await retrieveProfile(field.id)
+              
+              if(profile?.lastName !== undefined && profile.lastName !== props.column.values[i]) {
+                updatedColumn.values[i] = profile.lastName
+              }
+            }
+            else {
+              let participant = await retrieveParticipant(field.id)
+
+              if(participant?.lastName !== undefined && participant.lastName !== props.column.values[i]) {
+                updatedColumn.values[i] = participant.lastName
+              }
+            }
+            break;
+          case 'middle':
+            if(field.type === 'participant') {
+              let participant = await retrieveParticipant(field.id)
+              
+              if(participant?.middleName !== undefined && participant.middleName !== props.column.values[i]) {
+                updatedColumn.values[i] = participant.middleName
+              }
+            }
+            break;
+          case 'preferred':
+            if(field.type === 'participant') {
+              let participant = await retrieveParticipant(field.id)
+              
+              if(participant?.preferredName !== undefined && participant.preferredName !== props.column.values[i]) {
+                updatedColumn.values[i] = participant.preferredName
+              }
+            }
+            break;
+          case 'sitting':
+            if(field.type === 'user') {
+              let profile = await retrieveProfile(field.id)
+              
+              if(profile?.sittingNumber !== undefined && profile.sittingNumber.toString() !== props.column.values[i]) {
+                updatedColumn.values[i] = profile.sittingNumber.toString()
+              }
+            }
+            break;
+          default:
+            break;
         }
-      }).then(() => {
-        const notificationId = v4()
-        props.mutations.setTableNotification(prev => [...prev, {
-          id: notificationId,
-          message: `Successfully deleted choice: ${props.data.choice}`,
-          status: 'Success',
-          createdAt: new Date(),
-          autoClose: setTimeout(() => props.mutations.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
-        }])
-      }).catch(() => {
-        props.mutations.setTableNotification(prev => [...prev, {
-          id: v4(),
-          message: `Failed to delete choice: ${props.data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-      })
-
-      const temp: Table = {
-        ...props.table,
-        columns: props.table.columns.map((parentColumn) => (parentColumn.id === column.id ? ({
-          ...parentColumn,
-          choices: updatedChoices,
-          values: parentColumn.values.map((value) => (value === previousChoice ? '' : value))
-        }) : parentColumn))
       }
-
-      const updateGroup = (prev: TableGroup[]) => prev.map((group) => group.id === temp.tableGroupId ? ({
-        ...group,
-        tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
-      }) : group)
-
-      props.mutations.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-      props.mutations.parentUpdateTableGroups((prev) => updateGroup(prev))
-      props.mutations.parentUpdateTable(temp)
-      props.mutations.parentUpdateTableColumns(temp.columns)
+      break;
     }
-    else if(
-      props.mode === 'update' && 
-      props.data.id && 
-      (column.color ?? []).some((choice) => choice.id === props.data.id)
-    ) {
-      const foundChoice = (column.color ?? []).find((choice) => choice.id === props.data.id)
-      if(foundChoice === undefined) {
-        props.mutations.setTableNotification(prev => [...prev, {
-          id: v4(),
-          message: `Failed to update choice: ${props.data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-        return
+    case 'date': {
+      for(let i = 0; i < props.column.values.length; i++) {
+        const choice = (props.column.choices ?? [])?.[i]
+        const field = evaluateField(choice)
+
+        if(field === undefined || field.type === 'user' || field.field !== undefined) continue;
+
+        const participant = await retrieveParticipant(field.id)
+
+        if(participant?.timeslot !== undefined) {
+          updatedColumn.values[i] = participant.timeslot.reduce((prev, cur) => {
+            return prev + (prev === '' ? '' : ',') + cur.id
+          }, '')
+        } 
       }
-      const choiceIndex = (column.choices ?? []).findIndex((choice) => choice === foundChoice.value)
-      if(choiceIndex === -1) {
-        props.mutations.setTableNotification(prev => [...prev, {
-          id: v4(),
-          message: `Failed to update choice: ${props.data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-        return
-      }
-      const updatedChoices = [...(column.choices ?? [])]
-      const previousChoice = updatedChoices[choiceIndex]
-      updatedChoices[choiceIndex] = props.data.choice
-
-      props.mutations.updateChoice.mutateAsync({
-        column: { ...column, choices: updatedChoices },
-        choice: foundChoice,
-        color: props.data.color,
-        customColor: props.data.customColor,
-        tableValues: column.values.map((value => value === previousChoice ? props.data.choice : value)),
-        value: props.data.choice,
-        options: {
-          logging: true
-        }
-      }).then(() => {
-        const notificationId = v4()
-        props.mutations.setTableNotification(prev => [...prev, {
-          id: notificationId,
-          message: `Successfully updated choice: ${props.data.choice}`,
-          status: 'Success',
-          createdAt: new Date(),
-          autoClose: setTimeout(() => props.mutations.setTableNotification(prev => prev.filter((notification) => notification.id !== notificationId)), 5000)
-        }])
-      }).catch(() => {
-        props.mutations.setTableNotification(prev => [...prev, {
-          id: v4(),
-          message: `Failed to update choice: ${props.data.choice}.`,
-          status: 'Error',
-          createdAt: new Date(),
-          autoClose: null
-        }])
-      })
-
-      const temp: Table = {
-        ...props.table,
-        columns: props.table.columns.map((parentColumn) => (parentColumn.id === column.id ? ({
-          ...parentColumn,
-          choices: updatedChoices,
-          values: parentColumn.values.map((value) => (value === previousChoice ? props.data.choice : value))
-        }) : parentColumn))
-      }
-
-      const updateGroup = (prev: TableGroup[]) => prev.map((group) => group.id === temp.tableGroupId ? ({
-        ...group,
-        tables: group.tables.map((table) => (table.id === temp.id ? temp : table))
-      }) : group)
-
-      props.mutations.parentUpdateSelectedTableGroups((prev) => updateGroup(prev))
-      props.mutations.parentUpdateTableGroups((prev) => updateGroup(prev))
-      props.mutations.parentUpdateTable(temp)
-      props.mutations.parentUpdateTableColumns(temp.columns)
+      break;
     }
+    case 'tag': {
+      for(let i = 0; i < props.column.values.length; i++) {
+        const choice = (props.column.choices ?? [])?.[i]
+        const field = evaluateField(choice)
+
+        if(field === undefined || field.type === 'user' || field.field !== undefined) continue;
+
+        const participant = await retrieveParticipant(field.id)
+
+        if(participant?.userTags !== undefined) {
+          updatedColumn.values[i] = participant.userTags.reduce((prev, cur) => {
+            return prev + (prev === '' ? '' : ',') + cur
+          }, '')
+        } 
+      }
+      break;
+    }
+    case 'notification': {
+      //validation updating not necessary
+      break
+    }
+    default:
+      break;
   }
+
+  return {
+    column: updatedColumn,
+    participantsMemo: Array.from(participantsMemo.values()),
+    usersMemo: Array.from(usersMemo.values())
+  }
+}

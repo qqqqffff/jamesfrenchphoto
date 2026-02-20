@@ -297,29 +297,22 @@ const schema = a.schema({
     .model({
       id: a.id().required(),
       description: a.string(),
-      register: a.string().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]),
+      register: a.string(),
       user: a.belongsTo('UserProfile', 'register'),
       start: a.datetime().required(),
       end: a.datetime().required(),
       timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),
       participant: a.belongsTo('Participant', 'participantId'),
-      participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]), 
+      participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['read'])]), 
     })
     .identifier(['id'])
+    .secondaryIndexes((index) => [index('participantId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
     .model({
       sittingNumber: a.integer(),
-      email: a.string().required().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read', 'update']), allow.guest().to(['create', 'read'])]),
-      userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read']), allow.guest().to(['create'])]),
-      timeslot: a.hasMany('Timeslot', 'register'),
-      participantFirstName: a.string(),
-      participantLastName: a.string(),
-      participantMiddleName: a.string(),
-      participantPreferredName: a.string(),
+      email: a.string().required().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read', 'update'])]),
       preferredContact: a.enum(['EMAIL', 'PHONE']),
-      participantContact: a.boolean().default(false),
-      participantEmail: a.string(),
       participant: a.hasMany('Participant', 'userEmail'),
       activeParticipant: a.id(),
       temporaryCreate: a.hasOne('TemporaryCreateUsersTokens', 'userEmail'),
@@ -410,6 +403,9 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
   GetAuthUsers: a
     .query()
+    .arguments({
+      paginationToken: a.string(),
+    })
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(getAuthUsers))
     .returns(a.json()),

@@ -1,7 +1,7 @@
 import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { CreateNotificationParams, NotificationService, SendUserEmailNotificationParams, UpdateNotificationParams } from "../../../services/notificationService";
-import { Notification, Participant, UserData, UserProfile } from "../../../types";
-import { useMutation, UseQueryResult } from "@tanstack/react-query";
+import { Notification, Participant, UserProfile } from "../../../types";
+import { useMutation } from "@tanstack/react-query";
 import { v4 } from "uuid";
 import { formatParticipantName } from "../../../functions/clientFunctions";
 import { HiOutlineMinus, HiOutlinePlus, HiOutlineXMark } from "react-icons/hi2";
@@ -22,9 +22,6 @@ interface NotificationCellProps extends ComponentProps<'td'> {
     users: UserProfile[],
     tempUsers: UserProfile[]
   },
-  usersQuery: UseQueryResult<UserData[] | undefined, Error>
-  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>,
-  notificationQuery: UseQueryResult<Notification[] | undefined, Error>,
   search: string
 }
 
@@ -69,7 +66,6 @@ export const NotificationCell = (props: NotificationCellProps) => {
     }
   }, [
     props.value,
-    props.notificationQuery.isFetching
   ])
 
   useEffect(() => {
@@ -122,8 +118,6 @@ export const NotificationCell = (props: NotificationCellProps) => {
     }
   }, [
     props.linkedParticipantId,
-    props.tempUsersQuery.isFetching,
-    props.usersQuery.isFetching
   ])
 
   const handleSubmit = () => {

@@ -56,7 +56,11 @@ export function AuthProvider({ children, client } : { children: ReactNode, clien
         //TODO: validate that this is fetching entire profile correctly
         const profile = await userService.getUserProfileByEmail(client, username, 
             groups.includes('ADMINS') || groups.includes('USERS') ? {
-                siTags: true,
+                siTags: {
+                    siChildren: true,
+                    siPackages: true,
+                    siTimeslots: true
+                },
                 siTimeslot: true,
                 siCollections: true,
                 siNotifications: true,

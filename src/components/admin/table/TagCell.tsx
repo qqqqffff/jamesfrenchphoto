@@ -1,8 +1,8 @@
 import { ComponentProps, useEffect, useRef, useState } from "react";
-import { Participant, Table, UserData, UserProfile, UserTag } from "../../../types";
+import { Participant, Table, UserProfile, UserTag } from "../../../types";
 import { Checkbox } from "flowbite-react";
 import { HiOutlineXMark } from "react-icons/hi2";
-import { useMutation, UseQueryResult } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { UserService, UpdateParticipantMutationParams } from "../../../services/userService";
 import { formatParticipantName } from "../../../functions/clientFunctions";
 
@@ -11,7 +11,7 @@ interface TagCellProps extends ComponentProps<'td'> {
   UserService: UserService,
   updateValue: (text: string) => void,
   linkedParticipantId?: string
-  tags: UseQueryResult<UserTag[] | undefined, Error>,
+  tags: UserTag[],
   table: Table,
   columnId: string,
   rowIndex: number,
@@ -19,8 +19,6 @@ interface TagCellProps extends ComponentProps<'td'> {
     users: UserProfile[]
     tempUsers: UserProfile[]
   },
-  usersQuery: UseQueryResult<UserData[] | undefined, Error>
-  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>
   updateParticipant: (
     newTags: UserTag[], 
     participantId: string, 
@@ -39,7 +37,6 @@ export const TagCell = (props: TagCellProps) => {
   const [isFocused, setIsFocused] = useState(false)
   const [search, setSearch] = useState<string>('')
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile, participant: Participant } | undefined>();
-  const [availableTags, setAvailableTags] = useState<UserTag[]>(props.tags.data ?? [])
   
   //TODO: combine use effects
   useEffect(() => {
@@ -84,12 +81,6 @@ export const TagCell = (props: TagCellProps) => {
   ])
 
   useEffect(() => {
-    if(props.tags.data?.some((tag) => !availableTags.some((parentTag) => parentTag.id === tag.id))) {
-      setAvailableTags(props.tags.data ?? [])
-    }
-  }, [props.tags])
-
-  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if(
         isFocused &&
@@ -115,16 +106,13 @@ export const TagCell = (props: TagCellProps) => {
   })
 
   const cellTags = (value.split(',') ?? []).map((tagId) => {
-    const foundTag = availableTags.find((tag) => tag.id === tagId)
+    const foundTag = props.tags.find((tag) => tag.id === tagId)
     return foundTag
   })
   .filter((tag) => tag !== undefined)
 
   const tagValue = (() => {
-    if(
-      props.tags.isLoading 
-    ) return 'Loading...'
-    else if(value === '') return ''
+    if(value === '') return ''
     else if(cellTags.length === 1) {
       return cellTags[0].name
     }
@@ -189,7 +177,7 @@ export const TagCell = (props: TagCellProps) => {
               />
             </div>
             
-            {(props.usersQuery.isLoading || props.tempUsersQuery.isLoading) && props.linkedParticipantId !== undefined ? (
+            {props.linkedParticipantId !== undefined ? (
               <div className="max-h-60 overflow-y-auto py-1 min-w-max">
                 <div className="flex flex-row justify-start items-center pe-2">
                   <span className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:cursor-wait">
@@ -199,7 +187,7 @@ export const TagCell = (props: TagCellProps) => {
               </div>
             ) : (
               <div className="max-h-60 overflow-y-auto py-1 min-w-max">
-              {availableTags
+              {props.tags
                 .filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase()))
                 //sorting selected tags to the top
                 .sort((a, b) => {

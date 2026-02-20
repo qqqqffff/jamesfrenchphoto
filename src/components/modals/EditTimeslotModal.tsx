@@ -42,11 +42,6 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
 
   const userProfile = useQuery({
     ...props.UserService.getUserProfileByEmailQueryOptions(props.participants.find((participant) => participant.id === participantId)?.userEmail ?? '', {
-      siCollections: false,
-      siNotifications: false,
-      siSets: false,
-      siTags: false,
-      siTemporaryToken: false,
       siTimeslot: true
     }),
     enabled: participantId !== undefined && props.participants.some((participant) => participant.id === participantId)

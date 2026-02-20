@@ -25,16 +25,7 @@ export interface UserData {
 export interface UserProfile {
     sittingNumber: number,
     email: string,
-    userTags: string[],
-    preferredName?: string,
-    timeslot?: Timeslot[],
-    participantFirstName?: string,
-    participantLastName?: string,
-    participantMiddleName?: string,
-    participantPreferredName?: string,
     preferredContact: "EMAIL" | "PHONE",
-    participantContact?: boolean,
-    participantEmail?: string,
     participant: Participant[],
     activeParticipant?: Participant,
     firstName?: string,
@@ -168,6 +159,7 @@ export type Timeslot = {
     end: Date;
     participantId?: string,
     description?: string,
+    updatedAt: string,
 }
 
 export type UserTag = {
