@@ -4,7 +4,6 @@ import { Favorite, Participant, PhotoCollection, UserTag } from '../types'
 import { mapParticipant } from './userService'
 import { queryOptions } from '@tanstack/react-query'
 import { getTagById } from './tagService'
-import { getCollectionById } from './collectionService'
 
 export function mapFavorite(favoriteResponse: Schema['UserFavorites']['type']): Favorite {
   return {
@@ -35,7 +34,7 @@ async function getFavoritesFromPhotoCollection(client: V6Client<Schema>, collect
 
   let favoritesData = favoritesResponse.data
 
-  while(favoritesResponse.nextToken !== undefined) {
+  while(favoritesResponse.nextToken) {
     favoritesResponse = await client.models.UserFavorites.listUserFavoritesByCollectionId({
       collectionId: collectionId
     }, {
@@ -78,22 +77,13 @@ interface GetParticipantFavoritesByCollectionOptions extends GetFavoritesFromPho
   siCollection?: PhotoCollection,
   favoritesMemo?: Favorite[],
 }
-export async function getParticipantFavoritesByCollection(client: V6Client<Schema>, participantId: string, collectionId?: string, options?: GetParticipantFavoritesByCollectionOptions): Promise<[PhotoCollection, Favorite[]] | null> {
+export async function getParticipantFavoritesByCollection(client: V6Client<Schema>, participantId: string, collectionId?: string, options?: GetParticipantFavoritesByCollectionOptions): Promise<Favorite[] | null> {
   if(collectionId === undefined) return null
   if(options?.logging) {
     console.log('api call')
   }
   const start = new Date().getTime()
   const favorites: Favorite[] = [...(options?.favoritesMemo ?? [])]
-  const collection = options?.siCollection !== undefined ? options.siCollection : await getCollectionById(client, collectionId, {
-    siTags: false,
-    siSets: true,
-    siPaths: false,
-    unauthenticated: false,
-    participantId: undefined, // only needed for collection favorite si (not necessary in this case)
-  })
-
-  if(collection === null) return null
 
   let favoritesResponse = await client.models.UserFavorites.listUserFavoritesByParticipantIdAndCollectionId({
     participantId: participantId,
@@ -103,7 +93,7 @@ export async function getParticipantFavoritesByCollection(client: V6Client<Schem
   })
   const favoritesData = favoritesResponse.data
 
-  while(favoritesResponse.nextToken !== undefined) {
+  while(favoritesResponse.nextToken) {
     favoritesResponse = await client.models.UserFavorites.listUserFavoritesByParticipantIdAndCollectionId({
       participantId: participantId,
       collectionId: {
@@ -124,7 +114,7 @@ export async function getParticipantFavoritesByCollection(client: V6Client<Schem
   if(options?.metric) {
     console.log(`GETPARTICIPANTFAVORITESBYCOLLECTION: ${new Date().getTime() - start}ms`)
   }
-  return [collection, favorites]
+  return favorites
 }
 
 interface GetParticipantFavoritesByUserTag extends GetFavoritesFromPhotoCollectionOptions {}
@@ -155,7 +145,7 @@ async function getParticipantFavoritesByUserTag(client: V6Client<Schema>, partic
       favoritesMemo: favorites
     })
     if(collectionFavorites !== null) {
-      favorites.push(...collectionFavorites[1])
+      favorites.push(...collectionFavorites)
     }
     return collectionFavorites
   })

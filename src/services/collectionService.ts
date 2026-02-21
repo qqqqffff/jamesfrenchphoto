@@ -45,7 +45,7 @@ async function mapCollection(client: V6Client<Schema>, collectionResponse: Schem
     })
 
     if(favoritesResponse !== null) {
-      favorites.push(...favoritesResponse[1])
+      favorites.push(...favoritesResponse)
     }
   }
 

@@ -1942,17 +1942,19 @@ export const processTableColumnLoadLinks = async (props: {
   const retrieveProfile = async (id: string) => {
     let profile = usersMemo.get(id)
     if(!profile) {
-      profile = await props.UserService.getUserProfileByEmail(props.client, id, {
-        siNotifications: true,
-        siTags: { },
-        siTimeslot: true,
-        siTemporaryToken: true,
-        memos: {
-          notificationsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.notifications),
-          tagsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.userTags),
-          collectionsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.collections)
+      profile = await props.UserService.getUserProfileByEmail(
+        id, {
+          siNotifications: true,
+          siTags: { },
+          siTimeslot: true,
+          siTemporaryToken: true,
+          memos: {
+            notificationsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.notifications),
+            tagsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.userTags),
+            collectionsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.collections)
+          }
         }
-      })
+      )
       if(profile) {
         usersMemo.set(id, profile)
         for(const participant of profile.participant) {
@@ -1966,16 +1968,18 @@ export const processTableColumnLoadLinks = async (props: {
   const retrieveParticipant = async (id: string) => {
     let participant = participantsMemo.get(id)
     if(!participant) {
-      participant = await props.UserService.getParticipantById(props.client, id, {
-        siNotifications: true,
-        siTags: { },
-        siTimeslot: true,
-        memos: {
-          notificationsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.notifications),
-          tagsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.userTags),
-          collectionsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.collections)
+      participant = await props.UserService.getParticipantById(
+        id, {
+          siNotifications: true,
+          siTags: { },
+          siTimeslot: true,
+          memos: {
+            notificationsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.notifications),
+            tagsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.userTags),
+            collectionsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.collections)
+          }
         }
-      })
+      )
       if(participant) {
         participantsMemo.set(id, participant)
       }

@@ -6,6 +6,7 @@ import { normalizeDate } from "../../utils"
 import { Timeslot } from "../../types"
 import { Badge } from "flowbite-react"
 import { badgeColorThemeMap, defaultColumnColors } from "../../utils"
+import { useNavigate } from "@tanstack/react-router"
 
 const component: FC<TimeslotDisplayProps> = (params) => {
   const [activeConsole, setActiveConsole] = useState('timeslots')
@@ -39,7 +40,8 @@ const component: FC<TimeslotDisplayProps> = (params) => {
 }
 
 const TimeslotConsole: FC<TimeslotDisplayProps> = ({ timeslots, tags, activeDate, setActiveDate, setActiveTag, activeTag, width, formatTimeslot }) => {
-  
+  const navigate = useNavigate()
+
   return (
     <div className="flex flex-col px-4 w-full justify-center items-center">
       <div className="flex flex-col items-center justify-center px-8 border border-gray-500 rounded-lg mb-4">
@@ -52,6 +54,7 @@ const TimeslotConsole: FC<TimeslotDisplayProps> = ({ timeslots, tags, activeDate
                 const index = tags.findIndex((tag) => tag.id === activeTag.id)
                 const newTag = index === -1 ? tags[0] : index - 1 < 0 ? tags[tags.length - 1] : tags[index - 1]
                 setActiveTag(newTag)
+                navigate({ to: '.', search: { tagId: newTag.id }})
               }}
             >
               <HiOutlineArrowLeft />
@@ -65,6 +68,7 @@ const TimeslotConsole: FC<TimeslotDisplayProps> = ({ timeslots, tags, activeDate
                 const index = tags.findIndex((tag) => tag.id === activeTag.id)
                 const newTag = index === -1 ? tags[0] : index + 1 >= tags.length ? tags[0] : tags[index + 1]
                 setActiveTag(newTag)
+                navigate({ to: '.', search: { tagId: newTag.id }})
               }}
             >
               <HiOutlineArrowRight />
@@ -139,7 +143,7 @@ const MyTimeslotConsole: FC<TimeslotDisplayProps> = ({formatRegisteredTimeslot, 
             )
           })
         ) : (
-          <Label className="font-medium text-lg italic text-gray-500">You will see your timeslot here after you register!</Label>
+          <Label className="font-medium text-lg italic text-gray-500 text-center">You will see your timeslot here after you register!</Label>
         )}
       </div>
     </div>

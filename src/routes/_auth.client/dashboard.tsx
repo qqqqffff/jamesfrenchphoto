@@ -1,10 +1,8 @@
 import { createFileRoute, Outlet, useLocation, useNavigate } from '@tanstack/react-router'
 import { useAuth } from '../../auth'
-import { Badge, Button } from 'flowbite-react'
+import { Button } from 'flowbite-react'
 import { HiArrowUturnLeft, HiOutlineCalendar, HiOutlineClipboard, HiOutlineHome } from 'react-icons/hi2'
-import { badgeColorThemeMap } from '../../utils'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { UserProfile } from '../../types'
 import { TimeslotService } from '../../services/timeslotService'
 import { Schema } from '../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
@@ -28,7 +26,8 @@ function RouteComponent() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  if(auth.user == null){
+  if(auth.user == null || auth.user.profile.activeParticipant === undefined) {
+    console.log('rerouted due to missing auth')
     navigate({ to: '/login', search: { unauthorized: true }})
     return
   }
@@ -46,16 +45,6 @@ function RouteComponent() {
       return data.TimeslotService.getAllTimeslotsByUserTagQueryOptions(tag.id)
     })
   })
-
-  const structureFullname = (userProfile: UserProfile) => {
-    return  (
-      userProfile.activeParticipant ? (
-        `${userProfile.activeParticipant.preferredName ? userProfile.activeParticipant.preferredName : userProfile.activeParticipant.firstName} ${userProfile.activeParticipant.lastName}`
-      ) : (
-        'Error'
-      )
-    )
-  }
 
   const activeConsoleClassName = (console: string) => {
     if (location.pathname.substring(location.pathname.lastIndexOf('/') + 1) == console) {
@@ -80,21 +69,6 @@ function RouteComponent() {
     <>
       <div className={location.href.includes('advertise') ? 'blur-sm' : ''}>
         <div className="flex flex-col items-center justify-center font-main">
-          <p className="font-semibold text-3xl mb-4 text-center">Welcome {structureFullname(auth.user.profile)}</p>
-          <div className="flex flex-row gap-2 items-center mb-4">
-              {
-                auth.user.profile.activeParticipant?.userTags.map((tag, index) => {
-                  return (
-                    <Badge 
-                      theme={badgeColorThemeMap} 
-                      color={tag.color ? tag.color : 'light'} 
-                      key={index} 
-                      className="py-1 text-md"
-                    >{tag.name}</Badge>
-                  )
-                })
-              }
-          </div>
           <p className="font-medium text-xl mb-1">Consoles:</p>
           <Button.Group>
               <Button color='gray' onClick={() => navigate({ to : '/client/dashboard' })} className={activeConsoleClassName('dashboard')}>

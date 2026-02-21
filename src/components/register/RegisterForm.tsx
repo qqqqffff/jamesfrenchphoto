@@ -24,7 +24,7 @@ interface RegisterFormProps {
   UserService: UserService,
   profileQuery: UseQueryResult<UserProfile | null, Error>,
   temporaryProfile?: RegistrationProfile,
-  logout: () => Promise<void>,
+  logout: () => Promise<'success' | 'fail'>,
 }
 
 export interface FormError {

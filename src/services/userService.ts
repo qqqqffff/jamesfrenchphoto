@@ -449,6 +449,11 @@ export interface LinkParticipantMutationParams {
   }
 }
 
+interface UpdateActiveParticipantMutationParams {
+  profile: UserProfile,
+  participantId: string,
+}
+
 
 export class UserService {
   private client: V6Client<Schema>
@@ -456,14 +461,14 @@ export class UserService {
     this.client = client
   }
 
-  async getTemporaryUser(client: V6Client<Schema>, id?: string, options?: GetTemporaryUserOptions): Promise<UserProfile | null> {
+  async getTemporaryUser(id?: string, options?: GetTemporaryUserOptions): Promise<UserProfile | null> {
     if(id) {
-      const tokenResponse = await client.models.TemporaryCreateUsersTokens.get({ id: id }, { authMode: 'identityPool' })
+      const tokenResponse = await this.client.models.TemporaryCreateUsersTokens.get({ id: id }, { authMode: 'identityPool' })
 
       if(options?.logging) console.log(tokenResponse)
       if(!tokenResponse.data) return null
 
-      const mappedResponse = await this.getUserProfileByEmail(client, tokenResponse.data.userEmail, { siTags: { }, unauthenticated: true })
+      const mappedResponse = await this.getUserProfileByEmail(tokenResponse.data.userEmail, { siTags: { }, unauthenticated: true })
       if(options?.logging) console.log(mappedResponse)
 
       return mappedResponse ?? null
@@ -471,12 +476,12 @@ export class UserService {
     return null
   }
 
-  async getAllTemporaryUsers(client: V6Client<Schema>, options?: GetAllTemporaryUsersOptions): Promise<UserProfile[] | undefined> {
-    let response = await client.models.TemporaryCreateUsersTokens.list()
+  async getAllTemporaryUsers(options?: GetAllTemporaryUsersOptions): Promise<UserProfile[] | undefined> {
+    let response = await this.client.models.TemporaryCreateUsersTokens.list()
     const temporaryUserData = response.data
 
     while(response.nextToken) {
-      response = await client.models.TemporaryCreateUsersTokens.list({ nextToken: response.nextToken })
+      response = await this.client.models.TemporaryCreateUsersTokens.list({ nextToken: response.nextToken })
       temporaryUserData.push(...response.data)
     }
 
@@ -484,8 +489,7 @@ export class UserService {
 
     const tagsMemo: UserTag[] = []
     const mappedResponse: UserProfile[] = (await Promise.all(temporaryUserData.map(async (token) => {
-      const userProfile = await this.getUserProfileByEmail(
-        client, 
+      const userProfile = await this.getUserProfileByEmail( 
         token.userEmail, { 
           siTags: options?.siTags ? { } : undefined, 
           memos: { tagsMemo: tagsMemo }
@@ -517,18 +521,18 @@ export class UserService {
     return mappedResponse
   }
 
-  async getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
+  async getUserProfileByEmail(email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     if(email === '') return
-    const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    const profileResponse = await this.client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
     console.log(profileResponse, email)
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data?.id : undefined
     
-    let participantResponse = await client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    let participantResponse = await this.client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
     const participantData = participantResponse.data
 
     while(participantResponse.nextToken) {
-      participantResponse = await client.models.Participant.listParticipantByUserEmail(
+      participantResponse = await this.client.models.Participant.listParticipantByUserEmail(
         { userEmail: email }, 
         { 
           authMode: options?.unauthenticated ? 'identityPool' : 'userPool',
@@ -599,7 +603,7 @@ export class UserService {
     let activeParticipant = mappedParticipants.find((participant) => participant.id === profileResponse.data?.activeParticipant)
     if(!profileResponse.data.activeParticipant && mappedParticipants.length > 0){
       activeParticipant = mappedParticipants[0]
-      await client.models.UserProfile.update({
+      await this.client.models.UserProfile.update({
         email: email,
         activeParticipant: activeParticipant?.id
       })
@@ -619,18 +623,18 @@ export class UserService {
     return userProfile
   }
 
-  async getParticipantById(client: V6Client<Schema>, id?: string, options?: MapParticipantOptions): Promise<Participant | undefined> {
+  async getParticipantById(id?: string, options?: MapParticipantOptions): Promise<Participant | undefined> {
     if(!id) return
-    const participantResponse = await client.models.Participant.get({ id: id }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    const participantResponse = await this.client.models.Participant.get({ id: id }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
     if(!participantResponse.data) return
 
     return mapParticipant(participantResponse.data, options)
   }
 
   //TODO: convert me to infinite query with pagination token
-  async getAuthUsers(client: V6Client<Schema>, filter?: string | null, options?: GetAuthUsersOptions): Promise<UserData[] | undefined> {
+  async getAuthUsers(filter?: string | null, options?: GetAuthUsersOptions): Promise<UserData[] | undefined> {
     const start = new Date().getTime()
-    const json = await client.queries.GetAuthUsers({ paginationToken: options?.nextToken }, {authMode: 'userPool'})
+    const json = await this.client.queries.GetAuthUsers({ paginationToken: options?.nextToken }, {authMode: 'userPool'})
     
     if(!json.data) return
 
@@ -657,11 +661,13 @@ export class UserService {
       let profile: UserProfile | undefined
       const email = attributes.get('email')
       if(options?.siProfiles && email){
-        profile = await this.getUserProfileByEmail(client, email, {
-          siCollections: true,
-          siTags: { },
-          siTimeslot: true
-        })
+        profile = await this.getUserProfileByEmail(
+          email, {
+            siCollections: true,
+            siTags: { },
+            siTimeslot: true
+          }
+        )
       }
 
       return {
@@ -992,13 +998,15 @@ export class UserService {
 
   async revokeUserInviteMutation(params: RevokeUserInviteMutationParams) {
     const start = new Date()
-    const profile = await this.getUserProfileByEmail(this.client, params.userEmail, {
-      siCollections: false, // check if individual collections / notifications are needed too 
-      siNotifications: false,
-      siTags: { }, //tags needed
-      siTimeslot: false, //not possible to register for a timeslot if user is temporary
-      siTemporaryToken: true
-    })
+    const profile = await this.getUserProfileByEmail(
+      params.userEmail, {
+        siCollections: false, // check if individual collections / notifications are needed too 
+        siNotifications: false,
+        siTags: { }, //tags needed
+        siTimeslot: false, //not possible to register for a timeslot if user is temporary
+        siTemporaryToken: true
+      }
+    )
 
     if(params.options?.logging) console.log(profile)
 
@@ -2058,14 +2066,34 @@ export class UserService {
     }
   }
 
+  async updateActiveParticipant(params: UpdateActiveParticipantMutationParams): Promise<'success' | 'fail' | 'nochange'> {
+    if(
+      params.profile.activeParticipant?.id === params.participantId || 
+      !params.profile.participant.some((participant) => participant.id === params.participantId)
+    ) {
+      return 'nochange'
+    }
+
+    const response = await this.client.models.UserProfile.update({
+      email: params.profile.email,
+      activeParticipant: params.participantId
+    })
+
+    if(response.data?.activeParticipant === params.participantId) {
+      return 'success'
+    }
+
+    return 'fail'
+  }
+
   getUserProfileByEmailQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({
     queryKey: ['userProfile', email, options],
-    queryFn: () => this.getUserProfileByEmail(this.client, email, options)
+    queryFn: () => this.getUserProfileByEmail(email, options)
   })
 
   getAuthUsersQueryOptions = (filter?: string | null, options?: GetAuthUsersOptions) =>  queryOptions({
     queryKey: ['authUsers', filter, options],
-    queryFn: () => this.getAuthUsers(this.client, filter, options)
+    queryFn: () => this.getAuthUsers(filter, options)
   })
 
   getTemporaryAccessTokenQueryOptions = (id: string) => queryOptions({
@@ -2075,12 +2103,12 @@ export class UserService {
 
   getAllTemporaryUsersQueryOptions = (options?: GetAllTemporaryUsersOptions) => queryOptions({
     queryKey: ['temporaryUsers', options],
-    queryFn: () => this.getAllTemporaryUsers(this.client, options)
+    queryFn: () => this.getAllTemporaryUsers(options)
   })
 
   getTemporaryUserQueryOptions = (id?: string, options?: GetTemporaryUserOptions) => queryOptions({
     queryKey: ['temporaryUser', options],
-    queryFn: () => this.getTemporaryUser(this.client, id, options)
+    queryFn: () => this.getTemporaryUser(id, options)
   })
 
 

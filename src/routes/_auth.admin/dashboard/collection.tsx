@@ -63,7 +63,6 @@ function RouteComponent() {
   const [watermarks, setWatermarks] = useState<Watermark[]>([])
   const [shareTemplates, setShareTemplates] = useState<ShareTemplate[]>([])
   const [createCollectionVisible, setCreateCollectionVisible] = useState(false)
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string | undefined>()
   const [selectedCollection, setSelectedCollection] = useState<PhotoCollection | undefined>()
   const [search, setSearch] = useState<string>('')
   const [expandedTitle, setExpandedTitle] = useState<string>()
@@ -78,48 +77,33 @@ function RouteComponent() {
     siPaths: false,
     siSets: false,
   }))
-  const collectionQuery = useQuery(data.CollectionService.getPhotoCollectionByIdQueryOptions(selectedCollectionId, {
+  const collectionQuery = useQuery(
+    data.CollectionService.getPhotoCollectionByIdQueryOptions(data.collection, {
       siSets: true,
       siTags: true,
       participantId: data.auth.user?.profile.activeParticipant?.id
-    }
-  ))
+    })
+  )
 
   useEffect(() => {
     if(watermarkQuery.data) {
       setWatermarks(watermarkQuery.data)
     }
-  }, [watermarkQuery.data])
-
-  useEffect(() => {
-    if(shareTemplatesQuery.data) {
-      setShareTemplates(shareTemplatesQuery.data)
-    }
-  }, [shareTemplatesQuery.data])
-
-  useEffect(() => {
     if(collectionsQuery.data) {
       setPhotoCollections(collectionsQuery.data)
     }
-  }, [collectionsQuery.data])
-
-  useEffect(() => {
-    if(data.collection) {
-      setSelectedCollectionId(data.collection)
+    if(shareTemplatesQuery.data) {
+      setShareTemplates(shareTemplatesQuery.data)
     }
-    else {
-      setSelectedCollectionId(undefined)
-    }
-  }, [data.collection])
-
-  useEffect(() => {
     if(collectionQuery.data) {
       setSelectedCollection(collectionQuery.data)
     }
-    else {
-      setSelectedCollection(undefined)
-    }
-  }, [collectionQuery.data])
+  }, [
+    watermarkQuery.data,
+    shareTemplatesQuery.data,
+    collectionsQuery.data,
+    collectionQuery.data,
+  ])
 
   const filteredItems = photoCollections
     .filter((item) => {
@@ -156,6 +140,7 @@ function RouteComponent() {
     data.CollectionService.getPathQueryOptions(selectedCollection?.coverPath, selectedCollection?.id)
   )
 
+
   return (
     <>
       <Suspense 
@@ -182,19 +167,8 @@ function RouteComponent() {
           }}
         />
       </Suspense>
-      {selectedCollectionId ? (
-        collectionQuery.isPending || !selectedCollection ? (
-          <div className="flex flex-col w-full items-center justify-center mt-2">
-            <div className="w-[80%] flex flex-col">
-              <div className='border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
-                <div className="self-center grid grid-cols-2 min-w-[200px]">
-                  <span className='flex flex-row-reverse'>Loading Collection</span>
-                  <Loading className='self-start'/>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
+      {data.collection ? (
+        selectedCollection ? (
           <PhotoCollectionPanel 
             UserService={data.UserService}
             WatermarkService={data.WatermarkService}
@@ -234,6 +208,17 @@ function RouteComponent() {
             shareTemplates={shareTemplates}
             updateShareTemplates={setShareTemplates}
           />
+        ) : (
+          <div className="flex flex-col w-full items-center justify-center mt-2">
+            <div className="w-[80%] flex flex-col">
+              <div className='border border-gray-400 rounded-2xl p-4 mt-4 justify-items-center '>
+                <div className="self-center grid grid-cols-2 min-w-[200px]">
+                  <span className='flex flex-row-reverse'>Loading Collection</span>
+                  <Loading className='self-start'/>
+                </div>
+              </div>
+            </div>
+          </div>
         )
       ) : (
         collectionsQuery.isPending ? (
@@ -286,7 +271,6 @@ function RouteComponent() {
                             onClick={() => {
                               navigate({to: '.', search: { collection: collection.id }})
                               setSelectedCollection(collection)
-                              setSelectedCollectionId(collection.id)
                             }}
                             key={index}
                             contentChildren={(

@@ -298,7 +298,6 @@ const schema = a.schema({
       id: a.id().required(),
       description: a.string(),
       register: a.string(),
-      user: a.belongsTo('UserProfile', 'register'),
       start: a.datetime().required(),
       end: a.datetime().required(),
       timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),
@@ -311,7 +310,7 @@ const schema = a.schema({
   UserProfile: a
     .model({
       sittingNumber: a.integer(),
-      email: a.string().required().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read', 'update'])]),
+      email: a.string().required(),
       preferredContact: a.enum(['EMAIL', 'PHONE']),
       participant: a.hasMany('Participant', 'userEmail'),
       activeParticipant: a.id(),
@@ -320,7 +319,7 @@ const schema = a.schema({
       lastName: a.string(),
     })
     .identifier(['email'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create', 'get'])]),
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['get'])]),
   Participant: a.
     model({
       id: a.id().required(),

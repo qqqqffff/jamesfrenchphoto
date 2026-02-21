@@ -334,7 +334,7 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
         html: template
         .replace('{{_participant_}}', formattedName)
         .replace('{{_timeslot_date_}}', start.toLocaleDateString('en-us', { timeZone: 'America/Chicago'}))
-        .replace('{{_timeslot_timestring_}}', formatTimeslotDates({ id: '', start: start, end: end }))
+        .replace('{{_timeslot_timestring_}}', formatTimeslotDates({ id: '', start: start, end: end, updatedAt: new Date().toISOString() }))
         .replace('{{_registration_fee_string_}}', registrationFeeString),
         
         // `

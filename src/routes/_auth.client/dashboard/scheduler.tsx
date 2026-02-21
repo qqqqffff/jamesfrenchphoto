@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { TimeslotService, RegisterTimeslotMutationParams } from '../../../services/timeslotService'
 import { useEffect, useState } from 'react'
-import { currentDate, formatTime, formatTimeslotDates, normalizeDate, sortDatesAround } from '../../../utils'
+import { currentDate, formatTime, formatTimeslotDates, normalizeDate } from '../../../utils'
 import { Timeslot, UserTag } from '../../../types'
 import { ConfirmationModal } from '../../../components/modals'
 import NotificationComponent from '../../../components/timeslot/NotificationComponent'
@@ -64,10 +64,7 @@ function RouteComponent() {
     }, userTags[0])
   )
 
-  const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
-    (timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).map((timeslot) => {
-      return normalizeDate(timeslot.start)
-    }), currentDate)[0] ?? currentDate)
+  const [activeDate, setActiveDate] = useState<Date>(currentDate)
   const [selectedTimeslot, setSelectedTimeslot] = useState<Timeslot>()
   const [registrationResponse, setRegistrationResponse] = useState<{ status: 'Fail' | 'Success', error?: string }>()
   
@@ -78,25 +75,26 @@ function RouteComponent() {
   const [notifyAdditionalRecipients, setNotifyAdditionalRecipients] = useState<string[]>([])
   const { width } = useWindowDimensions()
 
+  //automatically setting date based on the closest date to present
   useEffect(() => {
+    const timeslotsData = (timeslots.data ?? [])
+      .filter((timeslot) => timeslot.tag?.id === activeTag.id)
+      .sort((a, b) => {
+        if(a.start.getTime() < currentDate.getTime()) {
+          return -1
+        }
+        else if(b.start.getTime() < currentDate.getTime()) {
+          return 1
+        }
+        return a.start.getTime() - b.start.getTime()
+      })
     const foundTag = userTags.find((tag) => tag.id === data.tagId)
+    if(timeslotsData.length > 0 && timeslotsData[0].start !== undefined) { 
+      setActiveDate(timeslotsData[0].start) 
+    }
     if(activeTag.id !== data.tagId && foundTag !== undefined) {
       setActiveTag(foundTag)
     }
-  }, [data.tagId])
-
-  //automatically setting date based on the closest date to present
-  useEffect(() => {
-    if((timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).length > 0) { 
-      setActiveDate(new Date((timeslots.data ?? [])
-      .filter((timeslot) => timeslot.tag?.id === activeTag.id && new Date(timeslot.start).getTime() > currentDate.getTime())
-      .sort((a, b) => {
-        return new Date(a.start).getTime() - new Date(b.start).getTime()
-      })[0].start)) 
-    }
-  }, [timeslots.data, activeTag])
-
-  useEffect(() => {
     if(
       participant.contact && 
       participant.email && 
@@ -105,9 +103,14 @@ function RouteComponent() {
     ) {
       setNotifyAdditionalRecipients([...notifyAdditionalRecipients, participant.email])
     }
-  }, [participant])
+  }, [
+    timeslots.data, 
+    activeTag,
+    data.tagId,
+    participant
+  ])
 
-  const registerTimeslot= useMutation({
+  const registerTimeslot = useMutation({
     mutationFn: (params: RegisterTimeslotMutationParams) => data.TimeslotService.registerTimeslotMutation(params)
   })
 

@@ -110,6 +110,15 @@ function RouteComponent() {
     enabled: data.collection !== undefined
   })
 
+  const collectionQuery = useQuery({
+    ...data.CollectionService.getPhotoCollectionByIdQueryOptions(data.collection ?? '', {
+      siPaths: false,
+      siSets: false,
+      siTags: false,
+    }),
+    enabled: data.collection !== undefined
+  })
+
   const pathsQuery = useQuery(data.PhotoPathService.getPathsFromFavoriteIdsQueryOptions(
     favorites.map((favorite) => favorite.id),
     {
@@ -122,15 +131,14 @@ function RouteComponent() {
       collection === undefined || 
       collection.id !== collectionFavoriteQuery.data[0].id
     )) {
-      setCollection(collectionFavoriteQuery.data[0])
-      setFavorites(collectionFavoriteQuery.data[1])
+      setFavorites(collectionFavoriteQuery.data)
       setCurrent(prev => {
         const current = (
           collectionFavoriteQuery.data && 
-          !collectionFavoriteQuery.data[1].some((favorite) => favorite.pathId === prev) && 
-          collectionFavoriteQuery.data[1].length > 0
+          !collectionFavoriteQuery.data.some((favorite) => favorite.pathId === prev) && 
+          collectionFavoriteQuery.data.length > 0
         ) ? (
-          collectionFavoriteQuery.data[1][0].pathId
+          collectionFavoriteQuery.data[0].pathId
         ) : prev
 
         navigate({ to: '.', search: { collection: data.collection, path: current } })
@@ -159,8 +167,12 @@ function RouteComponent() {
     if(pathsQuery.data) {
       setPaths(pathsQuery.data)
     }
+    if(collectionQuery.data) {
+      setCollection(collectionQuery.data)
+    }
   }, [
     collectionFavoriteQuery.data,
+    collectionQuery.data,
     tagFavoriteQuery.data,
     pathsQuery.data
   ])
