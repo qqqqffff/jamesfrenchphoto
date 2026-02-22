@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { TimeslotService } from '../../../services/timeslotService'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { currentDate, DAY_OFFSET } from '../../../utils'
+import { compareDate, currentDate } from '../../../utils'
 import { Participant, Timeslot, UserTag } from '../../../types'
 import { Label, Progress } from 'flowbite-react'
 import { ControlComponent } from '../../../components/admin/ControlPanel'
@@ -15,28 +15,38 @@ import { TagNavigator } from '../../../components/timeslot/TagNavigator'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { TagService } from '../../../services/tagService'
+import { DateTime } from 'luxon'
+
+interface SchedulerSearchParams {
+  date: string
+}
 
 export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
   component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): SchedulerSearchParams => ({
+    date: (search.date as string) || DateTime.fromJSDate(currentDate).toFormat('MM-dd-yyyy')
+  }),
+  beforeLoad: ({ search }) => search,
   loader: ({ context }) => {
     const client = context.client as V6Client<Schema>
     return {
       TimeslotService: new TimeslotService(client),
       UserService: new UserService(client),
       TagService: new TagService(client),
+      date: new Date(context.date),
     }
   }
 })
 
 function RouteComponent() {
   const data = Route.useLoaderData()
-  const [activeDate, setActiveDate] = useState<Date>(new Date(currentDate.getTime() + DAY_OFFSET))
+  const [activeDate, setActiveDate] = useState<Date>(data.date)
   const [activeTag, setActiveTag] = useState<UserTag>()
   const [timeslots, setTimeslots] = useState<Timeslot[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
 
-  const timeslotQuery = useQuery(data.TimeslotService.getAllTimeslotsByDateQueryOptions(activeDate))
+  const timeslotQuery = useQuery(data.TimeslotService.getAllTimeslotsByDateQueryOptions(activeDate, { siTag: true }))
   
   const tagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({ 
     siCollections: false,
@@ -64,24 +74,20 @@ function RouteComponent() {
     if(timeslotQuery.data) {
       setTimeslots(timeslotQuery.data)
     }
-  }, [
-    timeslotQuery.data
-  ])
-
-  useEffect(() => {
     if(tagsQuery.data) {
       setTags(tagsQuery.data)
     }
-  }, [
-    tagsQuery.data
-  ])
-
-  useEffect(() => {
     if(participantQuery.data) {
       setParticipants(participantQuery.data)
     }
+    if(!compareDate(activeDate, data.date)) {
+      setActiveDate(data.date)
+    }
   }, [
-    participantQuery.data
+    timeslotQuery.data,
+    tagsQuery.data,
+    participantQuery.data,
+    data.date,
   ])
 
 
@@ -137,7 +143,7 @@ function RouteComponent() {
               }
             }}
             selectedDate={activeDate}
-            tags={tags}
+            fetchMonthTimeslots={data.TimeslotService}
           />
           <TagNavigator 
             activeDate={activeDate}

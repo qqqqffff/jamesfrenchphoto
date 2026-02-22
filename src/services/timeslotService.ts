@@ -2,38 +2,21 @@ import { queryOptions } from "@tanstack/react-query";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Timeslot, UserTag } from "../types";
+import { DateTime } from "luxon";
+import { TagService } from "./tagService";
 
 //TODO: add metricing
 interface MapTimeslotOptions {
   siTag?: {
+    TagService: TagService,
     memo: UserTag[]
   } //only allow shallow mapping
 }
 export async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], options?: MapTimeslotOptions): Promise<Timeslot> {
-  let mappedTag: UserTag | undefined
+  let mappedTag: UserTag | undefined = options?.siTag?.memo.find((tag) => tag.id === timeslotResponse.tagId)
 
-  if (options?.siTag !== undefined) {
-    const taggingResponse = await timeslotResponse.timeslotTag()
-    if (taggingResponse.data !== null) {
-      const foundTag = options.siTag.memo.find((tag) => tag.id === taggingResponse.data?.tagId)
-      if (foundTag) {
-        mappedTag = foundTag
-      }
-      else {
-        const tagResponse = await taggingResponse.data.tag()
-        if (tagResponse.data) {
-          mappedTag = {
-            ...tagResponse.data,
-            color: tagResponse.data?.color ?? undefined,
-            //shallow only
-            children: [],
-            notifications: [],
-            participants: []
-          }
-          options.siTag.memo.push(mappedTag)
-        }
-      }
-    }
+  if (options?.siTag !== undefined && mappedTag === undefined && timeslotResponse?.tagId !== null) {
+    mappedTag = (await options.siTag.TagService.getTagById(timeslotResponse.tagId)) ?? undefined
   }
 
   const mappedTimeslot: Timeslot = {
@@ -49,48 +32,109 @@ export async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], 
   return mappedTimeslot
 }
 
-async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date) {
+interface GetAllTimeslotsByDateOptions { 
+  siTag?: boolean 
+}
+
+async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date, options?: GetAllTimeslotsByDateOptions) {
   console.log('api call')
-  const timeslots: Timeslot[] = (await Promise.all((await client.models.Timeslot.list({
-    filter: {
-      start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
-    }
-  })).data.map(async (timeslot) => {
+
+  let timeslotResponse = await client.models.Timeslot.listTimeslotByStartDate({
+    startDate: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy')
+  })
+
+  const timeslotData = timeslotResponse.data
+
+  while(timeslotResponse.nextToken) {
+    timeslotResponse = await client.models.Timeslot.listTimeslotByStartDate({
+      startDate: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy')
+    }, {
+      nextToken: timeslotResponse.nextToken
+    })
+
+    timeslotData.push(...timeslotResponse.data)
+  }
+
+  const tagMemo: UserTag[] = []
+
+  const timeslots: Timeslot[] = (await Promise.all(timeslotData.map(async (timeslot) => {
     if (timeslot === undefined ||
       timeslot.id === undefined ||
       timeslot.start === undefined ||
       timeslot.end === undefined
     ) return
-    const tsTagResponse = await timeslot.timeslotTag()
-    let tag: UserTag | undefined
-    if (tsTagResponse && tsTagResponse.data) {
-      const tagResponse = await tsTagResponse.data.tag()
-      if (tagResponse && tagResponse.data) {
-        tag = {
-          ...tagResponse.data,
-          color: tagResponse.data.color ?? undefined,
-          notifications: undefined,
-          //TODO: implement children
-          children: [],
-          participants: []
-        }
-      }
-    }
-
-    const mappedTimeslot: Timeslot = {
-      id: timeslot.id as string,
-      register: timeslot.register ?? undefined,
-      participantId: timeslot.participantId ?? undefined,
-      description: timeslot.description ?? undefined,
-      start: new Date(timeslot.start),
-      end: new Date(timeslot.end),
-      updatedAt: timeslot.updatedAt,
-      tag: tag,
+    const mappedTimeslot = await mapTimeslot(
+      timeslot, 
+      options?.siTag ? { 
+        siTag: { 
+          memo: tagMemo,
+          TagService: new TagService(client)
+        } 
+      } : undefined
+    )
+    if(mappedTimeslot.tag && !tagMemo.some((tag) => tag.id === mappedTimeslot.tag?.id)) {
+      tagMemo.push(mappedTimeslot.tag)
     }
     return mappedTimeslot
   })))
-    .filter((timeslot) => timeslot !== undefined)
-    .sort((a, b) => a.start.getTime() - b.start.getTime())
+  .filter((timeslot) => timeslot !== undefined)
+  .sort((a, b) => a.start.getTime() - b.start.getTime())
+
+  return timeslots
+}
+
+interface GetAllTimeslotsByMonthOptions extends GetAllTimeslotsByDateOptions { }
+
+async function getAllTimeslotsByMonth(client: V6Client<Schema>, date: Date, options?: GetAllTimeslotsByMonthOptions) {
+  console.log('api call')
+
+  let timeslotResponse = await client.models.Timeslot.listTimeslotByStartMonthAndStartDate({
+    startMonth: DateTime.fromJSDate(date).toFormat('MM-yyyy'),
+    startDate: {
+      beginsWith: DateTime.fromJSDate(date).toFormat('MM-yyyy')
+    }
+  })
+
+  const timeslotData = timeslotResponse.data
+
+  while(timeslotResponse.nextToken) {
+    timeslotResponse = await client.models.Timeslot.listTimeslotByStartMonthAndStartDate({
+      startMonth: DateTime.fromJSDate(date).toFormat('MM-yyyy'),
+      startDate: {
+        beginsWith: DateTime.fromJSDate(date).toFormat('MM-yyyy')
+      }
+    }, {
+      nextToken: timeslotResponse.nextToken
+    })
+
+    timeslotData.push(...timeslotResponse.data)
+  }
+
+  const tagMemo: UserTag[] = []
+
+  const timeslots: Timeslot[] = (await Promise.all(timeslotData.map(async (timeslot) => {
+    if (timeslot === undefined ||
+      timeslot.id === undefined ||
+      timeslot.start === undefined ||
+      timeslot.end === undefined
+    ) return
+    const mappedTimeslot = await mapTimeslot(
+      timeslot, 
+      options?.siTag ? { 
+        siTag: { 
+          memo: tagMemo,
+          TagService: new TagService(client)
+        } 
+      } : undefined
+    )
+    if(mappedTimeslot.tag && !tagMemo.some((tag) => tag.id === mappedTimeslot.tag?.id)) {
+      tagMemo.push(mappedTimeslot.tag)
+    }
+    return mappedTimeslot
+  })))
+  .filter((timeslot) => timeslot !== undefined)
+  .sort((a, b) => a.start.getTime() - b.start.getTime())
+
   return timeslots
 }
 
@@ -228,13 +272,17 @@ export class TimeslotService {
 
   async createTimeslotsMutation(params: CreateTimeslotsMutationParams) {
     const response = await Promise.all(params.timeslots.map((timeslot) => {
+      const formattedDate = DateTime.fromJSDate(timeslot.start, { zone: 'America/Chicago' })
 
       return [
         this.client.models.Timeslot.create({
           id: timeslot.id,
           start: timeslot.start.toISOString(),
           end: timeslot.end.toISOString(),
-          description: timeslot.description
+          description: timeslot.description,
+          tagId: timeslot.tag?.id,
+          startDate: formattedDate.toFormat('MM-dd-yyyy'),
+          startMonth: formattedDate.toFormat('MM-yyyy')
         }),
         timeslot.tag ? this.client.models.TimeslotTag.create({
           timeslotId: timeslot.id,
@@ -431,7 +479,8 @@ export class TimeslotService {
     if (options?.metric) console.log(`GETTIMESLOTBYID:${new Date().getTime() - start.getTime()}ms`)
     return mapTimeslot(timeslotResponse.data, {
       siTag: options?.siTag ? {
-        memo: []
+        memo: [],
+        TagService: new TagService(this.client)
       } : undefined
     })
   }
@@ -451,7 +500,8 @@ export class TimeslotService {
       if(timeslot) {
         const mappedTimeslot = await mapTimeslot(timeslot, {
           siTag: options?.siTag ? {
-            memo: []
+            memo: [],
+            TagService: new TagService(this.client)
           } : undefined
         })
         returnArray.push(mappedTimeslot)
@@ -494,9 +544,14 @@ export class TimeslotService {
     return returnedTimeslot
   }
 
-  getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({
-    queryKey: ['timeslot', date],
-    queryFn: () => getAllTimeslotsByDate(this.client, date)
+  getAllTimeslotsByDateQueryOptions = (date: Date, options?: GetAllTimeslotsByDateOptions) => queryOptions({
+    queryKey: ['timeslot-date', date],
+    queryFn: () => getAllTimeslotsByDate(this.client, date, options)
+  })
+
+  getAllTimeslotsByMonthQueryOptions = (date: Date, options?: GetAllTimeslotsByMonthOptions) => queryOptions({
+    queryKey: ['timeslots-month', date],
+    queryFn: () => getAllTimeslotsByMonth(this.client, date, options)
   })
 
   getAllTimeslotsByUserTagQueryOptions = (tagId?: string) => queryOptions({

@@ -6,6 +6,7 @@ import { UseQueryResult } from "@tanstack/react-query"
 import { SlotComponent } from "../../timeslot/Slot"
 import { Link } from "@tanstack/react-router"
 import Loading from "../../common/Loading"
+import { DateTime } from "luxon"
 
 interface TimeslotsPanelProps {
   selectedTag: UserTag
@@ -45,7 +46,7 @@ export const TimeslotsPanel = (props: TimeslotsPanelProps) => {
             (props.timeslotQuery.data?.length ?? 0) === 0 ? (
               <div className="flex flex-row gap-4">
                 <span className="italic font-light">No Untagged Timeslots</span>
-                <Link to="/admin/dashboard/scheduler">
+                <Link to="/admin/dashboard/scheduler" search={{ date: DateTime.fromJSDate(currentDate).toFormat('MM-dd-yyyy') }} >
                   <span className="hover:underline">Create New Timeslot</span>
                 </Link>
               </div>
@@ -53,7 +54,7 @@ export const TimeslotsPanel = (props: TimeslotsPanelProps) => {
               filterDate !== undefined && filteredTimeslots.length === 0 ? (
                 <div className="flex flex-row gap-4">
                   <span className="italic font-light">No Results</span>
-                  <Link to="/admin/dashboard/scheduler">
+                  <Link to="/admin/dashboard/scheduler" search={{ date: DateTime.fromJSDate(currentDate).toFormat('MM-dd-yyyy') }} >
                     <span className="hover:underline text-sm italic">Create New Timeslot</span>
                   </Link>
                 </div>

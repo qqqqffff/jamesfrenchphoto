@@ -1,17 +1,51 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { currentDate, defaultColumnColors } from "../../utils"
-import { UserTag } from "../../types"
+import { Timeslot, UserTag } from "../../types"
 import { HiOutlineCalendar, HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi2'
+import { useQuery } from "@tanstack/react-query"
+import { TimeslotService } from "../../services/timeslotService"
 
 interface CustomDatePickerProps {
   selectDate: (date: Date | null) => void
   selectedDate?: Date
-  tags: UserTag[]
+  fetchMonthTimeslots?: TimeslotService
 }
 
 export const CustomDatePicker = (props: CustomDatePickerProps) => {
   const [activeDate, setActiveDate] = useState(props.selectedDate ?? currentDate)
   const [isOpen, setIsOpen] = useState(false)
+  const windowRef = useRef<HTMLDivElement | null>(null)
+  const [timeslots, setTimeslots] = useState<Timeslot[]>([])
+
+  const calendarTimeslotQuery = props.fetchMonthTimeslots ? 
+    useQuery(props.fetchMonthTimeslots.getAllTimeslotsByMonthQueryOptions(activeDate, { siTag: true }))
+  : undefined
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if(
+        isOpen &&
+        windowRef.current &&
+        !windowRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false)
+      }
+    }
+
+    if(isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    if(calendarTimeslotQuery?.data) {
+      setTimeslots(calendarTimeslotQuery.data)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [
+    isOpen,
+    calendarTimeslotQuery?.data
+  ])
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -45,7 +79,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
 
   const formatDate = (date?: Date) => {
     if (!date) return '';
-    return date.toLocaleDateString("en-us")
+    return date.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
   };
 
   const formatDisplayDate = (date?: Date) => {
@@ -84,9 +118,9 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
 
     const dateKey = formatDate(date)
     //do something custom if there are more than one tag on a date otherwise display the ascociation
-    const taggedDate = props.tags.reduce((prev, cur) => {
-      if(cur.timeslots?.some((timeslot) => formatDate(timeslot.start) === dateKey)) {
-        prev.push(cur)
+    const taggedDate = timeslots.reduce((prev, cur) => {
+      if(formatDate(cur.start) === dateKey && cur.tag) {
+        prev.push(cur.tag)
       }
       return prev
     }, [] as UserTag[])
@@ -120,9 +154,9 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
   const getDateTitle = (date?: Date) => {
     if(!date) return ''
     const dateKey = formatDate(date)
-    const taggedDate = props.tags.reduce((prev, cur) => {
-      if(cur.timeslots?.some((timeslot) => formatDate(timeslot.start) === dateKey)) {
-        prev.push(cur)
+    const taggedDate = timeslots.reduce((prev, cur) => {
+      if(formatDate(cur.start) === dateKey && cur.tag) {
+        prev.push(cur.tag)
       }
       return prev
     }, [] as UserTag[])
@@ -135,7 +169,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
   const days = getDaysInMonth(activeDate)
 
   return (
-    <div className="relative">
+    <div className="relative" ref={windowRef}>
       <button
         className="w-full px-4 py-2 border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 flex items-center justify-between"
         onClick={() => setIsOpen(!isOpen)}

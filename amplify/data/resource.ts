@@ -77,6 +77,7 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .authorization((allow) => [allow.group('ADMINS')]),
+    //TODO: perform migration for me (w & h)
   PhotoPaths: a
     .model({
       id: a.id().required(),
@@ -292,20 +293,27 @@ const schema = a.schema({
     })
     .secondaryIndexes((index) => [index('columnId')])
     .authorization((allow) => [allow.group('ADMINS')]),
-  //TODO: create a lambda function for timeslot registration to further restrict timeslots
+    //TODO: perform migration for me (startDate, month, tagId)
   Timeslot: a
     .model({
       id: a.id().required(),
       description: a.string(),
       register: a.string(),
-      start: a.datetime().required(),
+      startDate: a.string().required(), //of form 'MM-dd-yyyy'
+      startMonth: a.string().required(), //of form 'MM-yyyy'
+      start: a.datetime().required(), //
       end: a.datetime().required(),
+      tagId: a.string(),
       timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),
       participant: a.belongsTo('Participant', 'participantId'),
       participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['read'])]), 
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('participantId')])
+    .secondaryIndexes((index) => [
+      index('participantId'), 
+      index('startDate'), 
+      index('startMonth').sortKeys(['startDate'])
+    ])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
     .model({

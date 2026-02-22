@@ -3,7 +3,7 @@ import { Schema } from '../../amplify/data/resource'
 import { Favorite, Participant, PhotoCollection, UserTag } from '../types'
 import { mapParticipant } from './userService'
 import { queryOptions } from '@tanstack/react-query'
-import { getTagById } from './tagService'
+import { TagService } from './tagService'
 
 export function mapFavorite(favoriteResponse: Schema['UserFavorites']['type']): Favorite {
   return {
@@ -125,7 +125,8 @@ async function getParticipantFavoritesByUserTag(client: V6Client<Schema>, partic
   }
   const start = new Date().getTime()
 
-  const userTagResponse = await getTagById(client, tagId, {
+  const tagService = new TagService(client)
+  const userTagResponse = await tagService.getTagById(tagId, {
     unauthenticated: false,
     siCollections: true,
     siChildren: false,

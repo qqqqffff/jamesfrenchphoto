@@ -10,6 +10,8 @@ import {
 } from 'react-icons/hi'
 import { Outlet, useNavigate } from '@tanstack/react-router'
 import { HiOutlineTag } from 'react-icons/hi2'
+import { DateTime } from 'luxon'
+import { currentDate } from '../../utils'
 
 
 export const Route = createFileRoute('/_auth/admin/dashboard')({
@@ -35,7 +37,7 @@ function RouteComponent() {
           <Button
             color="gray"
             onClick={() => {
-                navigate({ to: '/admin/dashboard/scheduler' })
+                navigate({ to: '/admin/dashboard/scheduler', search: { date: DateTime.fromJSDate(currentDate).toFormat('MM-dd-yyyy') } })
             }}
             className={activeConsoleClassName('scheduler')}
           >

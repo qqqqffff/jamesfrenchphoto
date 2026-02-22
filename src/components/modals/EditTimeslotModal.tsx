@@ -118,7 +118,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
                     setActiveDate(date)
                   }
                 }}
-                tags={props.tags}
+                fetchMonthTimeslots={props.TimeslotService}
               />
             </div>
             <div className="flex flex-col gap-1 min-w-[250px]">

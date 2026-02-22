@@ -246,18 +246,6 @@ export async function mapUserTag(tagResponse: Schema['UserTag']['type'], options
 interface GetTagByIdOptions extends MapUserTagOptions { 
   metric?: boolean
 }
-export async function getTagById(client: V6Client<Schema>, tagId?: string, options?: GetTagByIdOptions): Promise<UserTag | null> {
-  const start = new Date()
-  if(!tagId) return null
-
-  const tagResponse = await client.models.UserTag.get({ id: tagId })
-  if(tagResponse.data) {
-    const tag = await mapUserTag(tagResponse.data, options)
-    if(options?.metric) console.log(`GETTAGBYID:${new Date().getTime() - start.getTime()}`)
-    return tag
-  }
-  return null
-}
 
 //TODO: implement me please
 // interface GetAllUserTagsInfiniteData {
@@ -380,6 +368,19 @@ export class TagService {
   private client: V6Client<Schema>
   constructor(client: V6Client<Schema>) {
     this.client = client
+  }
+
+  async getTagById(tagId?: string, options?: GetTagByIdOptions): Promise<UserTag | null> {
+    const start = new Date()
+    if(!tagId) return null
+
+    const tagResponse = await this.client.models.UserTag.get({ id: tagId })
+    if(tagResponse.data) {
+      const tag = await mapUserTag(tagResponse.data, options)
+      if(options?.metric) console.log(`GETTAGBYID:${new Date().getTime() - start.getTime()}`)
+      return tag
+    }
+    return null
   }
 
   async createTagMutation(params: CreateTagParams) {
@@ -577,7 +578,7 @@ export class TagService {
 
     getUserTagByIdQueryOptions = (tagId?: string, options?: GetTagByIdOptions) => queryOptions({
     queryKey: ['userTag', options],
-    queryFn: () => getTagById(this.client, tagId, options)
+    queryFn: () => this.getTagById(tagId, options)
   })
 
   getAllParticipantsByUserTagQueryOptions = (tagId?: string, options?: GetAllParticipantsByUserTagOptions) => queryOptions({
