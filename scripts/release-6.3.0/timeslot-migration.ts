@@ -8,7 +8,6 @@ const TIMESLOT_TAG_TABLE = env.TIMESLOT_TAG_TABLE_NAME
 
 async function migrate() {
   let lastEvaluatedKey = undefined;
-  let updatedCount = 0;
 
   let response = await client.send(new ScanCommand({
     TableName: TIMESLOT_TABLE,
@@ -26,7 +25,7 @@ async function migrate() {
     scannedItems.push(...(response.Items ?? []))
   }
 
-  for (const timeslot of response.Items ?? []) {
+  for (const timeslot of scannedItems) {
     if (!timeslot.start?.S || !timeslot.id?.S || (timeslot.startDate.S && timeslot.startMonth)) continue;
 
     const dateTimeObject = DateTime.fromISO(timeslot.start.S).setZone('America/Chicago'); //eg "03-01-2025"
@@ -58,8 +57,6 @@ async function migrate() {
 
     console.log(response)
   }
-
-  console.log(`Migration complete. Updated ${updatedCount} records.`);
 }
 
 migrate().catch(console.error);

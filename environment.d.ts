@@ -3,6 +3,8 @@ declare global {
     interface ProcessEnv {
       TIMESLOT_TABLE_NAME: string,
       TIMESLOT_TAG_TABLE_NAME: string,
+      PHOTOPATH_TABLE_NAME: string,
+      S3BUCKET: string
     }
   }
 }
