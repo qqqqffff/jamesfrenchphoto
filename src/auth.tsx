@@ -8,6 +8,7 @@ import { V6Client } from '@aws-amplify/api-graphql'
 type LoginReturnType = 'fail' | 'admin' | 'client' | 'nextStep'
 export interface AuthContext {
   isAuthenticated: boolean,
+  validateAuth: () => Promise<boolean>
   login: (username: string, password: string) => Promise<LoginReturnType>,
   confirmLogin: (username: string, password: string) => Promise<LoginReturnType>
   logout: () => Promise<'success' | 'fail'>,
@@ -160,10 +161,36 @@ export function AuthProvider({ children, client } : { children: ReactNode, clien
       }
   }
 
+  const validateAuth = async () => {
+    try {
+      const authSession = await fetchAuthSession()
+      console.log(
+        authSession,
+        authSession.credentials?.expiration !== undefined && 
+        authSession.credentials.expiration.getTime() > new Date().getTime() && 
+        authSession.tokens !== undefined
+      )
+      if(
+        authSession.credentials?.expiration === undefined || 
+        authSession.credentials.expiration.getTime() <= new Date().getTime() || 
+        authSession.tokens === undefined
+      ) {
+        await logout()
+        await new Promise(resolve => setTimeout(resolve, 1))
+        return false
+      }
+      return true
+    } catch(err) {
+      console.error(err)
+      return false
+    }
+  }
+
   return (
     <AuthContext.Provider 
       value={{ 
         isAuthenticated, 
+        validateAuth,
         login, 
         confirmLogin, 
         logout, 

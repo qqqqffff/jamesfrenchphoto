@@ -20,7 +20,7 @@ export const Route = createFileRoute('/_auth')({
       throw redirect({
         to: '/login',
         search: {
-          relogin: true
+          expired: true
         }
       })
     }
@@ -42,6 +42,9 @@ export const Route = createFileRoute('/_auth')({
       }
       return validToken
     }
+
+    const authResponse = await context.auth.validateAuth()
+
     if(!context.auth.isAuthenticated){
       throw redirect({
         to: '/login',
@@ -50,7 +53,14 @@ export const Route = createFileRoute('/_auth')({
         }
       })
     }
-    
+    else if(!authResponse) {
+      throw redirect({
+        to: '/login',
+        search: {
+          expired: true
+        }
+      })
+    }
     else if(!context.auth.admin && location.pathname.includes('admin')){
       throw redirect({
         to: '/client/dashboard'
