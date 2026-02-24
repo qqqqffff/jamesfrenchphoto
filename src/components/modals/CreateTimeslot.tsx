@@ -6,7 +6,7 @@ import { Timeslot, UserTag } from "../../types";
 import { useMutation, UseQueryResult } from "@tanstack/react-query";
 import { TimeslotService, CreateTimeslotsMutationParams, DeleteTimeslotsMutationParams, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
 import { v4 } from 'uuid'
-import { TagPicker } from "../admin/package/TagPicker";
+import { TagPicker } from "../common/TagPicker";
 
 interface CreateTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,

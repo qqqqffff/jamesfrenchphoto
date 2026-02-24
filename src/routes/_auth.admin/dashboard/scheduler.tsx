@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { TimeslotService } from '../../../services/timeslotService'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { compareDate, currentDate } from '../../../utils'
 import { Participant, Timeslot, UserTag } from '../../../types'
-import { Label, Progress } from 'flowbite-react'
+import { Label, Progress, Tooltip } from 'flowbite-react'
 import { ControlComponent } from '../../../components/admin/ControlPanel'
 import { HiOutlinePencil, HiOutlinePlusCircle } from 'react-icons/hi2'
 import { SlotComponent } from '../../../components/timeslot/Slot'
@@ -40,6 +40,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
 
 function RouteComponent() {
   const data = Route.useLoaderData()
+  const navigate = Route.useNavigate()
   const [activeDate, setActiveDate] = useState<Date>(data.date)
   const [activeTag, setActiveTag] = useState<UserTag>()
   const [timeslots, setTimeslots] = useState<Timeslot[]>([])
@@ -48,13 +49,15 @@ function RouteComponent() {
 
   const timeslotQuery = useQuery(data.TimeslotService.getAllTimeslotsByDateQueryOptions(activeDate, { siTag: true }))
   
-  const tagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({ 
-    siCollections: false,
-    siNotifications: false,
-    siPackages: undefined,
-    siParticipants: false,
-    siTimeslots: true
-  }))
+  const tagsQuery = useInfiniteQuery(data.TagService.getAllUserTagsQueryOptions(
+    { 
+      siCollections: false,
+      siNotifications: false,
+      siPackages: undefined,
+      siParticipants: false,
+      siTimeslots: true
+    }
+  ))
 
   const participantQuery = useQuery(data.UserService.getAllParticipantsQueryOptions({
     siCollections: false,
@@ -75,7 +78,10 @@ function RouteComponent() {
       setTimeslots(timeslotQuery.data)
     }
     if(tagsQuery.data) {
-      setTags(tagsQuery.data)
+      setTags(tagsQuery.data.pages.reduce((prev, cur) => {
+        prev.push(...cur.tags.filter((tag) => !prev.some((pTag) => pTag.id === tag.id)))
+        return prev
+      }, [] as UserTag[]))
     }
     if(participantQuery.data) {
       setParticipants(participantQuery.data)
@@ -89,6 +95,23 @@ function RouteComponent() {
     participantQuery.data,
     data.date,
   ])
+
+  function ActionButtonWrapper(props: { children: JSX.Element }) {
+    if(activeDate.getTime() < currentDate.getTime()) {
+      return (
+        <Tooltip
+          theme={{ target: undefined }}
+          placement='bottom-start'
+          style='light'
+          arrow={false}
+          content={(<span className='text-gray-500 italic text-sm whitespace-nowrap'>Cannot create or modify timeslots before today's date</span>)}
+        >
+          {props.children}
+        </Tooltip>
+      )
+    }
+    return props.children
+  }
 
 
   return (
@@ -139,7 +162,7 @@ function RouteComponent() {
           <CustomDatePicker 
             selectDate={(date) => {
               if(date) {
-                setActiveDate(date)
+                navigate({ to: '.', search: { date: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy') }})
               }
             }}
             selectedDate={activeDate}
@@ -153,24 +176,26 @@ function RouteComponent() {
             tags={tags}
             tagsQuery={tagsQuery}
           />
-          <ControlComponent 
-            className="mt-2" 
-            name={
-              <div className='flex flex-row gap-3'>
-                {timeslots.length > 0 ? `Update Timeslot${timeslots.length > 1 ? 's' : ''}` : `Create Timeslot(s)`}
-                {timeslots.length <= 0 ? (
-                  <HiOutlinePlusCircle size={20} className="mt-0.5 me-1"/>
-                ) : (
-                  <HiOutlinePencil size={16} className="mt-0.5 me-1" />
-                )}
-              </div>
-            } 
-            fn={() => {
-              setCreateTimeslotVisible(true)
-            }} 
-            type={true} 
-            disabled={activeDate.getTime() < currentDate.getTime()}
-          />
+          <ActionButtonWrapper>
+            <ControlComponent 
+              className="mt-2 w-full" 
+              name={
+                <div className='flex flex-row gap-3'>
+                  {timeslots.length > 0 ? `Update Timeslot${timeslots.length > 1 ? 's' : ''}` : `Create Timeslot(s)`}
+                  {timeslots.length <= 0 ? (
+                    <HiOutlinePlusCircle size={20} className="mt-0.5 me-1"/>
+                  ) : (
+                    <HiOutlinePencil size={16} className="mt-0.5 me-1" />
+                  )}
+                </div>
+              } 
+              fn={() => {
+                setCreateTimeslotVisible(true)
+              }} 
+              type={true} 
+              disabled={activeDate.getTime() < currentDate.getTime()}
+            />
+          </ActionButtonWrapper>
         </div>
         <div className="border border-gray-400 rounded-lg py-4 px-2 h-full overflow-auto w-full">
           <div className="grid gap-2 grid-cols-3">

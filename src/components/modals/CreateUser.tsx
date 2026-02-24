@@ -7,7 +7,7 @@ import { validateMapField } from "../../functions/tableFunctions";
 import validator from 'validator'
 import { useMutation } from "@tanstack/react-query";
 import { HiOutlinePlusCircle } from "react-icons/hi2";
-import { TagPicker } from "../admin/package/TagPicker";
+import { TagPicker } from "../common/TagPicker";
 import { ParticipantFieldLinks, UserFieldLinks } from "./LinkUser";
 import { LinkUserMutationParams, UserService } from "../../services/userService";
 

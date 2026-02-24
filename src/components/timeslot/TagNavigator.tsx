@@ -1,10 +1,11 @@
 import { Dispatch, SetStateAction } from "react";
 import { UserTag } from "../../types";
-import { TagPicker } from "../admin/package/TagPicker";
-import { UseQueryResult } from "@tanstack/react-query";
+import { TagPicker } from "../common/TagPicker";
+import { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query";
 import { normalizeDate, sortDatesAround } from "../../utils";
 import { ColorComponent } from "../common/ColorComponent";
 import { HiOutlineArrowLeftCircle, HiOutlineArrowRightCircle } from 'react-icons/hi2'
+import { GetAllUserTagsData } from "../../services/tagService";
 
 interface TagNavigatorProps {
   activeDate: Date
@@ -12,9 +13,10 @@ interface TagNavigatorProps {
   setActiveDate: Dispatch<SetStateAction<Date>>
   activeTag: UserTag | undefined
   tags: UserTag[]
-  tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
+  tagsQuery: UseInfiniteQueryResult<InfiniteData<GetAllUserTagsData, unknown>, Error>
 }
 
+//implement tag query fetching next
 export const TagNavigator = (props: TagNavigatorProps) => {
   const sortedTimeslots = (props.activeTag?.timeslots ?? [])
     .sort((a, b) => a.start.getTime() - b.start.getTime())
@@ -63,7 +65,9 @@ export const TagNavigator = (props: TagNavigatorProps) => {
         allowMultiple={false}
         allowClear
         placeholder="Filter By Tag"
-        className="w-full my-2 border rounded-lg px-2 py-1.5"
+        className="
+          w-full px-4 py-2 border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2  
+        "
       />
       {props.activeTag && (
         <div className="flex flex-col items-center justify-center">

@@ -1,4 +1,4 @@
-import { DynamoDBClient, GetItemCommand, QueryCommand, ScanCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, QueryCommand, ScanCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { env } from 'node:process'
 import { DateTime } from 'luxon'
 import 'dotenv/config'

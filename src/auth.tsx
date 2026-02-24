@@ -164,12 +164,7 @@ export function AuthProvider({ children, client } : { children: ReactNode, clien
   const validateAuth = async () => {
     try {
       const authSession = await fetchAuthSession()
-      console.log(
-        authSession,
-        authSession.credentials?.expiration !== undefined && 
-        authSession.credentials.expiration.getTime() > new Date().getTime() && 
-        authSession.tokens !== undefined
-      )
+      
       if(
         authSession.credentials?.expiration === undefined || 
         authSession.credentials.expiration.getTime() <= new Date().getTime() || 

@@ -11,7 +11,7 @@ import { formatParticipantName } from "../../functions/clientFunctions";
 import { HiOutlineXMark } from "react-icons/hi2";
 import { ParticipantPanel } from "../common/ParticipantPanel";
 import { CustomDatePicker } from "../common/CustomDatePicker";
-import { TagPicker } from "../admin/package/TagPicker";
+import { TagPicker } from "../common/TagPicker";
 
 interface EditTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,

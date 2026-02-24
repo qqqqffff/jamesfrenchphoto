@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query"
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query"
 import { Schema } from "../../amplify/data/resource"
 import { V6Client } from '@aws-amplify/api-graphql'
 import { PhotoCollection, Participant, UserTag, Timeslot, Package, Notification } from "../types"
@@ -254,22 +254,31 @@ interface GetTagByIdOptions extends MapUserTagOptions {
 // }
 // async function getAllUserTagsInfinite(client: V6Client<Schema>, initial: GetAllUserTagsInfiniteData, options?: GetAllUserTagsInfiniteOptions) {
 // }
-
-interface GetAllUserTagsOptions extends GetTagByIdOptions { }
-async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
+/* 
+  @default maxItems: 16 items
+*/
+interface GetAllUserTagsOptions extends GetTagByIdOptions {
+  maxItems?: number
+}
+export interface GetAllUserTagsData {
+  tags: UserTag[],
+  nextToken?: string,
+}
+async function getAllUserTags(client: V6Client<Schema>, initial: GetAllUserTagsData, options?: GetAllUserTagsOptions): Promise<GetAllUserTagsData> {
   const start = new Date()
-  let userTagsResponse = await client.models.UserTag.list()
-  let userTagData: Schema['UserTag']['type'][] = userTagsResponse.data
+  const maxItems = options?.maxItems ?? 16
+  let userTagsResponse = await client.models.UserTag.listUserTagByFlagAndCreatedAt({
+    flag: 'true',
+  }, {
+    sortDirection: 'DESC',
+    limit : maxItems,
+    nextToken: initial.nextToken,
+  })
 
-  while(userTagsResponse.nextToken) {
-    userTagsResponse = await client.models.UserTag.list({ nextToken: userTagsResponse.nextToken })
-    userTagData.push(...userTagsResponse.data)
-  }
+  let notificationMemo: Notification[] = initial.tags.flatMap((tag) => tag.notifications ?? [])
+  let collectionsMemo: PhotoCollection[] = initial.tags.flatMap((tag) => tag.collections ?? [])
 
-  let notificationMemo: Notification[] = []
-  let collectionsMemo: PhotoCollection[] = []
-
-  const mappedTags = await Promise.all(userTagData.map(async (tag) => {
+  const mappedTags = await Promise.all(userTagsResponse.data.map(async (tag) => {
     return mapUserTag(tag, {
       ...options,
       memos: {
@@ -279,7 +288,14 @@ async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTags
     })
   }))
   if(options?.metric) console.log(`GETALLTAGS:${new Date().getTime() - start.getTime()}ms`)
-  return mappedTags
+
+  const newTags: UserTag[] = [...initial.tags, ...mappedTags]
+  const returnData: GetAllUserTagsData = {
+    tags: newTags,
+    nextToken: userTagsResponse.nextToken ?? undefined,
+  }
+
+  return returnData
 }
 
 interface GetAllParticipantsByUserTagOptions extends MapParticipantOptions { }
@@ -389,6 +405,8 @@ export class TagService {
       id: params.tag.id,
       name: params.tag.name,
       color: params.tag.color,
+      flag: 'true',
+      createdAt: new Date().toISOString()
     })
 
     if(params.options?.logging) console.log(createTagResponse)
@@ -571,9 +589,14 @@ export class TagService {
     if(params.options?.metric) console.log(`UPDATETAG:${new Date().getTime() - start.getTime()}ms`)
   }
 
-  getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({
+  getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => infiniteQueryOptions({
     queryKey: ['userTags', options],
-    queryFn: () => getAllUserTags(this.client, options)
+    queryFn: ({ pageParam }) => getAllUserTags(this.client, pageParam, options),
+    getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
+    initialPageParam: ({
+      tags: [] as UserTag[]
+    } as GetAllUserTagsData),
+    refetchOnWindowFocus: false,
   })
 
     getUserTagByIdQueryOptions = (tagId?: string, options?: GetTagByIdOptions) => queryOptions({

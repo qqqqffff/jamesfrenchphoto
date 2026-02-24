@@ -124,14 +124,18 @@ const schema = a.schema({
       id: a.id().required(),
       name: a.string().required(),
       color: a.string(),
+      createdAt: a.datetime().required(),
+      flag: a.string().default('true').required(),
       collectionTags: a.hasMany('CollectionTag', 'tagId'),
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
       packages: a.hasOne('Package', 'tagId'),
       notifications: a.hasMany('NotificationUserTags', 'tagId'),
       participants: a.hasMany('ParticipantUserTag', 'tagId'),
-      childTags: a.hasMany('PackageParentTag', 'tagId')
+      childTags: a.hasMany('PackageParentTag', 'tagId'),
+
     })
     .identifier(['id'])
+    .secondaryIndexes((index) => [index('flag').sortKeys(['createdAt'])])
     .authorization((allow) => [
       allow.group('ADMINS'), 
       allow.authenticated('userPools').to(['get', 'list']), 

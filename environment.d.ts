@@ -7,6 +7,8 @@ declare global {
       TIMESLOT_TAG_TABLE_NAME: string,
       PHOTOPATH_TABLE_NAME_PROD: string,
       PHOTOPATH_TABLE_NAME: string,
+      TAGS_TABLE_NAME_PROD: string,
+      TAGS_TABLE_NAME: string,
       S3BUCKET_PROD: string,
       S3BUCKET: string
     }
