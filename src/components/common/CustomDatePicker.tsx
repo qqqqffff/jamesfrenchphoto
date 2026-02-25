@@ -9,6 +9,7 @@ interface CustomDatePickerProps {
   selectDate: (date: Date | null) => void
   selectedDate?: Date
   fetchMonthTimeslots?: TimeslotService
+  small?: boolean
 }
 
 export const CustomDatePicker = (props: CustomDatePickerProps) => {
@@ -171,13 +172,22 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
   return (
     <div className="relative" ref={windowRef}>
       <button
-        className="w-full px-4 py-2 border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 flex items-center justify-between"
+        className="w-full border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className='text-gray-900'>
-          {formatDisplayDate(props.selectedDate ?? activeDate)}
-        </span>
-        <HiOutlineCalendar size={24} />
+        {(props.small === undefined || !props.small) ? (
+          <div className="flex items-center justify-between px-4 py-2">
+            <span className='text-gray-900'>
+              {formatDisplayDate(props.selectedDate ?? activeDate)}
+            </span>
+            <HiOutlineCalendar size={24} />
+          </div>
+        ) : (
+          <div className="p-1">
+            <HiOutlineCalendar size={24} className="text-gray-900" />
+          </div>
+        )}
+        
       </button>
       {isOpen && (
         <div className="absolute mt-2 border border-gray-200 rounded-lg p-4 bg-gray-50 z-10 min-w-[350px]">

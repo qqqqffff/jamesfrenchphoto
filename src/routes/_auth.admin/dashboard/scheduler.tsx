@@ -6,7 +6,6 @@ import { compareDate, currentDate } from '../../../utils'
 import { Participant, Timeslot, UserTag } from '../../../types'
 import { Label, Progress, Tooltip } from 'flowbite-react'
 import { ControlComponent } from '../../../components/admin/ControlPanel'
-import { HiOutlinePencil, HiOutlinePlusCircle } from 'react-icons/hi2'
 import { SlotComponent } from '../../../components/timeslot/Slot'
 import { CreateTimeslotModal, EditTimeslotModal } from '../../../components/modals'
 import { CustomDatePicker } from '../../../components/common/CustomDatePicker'
@@ -16,6 +15,8 @@ import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { TagService } from '../../../services/tagService'
 import { DateTime } from 'luxon'
+import { HiOutlineMinusCircle } from "react-icons/hi"
+import { HiOutlineChevronRight, HiOutlinePencil, HiOutlinePlus } from 'react-icons/hi2'
 
 interface SchedulerSearchParams {
   date: string
@@ -46,6 +47,9 @@ function RouteComponent() {
   const [timeslots, setTimeslots] = useState<Timeslot[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
+  const [createTimeslotVisible, setCreateTimeslotVisible] = useState(false)
+  const [editTimeslotVisible, setEditTimeslotVisible] = useState<Timeslot | undefined>()
+  const [sidePannelExpanded, setSidePanelExpanded] = useState(true)
 
   const timeslotQuery = useQuery(data.TimeslotService.getAllTimeslotsByDateQueryOptions(activeDate, { siTag: true }))
   
@@ -70,8 +74,7 @@ function RouteComponent() {
     siTimeslot: true,
   }))
 
-  const [createTimeslotVisible, setCreateTimeslotVisible] = useState(false)
-  const [editTimeslotVisible, setEditTimeslotVisible] = useState<Timeslot | undefined>()
+  
 
   useEffect(() => {
     if(timeslotQuery.data) {
@@ -149,55 +152,116 @@ function RouteComponent() {
           parentUpdateParticipants={setParticipants}
         />
       )}
-      <div className="flex flex-row gap-4 font-main my-2 h-[98vh]">
-        <div className="flex flex-col ms-4 border border-gray-400 rounded-lg px-6 py-2 gap-2 min-w-[275px] h-full">
-          <div className="flex flex-row gap-1 w-full justify-between">
-            <span className="text-2xl underline underline-offset-4 mb-2">Timeslot Date</span>
+      <div className="flex flex-row gap-4 my-2 mx-4 h-[100vh]">
+        <div className={`flex flex-col border border-gray-400 gap-2 rounded-2xl ${sidePannelExpanded ? 'min-w-[300px] p-4 w-[300px]' : 'w-[50px] max-w-[50px]'} transition-all duration-300 ease-in-out`}>
+          <div className={`flex flex-row items-center w-full justify-between ${sidePannelExpanded ? 'border-b border-b-gray-400 pb-2' : ''}`}>
+            <span className={`text-2xl text-start ${sidePannelExpanded ? 'ps-4 pe-2' : 'rotate-90 mt-12 ms-[-26px]'} transition-all duration-300 ease-in-out`}>Timeslots{sidePannelExpanded ? '' : ':'}</span>
+            {sidePannelExpanded && (
+              <button
+                className='hover:text-gray-500 rounded-full'
+                onClick={() => setSidePanelExpanded(!sidePannelExpanded)}
+              >
+                <HiOutlineMinusCircle size={24} />
+              </button>
+            )}
           </div>
-          { timeslotQuery.isLoading &&
-            (
-              <Progress progress={100} textLabel="Loading..." textLabelPosition='inside' labelText size="lg"/>
-            )
-          }
-          <CustomDatePicker 
-            selectDate={(date) => {
-              if(date) {
-                navigate({ to: '.', search: { date: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy') }})
-              }
-            }}
-            selectedDate={activeDate}
-            fetchMonthTimeslots={data.TimeslotService}
-          />
-          <TagNavigator 
-            activeDate={activeDate}
-            setActiveTag={setActiveTag}
-            setActiveDate={setActiveDate}
-            activeTag={activeTag}
-            tags={tags}
-            tagsQuery={tagsQuery}
-          />
-          <ActionButtonWrapper>
-            <ControlComponent 
-              className="mt-2 w-full" 
-              name={
-                <div className='flex flex-row gap-3'>
-                  {timeslots.length > 0 ? `Update Timeslot${timeslots.length > 1 ? 's' : ''}` : `Create Timeslot(s)`}
-                  {timeslots.length <= 0 ? (
-                    <HiOutlinePlusCircle size={20} className="mt-0.5 me-1"/>
+          {sidePannelExpanded ? (
+            <div className='flex flex-col w-full gap-2'>
+              {timeslotQuery.isLoading && (
+                <Progress progress={100} textLabel="Loading..." textLabelPosition='inside' labelText size="lg" />
+              )}
+              <CustomDatePicker 
+                selectDate={(date) => {
+                  if(date) {
+                    navigate({ to: '.', search: { date: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy') }})
+                  }
+                }}
+                selectedDate={activeDate}
+                fetchMonthTimeslots={data.TimeslotService}
+              />
+              <TagNavigator 
+                activeDate={activeDate}
+                setActiveTag={setActiveTag}
+                setActiveDate={setActiveDate}
+                activeTag={activeTag}
+                tags={tags}
+                tagsQuery={tagsQuery}
+              />
+              <ActionButtonWrapper>
+                <ControlComponent 
+                  className="mt-1 w-full" 
+                  name={
+                    <div>
+                      {timeslots.length > 0 ? `Update Timeslot${timeslots.length > 1 ? 's' : ''}` : `Create Timeslot(s)`}
+                    </div>
+                  } 
+                  fn={() => {
+                    setCreateTimeslotVisible(true)
+                  }} 
+                  type={true} 
+                  disabled={activeDate.getTime() < currentDate.getTime()}
+                />
+              </ActionButtonWrapper>
+              <ControlComponent 
+                className='mt-1 w-full'
+                name={
+                  <div>
+                    <span>Go To Today</span>
+                  </div>
+                }
+                fn={() => {
+                  navigate({ to: '.', search: { date: DateTime.fromJSDate(currentDate).toFormat('MM-dd-yyyy') }})
+                }}
+                type={true}
+                disabled={activeDate.getTime() === currentDate.getTime()}
+              />
+            </div>
+          ) : (
+            <div className='flex flex-col gap-2'>
+              <span className='rotate-90 whitespace-nowrap mt-12 font-bold'>{DateTime.fromJSDate(activeDate).toFormat('MM-dd-yyyy')}</span>
+              <div className='mt-16 flex flex-row justify-center'>
+                <CustomDatePicker 
+                  selectDate={(date) => {
+                    if(date) {
+                      navigate({ to: '.', search: { date: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy') }})
+                    }
+                  }}
+                  selectedDate={activeDate}
+                  fetchMonthTimeslots={data.TimeslotService}
+                  small
+                />
+              </div>
+              <TagNavigator 
+                activeDate={activeDate}
+                setActiveTag={setActiveTag}
+                setActiveDate={setActiveDate}
+                activeTag={activeTag}
+                tags={tags}
+                tagsQuery={tagsQuery}
+              />
+              <div className='flex flex-row justify-center'>
+                <button
+                  className='p-1 border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2'
+                  onClick={() =>  setCreateTimeslotVisible(true)}
+                  disabled={activeDate.getTime() < currentDate.getTime()}
+                >
+                  {timeslots.length > 0 ? (
+                    <HiOutlinePencil size={24} className='text-gray-900' />
                   ) : (
-                    <HiOutlinePencil size={16} className="mt-0.5 me-1" />
+                    <HiOutlinePlus size={24} className='text-gray-900' />
                   )}
-                </div>
-              } 
-              fn={() => {
-                setCreateTimeslotVisible(true)
-              }} 
-              type={true} 
-              disabled={activeDate.getTime() < currentDate.getTime()}
-            />
-          </ActionButtonWrapper>
+                </button>
+              </div>
+              <button
+                className='ms-2 hover:text-gray-500 p-1'
+                onClick={() => setSidePanelExpanded(true)}
+              >
+                <HiOutlineChevronRight size={24} />
+              </button>
+            </div>
+          )}
         </div>
-        <div className="border border-gray-400 rounded-lg py-4 px-2 h-full overflow-auto w-full">
+        <div className="border border-gray-400 rounded-2xl py-4 px-2 h-full overflow-auto w-full">
           <div className="grid gap-2 grid-cols-3">
             {timeslots.length > 0 ?
               (timeslots.map((timeslot, index) => {

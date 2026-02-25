@@ -15,7 +15,8 @@ interface TagPickerProps {
   className?: string,
   allowMultiple?: boolean
   allowClear?: boolean
-  hideTag?: boolean
+  hideTag?: boolean,
+  small?: boolean
 }
 
 export const TagPicker = (props: TagPickerProps) => {
@@ -62,7 +63,11 @@ export const TagPicker = (props: TagPickerProps) => {
       {props.className ? (
         <input 
           placeholder={props.placeholder ?? 'Pick User Tag...'}
-          className={props.className + ` text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color} hover:cursor-pointer`}
+          className={`
+            text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color} 
+            hover:cursor-pointer w-full px-4 py-2 border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2  
+            text-xs
+          `}
           value={!props.pickedTag || props.pickedTag.length === 0 || props.hideTag ? '' : 
             props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
           onFocus={() => setFocused(true)}
@@ -82,7 +87,14 @@ export const TagPicker = (props: TagPickerProps) => {
           readOnly
         />
       )}
-      {props.allowClear && (props.pickedTag ?? []).length > 0 && (
+      {(
+        props.allowClear && 
+        (props.pickedTag ?? []).length > 0 && 
+        (
+          props.small === undefined ||
+          !props.small
+        )
+      ) && (
         <button 
           className="absolute right-0 self-center hover:text-black text-gray-500 p-1 pe-2"
           onClick={() => props.parentPickTag(undefined)}

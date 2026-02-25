@@ -65,9 +65,6 @@ export const TagNavigator = (props: TagNavigatorProps) => {
         allowMultiple={false}
         allowClear
         placeholder="Filter By Tag"
-        className="
-          w-full px-4 py-2 border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2  
-        "
       />
       {props.activeTag && (
         <div className="flex flex-col items-center justify-center">
