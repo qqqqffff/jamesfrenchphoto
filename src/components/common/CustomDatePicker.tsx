@@ -187,7 +187,6 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
             <HiOutlineCalendar size={24} className="text-gray-900" />
           </div>
         )}
-        
       </button>
       {isOpen && (
         <div className="absolute mt-2 border border-gray-200 rounded-lg p-4 bg-gray-50 z-10 min-w-[350px]">

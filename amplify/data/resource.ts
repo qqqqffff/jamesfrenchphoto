@@ -285,7 +285,12 @@ const schema = a.schema({
       register: a.string(),
       startDate: a.string().required(), //of form 'MM-dd-yyyy'
       startMonth: a.string().required(), //of form 'MM-yyyy'
-      start: a.datetime().required(), //
+      noshowFee: a.float(),
+      cancelationFee: a.customType({
+        amount: a.float().required(),
+        window: a.string().required() // of form Duration (ISO string) until start
+      }),
+      start: a.datetime().required(), 
       end: a.datetime().required(),
       tagId: a.string(),
       timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),

@@ -7,25 +7,29 @@ import { useMutation, UseQueryResult } from "@tanstack/react-query";
 import { TimeslotService, CreateTimeslotsMutationParams, DeleteTimeslotsMutationParams, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
 import { v4 } from 'uuid'
 import { TagPicker } from "../common/TagPicker";
+import { Duration } from "luxon";
 
 interface CreateTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,
   day: Date;
   timeslots: Timeslot[]
-  timeslotQuery: UseQueryResult<Timeslot[] | undefined, Error>
   tags: UserTag[]
   parentUpdateTimeslots: Dispatch<SetStateAction<Timeslot[]>>
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
 }
 
 export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateTimeslotModalProps) => {
-  const [startTime, setStartTime] = useState<string | Date>('Select Start Time')
-  const [endTime, setEndTime] = useState<string | Date>('Select End Time')
-  const [increment, setIncrement] = useState<number>(30)
-  const [previewTimeslots, setPreviewTimeslots] = useState<Timeslot[]>([])
-  const [selectedTimeslots, setSelectedTimeslots] = useState<Timeslot[]>(props.timeslots)
+  const [startTime, setStartTime] = useState<Date>()
+  const [endTime, setEndTime] = useState<Date>()
+  const [increment, setIncrement] = useState<number>(25)
+  const [noshowFee, setNoshowFee] = useState<number | undefined>(40)
+  const [cancelationFee, setCancelationFee] = useState<{ amount: number, window: Duration } | undefined>({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
   const [description, setDescription] = useState<string>('')
   const [selectedTag, setSelectedTag] = useState<UserTag>()
+
+  const [previewTimeslots, setPreviewTimeslots] = useState<Timeslot[]>([])
+  const [selectedTimeslots, setSelectedTimeslots] = useState<Timeslot[]>(props.timeslots)
+  
 
   const createTimeslot = useMutation({
     mutationFn: (params: CreateTimeslotsMutationParams) => props.TimeslotService.createTimeslotsMutation(params)
@@ -40,43 +44,14 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
   })
 
   useEffect(() => {
-    const timeslotData = props.timeslots
-    let startTime: string | Date = 'Select Start Time'
-    let endTime: string | Date = 'Select End Time'
-    let timeslots: Timeslot[] = []
-    let increment = 30;
-    if(timeslotData && timeslotData.length > 0) {
-      startTime = timeslotData[0].start
-      endTime = timeslotData[timeslotData.length - 1].end
-      
-      increment = (timeslotData[0].end.getTime() - timeslotData[0].start.getTime()) / (1000 * 60)
-      let temp = startTime
-      while(temp < endTime){
-        const end = new Date(temp.getTime() + DAY_OFFSET * (increment / 1440))
-        if(end > endTime) break;
-        const existingTimeslot = timeslotData.find((timeslot) => 
-          timeslot.start.getTime() === temp.getTime() && timeslot.end.getTime() === end.getTime()
-        )
-        const timeslot: Timeslot = {
-          id: existingTimeslot ? existingTimeslot.id : v4(),
-          start: temp,
-          end: end,
-          tag: existingTimeslot?.tag,
-          updatedAt: existingTimeslot ? existingTimeslot.updatedAt : new Date().toISOString(),
-        }
-        timeslots.push(timeslot)
-        temp = end
-      }
+    if(
+      props.timeslots.some((pTimeslot) => selectedTimeslots.some((timeslot) => timeslot.id !== pTimeslot.id)) ||
+      selectedTimeslots.some((timeslot) => props.timeslots.some((pTimeslot) => pTimeslot.id !== timeslot.id))
+    ) {
+      setSelectedTimeslots(props.timeslots)
     }
-    setIncrement(increment)
-    setStartTime(startTime)
-    setEndTime(endTime)
-    setSelectedTimeslots(timeslotData)
-    setPreviewTimeslots(timeslots)
-    setDescription(timeslotData[0]?.description ?? '')
   }, [
-    props.timeslots,
-    props.timeslotQuery,
+    props.open
   ])
 
   const times = getTimes(props.day)
@@ -119,28 +94,6 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
     })))
     resetState()
     props.onClose()
-  }
-
-  function resetState(){
-    setStartTime('Select Start Time')
-    setEndTime('Select End Time')
-    setIncrement(30)
-    setPreviewTimeslots([])
-    setSelectedTimeslots([])
-  }
-
-  const startEnabled = (time: Date) => (
-    typeof startTime === 'string' || (
-      typeof endTime !== 'string' && time.getTime() < endTime.getTime()
-    )
-  )
-
-  const endEnabled = (time: Date) => {
-    return (
-      (typeof endTime === 'string' && typeof startTime !== 'string' && time.getTime() > startTime.getTime()) || (
-        typeof startTime !== 'string' && time.getTime() > startTime.getTime()
-      )
-    )
   }
 
   return (

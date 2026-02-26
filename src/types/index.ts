@@ -155,6 +155,11 @@ export type Timeslot = {
     id: string,
     tag?: UserTag,
     register?: string,
+    noshowFee?: number,
+    cancelationFee?: {
+        amount: number,
+        window: Duration
+    }
     start: Date;
     end: Date;
     participantId?: string,

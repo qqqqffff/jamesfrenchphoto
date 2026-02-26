@@ -128,7 +128,6 @@ function RouteComponent() {
         }} 
         day={activeDate} 
         timeslots={timeslots}
-        timeslotQuery={timeslotQuery}
         parentUpdateTimeslots={setTimeslots}
         parentUpdateTags={setTags}
         tags={tags}
@@ -179,14 +178,16 @@ function RouteComponent() {
                 selectedDate={activeDate}
                 fetchMonthTimeslots={data.TimeslotService}
               />
-              <TagNavigator 
-                activeDate={activeDate}
-                setActiveTag={setActiveTag}
-                setActiveDate={setActiveDate}
-                activeTag={activeTag}
-                tags={tags}
-                tagsQuery={tagsQuery}
-              />
+              <div className='w-full flex'>
+                <TagNavigator 
+                  activeDate={activeDate}
+                  setActiveTag={setActiveTag}
+                  setActiveDate={setActiveDate}
+                  activeTag={activeTag}
+                  tags={tags}
+                  tagsQuery={tagsQuery}
+                />
+              </div>
               <ActionButtonWrapper>
                 <ControlComponent 
                   className="mt-1 w-full" 
@@ -231,17 +232,20 @@ function RouteComponent() {
                   small
                 />
               </div>
-              <TagNavigator 
-                activeDate={activeDate}
-                setActiveTag={setActiveTag}
-                setActiveDate={setActiveDate}
-                activeTag={activeTag}
-                tags={tags}
-                tagsQuery={tagsQuery}
-              />
+              <div className='flex flex-row justify-center'>
+                <TagNavigator 
+                  activeDate={activeDate}
+                  setActiveTag={setActiveTag}
+                  setActiveDate={setActiveDate}
+                  activeTag={activeTag}
+                  tags={tags}
+                  tagsQuery={tagsQuery}
+                  small
+                />
+              </div>
               <div className='flex flex-row justify-center'>
                 <button
-                  className='p-1 border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2'
+                  className='p-1 border rounded-lg enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 enabled:hover:border-gray-400 focus:outline-none focus:ring-2'
                   onClick={() =>  setCreateTimeslotVisible(true)}
                   disabled={activeDate.getTime() < currentDate.getTime()}
                 >

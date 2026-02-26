@@ -4,15 +4,17 @@ import { V6Client } from '@aws-amplify/api-graphql'
 import { Timeslot, UserTag } from "../types";
 import { DateTime } from "luxon";
 import { TagService } from "./tagService";
+import { Duration } from "luxon";
 
-//TODO: add metricing
 interface MapTimeslotOptions {
+  metric?: boolean
   siTag?: {
     TagService: TagService,
     memo: UserTag[]
   } //only allow shallow mapping
 }
 export async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], options?: MapTimeslotOptions): Promise<Timeslot> {
+  const start = new Date().getTime()
   let mappedTag: UserTag | undefined = options?.siTag?.memo.find((tag) => tag.id === timeslotResponse.tagId)
 
   if (options?.siTag !== undefined && mappedTag === undefined && timeslotResponse?.tagId !== null) {
@@ -23,10 +25,19 @@ export async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], 
     ...timeslotResponse,
     description: timeslotResponse.description ?? undefined,
     register: timeslotResponse.register ?? undefined,
+    noshowFee: timeslotResponse.noshowFee ?? undefined,
+    cancelationFee: timeslotResponse.cancelationFee ? {
+      amount: timeslotResponse.cancelationFee.amount,
+      window: Duration.fromISO(timeslotResponse.cancelationFee.window)
+    } : undefined,
     start: new Date(timeslotResponse.start),
     end: new Date(timeslotResponse.end),
     participantId: timeslotResponse.participantId ?? undefined,
     tag: mappedTag
+  }
+
+  if(options?.metric) {
+    console.log(`MAPTIMESLOT:${new Date().getTime() - start}`)
   }
 
   return mappedTimeslot
@@ -153,25 +164,11 @@ export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, tagId?:
     .map(async (timeslotTag) => {
       const timeslot = await timeslotTag.timeslot()
       if (!timeslot || !timeslot.data) return
-      //TODO: use timeslot mapping function
-      const mappedTimeslot: Timeslot = {
-        ...timeslot.data,
-        description: timeslot.data.description ?? undefined,
-        start: new Date(timeslot.data.start),
-        end: new Date(timeslot.data.end),
-        register: timeslot.data.register ?? undefined,
-        participantId: timeslot.data.participantId ?? undefined,
-        tag: {
-          id: tagId,
-          participants: [],
-          children: [],
-          name: '',
-          createdAt: new Date().toISOString()
-        }
-      }
+      const mappedTimeslot = await mapTimeslot(timeslot.data)
+
       return mappedTimeslot
     })
-  )).filter((timeslot) => timeslot !== undefined)
+  ))
 
   return mappedTimeslots
 }

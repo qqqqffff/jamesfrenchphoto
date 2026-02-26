@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { UserTag } from "../../types"
-import { Checkbox, Radio, TextInput } from "flowbite-react"
-import { textInputTheme } from "../../utils"
-import { HiOutlineXMark } from "react-icons/hi2"
+import { Checkbox, Radio } from "flowbite-react"
+import { HiOutlineTag, HiOutlineXMark } from "react-icons/hi2"
 import { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query"
 import { GetAllUserTagsData } from "../../services/tagService"
 
@@ -12,7 +11,7 @@ interface TagPickerProps {
   parentPickTag: (tag?: UserTag) => void
   pickedTag?: UserTag[],
   placeholder?: string
-  className?: string,
+
   allowMultiple?: boolean
   allowClear?: boolean
   hideTag?: boolean,
@@ -59,8 +58,19 @@ export const TagPicker = (props: TagPickerProps) => {
   ])
 
   return (
-    <div className="relative" ref={windowRef}>
-      {props.className ? (
+    <div className="relative w-full" ref={windowRef}>
+      {props.small ? (
+        <div className="flex justify-center">
+          <button
+            className="border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2"
+            onClick={() => setFocused(!focused)}
+          >
+            <div className="p-1">
+              <HiOutlineTag size={24} className="text-gray-900"/>
+            </div>
+          </button>
+        </div>
+      ) : (
         <input 
           placeholder={props.placeholder ?? 'Pick User Tag...'}
           className={`
@@ -69,19 +79,6 @@ export const TagPicker = (props: TagPickerProps) => {
             text-xs
           `}
           value={!props.pickedTag || props.pickedTag.length === 0 || props.hideTag ? '' : 
-            props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
-          onFocus={() => setFocused(true)}
-          readOnly
-        />
-      ) : (
-        <TextInput
-          theme={textInputTheme}
-          placeholder={props.placeholder ?? 'Pick User Tag...'}
-          className={`
-            max-w-[400px] min-w-[400px] placeholder:italic hover:cursor-pointer
-          `}
-          color={!props.pickedTag || props.pickedTag.length === 0 ? 'gray' : props.pickedTag[0].color}
-          value={!props.pickedTag || props.pickedTag.length === 0 ? '' : 
             props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
           onFocus={() => setFocused(true)}
           readOnly
