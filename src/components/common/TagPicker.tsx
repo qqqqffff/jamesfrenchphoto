@@ -11,7 +11,7 @@ interface TagPickerProps {
   parentPickTag: (tag?: UserTag) => void
   pickedTag?: UserTag[],
   placeholder?: string
-
+  placement?: 'start' | 'end'
   allowMultiple?: boolean
   allowClear?: boolean
   hideTag?: boolean,
@@ -66,7 +66,7 @@ export const TagPicker = (props: TagPickerProps) => {
             onClick={() => setFocused(!focused)}
           >
             <div className="p-1">
-              <HiOutlineTag size={24} className="text-gray-900"/>
+              <HiOutlineTag size={24} className={props.pickedTag && props.pickedTag.length === 1 && props.pickedTag[0].color !== undefined ? `text-${props.pickedTag[0].color}` : 'text-gray-900'}/>
             </div>
           </button>
         </div>
@@ -75,7 +75,7 @@ export const TagPicker = (props: TagPickerProps) => {
           placeholder={props.placeholder ?? 'Pick User Tag...'}
           className={`
             text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color} 
-            hover:cursor-pointer w-full px-4 py-2 border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2  
+            hover:cursor-pointer w-full px-4 py-2 border rounded-lg hover:border-gray-400 focus:outline-none focus:ring-2  
             text-xs
           `}
           value={!props.pickedTag || props.pickedTag.length === 0 || props.hideTag ? '' : 
@@ -101,10 +101,11 @@ export const TagPicker = (props: TagPickerProps) => {
       )}
       {focused && (
         <div 
-        className="
+        className={`
           absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg 
-          flex flex-col max-w-[250px]
-        ">
+          flex flex-col max-w-[250px] 
+          ${props?.placement === 'end' ? 'right-0' : 'left-0'}
+        `}>
           <div className="w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between">
             <span>Pick Tag</span>
             <button 

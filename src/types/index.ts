@@ -271,3 +271,11 @@ export interface TemporaryAccessToken {
     sessionTime?: Duration,
     collectionId: string
 }
+
+export interface Segment {
+  id: string;
+  startMin: number;
+  endMin: number;
+  interval: number;
+  userTag?: UserTag;
+}

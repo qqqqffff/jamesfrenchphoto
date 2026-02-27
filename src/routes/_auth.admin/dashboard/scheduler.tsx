@@ -25,7 +25,7 @@ interface SchedulerSearchParams {
 export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): SchedulerSearchParams => ({
-    date: (search.date as string) || DateTime.fromJSDate(currentDate).toFormat('MM-dd-yyyy')
+    date: (search.date as string) || DateTime.fromJSDate(currentDate).setZone('America/Chicago').toFormat('MM-dd-yyyy')
   }),
   beforeLoad: ({ search }) => search,
   loader: ({ context }) => {
@@ -73,8 +73,6 @@ function RouteComponent() {
     },
     siTimeslot: true,
   }))
-
-  
 
   useEffect(() => {
     if(timeslotQuery.data) {
@@ -127,10 +125,12 @@ function RouteComponent() {
           setCreateTimeslotVisible(false)
         }} 
         day={activeDate} 
+        navigate={navigate}
         timeslots={timeslots}
         parentUpdateTimeslots={setTimeslots}
         parentUpdateTags={setTags}
         tags={tags}
+        tagsQuery={tagsQuery}
       />
       {editTimeslotVisible && (
         <EditTimeslotModal 

@@ -1,11 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect, Dispatch, SetStateAction } from "react";
 import { v4 } from 'uuid'
+import { Segment, UserTag } from "../../types";
 
 const START_HOUR = 8;
 const END_HOUR = 18;
 const TOTAL_MINUTES = (END_HOUR - START_HOUR) * 60;
-const MIN_SEG = 15;
 const SNAP = 5;
+const MIN_GAP_TO_ADD = 30;
 
 function minutesToDate(minutes: number) {
   const d = new Date();
@@ -25,200 +26,301 @@ function snap(val: number) {
   return Math.round(val / SNAP) * SNAP;
 }
 
-const COLORS = [
-  { bg: "rgba(139,92,246,0.18)", border: "rgba(139,92,246,0.5)", text: "#a78bfa", dot: "#8b5cf6", glow: "rgba(139,92,246,0.3)" },
-  { bg: "rgba(6,182,212,0.18)", border: "rgba(6,182,212,0.5)", text: "#67e8f9", dot: "#06b6d4", glow: "rgba(6,182,212,0.3)" },
-  { bg: "rgba(245,158,11,0.18)", border: "rgba(245,158,11,0.5)", text: "#fcd34d", dot: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
-  { bg: "rgba(244,63,94,0.18)", border: "rgba(244,63,94,0.5)", text: "#fda4af", dot: "#f43f5e", glow: "rgba(244,63,94,0.3)" },
-  { bg: "rgba(16,185,129,0.18)", border: "rgba(16,185,129,0.5)", text: "#6ee7b7", dot: "#10b981", glow: "rgba(16,185,129,0.3)" },
-  { bg: "rgba(249,115,22,0.18)", border: "rgba(249,115,22,0.5)", text: "#fdba74", dot: "#f97316", glow: "rgba(249,115,22,0.3)" },
-];
+/**
+ * Snap `value` to the nearest multiple of `interval` relative to `anchor`.
+ * Example: snapToInterval(90, 60, 0) → 60; snapToInterval(91, 60, 0) → 120
+ */
+function snapToInterval(value: number, interval: number, anchor: number): number {
+  const offset = value - anchor;
+  return anchor + Math.round(offset / interval) * interval;
+}
+
+/**
+ * Round `value` UP to the next interval boundary relative to `anchor`.
+ * Used when changing interval so the segment always ends on a full boundary.
+ * If `value` is already exactly on a boundary, keep it there.
+ */
+function ceilToInterval(value: number, interval: number, anchor: number): number {
+  const offset = value - anchor;
+  const remainder = offset % interval;
+  if (remainder === 0) return value;
+  return anchor + offset - remainder + interval;
+}
 
 const INTERVALS = [5, 10, 15, 20, 30, 60];
 
-
-//move me to types.ts
-export interface Segment {
-  id: string,
-  startMin: number,
-  endMin: number,
-  interval: number,
-}
-
 interface DragSegment {
-  id: string,
-  type: 'left' | 'right' | 'move'
-  startX: number,
-  origStart: number,
-  origEnd: number,
+  id: string;
+  type: 'left' | 'right' | 'move';
+  startX: number;
+  origStart: number;
+  origEnd: number;
+  didMove: boolean;
 }
 
 interface TimeSegmentBarProps {
-  segments: Segment[]
-  setSegments: Dispatch<SetStateAction<Segment[]>>
+  segments: Segment[];
+  setSegments: Dispatch<SetStateAction<Segment[]>>;
+  header?: JSX.Element
+  activeTag?: UserTag
 }
 
 export function TimeSegmentBar(props: TimeSegmentBarProps) {
   const [activePopup, setActivePopup] = useState<string | null>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
+  const popupsRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
+  const segmentsRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const dragRef = useRef<DragSegment | null>(null);
-  const colorMap = useRef<Record<string, number>>({});
-  const colorCounter = useRef(0);
-
-  props.segments.forEach((s) => {
-    if (colorMap.current[s.id] === undefined) {
-      colorMap.current[s.id] = colorCounter.current++ % COLORS.length;
-    }
-  });
 
   const pctOf = (min: number) => (min / TOTAL_MINUTES) * 100;
 
-  const startDrag = useCallback((e: React.MouseEvent, id: string, type: 'move' | 'left' | 'right') => {
-    e.preventDefault();
-    e.stopPropagation();
-    const seg = props.segments.find((s) => s.id === id);
-    if(!seg) return
-    dragRef.current = { id, type, startX: e.clientX, origStart: seg.startMin, origEnd: seg.endMin };
-    document.body.style.cursor = type === "move" ? "grabbing" : "col-resize";
-  }, [props.segments]);
+  const startDrag = useCallback(
+    (e: React.MouseEvent, id: string, type: 'move' | 'left' | 'right') => {
+      e.preventDefault();
+      e.stopPropagation();
+      const seg = props.segments.find((s) => s.id === id);
+      if (!seg) return;
+      dragRef.current = {
+        id,
+        type,
+        startX: e.clientX,
+        origStart: seg.startMin,
+        origEnd: seg.endMin,
+        didMove: false,
+      };
+      document.body.style.cursor = type === "move" ? "grabbing" : "col-resize";
+    },
+    [props.segments]
+  );
 
   useEffect(() => {
+    const MOVE_THRESHOLD_PX = 4;
+
     const onMove = (e: MouseEvent) => {
       if (!dragRef.current || !barRef.current) return;
       const { id, type, startX, origStart, origEnd } = dragRef.current;
+
+      if (!dragRef.current.didMove && Math.abs(e.clientX - startX) >= MOVE_THRESHOLD_PX) {
+        dragRef.current.didMove = true;
+      }
+
       const rect = barRef.current.getBoundingClientRect();
-      const deltaMins = snap((e.clientX - startX) / rect.width * TOTAL_MINUTES);
+      const deltaMinsFull = (e.clientX - startX) / rect.width * TOTAL_MINUTES;
 
       props.setSegments((prev) =>
         prev.map((s) => {
           if (s.id !== id) return s;
+
           if (type === "left") {
-            const newStart = Math.max(0, Math.min(origStart + deltaMins, s.endMin - MIN_SEG));
-            return { ...s, startMin: snap(newStart) };
+            // Anchor is the fixed end; snap the dragged start to nearest interval boundary
+            const rawStart = origStart + deltaMinsFull;
+            const snapped = snapToInterval(rawStart, s.interval, origEnd);
+            // Must stay >= 0 and leave at least one interval's width
+            const newStart = Math.max(0, Math.min(snapped, s.endMin - s.interval));
+            return { ...s, startMin: newStart };
+
           } else if (type === "right") {
-            const newEnd = Math.min(TOTAL_MINUTES, Math.max(origEnd + deltaMins, s.startMin + MIN_SEG));
-            return { ...s, endMin: snap(newEnd) };
+            // Anchor is the fixed start; snap the dragged end to nearest interval boundary
+            const rawEnd = origEnd + deltaMinsFull;
+            const snapped = snapToInterval(rawEnd, s.interval, origStart);
+            // Must stay <= TOTAL_MINUTES and leave at least one interval's width
+            const newEnd = Math.min(TOTAL_MINUTES, Math.max(snapped, s.startMin + s.interval));
+            return { ...s, endMin: newEnd };
+
           } else {
+            // move — preserve exact duration, snap start to 5-min grid
             const dur = origEnd - origStart;
-            const newStart = snap(Math.max(0, Math.min(TOTAL_MINUTES - dur, origStart + deltaMins)));
+            const newStart = snap(
+              Math.max(0, Math.min(TOTAL_MINUTES - dur, origStart + deltaMinsFull))
+            );
             return { ...s, startMin: newStart, endMin: newStart + dur };
           }
         })
       );
     };
-    const onUp = () => { dragRef.current = null; document.body.style.cursor = ""; };
+
+    const onUp = () => {
+      dragRef.current = null;
+      document.body.style.cursor = "";
+    };
+
+    const onMouseClick = (e: MouseEvent) => {
+      if(
+        focusedId !== null
+      ) {
+        const popupTarget = popupsRef.current.get(focusedId)
+        const segmentTarget = segmentsRef.current.get(focusedId)
+
+        if(
+          !popupTarget ||
+          !popupTarget.contains(e.target as Node) ||
+          !segmentTarget ||
+          !segmentTarget.contains(e.target as Node)
+        ) {
+          setFocusedId(null)
+          setActivePopup(null)
+        }
+      }
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if(
+        focusedId !== null &&
+        e.key === 'Backspace'
+      ) {
+        removeSegment(focusedId)
+      }
+    }
+
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+    window.addEventListener('mousedown', onMouseClick)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener('mousedown', onMouseClick)
+      window.removeEventListener('keydown', onKeyDown)
+    };
   }, []);
 
-  const addSegment = () => {
-    const sorted = [...props.segments].sort((a, b) => a.startMin - b.startMin);
-    const gaps = [];
-    let prev = 0;
-    for (const s of sorted) {
-      if (s.startMin - prev >= 60) gaps.push({ from: prev, to: s.startMin });
-      prev = s.endMin;
-    }
-    if (TOTAL_MINUTES - prev >= 60) gaps.push({ from: prev, to: TOTAL_MINUTES });
-    if (gaps.length === 0) return;
-    const gap = gaps.reduce((a, b) => (b.to - b.from > a.to - a.from ? b : a));
-    const mid = snap((gap.from + gap.to) / 2);
-    const newStart = snap(Math.max(gap.from, mid - 30));
-    const newEnd = snap(Math.min(gap.to, newStart + 60));
-    props.setSegments((prev) => [...prev, { id: v4(), startMin: newStart, endMin: newEnd, interval: 15 }]);
-  };
-
-  const removeSegment = (id: string) => {
-    props.setSegments((prev) => prev.filter((s) => s.id !== id));
+  const clearFocus = () => {
+    setFocusedId(null);
     setActivePopup(null);
   };
 
+  const largestGap = () => {
+    const sorted = [...props.segments].sort((a, b) => a.startMin - b.startMin);
+    let best = 0;
+    let prev = 0;
+    for (const s of sorted) {
+      best = Math.max(best, s.startMin - prev);
+      prev = s.endMin;
+    }
+    best = Math.max(best, TOTAL_MINUTES - prev);
+    return best;
+  };
+
+  const canAddSegment = largestGap() >= MIN_GAP_TO_ADD;
+
+  const addSegment = () => {
+    if (!canAddSegment) return;
+    const sorted = [...props.segments].sort((a, b) => a.startMin - b.startMin);
+    const gaps: { from: number; to: number }[] = [];
+    let prev = 0;
+    for (const s of sorted) {
+      if (s.startMin - prev >= MIN_GAP_TO_ADD) gaps.push({ from: prev, to: s.startMin });
+      prev = s.endMin;
+    }
+    if (TOTAL_MINUTES - prev >= MIN_GAP_TO_ADD) gaps.push({ from: prev, to: TOTAL_MINUTES });
+    const gap = gaps.reduce((a, b) => (b.to - b.from > a.to - a.from ? b : a));
+    const mid = snap((gap.from + gap.to) / 2);
+    const half = Math.min(30, Math.floor((gap.to - gap.from) / 2 / SNAP) * SNAP);
+    const newStart = snap(Math.max(gap.from, mid - half));
+    const newEnd = snap(Math.min(gap.to, newStart + half * 2));
+    props.setSegments((prev) => [...prev, { id: v4(), startMin: newStart, endMin: newEnd, interval: 15, userTag: props.activeTag }]);
+  };
+
+  const removeSegment = (id: string) => {
+    props.setSegments((prev) => {
+      console.log(prev, id)
+      return prev.filter((s) => s.id !== id)
+    })
+    if (focusedId === id) setFocusedId(null);
+    setActivePopup(null);
+  };
+
+  /**
+   * Change interval and snap endMin to the next full interval boundary from startMin,
+   * so the segment always contains a whole number of intervals.
+   */
   const setInterval_ = (id: string, interval: number) => {
-    props.setSegments((prev) => prev.map((s) => (s.id === id ? { ...s, interval } : s)));
+    props.setSegments((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        const ceiled = ceilToInterval(s.endMin, interval, s.startMin);
+        // Ensure at least one full interval, and don't exceed timeline
+        const newEnd = Math.min(TOTAL_MINUTES, Math.max(ceiled, s.startMin + interval));
+        return { ...s, interval, endMin: newEnd };
+      })
+    );
   };
 
   const hourTicks = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => i);
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-8"
-      style={{ background: "linear-gradient(135deg, #0f0f1a 0%, #1a1025 50%, #0d1a2e 100%)" }}
-      onClick={() => setActivePopup(null)}
+      className="flex items-center justify-center px-6"
+      onClick={clearFocus}
     >
-      <div className="w-full max-w-4xl">
+      <div className="w-full max-w-4xl flex flex-col gap-2">
         {/* Header */}
-        <div className="mb-8 flex items-end justify-between">
+        <div className="flex flex-row items-end justify-between w-full">
           <div>
-            <p className="text-xs tracking-[0.3em] text-slate-500 uppercase mb-1 font-mono">Schedule Builder</p>
-            <h1 className="text-3xl font-light text-slate-100" style={{ fontFamily: "'Georgia', serif", letterSpacing: "-0.02em" }}>
-              Time Segments
-            </h1>
+            {props.header}
           </div>
           <button
-            onClick={addSegment}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-sm hover:border-slate-500 hover:bg-slate-700/60 transition-all duration-200 font-mono"
+            onClick={(e) => { e.stopPropagation(); addSegment(); }}
+            disabled={!canAddSegment}
+            title={!canAddSegment ? "No 30-minute gap available" : undefined}
+            className="gap-2 px-4 py-2 rounded-lg border text-sm enabled:hover:border-gray-500 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <span className="text-lg leading-none">+</span> Add Segment
+            <span>Add Segment</span>
           </button>
         </div>
 
-        {/* Pills */}
-        <div className="flex gap-2 mb-6 flex-wrap min-h-[28px]">
-          {[...props.segments].sort((a, b) => a.startMin - b.startMin).map((seg) => {
-            const c = COLORS[colorMap.current[seg.id] % COLORS.length];
-            return (
-              <div key={seg.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono border"
-                style={{ background: c.bg, borderColor: c.border, color: c.text }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.dot }} />
-                {formatTime(minutesToDate(seg.startMin))} – {formatTime(minutesToDate(seg.endMin))}
-                <span style={{ color: "rgba(148,163,184,0.4)" }}>·</span>
-                {seg.interval}m
-              </div>
-            );
-          })}
-        </div>
-
         {/* Bar + popups wrapper */}
-        <div className="relative" onClick={(e) => e.stopPropagation()}>
+        <div className="relative">
 
           {/* Popups — rendered above the bar track */}
           <div className="relative h-0">
             {props.segments.map((seg) => {
               if (activePopup !== seg.id) return null;
-              const c = COLORS[colorMap.current[seg.id] % COLORS.length];
               const centerPct = ((seg.startMin + seg.endMin) / 2 / TOTAL_MINUTES) * 100;
               return (
-                <div key={seg.id} className="absolute z-40" style={{ left: `${centerPct}%`, transform: "translateX(-50%)", bottom: "12px" }}>
-                  <div className="rounded-xl p-3 shadow-2xl min-w-[200px]"
-                    style={{ background: "#0d0d1f", border: `1px solid ${c.border}`, boxShadow: `0 0 32px ${c.glow}` }}>
-                    <p className="text-slate-400 text-xs font-mono mb-2 tracking-wider uppercase">Interval</p>
+                <div
+                  ref={el => popupsRef.current.set(seg.id, el)}
+                  key={seg.id}
+                  className="absolute z-40"
+                  style={{ left: `${centerPct}%`, transform: "translateX(-50%)", bottom: "12px" }}
+                >
+                  <div className="rounded-xl p-3 shadow-2xl min-w-[200px] border bg-white">
                     <div className="grid grid-cols-3 gap-1.5 mb-3">
                       {INTERVALS.map((iv) => (
-                        <button key={iv}
+                        <button
+                          key={iv}
                           onClick={() => { setInterval_(seg.id, iv); setActivePopup(null); }}
-                          className="py-1.5 rounded-md text-xs font-mono transition-all"
-                          style={seg.interval === iv
-                            ? { background: c.bg, border: `1px solid ${c.border}`, color: c.text }
-                            : { background: "#1a1a2e", border: "1px solid #2a3040", color: "#94a3b8" }}>
+                          className={`
+                            py-1.5 rounded-md text-xs font-mono border
+                            ${seg.interval === iv
+                              ? 'bg-gray-200 cursor-not-allowed'
+                              : 'hover:border-gray-400'
+                            }
+                          `}
+                          disabled={seg.interval === iv}
+                        >
                           {iv}m
                         </button>
                       ))}
                     </div>
-                    <button onClick={() => removeSegment(seg.id)}
+                    <button
+                      onClick={() => removeSegment(seg.id)}
                       className="w-full py-1.5 rounded-md text-xs font-mono"
-                      style={{ background: "rgba(244,63,94,0.1)", border: "1px solid rgba(244,63,94,0.3)", color: "#fda4af" }}>
+                      style={{
+                        background: "rgba(244,63,94,0.1)",
+                        border: "1px solid rgba(244,63,94,0.3)",
+                        color: "#fda4af",
+                      }}
+                    >
                       Remove segment
                     </button>
                   </div>
                   {/* Caret */}
                   <div className="flex justify-center overflow-hidden" style={{ height: "8px" }}>
-                    <div className="w-3 h-3 rotate-45" style={{
-                      background: "#0d0d1f",
-                      border: `1px solid ${c.border}`,
-                      borderTop: "none", borderLeft: "none",
-                      marginTop: "-6px"
-                    }} />
+                    <div
+                      className="w-3 h-3 rotate-45 border bg-white"
+                    />
                   </div>
                 </div>
               );
@@ -229,12 +331,14 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
           <div
             ref={barRef}
             className="relative h-24 rounded-2xl border border-slate-800/80"
-            style={{ background: "rgba(8,8,20,0.95)" }}
           >
-            {/* Subtle grid lines */}
+            {/* Hour grid lines */}
             {hourTicks.slice(1, -1).map((h) => (
-              <div key={h} className="absolute top-0 h-full w-px pointer-events-none"
-                style={{ left: `${(h * 60 / TOTAL_MINUTES) * 100}%`, background: "rgba(148,163,184,0.05)" }} />
+              <div
+                key={h}
+                className="absolute top-0 h-full w-px pointer-events-none bg-gray-200"
+                style={{ left: `${(h * 60 / TOTAL_MINUTES) * 100}%` }}
+              />
             ))}
 
             {/* Empty state */}
@@ -245,8 +349,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
             )}
 
             {/* Segments */}
-            {props.segments.map((seg) => {
-              const c = COLORS[colorMap.current[seg.id] % COLORS.length];
+            {props.segments.map((seg, index) => {
               const leftPct = pctOf(seg.startMin);
               const widthPct = pctOf(seg.endMin - seg.startMin);
               const durationMins = seg.endMin - seg.startMin;
@@ -255,19 +358,27 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
 
               return (
                 <div
+                  ref={el => segmentsRef.current.set(seg.id, el)}
                   key={seg.id}
-                  className="absolute top-2 bottom-2 rounded-xl flex items-center justify-center select-none"
+                  className={`
+                    absolute top-2 bottom-2 rounded-xl 
+                    flex items-center justify-center select-none
+                    border  border-gray-400 bg-opacity-40
+                    ${seg.userTag?.color ? `bg-${seg.userTag.color}` : ''}
+                  `}
                   style={{
                     left: `${leftPct}%`,
                     width: `${widthPct}%`,
-                    background: c.bg,
-                    border: `1px solid ${c.border}`,
-                    boxShadow: isActive ? `0 0 24px ${c.glow}, inset 0 0 12px ${c.glow}` : `inset 0 0 0 0 transparent`,
                     cursor: "grab",
-                    transition: "box-shadow 0.2s",
+                    outline: "none",
                   }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFocusedId(seg.id);
+                  }}
+                  tabIndex={index}
                   onMouseDown={(e) => {
-                    startDrag(e, seg.id, "move")
+                    startDrag(e, seg.id, "move");
                   }}
                 >
                   {/* Interval ticks */}
@@ -275,18 +386,24 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     {Array.from({ length: tickCount }).map((_, ti) => {
                       const tickPct = ((ti + 1) * seg.interval / durationMins) * 100;
                       return (
-                        <div key={ti} className="absolute top-0 bottom-0 w-px"
-                          style={{ left: `${tickPct}%`, background: c.dot, opacity: 0.18 }} />
+                        <div
+                          key={ti}
+                          className="absolute top-0 bottom-0 w-px opacity-20 bg-gray-500"
+                          style={{ left: `${tickPct}%` }}
+                        />
                       );
                     })}
                   </div>
 
-                  {/* Label */}
+                  {/* Label / popup trigger */}
                   <button
                     className="flex flex-col items-center gap-0.5 z-10 px-2 py-1 rounded-lg transition-colors"
-                    style={{ color: c.text }}
                     onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => { e.stopPropagation(); setActivePopup(isActive ? null : seg.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFocusedId(seg.id);
+                      setActivePopup(isActive ? null : seg.id);
+                    }}
                   >
                     <span className="text-sm font-mono font-medium leading-none">{seg.interval}m</span>
                     <span className="text-xs opacity-50 font-mono mt-1">
@@ -294,25 +411,39 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     </span>
                   </button>
 
-                  {/* Left handle */}
+                  {/* Left resize handle */}
                   <div
                     className="absolute left-0 top-0 bottom-0 w-4 flex items-center justify-center rounded-l-xl cursor-col-resize z-20 group/lh"
-                    onMouseDown={(e) => startDrag(e, seg.id, "left")}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      startDrag(e, seg.id, "left");
+                    }}
                   >
                     <div className="flex flex-col gap-0.5">
-                      <span className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/lh:opacity-90" style={{ background: c.dot }} />
-                      <span className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/lh:opacity-90" style={{ background: c.dot }} />
+                      <span
+                        className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/lh:opacity-90 bg-gray-500"
+                      />
+                      <span
+                        className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/lh:opacity-90 bg-gray-500"
+                      />
                     </div>
                   </div>
 
-                  {/* Right handle */}
+                  {/* Right resize handle */}
                   <div
                     className="absolute right-0 top-0 bottom-0 w-4 flex items-center justify-center rounded-r-xl cursor-col-resize z-20 group/rh"
-                    onMouseDown={(e) => startDrag(e, seg.id, "right")}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      startDrag(e, seg.id, "right");
+                    }}
                   >
                     <div className="flex flex-col gap-0.5">
-                      <span className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/rh:opacity-90" style={{ background: c.dot }} />
-                      <span className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/rh:opacity-90" style={{ background: c.dot }} />
+                      <span
+                        className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/rh:opacity-90 bg-gray-500"
+                      />
+                      <span
+                        className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/rh:opacity-90 bg-gray-500"
+                      />
                     </div>
                   </div>
                 </div>
@@ -327,7 +458,11 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
               const hour = START_HOUR + h;
               const label = hour === 12 ? "12p" : hour > 12 ? `${hour - 12}p` : `${hour}a`;
               return (
-                <div key={h} className="absolute flex flex-col items-center" style={{ left: `${pct}%`, transform: "translateX(-50%)" }}>
+                <div
+                  key={h}
+                  className="absolute flex flex-col items-center"
+                  style={{ left: `${pct}%`, transform: "translateX(-50%)" }}
+                >
                   <div className="w-px h-1.5 bg-slate-700" />
                   <span className="text-xs text-slate-600 font-mono mt-0.5">{label}</span>
                 </div>

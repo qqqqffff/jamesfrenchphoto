@@ -1,35 +1,37 @@
 import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
 import { ModalProps } from ".";
-import { Button, Dropdown, Label, Modal, RangeSlider, TextInput } from "flowbite-react";
-import { DAY_OFFSET, defaultColumnColors, getTimes, textInputTheme } from "../../utils";
-import { Timeslot, UserTag } from "../../types";
-import { useMutation, UseQueryResult } from "@tanstack/react-query";
+import { Button, Checkbox, Label, Modal, TextInput } from "flowbite-react";
+import { DAY_OFFSET, textInputTheme } from "../../utils";
+import { Segment, Timeslot, UserTag } from "../../types";
+import { InfiniteData, UseInfiniteQueryResult, useMutation } from "@tanstack/react-query";
 import { TimeslotService, CreateTimeslotsMutationParams, DeleteTimeslotsMutationParams, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
-import { v4 } from 'uuid'
 import { TagPicker } from "../common/TagPicker";
-import { Duration } from "luxon";
+import { DateTime, Duration } from "luxon";
+import { HiOutlineArrowRight, HiOutlineArrowLeft } from 'react-icons/hi'
+import { UseNavigateResult } from "@tanstack/react-router";
+import { TimeSegmentBar } from "../common/TimeSegmentBar";
+import { GetAllUserTagsData } from "../../services/tagService";
+import { convertSegmentListToTimeslots, convertTimeslotListToSegments } from "../../functions/timeslotFunctions";
+import { SlotComponent } from "../timeslot/Slot";
+import { PriceInput } from "../common/PriceInput";
 
 interface CreateTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,
   day: Date;
+  navigate: UseNavigateResult<string>
   timeslots: Timeslot[]
-  tags: UserTag[]
+  tags: UserTag[],
+  tagsQuery?: UseInfiniteQueryResult<InfiniteData<GetAllUserTagsData, unknown>, Error>
   parentUpdateTimeslots: Dispatch<SetStateAction<Timeslot[]>>
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
 }
 
 export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateTimeslotModalProps) => {
-  const [startTime, setStartTime] = useState<Date>()
-  const [endTime, setEndTime] = useState<Date>()
-  const [increment, setIncrement] = useState<number>(25)
-  const [noshowFee, setNoshowFee] = useState<number | undefined>(40)
+  const [segments, setSegments] = useState<Segment[]>([])
+  const [noshowFee, setNoshowFee] = useState<number | undefined>(60)
   const [cancelationFee, setCancelationFee] = useState<{ amount: number, window: Duration } | undefined>({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
   const [description, setDescription] = useState<string>('')
   const [selectedTag, setSelectedTag] = useState<UserTag>()
-
-  const [previewTimeslots, setPreviewTimeslots] = useState<Timeslot[]>([])
-  const [selectedTimeslots, setSelectedTimeslots] = useState<Timeslot[]>(props.timeslots)
-  
 
   const createTimeslot = useMutation({
     mutationFn: (params: CreateTimeslotsMutationParams) => props.TimeslotService.createTimeslotsMutation(params)
@@ -44,17 +46,10 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
   })
 
   useEffect(() => {
-    if(
-      props.timeslots.some((pTimeslot) => selectedTimeslots.some((timeslot) => timeslot.id !== pTimeslot.id)) ||
-      selectedTimeslots.some((timeslot) => props.timeslots.some((pTimeslot) => pTimeslot.id !== timeslot.id))
-    ) {
-      setSelectedTimeslots(props.timeslots)
-    }
+    setSegments(convertTimeslotListToSegments(props.timeslots))
   }, [
     props.open
   ])
-
-  const times = getTimes(props.day)
 
   function submitForm(){
     console.log(props.timeslots, selectedTimeslots)
@@ -92,281 +87,179 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
     props.parentUpdateTags((prev) => prev.map((tag) => ({
       ...tag,
     })))
-    resetState()
     props.onClose()
   }
+
+  
+  const selectedTimeslots = convertSegmentListToTimeslots(
+    props.day,
+    segments, 
+    props.timeslots,
+    {
+      noshowFee: noshowFee,
+      description: description,
+      cancelationFee: cancelationFee
+    }
+  )
 
   return (
     <Modal 
       show={props.open} 
-        onClose={() => {
-        resetState()
+      onClose={() => {
         props.onClose()
       }}
     >
       <Modal.Header>{props.timeslots.length > 0 ? 'Update Timeslots' : 'Create New Timeslots'}</Modal.Header>
       <Modal.Body>
-        <div className="flex flex-col">
-          <div className="flex flex-col max-w-[400px] min-w-[400px] self-center">
-            <Label className="ms-2 font-medium text-lg" htmlFor="timeslotDescription">Description:</Label>
-            <TextInput
-              id='timeslotDescription'
-              theme={textInputTheme} 
-              placeholder="Timeslot Descripition..."
-              className=" placeholder:italic w-full mb-4"
-              sizing="md" 
-              onChange={(event) => {
-                  setDescription(event.target.value)
-              }}
-              value={description}
-              name="Timeslot Description"
-            />
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-row gap-3 items-center self-center">
+            <button
+              className="py-1 px-2 border rounded-lg cursor-pointer enabled:hover:border-gray-400 disabled:opacity-60"
+              onClick={() => props.navigate({ to: '.', search: { date: DateTime.fromJSDate(new Date(props.day.getTime() - DAY_OFFSET)).toFormat('MM-dd-yyyy')}}) }
+            >
+              <HiOutlineArrowLeft size={20} />
+            </button>
+            <span className="text-xl self-center">{DateTime.fromJSDate(props.day).toFormat('LLL dd, yyyy')}</span>
+            <button 
+              className="py-1 px-2 border rounded-lg cursor-pointer hover:border-gray-400"
+              onClick={() => props.navigate({ to: '.', search: { date: DateTime.fromJSDate(new Date(props.day.getTime() + DAY_OFFSET)).toFormat('MM-dd-yyyy')}}) }
+            >
+              <HiOutlineArrowRight size={20} className="text-gray-900"/>
+            </button>
           </div>
-          <div className="flex flex-row gap-8 justify-between w-full mb-4">
-            <div className="flex flex-col text-start ">
-              <span className="text-lg ms-1 font-medium">Date:</span>
-              <span className="text-xl mb-4 underline underline-offset-4">{props.day.toLocaleDateString()}</span>
+          <TimeSegmentBar 
+            segments={segments}
+            setSegments={setSegments}
+            activeTag={selectedTag}
+            header={(
+              <div className="flex flex-col self-center">
+                <Label className="font-medium text-lg" htmlFor="timeslotDescription">Description:</Label>
+                <div className="flex flex-row gap-4 items-center">
+                  <TextInput
+                    id='timeslotDescription'
+                    theme={textInputTheme} 
+                    placeholder="Timeslot Descripition..."
+                    className=" placeholder:italic w-full min-w-[300px]"
+                    sizing="md" 
+                    onChange={(event) => {
+                        setDescription(event.target.value)
+                    }}
+                    value={description}
+                    name="Timeslot Description"
+                  />
+                  <TagPicker 
+                    tags={props.tags}
+                    parentPickTag={(tag) => setSelectedTag(tag)}
+                    pickedTag={selectedTag ? [selectedTag] : undefined}
+                    allowMultiple={false}
+                    small
+                    tagQuery={props.tagsQuery}
+                    placement="end"
+                    allowClear
+                  />
+                </div>
+              </div>
+            )}
+          />
+          <div className="flex flex-row w-full px-6 justify-between border rounded-lg py-2">
+            <div className="flex flex-col gap-2">
+              <button 
+                className="flex flex-row gap-1 items-center" 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setNoshowFee(noshowFee !== undefined ? undefined : 40)
+                }}
+              >
+                <Checkbox readOnly checked={noshowFee !== undefined}/>
+                <span>No Show Fee</span>
+              </button>
+              {noshowFee !== undefined && (
+                <PriceInput
+                  updateState={(v) => setNoshowFee(parseFloat(v))}
+                  value={String(noshowFee)}
+                />
+              )}
             </div>
-            <div className="flex flex-col items-center">
-              <div className="flex flex-col gap-1">
-                <Label className="ms-2 font-medium text-lg" htmlFor="startTime">Start:</Label>
-                <Dropdown 
-                  size='sm' 
-                  placement="bottom-start" 
-                  id='startTime' 
-                  label={typeof startTime === 'string' ? startTime : startTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} 
-                  color="light"
-                  className="overflow-auto max-h-[250px]"
-                >
-                  {times.map((time, index) => { 
-                    return (
-                      <Dropdown.Item 
-                        className='disabled:text-gray-400 disabled:cursor-not-allowed'
-                        disabled={!startEnabled(time)}
-                        key={index} 
-                        onClick={() => {
-                          let timeslots: Timeslot[] = [...previewTimeslots]
-                          
-                          if(typeof endTime !== 'string'){
-                            let temp = time
-                            while(temp.getTime() < endTime.getTime()){
-                              //end incremented by the increment + offseted start (temp)
-                              const end = new Date(temp.getTime() + DAY_OFFSET * (increment / 1440))
-                              if(end.getTime() > endTime.getTime()) break;
-                              //if dne in current array push to array
-                              if(!timeslots.some((timeslot) => (
-                                timeslot.start.getTime() === temp.getTime() && 
-                                timeslot.end.getTime() === end.getTime()
-                              ))) {
-                                const timeslot: Timeslot = {
-                                  id: v4(),
-                                  start: temp,
-                                  end: end,
-                                  updatedAt: new Date().toISOString(),
-                                }
-                                timeslots.push(timeslot)
-                              }
-                              
-                              temp = end
-                            }
-                            //trim start
-                            timeslots = timeslots.filter((timeslot) => timeslot.start.getTime() >= time.getTime())
-                          }
-
-                          const updatedSelectedTimeslots: Timeslot[] = []
-                          //check selected timeslots
-                          for(let i = 0; i < selectedTimeslots.length; i++) {
-                            if(timeslots.some((timeslot) => (
-                              timeslot.start.getTime() === selectedTimeslots[i].start.getTime() &&
-                              timeslot.end.getTime() === selectedTimeslots[i].end.getTime()
-                            ))) {
-                              updatedSelectedTimeslots.push(selectedTimeslots[i])
-                            }
-                          }
-
-                          setStartTime(time)
-                          setPreviewTimeslots(timeslots.sort((a, b) => a.start.getTime() - b.start.getTime()))
-                          setSelectedTimeslots(updatedSelectedTimeslots.sort((a, b) => a.start.getTime() - b.start.getTime()))
-                        }}
-                      >{time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</Dropdown.Item>
-                    )
-                  })}
-                </Dropdown>
+            <div className="flex flex-col gap-2">
+              <button
+                className="flex flex-row gap-1 items-center self-end"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setCancelationFee(cancelationFee !== undefined ? undefined : { amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
+                }}
+              >
+                <Checkbox readOnly checked={cancelationFee !== undefined} />
+                <span>Last Minute Booking Fee</span>
+              </button>
+              {cancelationFee !== undefined && (
+                <div className="flex flex-row gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm italic">Hours Before</span>
+                    <TextInput
+                      theme={textInputTheme}
+                      sizing="sm" 
+                      className="w-[100px]"
+                      onChange={(event) => {
+                        let value = event.target.value.replace(/[^\d]/g, '')
+                        value = value === '' ? '0' : value
+                        if(!isNaN(parseInt(value))) {
+                          setCancelationFee({
+                            ...cancelationFee,
+                            window: Duration.fromObject({ hours: parseInt(value) })
+                          })
+                        }
+                      }}
+                      value={cancelationFee.window.as('hours')}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm italic">Fee</span>
+                    <PriceInput
+                      updateState={(v) => setCancelationFee({
+                        ...cancelationFee,
+                        amount: parseFloat(v)
+                      })}
+                      value={String(cancelationFee.amount)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          {selectedTimeslots.length > 0 ? (
+            <div className="w-full flex flex-col justify-center items-center gap-3">
+              <span className="underline underline-offset-2">Timeslots Preview:</span>
+              <div className="grid grid-cols-3 w-full gap-2 max-h-[250px] overflow-auto border-2 border-gray-500 rounded-lg p-2">
+                {selectedTimeslots.map((timeslot, index) => {
+                  console.log(timeslot.tag)
+                  return (
+                    <SlotComponent 
+                      key={index}
+                      timeslot={timeslot}
+                    />  
+                  )})}
+              </div>
+              <div className="flex flex-row w-full justify-end">
+                <Button 
+                  color="light" 
+                  className="border-gray-700 me-4" 
+                  type="button" 
+                  onClick={() => setSegments([])}
+                >Clear</Button>
               </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <Label className="ms-2 font-medium text-lg" htmlFor="endTime">End:</Label>
-              <Dropdown 
-                size='sm' 
-                placement="bottom-end" 
-                id='endTime' 
-                label={typeof endTime === 'string' ? endTime : endTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} 
-                color="light" 
-                disabled={typeof startTime == 'string'} 
-                className="overflow-auto max-h-[250px]"
-              >
-                {times.map((time, index) => { 
-                  return (
-                    <Dropdown.Item 
-                      key={index} 
-                      className='disabled:text-gray-400 disabled:cursor-not-allowed' 
-                      disabled={!endEnabled(time)} 
-                      onClick={() => {
-                        let timeslots: Timeslot[] = [...previewTimeslots]
-                        
-                        if(typeof startTime !== 'string'){
-                          let temp = startTime
-                          let startOffset = 0
-                          while(temp < time){
-                            //end incremented by the increment + offseted start (temp)
-                            const end = new Date(temp.getTime() + DAY_OFFSET * (increment / 1440))
-                            //break if greater
-                            if(end > time) break;
-                            //if does not already exist push to array
-                            if(!timeslots.some((ts) => (
-                              temp.getTime() === ts.start.getTime() && end.getTime() === ts.end.getTime()
-                            ))) {
-                              const timeslot: Timeslot = {
-                                id: v4(),
-                                start: temp,
-                                end: end,
-                                updatedAt: new Date().toISOString(),
-                              }
-                              timeslots.push(timeslot)
-                            }
-                            
-                            temp = end
-                            startOffset++;
-                          }
-                          //trim end
-                          timeslots = timeslots.filter((timeslot) => timeslot.end.getTime() <= time.getTime())
-                        }
-
-                        const updatedSelectedTimeslots: Timeslot[] = []
-                        //check selected timeslots
-                        for(let i = 0; i < selectedTimeslots.length; i++) {
-                          if(timeslots.some((timeslot) => (
-                            timeslot.start.getTime() === selectedTimeslots[i].start.getTime() &&
-                            timeslot.end.getTime() === selectedTimeslots[i].end.getTime()
-                          ))) {
-                            updatedSelectedTimeslots.push(selectedTimeslots[i])
-                          }
-                        }
-
-                        setEndTime(time)
-                        setPreviewTimeslots(timeslots.sort((a, b) => a.start.getTime() - b.start.getTime()))
-                        setSelectedTimeslots(updatedSelectedTimeslots.sort((a, b) => a.start.getTime() - b.start.getTime()))
-                      }}
-                    >{time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</Dropdown.Item>
-                  )
-                })}
-              </Dropdown>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="ms-2 font-medium text-lg" >Tag:</span>
-              <TagPicker 
-                tags={props.tags}
-                parentPickTag={(tag) => setSelectedTag(tag)}
-                pickedTag={selectedTag ? [selectedTag] : undefined}
-                allowMultiple={false}
-                allowClear
-                className="max-w-[150px] border rounded-lg px-2 py-1.5"
-              />
-            </div>
-          </div>
-        </div>
-        {
-          props.timeslots.length > 0 ? (
-            <div className="flex flex-col w-full items-center justify-center">
-              <span>Timeslot Increment: {increment} mins</span>
-            </div> 
           ) : (
-            <div className="flex flex-col w-full items-center justify-center">
-              <span>Timeslot Increment: {increment} mins</span>
-              <RangeSlider 
-                min={15} 
-                max={60} 
-                step={15} 
-                defaultValue={increment} 
-                onChange={(event) => {
-                  const increment = event.target.valueAsNumber
-                  let timeslots: Timeslot[] = []
-                  if(typeof startTime !== 'string' && typeof endTime !== 'string'){
-                      let temp = startTime
-                      while(temp < endTime){
-                          const end = new Date(temp.getTime() + DAY_OFFSET * (increment / 1440))
-                          if(end > endTime) break;
-                          const timeslot: Timeslot = {
-                              id: '',
-                              start: temp,
-                              end: end,
-                              updatedAt: new Date().toISOString(),
-                          }
-                          timeslots.push(timeslot)
-                          temp = end
-                      }
-                  }
-                  setIncrement(increment)
-                  setPreviewTimeslots(timeslots)
-                  setSelectedTimeslots([])
-                }} 
-                disabled={typeof startTime === 'string' || typeof endTime === 'string'} 
-                className="w-[60%]"
-              />
+            <div className="border rounded-lg w-full flex flex-row justify-center px-4 py-2">
+              <span>No timeslots for the selected range</span>
             </div>
-          )
-        }
-        {previewTimeslots.length > 0 ? (
-          <div className="w-full flex flex-col justify-center items-center mt-4 gap-3">
-            <span className="underline underline-offset-2">Timeslots for selected range:</span>
-            <div className="grid grid-cols-4 w-full gap-2 max-h-[200px] overflow-auto border-2 border-gray-500 rounded-lg p-2">
-              {previewTimeslots.map((timeslot, index) => {
-                const selected = selectedTimeslots.find((ts) => timeslot.id === ts.id)
-                
-                return (
-                    <button 
-                      key={index} 
-                      type="button" 
-                      className={`
-                        flex flex-row border-[1.5px] py-1.5 rounded-lg 
-                        border-black items-center justify-center hover:bg-gray-300 
-                        ${selected ? 
-                            selected.tag && selected.tag.color ? `bg-${defaultColumnColors[selected.tag.color].bg}` : 'bg-gray-200' 
-                          : ''
-                        }
-                      `}
-                      onClick={() => {
-                          if(selected !== undefined && selected.tag?.id === selectedTag?.id){
-                            setSelectedTimeslots(selectedTimeslots.filter((ts) => ts.id !== timeslot.id))
-                          }
-                          else if(selected !== undefined && selected.tag?.id !== selectedTag?.id) {
-                            setSelectedTimeslots(selectedTimeslots.map((timeslot) => (timeslot.id === selected.id ? ({
-                              ...selected,
-                              tag: selectedTag
-                            }) : timeslot )))
-                          }
-                          else {
-                            setSelectedTimeslots([...selectedTimeslots, {
-                              ...timeslot,
-                              tag: selectedTag
-                            }])
-                          }
-                      }}>{timeslot.start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</button>
-                  )})}
-            </div>
-            <div className="flex flex-row w-full justify-end">
-              <Button color="light" className="border-gray-700 me-4"  type="button" onClick={() => setSelectedTimeslots(previewTimeslots.map((timeslot) => ({...timeslot, tag: selectedTag})))}>Select All</Button>
-            </div>
-          </div>
-        ) : (
-          <span>No timeslots for the selected range</span>
-        )}
-            
+          )}
+        </div>    
         <div className="flex flex-row justify-end border-t mt-4">
           <Button 
             className="text-xl w-[40%] max-w-[8rem] mt-4" 
             type="submit" 
             onClick={() => submitForm()}
+            disabled={selectedTimeslots.length === 0}
           >{props.timeslots.length > 0 ? 'Update' : 'Create'}</Button>
         </div>
       </Modal.Body>
