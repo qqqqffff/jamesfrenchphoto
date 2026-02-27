@@ -278,4 +278,12 @@ export interface Segment {
   endMin: number;
   interval: number;
   userTag?: UserTag;
+  options?: {
+    noshowFee?: number,
+    description?: string,
+    cancelationFee?: {
+        amount: number,
+        window: Duration
+    }
+  }
 }

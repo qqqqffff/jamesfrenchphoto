@@ -78,6 +78,7 @@ function RouteComponent() {
   //automatically setting date based on the closest date to present
   useEffect(() => {
     const timeslotsData = (timeslots.data ?? [])
+      .filter((timeslot) => timeslot !== undefined)
       .filter((timeslot) => timeslot.tag?.id === activeTag.id)
       .sort((a, b) => {
         if(a.start.getTime() < currentDate.getTime()) {
@@ -116,6 +117,7 @@ function RouteComponent() {
 
   function FormattedTimeslots() {
     return (timeslots.data ?? [])
+      .filter((timeslot) => timeslot !== undefined)
       .filter((timeslot) => {
         return activeDate.toISOString().includes(timeslot.start.toISOString().substring(0, timeslot.start.toISOString().indexOf('T')))
       })
@@ -137,7 +139,7 @@ function RouteComponent() {
         ? 'bg-gray-200' : '')
         const alreadyRegistered = (timeslots.data ?? [])
           .find((tagTimeslot) => (
-            (tagTimeslot.participantId === participant.id || tagTimeslot.register === userProfile.email) && 
+            (tagTimeslot?.participantId === participant.id || tagTimeslot?.register === userProfile.email) && 
             tagTimeslot?.tag?.id === tag?.id
           ))
         
@@ -184,6 +186,7 @@ function RouteComponent() {
 
   function FormattedRegisteredTimeslots(){
     return (timeslots.data ?? [])
+      .filter((timeslot) => timeslot !== undefined)
       .filter((timeslot) => timeslot.participantId === participant.id)
       .map((timeslot, index) => {
         const tag = userTags.find((tag) => tag.id === timeslot.tag?.id)
@@ -278,6 +281,7 @@ function RouteComponent() {
           recipients={notifyAdditionalRecipients}
         />)}
         title="Confirm Timeslot Selection" 
+        //TODO: update short notice rebooking with cancelation fee / noshow fee
         body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!${shortNoticeRebook ? '\nRescheduling within a 48 hours of the selected date will incur an additional short notice rescheduling fee.' : ''}`}
       />
       <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
@@ -322,7 +326,7 @@ function RouteComponent() {
             })
           }
         }}
-        title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} 
+        title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}</b>\nAre you sure you want to unregister from this timeslot?`} 
       />
       {registrationResponse !== undefined && (
         <div className={`relative top-8 ${ width > 1200 ? 'left-[20%] w-[60%]' : 'left-[12.5%] w-[75%]'} z-10`}>
@@ -337,12 +341,16 @@ function RouteComponent() {
       )} 
       {width > 1200 ? (
         <FullSizeTimeslot 
-          timeslots={(timeslots.data ?? []).map((timeslot) => ({
-            ...timeslot,
-            tag: userProfile.participant
-              .find((participant) => participant.id === userProfile.activeParticipant?.id)
-              ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
-          }))}
+          timeslots={
+            (timeslots.data ?? [])
+            .filter((timeslot) => timeslot !== undefined)
+            .map((timeslot) => ({
+              ...timeslot,
+              tag: userProfile.participant
+                .find((participant) => participant.id === userProfile.activeParticipant?.id)
+                ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
+            }))
+          }
           activeDate={activeDate}
           setActiveDate={setActiveDate}
           tags={userTags}
@@ -355,12 +363,16 @@ function RouteComponent() {
         />
       ) : (
         <SmallSizeTimeslot
-          timeslots={(timeslots.data ?? []).map((timeslot) => ({
-            ...timeslot,
-            tag: userProfile.participant
-              .find((participant) => participant.id === userProfile.activeParticipant?.id)
-              ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
-          }))}
+          timeslots={
+            (timeslots.data ?? [])
+            .filter((timeslot) => timeslot !== undefined)
+            .map((timeslot) => ({
+              ...timeslot,
+              tag: userProfile.participant
+                .find((participant) => participant.id === userProfile.activeParticipant?.id)
+                ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
+            }))
+          }
           activeDate={activeDate}
           setActiveDate={setActiveDate}
           tags={userTags}

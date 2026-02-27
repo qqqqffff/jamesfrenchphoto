@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, Dispatch, SetStateAction } from "react";
 import { v4 } from 'uuid'
 import { Segment, UserTag } from "../../types";
+import { Duration } from "luxon";
 
 const START_HOUR = 8;
 const END_HOUR = 18;
@@ -26,20 +27,11 @@ function snap(val: number) {
   return Math.round(val / SNAP) * SNAP;
 }
 
-/**
- * Snap `value` to the nearest multiple of `interval` relative to `anchor`.
- * Example: snapToInterval(90, 60, 0) → 60; snapToInterval(91, 60, 0) → 120
- */
 function snapToInterval(value: number, interval: number, anchor: number): number {
   const offset = value - anchor;
   return anchor + Math.round(offset / interval) * interval;
 }
 
-/**
- * Round `value` UP to the next interval boundary relative to `anchor`.
- * Used when changing interval so the segment always ends on a full boundary.
- * If `value` is already exactly on a boundary, keep it there.
- */
 function ceilToInterval(value: number, interval: number, anchor: number): number {
   const offset = value - anchor;
   const remainder = offset % interval;
@@ -61,20 +53,37 @@ interface DragSegment {
 interface TimeSegmentBarProps {
   segments: Segment[];
   setSegments: Dispatch<SetStateAction<Segment[]>>;
-  header?: JSX.Element
-  activeTag?: UserTag
+  header?: JSX.Element;
+  activeTag?: UserTag;
+  activeOptions?:  {
+    noshowFee?: number,
+    description?: string,
+    cancelationFee?: {
+        amount: number,
+        window: Duration
+    }
+  }
 }
 
 export function TimeSegmentBar(props: TimeSegmentBarProps) {
   const [activePopup, setActivePopup] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
-  const popupsRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
-  const segmentsRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
+  const popupsRef = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const segmentsRef = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const dragRef = useRef<DragSegment | null>(null);
+
+  // Keep stable refs so event listeners always see current values without
+  // needing to be re-registered (avoids stale closure bugs).
+  const focusedIdRef = useRef<string | null>(null);
+  const segmentsRef_ = useRef<Segment[]>(props.segments);
+
+  useEffect(() => { focusedIdRef.current = focusedId; }, [focusedId]);
+  useEffect(() => { segmentsRef_.current = props.segments; }, [props.segments]);
 
   const pctOf = (min: number) => (min / TOTAL_MINUTES) * 100;
 
+  // ── Drag start ────────────────────────────────────────────────────────────
   const startDrag = useCallback(
     (e: React.MouseEvent, id: string, type: 'move' | 'left' | 'right') => {
       e.preventDefault();
@@ -94,6 +103,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     [props.segments]
   );
 
+  // ── Global event listeners (registered once) ──────────────────────────────
   useEffect(() => {
     const MOVE_THRESHOLD_PX = 4;
 
@@ -108,36 +118,46 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
       const rect = barRef.current.getBoundingClientRect();
       const deltaMinsFull = (e.clientX - startX) / rect.width * TOTAL_MINUTES;
 
-      props.setSegments((prev) =>
-        prev.map((s) => {
-          if (s.id !== id) return s;
+      props.setSegments((prev) => {
+        // Build neighbour bounds for the segment being dragged
+        const others = prev.filter((s) => s.id !== id).sort((a, b) => a.startMin - b.startMin);
+        const seg = prev.find((s) => s.id === id);
+        if (!seg) return prev;
 
-          if (type === "left") {
-            // Anchor is the fixed end; snap the dragged start to nearest interval boundary
-            const rawStart = origStart + deltaMinsFull;
-            const snapped = snapToInterval(rawStart, s.interval, origEnd);
-            // Must stay >= 0 and leave at least one interval's width
-            const newStart = Math.max(0, Math.min(snapped, s.endMin - s.interval));
-            return { ...s, startMin: newStart };
+        // Nearest neighbour to the left and right of this segment's ORIGINAL position
+        const leftNeighbourEnd = Math.max(
+          0,
+          ...others.filter((s) => s.endMin <= origStart).map((s) => s.endMin)
+        );
+        const rightNeighbourStart = Math.min(
+          TOTAL_MINUTES,
+          ...others.filter((s) => s.startMin >= origEnd).map((s) => s.startMin),
+          // also catch any segment whose start is between origStart..origEnd (shouldn't normally exist)
+          ...others.filter((s) => s.startMin > origStart).map((s) => s.startMin)
+        );
 
-          } else if (type === "right") {
-            // Anchor is the fixed start; snap the dragged end to nearest interval boundary
-            const rawEnd = origEnd + deltaMinsFull;
-            const snapped = snapToInterval(rawEnd, s.interval, origStart);
-            // Must stay <= TOTAL_MINUTES and leave at least one interval's width
-            const newEnd = Math.min(TOTAL_MINUTES, Math.max(snapped, s.startMin + s.interval));
-            return { ...s, endMin: newEnd };
+        if (type === "left") {
+          const rawStart = origStart + deltaMinsFull;
+          const snapped = snapToInterval(rawStart, seg.interval, origEnd);
+          const newStart = Math.max(leftNeighbourEnd, Math.min(snapped, seg.endMin - seg.interval));
+          return prev.map((s) => s.id !== id ? s : { ...s, startMin: newStart });
 
-          } else {
-            // move — preserve exact duration, snap start to 5-min grid
-            const dur = origEnd - origStart;
-            const newStart = snap(
-              Math.max(0, Math.min(TOTAL_MINUTES - dur, origStart + deltaMinsFull))
-            );
-            return { ...s, startMin: newStart, endMin: newStart + dur };
-          }
-        })
-      );
+        } else if (type === "right") {
+          const rawEnd = origEnd + deltaMinsFull;
+          const snapped = snapToInterval(rawEnd, seg.interval, origStart);
+          const newEnd = Math.min(rightNeighbourStart, Math.max(snapped, seg.startMin + seg.interval));
+          return prev.map((s) => s.id !== id ? s : { ...s, endMin: newEnd });
+
+        } else {
+          // move — preserve exact duration, snap to 5-min grid
+          const dur = origEnd - origStart;
+          const rawStart = origStart + deltaMinsFull;
+          const clampedStart = snap(
+            Math.max(leftNeighbourEnd, Math.min(rightNeighbourStart - dur, rawStart))
+          );
+          return prev.map((s) => s.id !== id ? s : { ...s, startMin: clampedStart, endMin: clampedStart + dur });
+        }
+      });
     };
 
     const onUp = () => {
@@ -145,45 +165,55 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
       document.body.style.cursor = "";
     };
 
-    const onMouseClick = (e: MouseEvent) => {
-      if(
-        focusedId !== null
-      ) {
-        const popupTarget = popupsRef.current.get(focusedId)
-        const segmentTarget = segmentsRef.current.get(focusedId)
+    const onMouseDown = (e: MouseEvent) => {
+      const currentFocusedId = focusedIdRef.current;
+      if (currentFocusedId === null) return;
 
-        if(
-          !popupTarget ||
-          !popupTarget.contains(e.target as Node) ||
-          !segmentTarget ||
-          !segmentTarget.contains(e.target as Node)
-        ) {
-          setFocusedId(null)
-          setActivePopup(null)
-        }
+      const popupEl = popupsRef.current.get(currentFocusedId);
+      const segmentEl = segmentsRef.current.get(currentFocusedId);
+      const target = e.target as Node;
+
+      const clickedInsidePopup = popupEl?.contains(target) ?? false;
+      const clickedInsideSegment = segmentEl?.contains(target) ?? false;
+
+      if (!clickedInsidePopup && !clickedInsideSegment) {
+        setFocusedId(null);
+        setActivePopup(null);
       }
-    }
+    };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if(
-        focusedId !== null &&
-        e.key === 'Backspace'
-      ) {
-        removeSegment(focusedId)
-      }
-    }
+      // Don't fire if a drag is in progress
+      if (dragRef.current) return;
+
+      const currentFocusedId = focusedIdRef.current;
+      if (currentFocusedId === null) return;
+      if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      e.preventDefault();
+      props.setSegments((prev) => prev.filter((s) => s.id !== currentFocusedId));
+      setFocusedId(null);
+      setActivePopup(null);
+    };
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-    window.addEventListener('mousedown', onMouseClick)
-    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
-      window.removeEventListener('mousedown', onMouseClick)
-      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('keydown', onKeyDown);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // ↑ Empty deps: listeners are registered once. They read live values via
+  //   refs (focusedIdRef, dragRef) and use the setSegments functional updater
+  //   so they never need a stale closure on `segments`.
 
   const clearFocus = () => {
     setFocusedId(null);
@@ -219,28 +249,23 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     const half = Math.min(30, Math.floor((gap.to - gap.from) / 2 / SNAP) * SNAP);
     const newStart = snap(Math.max(gap.from, mid - half));
     const newEnd = snap(Math.min(gap.to, newStart + half * 2));
-    props.setSegments((prev) => [...prev, { id: v4(), startMin: newStart, endMin: newEnd, interval: 15, userTag: props.activeTag }]);
+    props.setSegments((prev) => [
+      ...prev,
+      { id: v4(), startMin: newStart, endMin: newEnd, interval: 15, userTag: props.activeTag, options: props.activeOptions },
+    ]);
   };
 
   const removeSegment = (id: string) => {
-    props.setSegments((prev) => {
-      console.log(prev, id)
-      return prev.filter((s) => s.id !== id)
-    })
-    if (focusedId === id) setFocusedId(null);
+    props.setSegments((prev) => prev.filter((s) => s.id !== id));
+    if (focusedIdRef.current === id) setFocusedId(null);
     setActivePopup(null);
   };
 
-  /**
-   * Change interval and snap endMin to the next full interval boundary from startMin,
-   * so the segment always contains a whole number of intervals.
-   */
   const setInterval_ = (id: string, interval: number) => {
     props.setSegments((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
         const ceiled = ceilToInterval(s.endMin, interval, s.startMin);
-        // Ensure at least one full interval, and don't exceed timeline
         const newEnd = Math.min(TOTAL_MINUTES, Math.max(ceiled, s.startMin + interval));
         return { ...s, interval, endMin: newEnd };
       })
@@ -280,7 +305,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
               const centerPct = ((seg.startMin + seg.endMin) / 2 / TOTAL_MINUTES) * 100;
               return (
                 <div
-                  ref={el => popupsRef.current.set(seg.id, el)}
+                  ref={(el) => popupsRef.current.set(seg.id, el)}
                   key={seg.id}
                   className="absolute z-40"
                   style={{ left: `${centerPct}%`, transform: "translateX(-50%)", bottom: "12px" }}
@@ -318,9 +343,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                   </div>
                   {/* Caret */}
                   <div className="flex justify-center overflow-hidden" style={{ height: "8px" }}>
-                    <div
-                      className="w-3 h-3 rotate-45 border bg-white"
-                    />
+                    <div className="w-3 h-3 rotate-45 border bg-white" />
                   </div>
                 </div>
               );
@@ -354,17 +377,20 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
               const widthPct = pctOf(seg.endMin - seg.startMin);
               const durationMins = seg.endMin - seg.startMin;
               const isActive = activePopup === seg.id;
+              const isFocused = focusedId === seg.id;
               const tickCount = Math.floor(durationMins / seg.interval) - 1;
 
               return (
                 <div
-                  ref={el => segmentsRef.current.set(seg.id, el)}
+                  ref={(el) => segmentsRef.current.set(seg.id, el)}
                   key={seg.id}
                   className={`
-                    absolute top-2 bottom-2 rounded-xl 
+                    absolute top-2 bottom-2 rounded-xl
                     flex items-center justify-center select-none
-                    border  border-gray-400 bg-opacity-40
+                    border border-gray-400 bg-opacity-40
+                    transition-shadow duration-150
                     ${seg.userTag?.color ? `bg-${seg.userTag.color}` : ''}
+                    ${isFocused ? 'ring-2 ring-offset-1 ring-gray-400' : ''}
                   `}
                   style={{
                     left: `${leftPct}%`,
@@ -420,12 +446,8 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     }}
                   >
                     <div className="flex flex-col gap-0.5">
-                      <span
-                        className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/lh:opacity-90 bg-gray-500"
-                      />
-                      <span
-                        className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/lh:opacity-90 bg-gray-500"
-                      />
+                      <span className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/lh:opacity-90 bg-gray-500" />
+                      <span className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/lh:opacity-90 bg-gray-500" />
                     </div>
                   </div>
 
@@ -438,12 +460,8 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     }}
                   >
                     <div className="flex flex-col gap-0.5">
-                      <span
-                        className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/rh:opacity-90 bg-gray-500"
-                      />
-                      <span
-                        className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/rh:opacity-90 bg-gray-500"
-                      />
+                      <span className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/rh:opacity-90 bg-gray-500" />
+                      <span className="block w-0.5 h-3 rounded-full transition-opacity opacity-30 group-hover/rh:opacity-90 bg-gray-500" />
                     </div>
                   </div>
                 </div>
