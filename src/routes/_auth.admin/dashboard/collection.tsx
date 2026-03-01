@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { CollectionService } from '../../../services/collectionService'
 import { PhotoCollectionPanel } from '../../../components/admin/collection/PhotoCollectionPanel'
-import { useQueries, useQuery, UseQueryResult, useSuspenseQuery } from '@tanstack/react-query'
+import { useQueries, useQuery, UseQueryResult, useSuspenseInfiniteQuery } from '@tanstack/react-query'
 import { CreateCollectionModal, LoadingModal } from '../../../components/modals'
 import { Suspense, useEffect, useState } from 'react'
 import { PhotoCollection, ShareTemplate, Watermark } from '../../../types'
@@ -67,7 +67,8 @@ function RouteComponent() {
   const [search, setSearch] = useState<string>('')
   const [expandedTitle, setExpandedTitle] = useState<string>()
 
-  const tagsPromise = useSuspenseQuery(data.TagService.getAllUserTagsQueryOptions({ siCollections: false }))
+  //TODO: implement infinite query
+  const tagsPromise = useSuspenseInfiniteQuery(data.TagService.getAllUserTagsQueryOptions({ siCollections: false }))
   const watermarkQuery = useQuery(data.CollectionService.getAllWatermarkObjectsQueryOptions({ resolveUrl: false }))
   const shareTemplatesQuery = useQuery(data.ShareService.getAllShareTemplatesQueryOptions())
 
@@ -184,7 +185,7 @@ function RouteComponent() {
             set={selectedCollection.sets.find((set) => set.id === data.set)}
             watermarkObjects={watermarks}
             updateWatermarkObjects={setWatermarks}
-            availableTags={tagsPromise.data}
+            availableTags={tagsPromise.data.pages[tagsPromise.data.pages.length - 1].tags}
             auth={data.auth}
             parentActiveConsole={
               data.collectionConsole === 'favorites' ? (

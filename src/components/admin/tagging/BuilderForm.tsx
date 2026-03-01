@@ -1,4 +1,4 @@
-import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
+import { InfiniteData, UseInfiniteQueryResult, useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
 import { Participant, PhotoCollection, Timeslot, UserTag } from "../../../types";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Alert, Button, FlowbiteColors } from "flowbite-react";
@@ -11,7 +11,7 @@ import { TimeslotsPanel } from "./TimeslotsPanel";
 import { UsersPanel } from "./UsersPanel";
 import { ReviewPanel } from "./ReviewPanel";
 import { evaluateTagDif } from "../../../functions/tagFunctions";
-import { CreateTagParams, TagService, UpdateTagParams } from "../../../services/tagService";
+import { CreateTagParams, GetAllUserTagsData, TagService, UpdateTagParams } from "../../../services/tagService";
 
 interface BuilderFormProps {
   CollectionService: CollectionService,
@@ -19,7 +19,7 @@ interface BuilderFormProps {
   TagService: TagService,
   selectedTag: UserTag,
   queriedTag?: UserTag,
-  tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
+  tagsQuery: UseInfiniteQueryResult<InfiniteData<GetAllUserTagsData, unknown>, Error>
   parentUpdateSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
   parentUpdateTagList: Dispatch<SetStateAction<UserTag[]>>
   //TODO: convert me to infinite query

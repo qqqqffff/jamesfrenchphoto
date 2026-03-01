@@ -1,4 +1,4 @@
-import { UseQueryResult } from "@tanstack/react-query";
+import { InfiniteData, UseInfiniteQueryResult, UseQueryResult } from "@tanstack/react-query";
 import { Participant, PhotoCollection, Timeslot, UserTag } from "../../../types";
 import { Dispatch, SetStateAction, useState } from "react";
 import { v4 } from "uuid";
@@ -7,21 +7,21 @@ import { BuilderForm } from "./BuilderForm";
 import Loading from "../../common/Loading";
 import { CollectionService } from "../../../services/collectionService";
 import { TimeslotService } from "../../../services/timeslotService";
-import { TagService } from "../../../services/tagService";
+import { GetAllUserTagsData, TagService } from "../../../services/tagService";
 
 interface BuilderPanelProps {
   CollectionService: CollectionService,
   TimeslotService: TimeslotService,
   TagService: TagService,
   tags: UserTag[]
-  tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
+  tagsQuery: UseInfiniteQueryResult<InfiniteData<GetAllUserTagsData, unknown>, Error>
   parentUpdateTagList: Dispatch<SetStateAction<UserTag[]>>
-  //TODO: convert me to infinite query
   collectionListQuery: UseQueryResult<PhotoCollection[] | undefined, Error>
   timeslotListQuery: UseQueryResult<Timeslot[] | undefined, Error>
   participantsQuery: UseQueryResult<Participant[] | undefined, Error>
 }
 
+//TODO: implement infinite query
 export const BuilderPanel = (props: BuilderPanelProps) => {
   const [selectedTag, setSelectedTag] = useState<UserTag>()
 
@@ -100,7 +100,7 @@ export const BuilderPanel = (props: BuilderPanelProps) => {
             TimeslotService={props.TimeslotService}
             CollectionService={props.CollectionService}
             selectedTag={selectedTag}
-            queriedTag={props.tagsQuery.data?.find((tag) => tag.id === selectedTag.id)}
+            queriedTag={props.tags.find((tag) => tag.id === selectedTag.id)}
             tagsQuery={props.tagsQuery}
             parentUpdateSelectedTag={setSelectedTag}
             parentUpdateTagList={props.parentUpdateTagList}

@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, useLocation, useNavigate } from '@tanstack/rea
 import { useAuth } from '../../auth'
 import { Button } from 'flowbite-react'
 import { HiArrowUturnLeft, HiOutlineCalendar, HiOutlineClipboard, HiOutlineHome } from 'react-icons/hi2'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { TimeslotService } from '../../services/timeslotService'
 import { Schema } from '../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
@@ -32,16 +32,8 @@ function RouteComponent() {
     return
   }
 
-  const tags = useQuery({
-    ...data.TagService.getAllUserTagsQueryOptions({ siCollections: false }),
-    enabled: auth.admin ?? false
-  })
   const timeslots = useQueries({
-    queries: (!auth.admin ? (
-      auth.user.profile.activeParticipant?.userTags ?? []
-    ) : (
-      tags.data ?? [])
-    ).map((tag) => {
+    queries: auth.user.profile.activeParticipant?.userTags.map((tag) => {
       return data.TimeslotService.getAllTimeslotsByUserTagQueryOptions(tag.id)
     })
   })

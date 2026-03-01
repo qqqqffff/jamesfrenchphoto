@@ -522,10 +522,8 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                     <div className="flex flex-col justify-between">
                       <TagPicker 
                         allowMultiple
-                        className='
-                          font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
-                          border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
-                        '
+                        small
+                        allowClear
                         tags={props.tags}
                         parentPickTag={(tag) => {
                           //TODO: address tag null case

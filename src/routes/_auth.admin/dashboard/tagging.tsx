@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { UserTag } from '../../../types'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { CollectionService } from '../../../services/collectionService'
 import { UserService } from '../../../services/userService'
 import { TimeslotService } from '../../../services/timeslotService'
@@ -28,7 +28,7 @@ function RouteComponent() {
   const [tags, setTags] = useState<UserTag[]>([])
 
   //si will be performed on the selected tag
-  const tagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({
+  const tagsQuery = useInfiniteQuery(data.TagService.getAllUserTagsQueryOptions({
     siCollections: false,
     siNotifications: false,
     siPackages: {
@@ -67,8 +67,8 @@ function RouteComponent() {
   }))
 
   useEffect(() => {
-    if(tagsQuery.data && tagsQuery.data.length > 0) {
-      setTags(tagsQuery.data)
+    if(tagsQuery.data && tagsQuery.data.pages.length > 0) {
+      setTags(tagsQuery.data.pages[tagsQuery.data.pages.length - 1].tags)
     }
   }, [tagsQuery.data])
   

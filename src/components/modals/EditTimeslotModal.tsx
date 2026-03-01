@@ -4,7 +4,7 @@ import { Participant, Timeslot, UserTag } from "../../types";
 import { Alert, Button, Dropdown, Label, Modal, TextInput, Tooltip } from "flowbite-react";
 import { getTimes, normalizeDate, textInputTheme } from "../../utils";
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
-import { TimeslotService, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
+import { TimeslotService, UpdateTimeslotMutationParams } from "../../services/timeslotService";
 import { UserService } from "../../services/userService";
 import { HiOutlineExclamation } from "react-icons/hi";
 import { formatParticipantName } from "../../functions/clientFunctions";
@@ -57,7 +57,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
     props.timeslot
   ])
   const updateTimeslot = useMutation({
-    mutationFn: (params: UpdateTimeslotsMutationParams) => props.TimeslotService.updateTimeslotMutation(params),
+    mutationFn: (params: UpdateTimeslotMutationParams) => props.TimeslotService.updateTimeslotMutation(params),
     onSuccess: () => {
       setNotification({type: 'success', message: 'Successfully Updated Timeslot'})
     },
@@ -190,7 +190,6 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
                 pickedTag={activeTag ? [activeTag] : undefined}
                 allowMultiple={false}
                 allowClear
-                className="max-w-[150px] border rounded-lg px-2 py-1.5"
               />
             </div>
           </div>
@@ -285,11 +284,10 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
         </div>
       </Modal.Body>
       <Modal.Footer className="flex flex-row-reverse gap-4">
-        <Button onClick={() => props.onClose()}>Done</Button>
+        <Button color="light" onClick={() => props.onClose()}>Done</Button>
         {/* TODO: updates check */}
         <Button
-          color="light"
-          onClick={async () => {
+          onClick={() => {
             const newTimeslot: Timeslot = {
               ...props.timeslot,
               start: startTime,
@@ -300,12 +298,19 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
               register: userProfile.data?.email
             }
             updateTimeslot.mutate({
-              timeslots: [newTimeslot],
-              previousTimeslots: [props.timeslot],
+              timeslot: props.timeslot,
+              start: startTime,
+              end: endTime,
+              description: description,
+              userTag: activeTag,
+              participantId: participantId,
+              register: userProfile.data?.email,
+              //TODO: implement new fields
               options: {
                 logging: true
               }
             })
+            //TODO: add a success indicator
             //update state
 
             //participant - append to new participant and remove from old
@@ -331,7 +336,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
           }}
           isProcessing={updateTimeslot.isPending}
         >
-            Update
+          Update
         </Button>
         {calculateOverlap !== undefined ? (
             <Tooltip content={<span>This new date overlaps with an existing timeslot(s){calculateOverlap == 'emergency' && ' with a registration'}</span>}>
