@@ -8,58 +8,91 @@ export const convertSegmentListToTimeslots = (
   segment: Segment[], 
   existingTimeslots: Timeslot[], 
 ): Timeslot[] => {
-  const timeslots: Timeslot[] = [...existingTimeslots]
-  const minHour = 8
+  const timeslots: Timeslot[] = []
+  const MIN_TIME = 8 * 60
 
-  timeslots.push(...(
-    segment.reduce((prev, cur) => {
-      //segments startmin starts at 0 and goes up to end min
-      let counter = (minHour * 60) + cur.startMin
-      const end = (minHour * 60) + cur.endMin
-      while(counter < end) {
-        const minutes = String(counter % 60)
-        const hours = String(Math.floor(counter / 60))
-        const startDT = DateTime.fromFormat(
-          `${DateTime.fromJSDate(activeDate).toFormat('MM-dd-yyyy')} ${hours.length === 1 ? '0' : ''}${hours}:${minutes.length === 1 ? '0' : ''}${minutes}`, 
-          'MM-dd-yyyy hh:mm'
-        )
-        const endDT = startDT.plus({ minutes: cur.interval })
+  for(let i = 0; i < segment.length; i++) {
+    let counter = segment[i].startMin
+    while(counter < segment[i].endMin) {
+      const offsetCounter = MIN_TIME + counter
+      const minutes = String(offsetCounter % 60)
+      const hours = String(Math.floor(offsetCounter / 60))
+      const startDT = DateTime.fromFormat(
+        `${DateTime.fromJSDate(activeDate).toFormat('MM-dd-yyyy')} ${hours.length === 1 ? '0' : ''}${hours}:${minutes.length === 1 ? '0' : ''}${minutes}`, 
+        'MM-dd-yyyy hh:mm'
+      )
+      const endDT = startDT.plus({ minutes: segment[i].interval })
 
-        if(
-          timeslots.some((timeslot) => {
-            return (
-              (timeslot.start.getTime() >= startDT.toMillis() && timeslot.start.getTime() <= endDT.toMillis()) ||
-              (timeslot.end.getTime() >= startDT.toMillis() && timeslot.end.getTime() <= endDT.toMillis())
-            )
-          })
-        ) { 
-          continue
-        }
+      const foundExistingTimeslot = existingTimeslots.find((timeslot) => (
+        (timeslot.start.getTime() >= startDT.toMillis() && timeslot.start.getTime() <= endDT.toMillis()) ||
+        (timeslot.end.getTime() >= startDT.toMillis() && timeslot.end.getTime() <= endDT.toMillis())
+      ))
 
+      if(foundExistingTimeslot === undefined) {
         const mappedTimeslot: Timeslot = {
           id: v4(),
-          tag: cur.userTag,
-          noshowFee: cur.options?.noshowFee,
-          cancelationFee: cur.options?.cancelationFee,
+          tag: segment[i].userTag,
+          noshowFee: segment[i].options?.noshowFee,
+          cancelationFee: segment[i].options?.cancelationFee,
           start: startDT.toJSDate(),
           end: endDT.toJSDate(),
-          description: cur.options?.description,
+          description: segment[i].options?.description,
           updatedAt: new Date().toISOString(),
         }
 
-        prev.push(mappedTimeslot)
-        counter = counter + cur.interval
+        timeslots.push(mappedTimeslot)
       }
-      return prev
-    }, [] as Timeslot[])
-  ))
+      else {
+        timeslots.push(foundExistingTimeslot)
+      }
+      counter += segment[i].interval
+    }
+  }
+
+  // timeslots.push(...(
+  //   segment.reduce((prev, cur, _, array) => {
+  //     //segments startmin starts at 0 and goes up to end min
+  //     let counter = (minHour * 60) + cur.startMin
+  //     const end = (minHour * 60) + cur.endMin
+  //     const maxDepth = 200;
+  //     let i = 0
+  //     while(counter < end) {
+  //       const minutes = String(counter % 60)
+  //       const hours = String(Math.floor(counter / 60))
+  //       const startDT = DateTime.fromFormat(
+  //         `${DateTime.fromJSDate(activeDate).toFormat('MM-dd-yyyy')} ${hours.length === 1 ? '0' : ''}${hours}:${minutes.length === 1 ? '0' : ''}${minutes}`, 
+  //         'MM-dd-yyyy hh:mm'
+  //       )
+  //       const endDT = startDT.plus({ minutes: cur.interval })
+
+  //       if(
+  //         timeslots.some((timeslot) => {
+  //           return (
+  //             (timeslot.start.getTime() >= startDT.toMillis() && timeslot.start.getTime() <= endDT.toMillis()) ||
+  //             (timeslot.end.getTime() >= startDT.toMillis() && timeslot.end.getTime() <= endDT.toMillis())
+  //           )
+  //         })
+  //       ) { 
+  //         continue
+  //       }
+
+        
+  //       counter = counter + cur.interval
+  //       i++;
+  //       if(i>=maxDepth) break;
+  //     }
+  //     console.log(array)
+  //     return prev
+  //   }, [] as Timeslot[])
+  // ))
 
   return timeslots
 }
 
 export const convertTimeslotListToSegments = (timeslots: Timeslot[]): Segment[] => {
   const segments: Segment[] = []
-  const retrieveTimeslotTime = (timeslot: Timeslot, order: 'start' | 'end') => order === 'start' ? timeslot.start.getHours() * 60 + timeslot.start.getMinutes() : timeslot.end.getHours() * 60 + timeslot.end.getMinutes()
+  const BASE_TIME = 60 * 8
+  const retrieveTimeslotTime = (timeslot: Timeslot, order: 'start' | 'end') => (order === 'start' ? timeslot.start.getHours() * 60 + timeslot.start.getMinutes() : timeslot.end.getHours() * 60 + timeslot.end.getMinutes()) - BASE_TIME
   const orderedTimeslots = [...timeslots]
   .sort((a, b) => (retrieveTimeslotTime(a, 'start')) - (retrieveTimeslotTime(b, 'start')))
   if(timeslots.length === 0) return segments
@@ -97,7 +130,7 @@ export const convertTimeslotListToSegments = (timeslots: Timeslot[]): Segment[] 
     }
     //create a new segment
     else {
-      segments.push(currentSegment)
+      segments.push({...currentSegment})
       currentSegment = {
         id: v4(),
         startMin: currentStartMin,
@@ -112,5 +145,32 @@ export const convertTimeslotListToSegments = (timeslots: Timeslot[]): Segment[] 
       }
     }
   }
+
+  if(!segments.some((segment) => segment.id === currentSegment.id)) {
+    segments.push({...currentSegment})
+  }
+
   return segments
+}
+
+export const timeslotListComparison = (a: Timeslot[], b: Timeslot[]) => {
+  return a.every((aTimeslot) => (
+    b.some((bTimeslot) => (
+      aTimeslot.id === bTimeslot.id &&
+      aTimeslot.tag?.id === bTimeslot.tag?.id &&
+      aTimeslot.register === bTimeslot.register &&
+      aTimeslot.noshowFee === bTimeslot.noshowFee &&
+      (
+        (aTimeslot.cancelationFee === undefined && bTimeslot.cancelationFee === undefined) ||
+        (
+          aTimeslot.cancelationFee?.amount === bTimeslot.cancelationFee?.amount &&
+          aTimeslot.cancelationFee?.window.toISO() === bTimeslot.cancelationFee?.window.toISO()
+        )
+      ) &&
+      aTimeslot.start.getTime() === bTimeslot.start.getTime() &&
+      aTimeslot.end.getTime() === bTimeslot.end.getTime() &&
+      aTimeslot.participantId === bTimeslot.participantId &&
+      aTimeslot.description === bTimeslot.description
+    )
+  )))
 }

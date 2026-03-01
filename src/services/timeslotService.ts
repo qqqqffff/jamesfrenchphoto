@@ -168,7 +168,7 @@ export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, tagId?:
 
       return mappedTimeslot
     })
-  ))
+  )).filter((timeslot) => timeslot !== undefined)
 
   return mappedTimeslots
 }
@@ -238,6 +238,25 @@ export interface UpdateTimeslotsMutationParams {
   }
 }
 
+export interface UpdateTimeslotMutationParams {
+  timeslot: Timeslot,
+  description?: string,
+  register?: string,
+  participantId?: string,
+  start: Date,
+  end: Date,
+  userTag?: UserTag,
+  noShowFee?: number,
+  cancelationFee?: {
+    amount: number,
+    window: Duration
+  },
+  options?: {
+    logging?: boolean,
+    metric?: boolean
+  }
+}
+
 export interface DeleteTimeslotsMutationParams {
   timeslots: Timeslot[]
   options?: {
@@ -268,25 +287,31 @@ export class TimeslotService {
   }
 
   async createTimeslotsMutation(params: CreateTimeslotsMutationParams) {
-    const response = await Promise.all(params.timeslots.map((timeslot) => {
-      const formattedDate = DateTime.fromJSDate(timeslot.start, { zone: 'America/Chicago' })
-
+    const response = await Promise.all(params.timeslots.map(async (timeslot) => {
+      const formattedDate = DateTime.fromJSDate(timeslot.start)
       return [
-        this.client.models.Timeslot.create({
+        await this.client.models.Timeslot.create({
           id: timeslot.id,
           start: timeslot.start.toISOString(),
           end: timeslot.end.toISOString(),
           description: timeslot.description,
           tagId: timeslot.tag?.id,
           startDate: formattedDate.toFormat('MM-dd-yyyy'),
-          startMonth: formattedDate.toFormat('MM-yyyy')
+          startMonth: formattedDate.toFormat('MM-yyyy'),
+          noshowFee: timeslot.noshowFee,
+          cancelationFee: timeslot.cancelationFee ? {
+            amount: timeslot.cancelationFee.amount,
+            window: timeslot.cancelationFee.window.toISO() ?? Duration.fromObject({ hours: 48 }).toISO()
+          } : undefined,
         }),
-        timeslot.tag ? this.client.models.TimeslotTag.create({
+        timeslot.tag ? await this.client.models.TimeslotTag.create({
           timeslotId: timeslot.id,
           tagId: timeslot.tag.id
         }) : undefined
       ]
     }))
+
+      
 
     if (params.options?.logging) console.log(response)
   }
@@ -299,7 +324,7 @@ export class TimeslotService {
   timeslots are the new timeslots that overlap with the previous
   previous are just the previous version that are being updated
   */
-  async updateTimeslotMutation(params: UpdateTimeslotsMutationParams) {
+  async updateTimeslotsMutation(params: UpdateTimeslotsMutationParams) {
     const response = await Promise.all(params.timeslots.map(async (timeslot) => {
       const previousTimeslot = params.previousTimeslots.find((pTimeslot) => pTimeslot.id === timeslot.id)
 
@@ -400,6 +425,76 @@ export class TimeslotService {
     }))
 
     if (params.options?.logging) console.log(response)
+  }
+
+  async updateTimeslotMutation(params: UpdateTimeslotMutationParams) {
+    const start = new Date().getTime()
+    if(
+      params.timeslot.description !== params.description ||
+      params.timeslot.register !== params.register ||
+      params.timeslot.participantId !== params.participantId ||
+      params.timeslot.start.toISOString() !== params.start.toISOString() ||
+      params.timeslot.end.toISOString() !== params.end.toISOString() ||
+      params.timeslot.noshowFee !== params.noShowFee ||
+      (
+        (params.timeslot.cancelationFee !== undefined && params.cancelationFee === undefined) ||
+        (params.timeslot.cancelationFee === undefined && params.cancelationFee !== undefined) || (
+          params.timeslot.cancelationFee?.amount !== params.cancelationFee?.amount ||
+          params.timeslot.cancelationFee?.window.toISO() !== params.timeslot.cancelationFee?.window.toISO()
+        )
+      ) ||
+      params.timeslot.tag?.id !== params.userTag?.id
+    ) {
+      const date = DateTime.fromJSDate(params.start)
+      const updateResponse = await this.client.models.Timeslot.update({
+        id: params.timeslot.id,
+        register: params.register ?? null,
+        participantId: params.participantId ?? null,
+        description: params.description ?? null,
+        startDate: date.toFormat('MM-dd-yyyy'),
+        startMonth: date.toFormat('MM-yyyy'),
+        start: params.start.toISOString(),
+        end: params.start.toISOString(),
+        noshowFee: params.noShowFee ?? null,
+        cancelationFee: params.cancelationFee ? {
+          amount: params.cancelationFee.amount,
+          window: params.cancelationFee.window.toISO()!
+        } : null,
+        tagId: params.userTag?.id ?? null,
+      })
+      if(params.options?.logging) console.log(updateResponse)
+
+      const previousTaggingResponse = new Promise<boolean>(async (resolve) => {
+        if(updateResponse.data && params.timeslot.tag?.id !== undefined && params.timeslot.tag.id !== params.userTag?.id) {
+          const timeslotTagResponse = await updateResponse.data.timeslotTag()
+          if(params.options?.logging) console.log(timeslotTagResponse)
+          if(timeslotTagResponse.data) {
+            const deleteTimeslotResponse = await this.client.models.TimeslotTag.delete({ id: timeslotTagResponse.data.id })
+            if(params.options?.logging) console.log(deleteTimeslotResponse)
+          }
+        }
+        resolve(true)
+      })
+
+      const currentTaggingResponse = new Promise<boolean>(async (resolve) => {
+        if(params.userTag !== undefined && params.timeslot.tag?.id !== params.userTag.id) {
+          const timeslotTagResponse = await this.client.models.TimeslotTag.create({
+            timeslotId: params.timeslot.id,
+            tagId: params.userTag.id
+          })
+          if(params.options?.logging) console.log(timeslotTagResponse)
+        }
+        resolve(true)
+      })
+
+      if(params.options?.metric) {
+        await Promise.all([
+          previousTaggingResponse,
+          currentTaggingResponse
+        ])
+        console.log(`UPDATETIMESLOT:${new Date().getTime() - start}ms`)
+      }
+    }
   }
 
   async deleteTimeslotsMutation(params: DeleteTimeslotsMutationParams) {

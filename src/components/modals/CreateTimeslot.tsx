@@ -11,9 +11,10 @@ import { HiOutlineArrowRight, HiOutlineArrowLeft } from 'react-icons/hi'
 import { UseNavigateResult } from "@tanstack/react-router";
 import { TimeSegmentBar } from "../common/TimeSegmentBar";
 import { GetAllUserTagsData } from "../../services/tagService";
-import { convertSegmentListToTimeslots, convertTimeslotListToSegments } from "../../functions/timeslotFunctions";
+import { convertSegmentListToTimeslots, convertTimeslotListToSegments, timeslotListComparison } from "../../functions/timeslotFunctions";
 import { SlotComponent } from "../timeslot/Slot";
 import { PriceInput } from "../common/PriceInput";
+import { HiExclamationTriangle } from "react-icons/hi2";
 
 interface CreateTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,
@@ -39,7 +40,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
   })
 
   const updateTimeslot = useMutation({
-    mutationFn: (params: UpdateTimeslotsMutationParams) => props.TimeslotService.updateTimeslotMutation(params)
+    mutationFn: (params: UpdateTimeslotsMutationParams) => props.TimeslotService.updateTimeslotsMutation(params)
   })
 
   const deleteTimeslot = useMutation({
@@ -47,62 +48,83 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
   })
 
   useEffect(() => {
-    setSegments(convertTimeslotListToSegments(props.timeslots))
+    if(props.open) {
+      setSegments(convertTimeslotListToSegments(props.timeslots))
+      setPreviewTimeslot(undefined)
+      setCancelationFee({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
+      setDescription('')
+      setNoshowFee(60)
+      setSelectedTag(undefined)
+    }
   }, [
     props.open
   ])
 
-  function submitForm(){
-    console.log(props.timeslots, selectedTimeslots)
+  const selectedTimeslots: Timeslot[] = convertSegmentListToTimeslots(
+    props.day,
+    segments, 
+    props.timeslots,
+  )
+
+  async function submitForm(){
     const newIntersectionTimeslots = selectedTimeslots.filter((timeslot) => props.timeslots.some((qTimeslot) => qTimeslot.id === timeslot.id))
     const oldIntersectionTimeslots = props.timeslots.filter((timeslot) => selectedTimeslots.some((qTimeslot) => qTimeslot.id === timeslot.id))
     const newTimeslots = selectedTimeslots.filter((timeslot) => !props.timeslots.some((qTimeslot) => qTimeslot.id === timeslot.id))
     const oldTimeslots = props.timeslots.filter((timeslot) => !selectedTimeslots.some((sTimeslot) => sTimeslot.id === timeslot.id))
     
     
-    createTimeslot.mutate({
-      timeslots: newTimeslots,
-      options: {
-        logging: true
-      }
-    })
+    if(newTimeslots.length > 0) {
+      createTimeslot.mutateAsync({
+        timeslots: newTimeslots,
+        options: {
+          logging: true
+        }
+      })
+    }
 
-    updateTimeslot.mutate({
-      //new timeslots intersection with old updated direction
-      timeslots: newIntersectionTimeslots,
-      //old direction intersection
-      previousTimeslots: oldIntersectionTimeslots,
-      options: {
-        logging: true
-      }
-    })
-    
-    deleteTimeslot.mutate({
-      timeslots: oldTimeslots,
-      options: {
-        logging: true
-      }
-    })
+    if(newIntersectionTimeslots.length > 0 && oldIntersectionTimeslots.length > 0) {
+      updateTimeslot.mutateAsync({
+        //new timeslots intersection with old updated direction
+        timeslots: newIntersectionTimeslots,
+        //old direction intersection
+        previousTimeslots: oldIntersectionTimeslots,
+        options: {
+          logging: true
+        }
+      })
+    }
+
+    if(oldTimeslots.length > 0) {
+      deleteTimeslot.mutate({
+        timeslots: oldTimeslots,
+        options: {
+          logging: true
+        }
+      })
+    }
     
     props.parentUpdateTimeslots(selectedTimeslots)
     props.parentUpdateTags((prev) => prev.map((tag) => ({
       ...tag,
+      timeslots: selectedTimeslots.filter((timeslot) => timeslot.tag?.id === tag.id)
     })))
     props.onClose()
   }
 
-  
-  const selectedTimeslots = convertSegmentListToTimeslots(
-    props.day,
-    segments, 
-    props.timeslots,
-  )
+  const timeslotsWithParticipantsRemoved = props.timeslots.some((timeslot) => (
+    (
+      timeslot.participantId !== undefined ||
+      timeslot.register !== undefined
+    ) &&
+    !selectedTimeslots.find((sTimeslot) => sTimeslot.id === timeslot.id)
+  ))
 
   return (
     <Modal 
       show={props.open} 
       onClose={() => {
         props.onClose()
+
       }}
       size={previewTimeslot ? '6xl' : "2xl"}
     >
@@ -234,7 +256,6 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
               <div className="grid grid-cols-3 w-full gap-2 max-h-[250px] overflow-auto border-2 border-gray-500 rounded-lg p-2">
                 {selectedTimeslots.map((timeslot, index) => {
                   const selected = previewTimeslot?.id === timeslot.id
-                  console.log(previewTimeslot?.id, selected)
                   return (
                     <button
                       key={index}
@@ -301,16 +322,37 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
         )}
       </Modal.Body>
       <Modal.Footer>
-        <div className={`grid grid-cols-${previewTimeslot ? '2' : '1'} justify-items-end w-full`}>
-          <Button 
-            className={`text-xl w-[40%] max-w-[8rem]`} 
-            onClick={() => submitForm()}
-            disabled={selectedTimeslots.length === 0}
-          >{props.timeslots.length > 0 ? 'Update' : 'Create'}</Button>
+        <div className={`grid grid-cols-${previewTimeslot ? '2' : '1'} justify-items-end w-full items-center`}>
+          <div className="flex flex-row justify-between w-full items-center">
+            <div className="text-red-400 flex flex-row items-center gap-1 text-sm">
+              {timeslotsWithParticipantsRemoved && (
+                <>
+                  <HiExclamationTriangle size={32} />
+                  <div className="flex flex-col">
+                    <span><b>Notice:</b> a Timeslot with a participant has been removed!</span>
+                    <span>Continuing will <b>PERMANENTLY</b> delete this timeslot,</span>
+                    <span>Effectively unregistering the participant</span>
+                  </div>
+                  
+                </>
+              )}
+            </div>
+            <Button 
+              className={`text-xl w-full max-w-[8rem] h-fit`} 
+              onClick={() => submitForm()}
+              disabled={(
+                selectedTimeslots.length === 0 || 
+                timeslotListComparison(selectedTimeslots, props.timeslots) ||
+                (createTimeslot.isPending || updateTimeslot.isPending || deleteTimeslot.isPending)
+              )}
+              isProcessing={createTimeslot.isPending || updateTimeslot.isPending || deleteTimeslot.isPending}
+            >{props.timeslots.length > 0 ? 'Update' : 'Create'}</Button>
+          </div>
           {previewTimeslot && (
             <Button 
               onClick={() => setPreviewTimeslot(undefined)}
-              color='info'
+              color='light'
+              className="h-fit max-w-[8rem] text-xl whitespace-nowrap"
             >Close Preview</Button>
           )}
         </div>

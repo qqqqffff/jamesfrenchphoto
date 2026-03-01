@@ -102,7 +102,7 @@ export const TagPicker = (props: TagPickerProps) => {
       {focused && (
         <div 
         className={`
-          absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg 
+          absolute z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg 
           flex flex-col max-w-[250px] 
           ${props?.placement === 'end' ? 'right-0' : 'left-0'}
         `}>

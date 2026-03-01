@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { currentDate, defaultColumnColors } from "../../utils"
+import { compareDate, currentDate, defaultColumnColors } from "../../utils"
 import { Timeslot, UserTag } from "../../types"
 import { HiOutlineCalendar, HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi2'
 import { useQuery } from "@tanstack/react-query"
@@ -36,8 +36,9 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
     if(isOpen) {
       document.addEventListener('mousedown', handleClickOutside)
     }
-    if(calendarTimeslotQuery?.data) {
-      setTimeslots(calendarTimeslotQuery.data)
+    
+    if(props.selectedDate && !compareDate(props.selectedDate, activeDate)) {
+      setActiveDate(props.selectedDate)
     }
 
     return () => {
@@ -45,7 +46,14 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
     }
   }, [
     isOpen,
-    calendarTimeslotQuery?.data
+  ])
+
+  useEffect(() => {
+    if(calendarTimeslotQuery?.data) {
+      setTimeslots(calendarTimeslotQuery.data)
+    }
+  }, [
+    calendarTimeslotQuery
   ])
 
   const monthNames = [
