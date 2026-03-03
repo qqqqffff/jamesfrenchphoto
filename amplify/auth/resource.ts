@@ -18,6 +18,10 @@ export const auth = defineAuth({
     "custom:verified": {
       dataType: 'Boolean',
     },
+    email: {
+      required: true,
+      mutable: true
+    }
     // familyName: {
     //   required: true,
     // },

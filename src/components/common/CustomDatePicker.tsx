@@ -88,7 +88,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
 
   const formatDate = (date?: Date) => {
     if (!date) return '';
-    return date.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })
+    return date.toLocaleDateString()
   };
 
   const formatDisplayDate = (date?: Date) => {
@@ -109,7 +109,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
   }
 
   const handleDateClick = (date?: Date) => {
-    if(!date || formatDate(date) === formatDate(activeDate)) {
+    if(!date || formatDate(date) === formatDate(props.selectedDate)) {
       props.selectDate(null)
       setIsOpen(false)
       return
@@ -120,19 +120,22 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
     props.selectDate(date)
   }
 
-  
-
   const getDateClassName = (date?: Date) => {
     if(!date) return ''
 
     const dateKey = formatDate(date)
     //do something custom if there are more than one tag on a date otherwise display the ascociation
     const taggedDate = timeslots.reduce((prev, cur) => {
-      if(formatDate(cur.start) === dateKey && cur.tag) {
+      if(
+        formatDate(cur.start) === dateKey && 
+        cur.tag && 
+        !prev.some((tag) => tag.id === cur.tag?.id)
+      ) {
         prev.push(cur.tag)
       }
       return prev
     }, [] as UserTag[])
+
     const customDate: [UserTag | null, Date] | undefined = taggedDate.length > 0 ? [taggedDate.length > 1 ? null : taggedDate[0], date] : undefined
     const isSelected = formatDate(props.selectedDate ?? activeDate) === formatDate(date) 
     const isToday = formatDate(date) === formatDate(currentDate)
@@ -221,19 +224,21 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">
-            {days.map((date, index) => (
-              <div key={index} className="aspect-square">
-                {date && (
-                  <button
-                    onClick={() => handleDateClick(date)}
-                    className={getDateClassName(date)}
-                    title={getDateTitle(date)}
-                  >
-                    {date.getDate()}
-                  </button>
-                )}
-              </div>
-            ))}
+            {days.map((date, index) => {
+              return (
+                <div key={index} className="aspect-square">
+                  {date && (
+                    <button
+                      onClick={() => handleDateClick(date)}
+                      className={getDateClassName(date)}
+                      title={getDateTitle(date)}
+                    >
+                      {date.getDate()}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

@@ -169,7 +169,9 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
             middleName: participant.middleName,
             preferredName: participant.preferredName,
             email: participant.email,
-            userEmail: userProfile.email.toLocaleLowerCase()
+            userEmail: userProfile.email.toLocaleLowerCase(),
+            flag: 'true',
+            createdAt: new Date().toISOString(),
           })
 
           returnObject.participantResponses = [
@@ -197,7 +199,9 @@ export const handler: Schema['RegisterUser']['functionHandler'] = async (event) 
         //impossible to create a participant with tags
         const createResponse = await client.models.Participant.create({
           ...participant,
-          userEmail: userProfile.email.toLocaleLowerCase()
+          userEmail: userProfile.email.toLocaleLowerCase(),
+          flag: 'true',
+          createdAt: new Date().toISOString(),
         })
         returnObject.participantResponses = [
           ...(returnObject.participantResponses ?? []), [

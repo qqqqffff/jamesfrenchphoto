@@ -247,13 +247,6 @@ interface GetTagByIdOptions extends MapUserTagOptions {
   metric?: boolean
 }
 
-//TODO: implement me please
-// interface GetAllUserTagsInfiniteData {
-// }
-// interface GetAllUserTagsInfiniteOptions { 
-// }
-// async function getAllUserTagsInfinite(client: V6Client<Schema>, initial: GetAllUserTagsInfiniteData, options?: GetAllUserTagsInfiniteOptions) {
-// }
 /* 
   @default maxItems: 16 items
 */

@@ -99,21 +99,15 @@ interface GetAllTimeslotsByMonthOptions extends GetAllTimeslotsByDateOptions { }
 async function getAllTimeslotsByMonth(client: V6Client<Schema>, date: Date, options?: GetAllTimeslotsByMonthOptions) {
   console.log('api call')
 
-  let timeslotResponse = await client.models.Timeslot.listTimeslotByStartMonthAndStartDate({
+  let timeslotResponse = await client.models.Timeslot.listTimeslotByStartMonth({
     startMonth: DateTime.fromJSDate(date).toFormat('MM-yyyy'),
-    startDate: {
-      beginsWith: DateTime.fromJSDate(date).toFormat('MM-yyyy')
-    }
   })
 
   const timeslotData = timeslotResponse.data
 
   while(timeslotResponse.nextToken) {
-    timeslotResponse = await client.models.Timeslot.listTimeslotByStartMonthAndStartDate({
+    timeslotResponse = await client.models.Timeslot.listTimeslotByStartMonth({
       startMonth: DateTime.fromJSDate(date).toFormat('MM-yyyy'),
-      startDate: {
-        beginsWith: DateTime.fromJSDate(date).toFormat('MM-yyyy')
-      }
     }, {
       nextToken: timeslotResponse.nextToken
     })

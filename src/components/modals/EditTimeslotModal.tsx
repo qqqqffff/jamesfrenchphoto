@@ -3,9 +3,9 @@ import { ModalProps } from ".";
 import { Participant, Timeslot, UserTag } from "../../types";
 import { Alert, Button, Dropdown, Label, Modal, TextInput, Tooltip } from "flowbite-react";
 import { getTimes, normalizeDate, textInputTheme } from "../../utils";
-import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
+import { InfiniteData, UseInfiniteQueryResult, useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
 import { TimeslotService, UpdateTimeslotMutationParams } from "../../services/timeslotService";
-import { UserService } from "../../services/userService";
+import { GetAllParticipantsData, UserService } from "../../services/userService";
 import { HiOutlineExclamation } from "react-icons/hi";
 import { formatParticipantName } from "../../functions/clientFunctions";
 import { HiOutlineXMark } from "react-icons/hi2";
@@ -19,7 +19,7 @@ interface EditTimeslotModalProps extends ModalProps {
   timeslot: Timeslot,
   //TODO: do some dynamic rendering while loading participants/timeslots
   timeslotQuery: UseQueryResult<Timeslot[] | undefined, Error>
-  participantQuery: UseQueryResult<Participant[], Error>
+  participantQuery: UseInfiniteQueryResult<InfiniteData<GetAllParticipantsData, unknown>, Error>
   existingTimeslots: Timeslot[]
   tags: UserTag[]
   participants: Participant[],

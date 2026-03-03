@@ -9,6 +9,8 @@ declare global {
       PHOTOPATH_TABLE_NAME: string,
       TAGS_TABLE_NAME_PROD: string,
       TAGS_TABLE_NAME: string,
+      PARTICIPANT_TABLE_NAME_PROD: string,
+      PARTICIPANT_TABLE_NAME: string,
       S3BUCKET_PROD: string,
       S3BUCKET: string
     }

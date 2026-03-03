@@ -301,7 +301,7 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index('participantId'), 
       index('startDate'), 
-      index('startMonth').sortKeys(['startDate'])
+      index('startMonth')
     ])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
@@ -332,11 +332,21 @@ const schema = a.schema({
       collections: a.hasMany('ParticipantCollections', 'participantId'),
       notifications: a.hasMany('NotificationParticipants', 'participantId'),
       tags: a.hasMany('ParticipantUserTag', 'participantId'),
-      favorites: a.hasMany('UserFavorites', 'participantId')
+      favorites: a.hasMany('UserFavorites', 'participantId'),
+      flag: a.string().default('true'),
+      createdAt: a.datetime().required(),
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('userEmail')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update', 'list']), allow.guest().to(['create', 'get', 'list'])]),
+    .secondaryIndexes((index) => [
+      index('userEmail'),
+      index('flag').sortKeys(['createdAt'])
+    ])
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      // allow.authenticated().to(['get', 'update', 'list']),
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
+      allow.guest().to(['get', 'list'])
+    ]),
   ParticipantUserTag: a.
     model({
       id: a.id().required(),

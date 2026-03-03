@@ -63,16 +63,18 @@ function RouteComponent() {
     }
   ))
 
-  const participantQuery = useQuery(data.UserService.getAllParticipantsQueryOptions({
-    siCollections: false,
-    siNotifications: false,
-    siTags: {
-      siChildren: false,
-      siPackages: false,
-      siTimeslots: true
-    },
-    siTimeslot: true,
-  }))
+  const participantQuery = useInfiniteQuery(data.UserService.getAllParticipantsQueryOptions(
+    {
+      siCollections: false,
+      siNotifications: false,
+      siTags: {
+        siChildren: false,
+        siPackages: false,
+        siTimeslots: true
+      },
+      siTimeslot: true,
+    }
+  ))
 
   useEffect(() => {
     if(timeslotQuery.data) {
@@ -85,7 +87,10 @@ function RouteComponent() {
       }, [] as UserTag[]))
     }
     if(participantQuery.data) {
-      setParticipants(participantQuery.data)
+      setParticipants(participantQuery.data.pages.reduce((prev, cur) => {
+        prev.push(...cur.participants.filter((participant) => !prev.some((pParticipant) => pParticipant.id === participant.id)))
+        return prev
+      }, [] as Participant[]))
     }
     if(!compareDate(activeDate, data.date)) {
       setActiveDate(data.date)
@@ -120,10 +125,7 @@ function RouteComponent() {
       <CreateTimeslotModal 
         TimeslotService={data.TimeslotService}
         open={createTimeslotVisible} 
-        onClose={() => {
-          setActiveDate(new Date(activeDate))
-          setCreateTimeslotVisible(false)
-        }} 
+        onClose={() => setCreateTimeslotVisible(false)} 
         day={activeDate} 
         navigate={navigate}
         timeslots={timeslots}

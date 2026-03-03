@@ -1,6 +1,6 @@
 import { Schema } from "../../amplify/data/resource";
 import { Notification, Participant, PhotoCollection, TableColumn, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
 import { signUp, updateUserAttributes } from "aws-amplify/auth";
@@ -236,20 +236,51 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
   return mappedParticipant
 }
 
-//TODO: convert me to infinite query
-interface GetAllParticipantsOptions extends MapParticipantOptions { }
-async function getAllParticipants(client: V6Client<Schema>, options?: GetAllParticipantsOptions): Promise<Participant[]> {
-  let participantResponse = await client.models.Participant.list()
+/*
+@default maxItems: 16 items
+*/
+interface GetAllParticipantsOptions extends MapParticipantOptions { 
+  maxItems?: number
+}
+export interface GetAllParticipantsData {
+  participants: Participant[],
+  nextToken?: string,
+}
+async function getAllParticipants(client: V6Client<Schema>, initial: GetAllParticipantsData, options?: GetAllParticipantsOptions): Promise<GetAllParticipantsData> {
+  const maxItems = options?.maxItems ?? 16
+  let participantResponse = await client.models.Participant.listParticipantByFlagAndCreatedAt({
+    flag: 'true',
+  }, {
+    sortDirection: 'DESC',
+    limit: maxItems,
+    nextToken: initial.nextToken,
+  })
   const participantData = participantResponse.data
 
-  while(participantResponse.nextToken) {
-    participantResponse = await client.models.Participant.list({ nextToken: participantResponse.nextToken })
-    participantData.push(...participantResponse.data)
-  }
-
-  const notificationMemo: Notification[] = []
-  const collectionsMemo: PhotoCollection[] = []
-  const tagsMemo: UserTag[] = []
+  const notificationMemo: Notification[] = initial.participants
+  .flatMap((participant) => participant.notifications)
+  .reduce((prev, cur) => {
+    if(!prev.some((notification) => notification.id === cur.id)) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as Notification[])
+  const collectionsMemo: PhotoCollection[] = initial.participants
+  .flatMap((participant) => participant.collections)
+  .reduce((prev, cur) => {
+    if(!prev.some((collection) => collection.id === cur.id)) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as PhotoCollection[])
+  const tagsMemo: UserTag[] = initial.participants
+  .flatMap((participant) => participant.userTags)
+  .reduce((prev, cur) => {
+    if(!prev.some((tag) => tag.id === cur.id)) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as UserTag[])
 
   const mappedParticipants: Participant[] = await Promise.all(participantData.map(async (participant) => {
     const newParticipant = await mapParticipant(participant, {
@@ -267,47 +298,17 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
         collectionsMemo: collectionsMemo,
       }
     })
-
-    //pushing to the memo, combining the items from the user tag with the participant specific items and deudplication
-    notificationMemo.push(...[
-      ...(newParticipant.userTags
-        .flatMap((tag) => tag.notifications ?? [])
-        .filter((notification) => (
-          !notificationMemo.some((noti) => noti.id === notification?.id)
-        ))
-      ),
-      ...newParticipant.notifications
-        .filter((notification) => !notificationMemo.some((noti) => noti.id === notification.id))
-    ].reduce((prev, cur) => {
-      if(!prev.some((notification) => notification.id === cur.id)) {
-        prev.push(cur)
-      }
-      return prev
-    }, [] as Notification[]))
-
-
-    collectionsMemo.push(...[
-      ...(newParticipant.userTags
-        .flatMap((tag) => tag.collections ?? [])
-        .filter((collection) => (
-          !collectionsMemo.some((col) => col.id !== collection.id)
-        ))
-      ),
-      ...newParticipant.collections
-        .filter((collection) => !collectionsMemo.some((col) => col.id !== collection.id))
-    ].reduce((prev, cur) => {
-      if(!prev.some((collection) => collection.id === cur.id)) {
-        prev.push(cur)
-      }
-      return prev
-    }, [] as PhotoCollection[]))
-
-    //pushing to the memo with deduplication
-    tagsMemo.push(...newParticipant.userTags.filter((tag) => !tagsMemo.some((mTag) => mTag.id !== tag.id)))
+    
     return newParticipant
   }))
 
-  return mappedParticipants
+  const newParticipants: Participant[] = [...initial.participants, ...mappedParticipants]
+  const returnData: GetAllParticipantsData = {
+    participants: newParticipants,
+    nextToken: participantResponse.nextToken ?? undefined
+  }
+
+  return returnData
 }
 
 export interface RegisterUserMutationParams {
@@ -734,6 +735,8 @@ export class UserService {
       contact: params.participant.contact,
       email: params.participant.email,
       userEmail: params.participant.userEmail,
+      flag: 'true',
+      createdAt: new Date().toISOString(),
     }, { authMode: params.authMode })
 
     if(params.options?.logging) console.log(createResponse)
@@ -950,6 +953,8 @@ export class UserService {
         middleName: participant.middleName,
         lastName: participant.lastName,
         email: participant.email ? participant.email.toLocaleLowerCase() : undefined,
+        flag: 'true',
+        createdAt: new Date().toISOString()
       })
       return [
         response.data,
@@ -1765,7 +1770,9 @@ export class UserService {
         const column = params.tableColumns.find((column) => params.participantFieldLinks.email?.[0] === column.id)
         return column !== undefined && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== ''
       })() ? params.tableColumns.find((column) => column.id === params.participantFieldLinks.email?.[0])!.values[params.rowIndex] : params.participant.email,
-      userEmail: params.participant.userEmail.toLowerCase()
+      userEmail: params.participant.userEmail.toLowerCase(),
+      flag: 'true',
+      createdAt: new Date().toISOString(),
     })
 
     if(params.options?.logging) console.log(createParticipantResponse)
@@ -2112,8 +2119,13 @@ export class UserService {
   })
 
 
-  getAllParticipantsQueryOptions = (options?: GetAllParticipantsOptions) => queryOptions({
+  getAllParticipantsQueryOptions = (options?: GetAllParticipantsOptions) => infiniteQueryOptions({
     queryKey: ['participants', options],
-    queryFn: () => getAllParticipants(this.client, options)
+    queryFn: ({ pageParam }) => getAllParticipants(this.client, pageParam, options),
+    getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
+    initialPageParam: ({
+      participants: [] as Participant[],
+    } as GetAllParticipantsData),
+    refetchOnWindowFocus: false
   })
 }
