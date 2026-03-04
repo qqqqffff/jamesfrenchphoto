@@ -142,6 +142,8 @@ function RouteComponent() {
           onClose={() => {
             setEditTimeslotVisible(undefined)
           }} 
+          activeDate={activeDate}
+          navigate={navigate}
           timeslot={editTimeslotVisible} 
           timeslotQuery={timeslotQuery}
           existingTimeslots={timeslots}
@@ -184,7 +186,7 @@ function RouteComponent() {
                 <TagNavigator 
                   activeDate={activeDate}
                   setActiveTag={setActiveTag}
-                  setActiveDate={setActiveDate}
+                  navigate={navigate}
                   activeTag={activeTag}
                   tags={tags}
                   tagsQuery={tagsQuery}
@@ -238,7 +240,7 @@ function RouteComponent() {
                 <TagNavigator 
                   activeDate={activeDate}
                   setActiveTag={setActiveTag}
-                  setActiveDate={setActiveDate}
+                  navigate={navigate}
                   activeTag={activeTag}
                   tags={tags}
                   tagsQuery={tagsQuery}

@@ -271,7 +271,11 @@ export interface RegisterTimeslotMutationParams {
 }
 
 export interface AdminRegisterTimeslotMutationParams extends Omit<RegisterTimeslotMutationParams, 'timeslot'> {
-  timeslot: string
+  timeslotId: string
+}
+
+export interface SendTimeslotConfirmationParams extends Omit<AdminRegisterTimeslotMutationParams, 'notify' | 'unregister'> { 
+  bypassTagValidation?: boolean
 }
 
 export class TimeslotService {
@@ -557,6 +561,53 @@ export class TimeslotService {
     }
   }
 
+  async sendTimeslotConfirmation(params: SendTimeslotConfirmationParams): Promise<{ status: 'Success' | 'Fail', error?: string }> {
+    const getTimeslotResponse = await this.client.models.Timeslot.get({ id: params.timeslotId })
+    if(!getTimeslotResponse.data) {
+      return { status: 'Fail', error: 'Timeslot for this id does not exist.'}
+    }
+
+    const timeslotTag = getTimeslotResponse.data.tagId
+
+    //participant tag ownership validation
+    if(timeslotTag !== null && !params.bypassTagValidation) {
+      let getParticipantTagIdsResponse = await this.client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: params.participantId })
+      const getParticipantTagIdsData = getParticipantTagIdsResponse.data
+
+      while(getParticipantTagIdsResponse.nextToken) {
+        getParticipantTagIdsResponse = await this.client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({
+          participantId: params.participantId,
+        }, {
+          nextToken: getParticipantTagIdsResponse.nextToken
+        })
+        getParticipantTagIdsData.push(...getParticipantTagIdsResponse.data)
+      }
+
+      if(!getParticipantTagIdsData.some((tag) => tag.tagId === timeslotTag)) {
+        return { status: 'Fail', error: 'Participant does not own the tag required for registration.' }
+      }
+    }
+
+    const response = await this.client.queries.SendTimeslotConfirmation({
+      email: params.userEmail,
+      start: getTimeslotResponse.data.start,
+      end: getTimeslotResponse.data.end,
+      additionalRecipients: params.additionalRecipients,
+      tagId: getTimeslotResponse.data.tagId,
+      participantId: params.participantId,
+    }, {
+      authMode: 'userPool'
+    })
+
+    if(response.data === null) return { status: 'Success', error: 'Failed to send confirmation email.'}
+        
+    const emailParsedResponse: { success: boolean } = JSON.parse(response.data.toString())
+    if(!emailParsedResponse.success) {
+      return { status: 'Success', error: 'Failed to send confirmation email.'}
+    }
+    return { status: 'Success' }
+}
+
   async getTimeslotById(timeslotId: string, options?: GetTimeslotByIdOptions): Promise<Timeslot | null> {
     if(timeslotId === '') return null
     const start = new Date()
@@ -598,7 +649,7 @@ export class TimeslotService {
   }
 
   async adminRegisterTimeslotMutation(params: AdminRegisterTimeslotMutationParams): Promise<Timeslot | null> {
-    const getTimeslot = await this.getTimeslotById(params.timeslot, { siTag: true })
+    const getTimeslot = await this.getTimeslotById(params.timeslotId, { siTag: true })
 
     if(getTimeslot === null) return null
 

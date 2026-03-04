@@ -6,9 +6,9 @@ import { v4 } from 'uuid'
 export const convertSegmentListToTimeslots = (
   activeDate: Date,
   segment: Segment[], 
-  existingTimeslots: Timeslot[], 
-): Timeslot[] => {
-  const timeslots: Timeslot[] = []
+  existingTimeslots: SegmentCorrelatedTimeslot[], 
+): SegmentCorrelatedTimeslot[] => {
+  const timeslots: SegmentCorrelatedTimeslot[] = []
   const MIN_TIME = 8 * 60
 
   for(let i = 0; i < segment.length; i++) {
@@ -24,12 +24,16 @@ export const convertSegmentListToTimeslots = (
       const endDT = startDT.plus({ minutes: segment[i].interval })
 
       const foundExistingTimeslot = existingTimeslots.find((timeslot) => (
-        (timeslot.start.getTime() >= startDT.toMillis() && timeslot.start.getTime() <= endDT.toMillis()) ||
-        (timeslot.end.getTime() >= startDT.toMillis() && timeslot.end.getTime() <= endDT.toMillis())
+        (
+          (timeslot.start.getTime() >= startDT.toMillis() && timeslot.start.getTime() <= endDT.toMillis()) ||
+          (timeslot.end.getTime() >= startDT.toMillis() && timeslot.end.getTime() <= endDT.toMillis())
+        ) &&
+        !timeslots.some((rTimeslot) => rTimeslot.id === timeslot.id) &&
+        (segment.some((segment) => segment.id === timeslot.segmentId) || timeslot.segmentId === undefined)
       ))
 
       if(foundExistingTimeslot === undefined) {
-        const mappedTimeslot: Timeslot = {
+        const mappedTimeslot: SegmentCorrelatedTimeslot = {
           id: v4(),
           tag: segment[i].userTag,
           noshowFee: segment[i].options?.noshowFee,
@@ -38,58 +42,31 @@ export const convertSegmentListToTimeslots = (
           end: endDT.toJSDate(),
           description: segment[i].options?.description,
           updatedAt: new Date().toISOString(),
+          segmentId: segment[i].id
         }
 
         timeslots.push(mappedTimeslot)
       }
       else {
-        timeslots.push(foundExistingTimeslot)
+        console.log(foundExistingTimeslot)
+        timeslots.push({
+          ...foundExistingTimeslot, 
+          segmentId: segment[i].id,
+          start: startDT.toJSDate(),
+          end: endDT.toJSDate(),
+        })
       }
       counter += segment[i].interval
     }
   }
 
-  // timeslots.push(...(
-  //   segment.reduce((prev, cur, _, array) => {
-  //     //segments startmin starts at 0 and goes up to end min
-  //     let counter = (minHour * 60) + cur.startMin
-  //     const end = (minHour * 60) + cur.endMin
-  //     const maxDepth = 200;
-  //     let i = 0
-  //     while(counter < end) {
-  //       const minutes = String(counter % 60)
-  //       const hours = String(Math.floor(counter / 60))
-  //       const startDT = DateTime.fromFormat(
-  //         `${DateTime.fromJSDate(activeDate).toFormat('MM-dd-yyyy')} ${hours.length === 1 ? '0' : ''}${hours}:${minutes.length === 1 ? '0' : ''}${minutes}`, 
-  //         'MM-dd-yyyy hh:mm'
-  //       )
-  //       const endDT = startDT.plus({ minutes: cur.interval })
-
-  //       if(
-  //         timeslots.some((timeslot) => {
-  //           return (
-  //             (timeslot.start.getTime() >= startDT.toMillis() && timeslot.start.getTime() <= endDT.toMillis()) ||
-  //             (timeslot.end.getTime() >= startDT.toMillis() && timeslot.end.getTime() <= endDT.toMillis())
-  //           )
-  //         })
-  //       ) { 
-  //         continue
-  //       }
-
-        
-  //       counter = counter + cur.interval
-  //       i++;
-  //       if(i>=maxDepth) break;
-  //     }
-  //     console.log(array)
-  //     return prev
-  //   }, [] as Timeslot[])
-  // ))
-
   return timeslots
 }
 
-export const convertTimeslotListToSegments = (timeslots: Timeslot[]): Segment[] => {
+interface SegmentCorrelatedTimeslot extends Timeslot {
+  segmentId?: string
+}
+export const convertTimeslotListToSegments = (timeslots: SegmentCorrelatedTimeslot[]): Segment[] => {
   const segments: Segment[] = []
   const BASE_TIME = 60 * 8
   const retrieveTimeslotTime = (timeslot: Timeslot, order: 'start' | 'end') => (order === 'start' ? timeslot.start.getHours() * 60 + timeslot.start.getMinutes() : timeslot.end.getHours() * 60 + timeslot.end.getMinutes()) - BASE_TIME
@@ -100,7 +77,7 @@ export const convertTimeslotListToSegments = (timeslots: Timeslot[]): Segment[] 
   let currentStartMin = retrieveTimeslotTime(orderedTimeslots[0], 'start')
   let currentEndMin = retrieveTimeslotTime(orderedTimeslots[0], 'end')
   let currentSegment: Segment = {
-    id: v4(),
+    id: orderedTimeslots[0].segmentId ?? v4(),
     startMin: currentStartMin,
     endMin: currentEndMin,
     interval: currentEndMin - currentStartMin,
@@ -124,7 +101,8 @@ export const convertTimeslotListToSegments = (timeslots: Timeslot[]): Segment[] 
       orderedTimeslots[i].noshowFee === currentSegment.options?.noshowFee &&
       orderedTimeslots[i].description === currentSegment.options?.description &&
       orderedTimeslots[i].cancelationFee?.amount === currentSegment.options?.cancelationFee?.amount &&
-      orderedTimeslots[i].cancelationFee?.window.as('hours') === currentSegment.options?.cancelationFee?.window.as('hours')
+      orderedTimeslots[i].cancelationFee?.window.as('hours') === currentSegment.options?.cancelationFee?.window.as('hours') &&
+      (orderedTimeslots[i].segmentId === currentSegment.id || orderedTimeslots[i].segmentId === undefined)
     ) {
       currentSegment.endMin = currentEndMin
     }
@@ -132,7 +110,7 @@ export const convertTimeslotListToSegments = (timeslots: Timeslot[]): Segment[] 
     else {
       segments.push({...currentSegment})
       currentSegment = {
-        id: v4(),
+        id: orderedTimeslots[i].segmentId ?? v4(),
         startMin: currentStartMin,
         endMin: currentEndMin,
         interval: currentEndMin - currentStartMin,
@@ -154,6 +132,7 @@ export const convertTimeslotListToSegments = (timeslots: Timeslot[]): Segment[] 
 }
 
 export const timeslotListComparison = (a: Timeslot[], b: Timeslot[]) => {
+  console.log(a, b)
   return a.every((aTimeslot) => (
     b.some((bTimeslot) => (
       aTimeslot.id === bTimeslot.id &&

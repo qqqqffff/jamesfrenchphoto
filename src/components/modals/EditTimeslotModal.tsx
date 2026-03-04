@@ -1,10 +1,10 @@
 import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
 import { ModalProps } from ".";
-import { Participant, Timeslot, UserTag } from "../../types";
-import { Alert, Button, Dropdown, Label, Modal, TextInput, Tooltip } from "flowbite-react";
-import { getTimes, normalizeDate, textInputTheme } from "../../utils";
+import { Participant, Segment, Timeslot, UserTag } from "../../types";
+import { Button, Label, Modal, TextInput, Tooltip } from "flowbite-react";
+import { DAY_OFFSET, textInputTheme } from "../../utils";
 import { InfiniteData, UseInfiniteQueryResult, useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
-import { TimeslotService, UpdateTimeslotMutationParams } from "../../services/timeslotService";
+import { AdminRegisterTimeslotMutationParams, SendTimeslotConfirmationParams, TimeslotService, UpdateTimeslotMutationParams } from "../../services/timeslotService";
 import { GetAllParticipantsData, UserService } from "../../services/userService";
 import { HiOutlineExclamation } from "react-icons/hi";
 import { formatParticipantName } from "../../functions/clientFunctions";
@@ -12,6 +12,10 @@ import { HiOutlineXMark } from "react-icons/hi2";
 import { ParticipantPanel } from "../common/ParticipantPanel";
 import { CustomDatePicker } from "../common/CustomDatePicker";
 import { TagPicker } from "../common/TagPicker";
+import { TimeSegmentBar } from "../common/TimeSegmentBar";
+import { DateTime, Duration } from "luxon";
+import { convertSegmentListToTimeslots, convertTimeslotListToSegments, timeslotListComparison } from "../../functions/timeslotFunctions";
+import { UseNavigateResult } from "@tanstack/react-router";
 
 interface EditTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,
@@ -23,20 +27,23 @@ interface EditTimeslotModalProps extends ModalProps {
   existingTimeslots: Timeslot[]
   tags: UserTag[]
   participants: Participant[],
+  activeDate: Date,
+  navigate: UseNavigateResult<string>
   parentUpdateTimeslots: Dispatch<SetStateAction<Timeslot[]>>
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
   parentUpdateParticipants: Dispatch<SetStateAction<Participant[]>>
 }
 
 export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslotModalProps) => {
-  const [startTime, setStartTime] = useState<Date>(props.timeslot.start)
-  const [endTime, setEndTime] = useState<Date>(props.timeslot.end)
+  const [segement, setSegment] = useState<Segment[]>([])
   const [description, setDescription] = useState<string>(props.timeslot.description ?? '')
   const [activeTag, setActiveTag] = useState<UserTag | undefined>(props.timeslot.tag)
   const [participantId, setParticipantId] = useState<string | undefined>(props.timeslot.participantId)
+  const [noshowFee, setNoshowFee] = useState<number | undefined>(60)
+  const [cancelationFee, setCancelationFee] = useState<{ amount: number, window: Duration } | undefined>({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
+  const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([])
+  const [notify, setNotify] = useState(true)
 
-  const [activeDate, setActiveDate] = useState<Date>(normalizeDate(props.timeslot.start))
-  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string}>()
   const [participantSearch, setParticipantSearch] = useState<string>('')
   const [participantSearchFocused, setParticipantSearchFocused] = useState(false)
 
@@ -46,38 +53,49 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
     }),
     enabled: participantId !== undefined && props.participants.some((participant) => participant.id === participantId)
   })
-
-  useEffect(() => {
-    setStartTime(props.timeslot.start)
-    setEndTime(props.timeslot.end)
-    setDescription(props.timeslot.description ?? '')
-    setActiveTag(props.timeslot.tag)
-    setParticipantId(props.timeslot.participantId)
-  }, [
-    props.timeslot
-  ])
-  const updateTimeslot = useMutation({
-    mutationFn: (params: UpdateTimeslotMutationParams) => props.TimeslotService.updateTimeslotMutation(params),
-    onSuccess: () => {
-      setNotification({type: 'success', message: 'Successfully Updated Timeslot'})
-    },
-    onError: () => {
-      setNotification({type: 'error', message: 'Failed to Update Timeslot'})
-    }
+  
+  const sendEmailConfirmation = useMutation({
+    mutationFn: (params: SendTimeslotConfirmationParams) => props.TimeslotService.sendTimeslotConfirmation(params)
   })
 
-  const times = getTimes(activeDate)
+  useEffect(() => {
+    if(props.open) {
+      setDescription(props.timeslot.description ?? '')
+      setActiveTag(props.timeslot.tag)
+      setParticipantId(props.timeslot.participantId)
+      setNoshowFee(props.timeslot.noshowFee)
+      setCancelationFee(props.timeslot.cancelationFee)
+      setSegment(convertTimeslotListToSegments([props.timeslot]))
+    }
+  }, [
+    props.open
+  ])
+
+  const selectedTimeslot = convertSegmentListToTimeslots(
+    props.activeDate,
+    segement,
+    [props.timeslot]
+  )
+
+  const updateTimeslot = useMutation({
+    mutationFn: (params: UpdateTimeslotMutationParams) => props.TimeslotService.updateTimeslotMutation(params)
+  })
 
   const calculateOverlap = (() => {
     const found = props.existingTimeslots
       .filter((ts) => ts.id !== props.timeslot.id)
       .filter((timeslot) => {
-        return timeslot.start.getTime() === startTime.getTime() || 
-          timeslot.end.getTime() === endTime.getTime() ||
-          (timeslot.start.getTime() > startTime.getTime() && timeslot.end.getTime() < endTime.getTime())
+        return (
+          // inside
+          (timeslot.start.getTime() <= props.timeslot.start.getTime() && timeslot.end.getTime() >= props.timeslot.end.getTime()) ||
+          // ends inside
+          (timeslot.start.getTime() >= props.timeslot.start.getTime() && timeslot.end.getTime() <= props.timeslot.end.getTime()) ||
+          // starts inside
+          (timeslot.start.getTime() <= props.timeslot.start.getTime() && timeslot.end.getTime() >= props.timeslot.end.getTime())
+        )
     })
     if(found.length == 0) return undefined
-    if(found.find((timeslot) => timeslot.participantId !== undefined || timeslot.register !== undefined) !== undefined) return 'emergency'
+    if(found.some((timeslot) => timeslot.participantId !== undefined || timeslot.register !== undefined)) return 'emergency'
     return 'warning'
   })()
 
@@ -101,98 +119,54 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
       <Modal.Header>Edit Timeslot</Modal.Header>
       <Modal.Body className="min-h-[500px]">
         <div className="flex flex-col">
-          {notification && (
-            <Alert 
-              color={notification.type == 'success' ? 'green' : notification.type == 'error' ? 'red' : 'gray'} 
-              className="mb-2" 
-              onDismiss={() => setNotification(undefined)}
-            >{notification.message}</Alert>
-          )}
           <div className="flex flex-row gap-8 w-full justify-center">
             <div className="flex flex-col gap-1 min-w-[200px]">
               <Label className="ms-2 font-medium text-lg">Date:</Label>
               <CustomDatePicker 
-                selectedDate={activeDate}
+                selectedDate={props.activeDate}
                 selectDate={(date) => {
                   if(date) {
-                    setActiveDate(date)
+                    props.navigate({ to: '.', search: { date: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy') }})
                   }
                 }}
                 fetchMonthTimeslots={props.TimeslotService}
               />
             </div>
-            <div className="flex flex-col gap-1 min-w-[250px]">
-              <Label className="ms-2 font-medium text-lg" htmlFor="timeslotDescription">Description:</Label>
-              <TextInput
-                id='timeslotDescription'
-                theme={textInputTheme} 
-                placeholder="Timeslot Descripition..."
-                className=" placeholder:italic w-full mb-4"
-                sizing="md" 
-                onChange={(event) => {
-                    setDescription(event.target.value)
-                }}
-                value={description}
-                name="Timeslot Description"
-              />
-            </div>     
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="flex flex-col items-center">
-              <div className="flex flex-col gap-1">
-                <Label className="ms-2 font-medium text-lg" htmlFor="name">Start:</Label>
-                <Dropdown placement="bottom-end" label={typeof startTime === 'string' ? startTime : startTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} color="light" id="name" name="name" className="overflow-auto max-h-[250px]">
-                  {times
-                    .map((time, index) => {
-                      return (
-                        <Dropdown.Item 
-                          key={index} 
-                          className={`disabled:text-gray-400 disabled:cursor-not-allowed`}
-                          onClick={() => {
-                            setStartTime(time)
-                            setEndTime(new Date(time.getTime() + (endTime.getTime() - startTime.getTime())))
-                          }}
-                        >
-                          {time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}
-                        </Dropdown.Item>
-                      )
-                    })
-                  }
-                </Dropdown>
+          <TimeSegmentBar 
+            segments={segement}
+            setSegments={setSegment}
+            individual
+            activeTag={activeTag}
+            activeOptions={{
+              noshowFee: noshowFee,
+              description: description,
+              cancelationFee: cancelationFee,
+            }}
+            header={(
+              <div className="flex flex-row gap-2 items-center">
+                <TextInput
+                  theme={textInputTheme} 
+                  placeholder="Timeslot Descripition..."
+                  className=" placeholder:italic w-full mb-4 max-w-[350px]"
+                  sizing="md" 
+                  onChange={(event) => {
+                      setDescription(event.target.value)
+                  }}
+                  value={description}
+                  name="Timeslot Description"
+                />
+                <TagPicker 
+                  tags={props.tags}
+                  parentPickTag={(tag) => setActiveTag(tag)}
+                  pickedTag={activeTag ? [activeTag] : undefined}
+                  allowMultiple={false}
+                  allowClear
+                  small
+                />  
               </div>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="flex flex-col gap-1">
-                <Label className="ms-2 font-medium text-lg" htmlFor="name">End:</Label>
-                <Dropdown placement="bottom-end" label={typeof endTime === 'string' ? endTime : endTime.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })} color="light" id="name" name="name" disabled={typeof startTime == 'string'} className="overflow-auto max-h-[250px]">
-                  {times.map((time, index) => { 
-                    return (
-                      <Dropdown.Item 
-                        key={index} 
-                        className={`disabled:text-gray-400 disabled:cursor-not-allowed`}
-                        onClick={() => {
-                          setStartTime(new Date(time.getTime() - (endTime.getTime() - startTime.getTime())))
-                          setEndTime(time)
-                        }}
-                      >
-                        {time.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}
-                      </Dropdown.Item>
-                    )
-                  })}
-                </Dropdown>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="ms-2 font-medium text-lg" >Tag:</span>
-              <TagPicker 
-                tags={props.tags}
-                parentPickTag={(tag) => setActiveTag(tag)}
-                pickedTag={activeTag ? [activeTag] : undefined}
-                allowMultiple={false}
-                allowClear
-              />
-            </div>
-          </div>
+            )}
+          />
           <div className="grid grid-cols-2">
               <div className="flex flex-col gap-1 mb-4 self-center items-center justify-center relative">
                   <Label className="font-medium text-lg" htmlFor="participant">
@@ -288,30 +262,38 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
         {/* TODO: updates check */}
         <Button
           onClick={() => {
-            const newTimeslot: Timeslot = {
-              ...props.timeslot,
-              start: startTime,
-              end: endTime,
-              description: description,
-              tag: activeTag,
-              participantId: participantId,
-              register: userProfile.data?.email
-            }
-            updateTimeslot.mutate({
+            if(selectedTimeslot[0] === undefined) return
+            const newTimeslot = selectedTimeslot[0]
+            
+            updateTimeslot.mutateAsync({
               timeslot: props.timeslot,
-              start: startTime,
-              end: endTime,
+              start: newTimeslot.start,
+              end: newTimeslot.end,
               description: description,
               userTag: activeTag,
               participantId: participantId,
               register: userProfile.data?.email,
-              //TODO: implement new fields
+              noShowFee: noshowFee,
+              cancelationFee: cancelationFee,
               options: {
                 logging: true
               }
+            }).then(() => {
+              //TODO: handle response
+              if(participantId !== props.timeslot.participantId && userProfile.data && participantId) {
+                sendEmailConfirmation.mutate({
+                  timeslotId: props.timeslot.id,
+                  bypassTagValidation: true,
+                  participantId: participantId,
+                  userEmail: userProfile.data.email,
+                  additionalRecipients: additionalRecipients,
+                  options: {
+                    logging: true
+                  }
+                })
+              }
             })
-            //TODO: add a success indicator
-            //update state
+            
 
             //participant - append to new participant and remove from old
             props.parentUpdateParticipants((prev) => prev.map((participant) => participant.id === participantId ? ({
@@ -334,7 +316,11 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
             //timeslot - update timeslots
             props.parentUpdateTimeslots((prev) => prev.map((timeslot) => timeslot.id === newTimeslot.id ? newTimeslot : timeslot))
           }}
-          isProcessing={updateTimeslot.isPending}
+          isProcessing={updateTimeslot.isPending || sendEmailConfirmation.isPending}
+          disabled={(
+            timeslotListComparison(selectedTimeslot, [props.timeslot]) ||
+            (updateTimeslot.isPending || sendEmailConfirmation.isPending)
+          )}
         >
           Update
         </Button>

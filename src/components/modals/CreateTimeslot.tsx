@@ -27,6 +27,7 @@ interface CreateTimeslotModalProps extends ModalProps {
   parentUpdateTags: Dispatch<SetStateAction<UserTag[]>>
 }
 
+//TODO: use timeslot query to show loading
 export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateTimeslotModalProps) => {
   const [segments, setSegments] = useState<Segment[]>([])
   const [noshowFee, setNoshowFee] = useState<number | undefined>(60)
@@ -60,7 +61,9 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
     props.open
   ])
 
-  const selectedTimeslots: Timeslot[] = convertSegmentListToTimeslots(
+  
+
+  const selectedTimeslots = convertSegmentListToTimeslots(
     props.day,
     segments, 
     props.timeslots,

@@ -53,6 +53,7 @@ interface DragSegment {
 interface TimeSegmentBarProps {
   segments: Segment[];
   setSegments: Dispatch<SetStateAction<Segment[]>>;
+  individual?: boolean
   header?: JSX.Element;
   activeTag?: UserTag;
   activeOptions?:  {
@@ -103,7 +104,6 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     [props.segments]
   );
 
-  // ── Global event listeners (registered once) ──────────────────────────────
   useEffect(() => {
     const MOVE_THRESHOLD_PX = 4;
 
@@ -209,11 +209,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
       window.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('keydown', onKeyDown);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // ↑ Empty deps: listeners are registered once. They read live values via
-  //   refs (focusedIdRef, dragRef) and use the setSegments functional updater
-  //   so they never need a stale closure on `segments`.
 
   const clearFocus = () => {
     setFocusedId(null);
@@ -232,7 +228,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     return best;
   };
 
-  const canAddSegment = largestGap() >= MIN_GAP_TO_ADD;
+  const canAddSegment = largestGap() >= MIN_GAP_TO_ADD && !props.individual;
 
   const addSegment = () => {
     if (!canAddSegment) return;
@@ -285,14 +281,18 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
           <div>
             {props.header}
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); addSegment(); }}
-            disabled={!canAddSegment}
-            title={!canAddSegment ? "No 30-minute gap available" : undefined}
-            className="gap-2 px-4 py-2 rounded-lg border text-sm enabled:hover:border-gray-500 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <span>Add Segment</span>
-          </button>
+          <div>
+            {!props.individual && (
+              <button
+                onClick={(e) => { e.stopPropagation(); addSegment(); }}
+                disabled={!canAddSegment}
+                title={!canAddSegment ? "No 30-minute gap available" : undefined}
+                className="gap-2 px-4 py-2 rounded-lg border text-sm enabled:hover:border-gray-500 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span>Add Segment</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Bar + popups wrapper */}

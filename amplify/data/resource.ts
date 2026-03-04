@@ -509,7 +509,7 @@ const schema = a.schema({
       start: a.datetime().required(),
       end: a.datetime().required(),
       participantId: a.string().required(),
-      tagId: a.string().required(),
+      tagId: a.string(),
       additionalRecipients: a.string().array(),
     })
     .handler(a.handler.function(sendTimeslotConfirmation))

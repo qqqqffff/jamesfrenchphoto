@@ -282,9 +282,9 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
     sgMail.setApiKey(env.SENDGRID_API_KEY)
 
     const participantResponse = await dynamoClient.models.Participant.get({ id: participantId })
-    const tagResponse = await dynamoClient.models.UserTag.get({ id: tagId })
+    const tagResponse = tagId ? await dynamoClient.models.UserTag.get({ id: tagId }) : { data: undefined }
 
-    if(!participantResponse.data || !tagResponse.data) return { success: false }
+    if(!participantResponse.data ) return { success: false }
 
     const formattedName = (participantResponse.data.preferredName !== null ? participantResponse.data.preferredName : participantResponse.data.firstName) + ' ' + participantResponse.data.lastName
 
@@ -294,17 +294,23 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
         { zone: 'America/Chicago' }
     )
     const startUTC = startDateTime
+
+    const categories = ['James French Photography', 'Photoshoot']
+    if(tagResponse.data) {
+      categories.push(...tagResponse.data.name.split(' '))
+      categories.push(tagResponse.data.name)
+    }
     
     const calendarEvent: EventAttributes = {
         start: [startUTC.year, startUTC.month, startUTC.day, startUTC.hour, startUTC.minute],
         duration: { hours: delta.getHours(), minutes: delta.getMinutes() },
-        title: `${tagResponse.data.name} Photoshoot`,
+        title: `${tagResponse.data ? `${tagResponse.data.name} ` : 'James French '}Photoshoot`,
         description: `Photoshoot for ${formattedName}`,
         url: 'https://www.jamesfrenchphoto.com',
         geo: { lat: 32.813040, lon: -96.803810 },
         location: '3624 Oak Lawn Ave # 222, Dallas, TX 75219',
         status: 'CONFIRMED',
-        categories: ['James French Photography', 'Photoshoot', ...tagResponse.data.name.split(' ')],
+        categories: ['James French Photography', 'Photoshoot', ],
         busyStatus: 'BUSY',
         organizer: { name: 'James French Photography', email: 'no-reply@jamesfrenchphotography.com' },
         attendees: [
@@ -336,11 +342,6 @@ export const handler: Schema['SendTimeslotConfirmation']['functionHandler'] = as
         .replace('{{_timeslot_date_}}', start.toLocaleDateString('en-us', { timeZone: 'America/Chicago'}))
         .replace('{{_timeslot_timestring_}}', formatTimeslotDates({ id: '', start: start, end: end, updatedAt: new Date().toISOString() }))
         .replace('{{_registration_fee_string_}}', registrationFeeString),
-        
-        // `
-        //     <p>
-        //         Your photoshoot timeslot has been confirmed to be on<strong>${' ' + start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' }) + ' '}</strong>from<strong>${' ' + start.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' }) + " - " + end.toLocaleTimeString("en-us", { timeZone: 'America/Chicago' })}</strong>. If you wish to choose a different time, unregister by clicking on the same timeslot under your timeslots. Note that changes in registration within 48 hours of the selected timeslot will incur an additional short notice registration fee.
-        //     </p>`,
         attachments: calendarInvite !== undefined ? [
             {
                 content: calendarInvite.toString('base64'),

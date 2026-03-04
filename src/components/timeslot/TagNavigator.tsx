@@ -6,11 +6,13 @@ import { normalizeDate, sortDatesAround } from "../../utils";
 import { ColorComponent } from "../common/ColorComponent";
 import { HiOutlineArrowLeftCircle, HiOutlineArrowRightCircle, HiOutlineChevronDown, HiOutlineChevronUp } from 'react-icons/hi2'
 import { GetAllUserTagsData } from "../../services/tagService";
+import { UseNavigateResult } from "@tanstack/react-router";
+import { DateTime } from "luxon";
 
 interface TagNavigatorProps {
   activeDate: Date
   setActiveTag: Dispatch<SetStateAction<UserTag | undefined>>
-  setActiveDate: Dispatch<SetStateAction<Date>>
+  navigate: UseNavigateResult<string>
   activeTag: UserTag | undefined
   tags: UserTag[]
   tagsQuery: UseInfiniteQueryResult<InfiniteData<GetAllUserTagsData, unknown>, Error>
@@ -58,7 +60,7 @@ export const TagNavigator = (props: TagNavigatorProps) => {
               }, [] as Date[])
             const sortedDates = sortDatesAround(sortedTimes, props.activeDate)
             props.setActiveTag(tag)
-            props.setActiveDate(sortedDates[0])
+            props.navigate({ to: '.', search: { date: DateTime.fromJSDate(sortedDates[0]).toFormat('MM-dd-yyyy') }})
             return
           }
           props.setActiveTag(tag)
@@ -79,7 +81,7 @@ export const TagNavigator = (props: TagNavigatorProps) => {
                   const activeDateIndex = uniqueTimeslotDates.findIndex((date) => date.getTime() === normalizeDate(props.activeDate).getTime())
                   const newDate = activeDateIndex - 1 < 0 ? uniqueTimeslotDates[uniqueTimeslotDates.length - 1] : uniqueTimeslotDates[activeDateIndex - 1]
 
-                  props.setActiveDate(newDate)
+                  props.navigate({ to: '.', search: { date: DateTime.fromJSDate(newDate).toFormat('MM-dd-yyyy') }})
                 }}
                 disabled={(props.activeTag.timeslots ?? []).length > 1}
               >
@@ -94,7 +96,7 @@ export const TagNavigator = (props: TagNavigatorProps) => {
                   const activeDateIndex = uniqueTimeslotDates.findIndex((date) => date.getTime() === normalizeDate(props.activeDate).getTime())
                   const newDate = activeDateIndex + 1 >= uniqueTimeslotDates.length ? uniqueTimeslotDates[0] : uniqueTimeslotDates[activeDateIndex + 1]
 
-                  props.setActiveDate(newDate)
+                  props.navigate({ to: '.', search: { date: DateTime.fromJSDate(newDate).toFormat('MM-dd-yyyy') }})
                 }}
                 disabled={(props.activeTag.timeslots ?? []).length > 1}
               >
@@ -112,7 +114,7 @@ export const TagNavigator = (props: TagNavigatorProps) => {
                     const activeDateIndex = uniqueTimeslotDates.findIndex((date) => date.getTime() === normalizeDate(props.activeDate).getTime())
                     const newDate = activeDateIndex - 1 < 0 ? uniqueTimeslotDates[uniqueTimeslotDates.length - 1] : uniqueTimeslotDates[activeDateIndex - 1]
 
-                    props.setActiveDate(newDate)
+                    props.navigate({ to: '.', search: { date: DateTime.fromJSDate(newDate).toFormat('MM-dd-yyyy') }})
                   }}
                 >
                   <HiOutlineArrowLeftCircle size={20} className="hover:text-gray-500"/>
@@ -133,7 +135,7 @@ export const TagNavigator = (props: TagNavigatorProps) => {
                     const activeDateIndex = uniqueTimeslotDates.findIndex((date) => date.getTime() === normalizeDate(props.activeDate).getTime())
                     const newDate = activeDateIndex + 1 >= uniqueTimeslotDates.length ? uniqueTimeslotDates[0] : uniqueTimeslotDates[activeDateIndex + 1]
 
-                    props.setActiveDate(newDate)
+                    props.navigate({ to: '.', search: { date: DateTime.fromJSDate(newDate).toFormat('MM-dd-yyyy') }})
                   }}
                 >
                   <HiOutlineArrowRightCircle size={20} className="hover:text-gray-500"/>
