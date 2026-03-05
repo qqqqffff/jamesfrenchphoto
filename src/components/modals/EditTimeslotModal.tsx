@@ -280,7 +280,11 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
               }
             }).then(() => {
               //TODO: handle response
-              if(participantId !== props.timeslot.participantId && userProfile.data && participantId) {
+              if(
+                participantId !== props.timeslot.participantId && 
+                userProfile.data && participantId && 
+                notify
+              ) {
                 sendEmailConfirmation.mutate({
                   timeslotId: props.timeslot.id,
                   bypassTagValidation: true,
