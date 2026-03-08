@@ -4,7 +4,7 @@ import { Participant, Segment, Timeslot, UserTag } from "../../types";
 import { Button, Label, Modal, TextInput, Tooltip } from "flowbite-react";
 import { DAY_OFFSET, textInputTheme } from "../../utils";
 import { InfiniteData, UseInfiniteQueryResult, useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
-import { AdminRegisterTimeslotMutationParams, SendTimeslotConfirmationParams, TimeslotService, UpdateTimeslotMutationParams } from "../../services/timeslotService";
+import { DeleteTimeslotMutationParams, SendTimeslotConfirmationParams, TimeslotService, UpdateTimeslotMutationParams } from "../../services/timeslotService";
 import { GetAllParticipantsData, UserService } from "../../services/userService";
 import { HiOutlineExclamation } from "react-icons/hi";
 import { formatParticipantName } from "../../functions/clientFunctions";
@@ -16,6 +16,7 @@ import { TimeSegmentBar } from "../common/TimeSegmentBar";
 import { DateTime, Duration } from "luxon";
 import { convertSegmentListToTimeslots, convertTimeslotListToSegments, timeslotListComparison } from "../../functions/timeslotFunctions";
 import { UseNavigateResult } from "@tanstack/react-router";
+import { GetAllUserTagsData } from "../../services/tagService";
 
 interface EditTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,
@@ -24,6 +25,7 @@ interface EditTimeslotModalProps extends ModalProps {
   //TODO: do some dynamic rendering while loading participants/timeslots
   timeslotQuery: UseQueryResult<Timeslot[] | undefined, Error>
   participantQuery: UseInfiniteQueryResult<InfiniteData<GetAllParticipantsData, unknown>, Error>
+  tagQuery?: UseInfiniteQueryResult<InfiniteData<GetAllUserTagsData, unknown>, Error>
   existingTimeslots: Timeslot[]
   tags: UserTag[]
   participants: Participant[],
@@ -43,6 +45,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
   const [cancelationFee, setCancelationFee] = useState<{ amount: number, window: Duration } | undefined>({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([])
   const [notify, setNotify] = useState(true)
+  const [previewTimeslot, setPreviewTimeslot] = useState(false)
 
   const [participantSearch, setParticipantSearch] = useState<string>('')
   const [participantSearchFocused, setParticipantSearchFocused] = useState(false)
@@ -56,6 +59,10 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
   
   const sendEmailConfirmation = useMutation({
     mutationFn: (params: SendTimeslotConfirmationParams) => props.TimeslotService.sendTimeslotConfirmation(params)
+  })
+
+  const deleteTimeslot = useMutation({
+    mutationFn: (params: DeleteTimeslotMutationParams) => props.TimeslotService.deleteTimeslot(params)
   })
 
   useEffect(() => {
@@ -119,20 +126,6 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
       <Modal.Header>Edit Timeslot</Modal.Header>
       <Modal.Body className="min-h-[500px]">
         <div className="flex flex-col">
-          <div className="flex flex-row gap-8 w-full justify-center">
-            <div className="flex flex-col gap-1 min-w-[200px]">
-              <Label className="ms-2 font-medium text-lg">Date:</Label>
-              <CustomDatePicker 
-                selectedDate={props.activeDate}
-                selectDate={(date) => {
-                  if(date) {
-                    props.navigate({ to: '.', search: { date: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy') }})
-                  }
-                }}
-                fetchMonthTimeslots={props.TimeslotService}
-              />
-            </div>
-          </div>
           <TimeSegmentBar 
             segments={segement}
             setSegments={setSegment}
@@ -144,11 +137,20 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
               cancelationFee: cancelationFee,
             }}
             header={(
-              <div className="flex flex-row gap-2 items-center">
+              <div className="flex flex-row gap-4 items-center">
+                <CustomDatePicker 
+                  selectedDate={props.activeDate}
+                  selectDate={(date) => {
+                    if(date) {
+                      props.navigate({ to: '.', search: { date: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy') }})
+                    }
+                  }}
+                  fetchMonthTimeslots={props.TimeslotService}
+                />
                 <TextInput
                   theme={textInputTheme} 
                   placeholder="Timeslot Descripition..."
-                  className=" placeholder:italic w-full mb-4 max-w-[350px]"
+                  className=" placeholder:italic w-full min-w-[300px]"
                   sizing="md" 
                   onChange={(event) => {
                       setDescription(event.target.value)
@@ -160,105 +162,108 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
                   tags={props.tags}
                   parentPickTag={(tag) => setActiveTag(tag)}
                   pickedTag={activeTag ? [activeTag] : undefined}
+                  tagQuery={props.tagQuery}
                   allowMultiple={false}
                   allowClear
                   small
+                  placement="end"
                 />  
               </div>
             )}
           />
-          <div className="grid grid-cols-2">
-              <div className="flex flex-col gap-1 mb-4 self-center items-center justify-center relative">
-                  <Label className="font-medium text-lg" htmlFor="participant">
-                      Participant:
-                  </Label>
-                  <TextInput 
-                    id='participant'
-                    theme={textInputTheme}
-                    sizing="sm"
-                    className="max-w-[250px]"
-                    placeholder='Pick Participant'
-                    onChange={(event) => setParticipantSearch(event.target.value)}
-                    value={props.participants.some((participant) => participant.id === participantId) ? (
-                      formatParticipantName(props.participants.find((participant) => participant.id === participantId)!)
-                    ) : participantSearch}
-                    onFocus={() => setParticipantSearchFocused(true)}
-                    onBlur={() => setTimeout(() => {
+          <div className="grid grid-cols-2 place-items-center w-full border rounded-lg py-2 px-4 gap-x-4">
+            <div className="flex flex-col gap-1 self-center items-start justify-center relative border rounded-lg py-2 px-4 w-full">
+              <Label className="font-medium text-lg ms-2" htmlFor="participant">
+                  Participant:
+              </Label>
+              <TextInput 
+                id='participant'
+                theme={textInputTheme}
+                sizing="sm"
+                className="max-w-[250px]"
+                placeholder='Pick Participant'
+                onChange={(event) => setParticipantSearch(event.target.value)}
+                value={props.participants.some((participant) => participant.id === participantId) ? (
+                  formatParticipantName(props.participants.find((participant) => participant.id === participantId)!)
+                ) : participantSearch}
+                onFocus={() => setParticipantSearchFocused(true)}
+                onBlur={() => setTimeout(() => {
+                  setParticipantSearchFocused(false)
+                }, 200)}
+                onKeyDown={(event) => {
+                  if(event.key === 'Enter' && filteredParticipants.length > 0) {
+                    setParticipantId(filteredParticipants[0].id)
+                  }
+                  else if(event.key === 'Escape') {
+                    if(participantSearch !== '') {
+                      setParticipantSearch('')
+                    }
+                    else {
                       setParticipantSearchFocused(false)
-                    }, 200)}
-                    onKeyDown={(event) => {
-                      if(event.key === 'Enter' && filteredParticipants.length > 0) {
-                        setParticipantId(filteredParticipants[0].id)
-                      }
-                      else if(event.key === 'Escape') {
-                        if(participantSearch !== '') {
-                          setParticipantSearch('')
-                        }
-                        else {
-                          setParticipantSearchFocused(false)
-                        }
-                      }
-                    }}
-                  />
-                  {participantSearchFocused && (
-                    <div className="absolute z-10 top-1/2 mt-10 bg-white border border-gray-200 rounded-md shadow-lg">
-                      <div className="flex flex-row p-1 justify-between w-full border-b gap-8">
-                        <span className="ms-2 whitespace-nowrap">Participants</span>
-                        <button 
-                          onClick={() => setParticipantSearchFocused(false)}
+                    }
+                  }
+                }}
+              />
+              {participantSearchFocused && (
+                <div className="absolute z-10 top-1/2 mt-10 bg-white border border-gray-200 rounded-md shadow-lg">
+                  <div className="flex flex-row p-1 justify-between w-full border-b gap-8">
+                    <span className="ms-2 whitespace-nowrap">Participants</span>
+                    <button 
+                      onClick={() => setParticipantSearchFocused(false)}
+                    >
+                      <HiOutlineXMark size={16} className="text-gray-400 hover:text-gray-700"/>
+                    </button>
+                  </div>
+                  <ul className="max-h-40 overflow-y-auto py-1 min-w-max">
+                    {filteredParticipants.map((item, index) => {
+                      return (
+                        <Tooltip
+                          theme={{ target: undefined }}
+                          key={index}
+                          content={(
+                            <ParticipantPanel participant={item} />
+                          )}
+                          style="light"
                         >
-                          <HiOutlineXMark size={16} className="text-gray-400 hover:text-gray-700"/>
-                        </button>
-                      </div>
-                      <ul className="max-h-40 overflow-y-auto py-1 min-w-max">
-                        {filteredParticipants.map((item, index) => {
-                          return (
-                            <Tooltip
-                              theme={{ target: undefined }}
-                              key={index}
-                              content={(
-                                <ParticipantPanel participant={item} />
-                              )}
-                              style="light"
-                            >
-                              <li
-                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                onClick={() => {
-                                  setParticipantId(item.id)
-                                  setParticipantSearch('')
-                                  setParticipantSearchFocused(false)
-                                }}
-                              >
-                                {formatParticipantName(item)}
-                              </li>
-                            </Tooltip>
-                          )
-                        })}
-                      </ul>
-                    </div>
-                  )}
-              </div>
-              <div className="flex flex-col gap-1 mb-4 self-center items-center justify-center">
-                  <span className="font-medium text-lg">
-                      User/Parent:
-                  </span>
-                  <span className="text-xl">
-                    {/* type safety important since not all userprofiles have the first/last name field */}
-                    {userProfile?.data !== undefined ? (
-                      userProfile.data.firstName !== undefined && 
-                      userProfile.data.firstName !== '' && 
-                      userProfile.data.lastName !== undefined &&
-                      userProfile.data.lastName !== '' ? (
-                        `${userProfile.data.firstName} ${userProfile.data.lastName}`
-                      ) : userProfile.data.email
-                    ) : 'None'}
-                  </span>
-              </div>
+                          <li
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => {
+                              setParticipantId(item.id)
+                              setParticipantSearch('')
+                              setParticipantSearchFocused(false)
+                            }}
+                          >
+                            {formatParticipantName(item)}
+                          </li>
+                        </Tooltip>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-1 self-center items-start justify-center border rounded-lg py-2 px-4 w-full">
+              <span className="font-medium text-lg">
+                  User/Parent:
+              </span>
+              <span className="text-xl">
+                {/* type safety important since not all userprofiles have the first/last name field */}
+                {userProfile?.data !== undefined ? (
+                  userProfile.data.firstName !== undefined && 
+                  userProfile.data.firstName !== '' && 
+                  userProfile.data.lastName !== undefined &&
+                  userProfile.data.lastName !== '' ? (
+                    `${userProfile.data.firstName} ${userProfile.data.lastName}`
+                  ) : userProfile.data.email
+                ) : 'None'}
+              </span>
+            </div>
           </div>
         </div>
       </Modal.Body>
       <Modal.Footer className="flex flex-row-reverse gap-4">
         <Button color="light" onClick={() => props.onClose()}>Done</Button>
+        <Button color="light">Preview</Button>
         {/* TODO: updates check */}
         <Button
           onClick={() => {
@@ -328,6 +333,9 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
         >
           Update
         </Button>
+        <Button
+          color="red"
+        >Delete</Button>
         {calculateOverlap !== undefined ? (
             <Tooltip content={<span>This new date overlaps with an existing timeslot(s){calculateOverlap == 'emergency' && ' with a registration'}</span>}>
                 <HiOutlineExclamation size={32} className={`${calculateOverlap == 'emergency' ? 'fill-red-400' : 'fill-yellow-400'}`}/>

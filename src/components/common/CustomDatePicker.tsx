@@ -188,7 +188,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
       >
         {(props.small === undefined || !props.small) ? (
           <div className="flex items-center justify-between px-4 py-2">
-            <span className='text-gray-900'>
+            <span className='text-gray-900 text-nowrap pe-2'>
               {formatDisplayDate(props.selectedDate ?? activeDate)}
             </span>
             <HiOutlineCalendar size={24} />
@@ -200,7 +200,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
         )}
       </button>
       {isOpen && (
-        <div className="absolute mt-2 border border-gray-200 rounded-lg p-4 bg-gray-50 z-10 min-w-[350px]">
+        <div className="absolute mt-2 border border-gray-200 rounded-lg p-4 bg-gray-50 z-50 min-w-[350px]">
           <div className="flex items-center justify-between mb-4">
             <button
               className="p-2"

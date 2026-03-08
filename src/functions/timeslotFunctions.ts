@@ -48,7 +48,6 @@ export const convertSegmentListToTimeslots = (
         timeslots.push(mappedTimeslot)
       }
       else {
-        console.log(foundExistingTimeslot)
         timeslots.push({
           ...foundExistingTimeslot, 
           segmentId: segment[i].id,
@@ -132,7 +131,6 @@ export const convertTimeslotListToSegments = (timeslots: SegmentCorrelatedTimesl
 }
 
 export const timeslotListComparison = (a: Timeslot[], b: Timeslot[]) => {
-  console.log(a, b)
   return a.every((aTimeslot) => (
     b.some((bTimeslot) => (
       aTimeslot.id === bTimeslot.id &&

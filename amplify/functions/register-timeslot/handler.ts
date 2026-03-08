@@ -3,6 +3,7 @@ import { env } from '$amplify/env/register-timeslot'
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { Schema } from "../../data/resource";
+import { APIMutationResponse } from "../../../src/types";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 
@@ -11,6 +12,7 @@ Amplify.configure(resourceConfig, libraryOptions)
 const dynamoClient = generateClient<Schema>()
 
 export const handler: Schema['RegisterTimeslot']['functionHandler'] = async (event) => {
+  let returnObject: APIMutationResponse | undefined = undefined
   if(
     !event.arguments.timeslotId || 
     !event.arguments.participantId ||
@@ -20,25 +22,27 @@ export const handler: Schema['RegisterTimeslot']['functionHandler'] = async (eve
       !event.arguments.unregister
     )
   ) {
-    return {
+    returnObject = {
       status: 'Fail',
       error: 'Invalid Arguments'
     }
+    return returnObject
   }
 
   const getTimeslot = await dynamoClient.models.Timeslot.get({ id: event.arguments.timeslotId })
   if(getTimeslot.data === null) {
-    return {
+    returnObject = {
       status: 'Fail',
       error: 'Timeslot not found'
     }
+    return returnObject
   }
   if(event.arguments.unregister) {
     // ownership validation check
     if(
       event.arguments.participantId !== getTimeslot.data.participantId
     ) {
-      return {
+      returnObject = {
         status: 'Fail',
         error: 'Cannot unregister from a timeslot that is not yours'
       }
@@ -50,22 +54,24 @@ export const handler: Schema['RegisterTimeslot']['functionHandler'] = async (eve
       participantId: null,
     })
     if(response.data) {
-      return {
+      returnObject = {
         status: 'Success',
-        //could emit the response
       }
+      return returnObject
     }
     else if(response.errors) {
-      return {
+      returnObject = {
         status: 'Fail',
-        graphqlErrors: response.errors
+        error: response.errors.map((error) => error.message).join(', ')
       }
+      return returnObject
     }
     else {
-      return {
+      returnObject = {
         status: 'Fail',
         error: 'Unknown exception'
       }
+      return returnObject
     }
   }
   else {
@@ -74,10 +80,11 @@ export const handler: Schema['RegisterTimeslot']['functionHandler'] = async (eve
       getTimeslot.data.participantId !== null ||
       getTimeslot.data.register !== null
     ) {
-      return {
+      returnObject = {
         status: 'Fail',
         error: 'Timeslot has already been registered'
       }
+      return returnObject
     }
 
     // tag validation check
@@ -90,7 +97,7 @@ export const handler: Schema['RegisterTimeslot']['functionHandler'] = async (eve
       }
     }
     if(getParticipant.data === null) {
-      return {
+      returnObject = {
         status: 'Fail',
         error: 'Participant does not exist.'
       }
@@ -108,10 +115,11 @@ export const handler: Schema['RegisterTimeslot']['functionHandler'] = async (eve
       !participantTagsData.some((tag) => tag.tagId === getTag.data?.tagId) ||
       !getTag.data.tagId
     ) {
-      return {
+      returnObject = {
         status: 'Fail',
         error: 'Participant does not have the tag correlated with this timeslot'
       }
+      return returnObject
     }
     const response = await dynamoClient.models.Timeslot.update({
       id: event.arguments.timeslotId,
@@ -119,21 +127,24 @@ export const handler: Schema['RegisterTimeslot']['functionHandler'] = async (eve
       participantId: event.arguments.participantId
     })
     if(response.data) {
-      return {
+      returnObject = {
         status: 'Success',
       }
+      return returnObject
     }
     else if(response.errors) {
-      return {
+      returnObject = {
         status: 'Fail',
-        graphqlErrors: response.errors
+        error: response.errors.map((error) => error.message).join(', ')
       }
+      return returnObject
     }
     else {
-      return {
+      returnObject = {
         status: 'Fail',
         error: 'Unknown exception'
       }
+      return returnObject
     }
   }
 }

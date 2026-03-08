@@ -287,3 +287,15 @@ export interface Segment {
     }
   }
 }
+
+export interface APIMutationResponse {
+    status: 'Success' | 'Fail',
+    error?: string
+}
+
+export interface BaseAPIParams {
+    options?: {
+        logging?: boolean,
+        metric?: boolean
+    }
+}
