@@ -9,9 +9,9 @@ const ABS_MIN_HOUR = 6;
 const ABS_MAX_HOUR = 23;
 const SNAP = 5;
 const MIN_GAP_TO_ADD = 30;
+const EDGE_SCROLL_COOLDOWN_MS = 600;
+const EDGE_SCROLL_MARGIN_MINS = 30;
 
-
-/** Convert a segment's startMin/endMin (minutes offset from windowTop) to a wall-clock Date. */
 function minutesToDate(minutes: number, windowTopHour: number) {
   const d = new Date();
   d.setHours(windowTopHour + Math.floor(minutes / 60), minutes % 60, 0, 0);
@@ -42,11 +42,6 @@ function ceilToInterval(value: number, interval: number, anchor: number): number
   return anchor + offset - remainder + interval;
 }
 
-/**
- * Derive the time window from the current set of segments.
- * startMin / endMin are offsets from the *current* windowTopHour.
- * We need to convert them to absolute hours first, then pad.
- */
 function deriveWindow(
   segments: Segment[],
   currentTop: number,
@@ -55,7 +50,6 @@ function deriveWindow(
     return { top: DEFAULT_START_HOUR, bottom: DEFAULT_END_HOUR };
   }
 
-  // Convert offsets → absolute hours (fractional)
   const absStarts = segments.map((s) => currentTop + Math.floor(s.startMin / 60));
   const absEnds = segments.map((s) => currentTop + Math.ceil(s.endMin / 60));
 
@@ -64,24 +58,16 @@ function deriveWindow(
 
   const padding = Math.min(3, Math.max(((maxAbsHour - minAbsHour) / (ABS_MAX_HOUR - ABS_MIN_HOUR)) * 3, 1));
 
-  const newTop = Math.max(ABS_MIN_HOUR, (minAbsHour - padding));
-  const newBottom = Math.min(ABS_MAX_HOUR, (maxAbsHour + padding));
-
-  // console.log(minAbsHour, maxAbsHour, padding)
+  const newTop = Math.max(ABS_MIN_HOUR, Math.floor(minAbsHour - padding));
+  const newBottom = Math.min(ABS_MAX_HOUR, Math.ceil(maxAbsHour + padding));
 
   return { top: newTop, bottom: newBottom };
 }
 
-/** Total minutes in the current window. */
 function totalMinutes(window: { top: number; bottom: number }) {
   return (window.bottom - window.top) * 60;
 }
 
-/**
- * When the window top changes, all segment offsets must be re-based so that
- * wall-clock times stay the same.
- *  new_offset = old_offset + (oldTop - newTop) * 60
- */
 function rebaseSegments(
   segments: Segment[],
   oldTopHour: number,
@@ -94,6 +80,25 @@ function rebaseSegments(
     startMin: s.startMin + delta,
     endMin:   s.endMin   + delta,
   }));
+}
+
+/**
+ * Returns true if any segment occupies any time within the last `hour` of the window.
+ * "Last hour" = the 60-minute block at the top end (bottom - 1h to bottom).
+ * Used to decide whether it's safe to shrink the trailing edge during a scroll.
+ */
+function segmentInLastHour(segments: Segment[], tw: { top: number; bottom: number }): boolean {
+  const lastHourStart = totalMinutes(tw) - 60;
+  return segments.some((s) => s.endMin > lastHourStart);
+}
+
+/**
+ * Returns true if any segment occupies any time within the first `hour` of the window.
+ * "First hour" = the 60-minute block at the bottom end (top to top + 1h).
+ */
+function segmentInFirstHour(segments: Segment[]): boolean {
+  const firstHourEnd = 60;
+  return segments.some((s) => s.startMin < firstHourEnd);
 }
 
 const INTERVALS = [5, 10, 15, 20, 30, 60];
@@ -132,42 +137,42 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
   const popupsRef = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const segmentsRef = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const dragRef = useRef<DragSegment | null>(null);
+  const focusedIdRef = useRef<string | null>(null);
+  const lastEdgeScrollRef = useRef<number>(0);
+  
 
-
-  // The time window is derived state — we own it here and keep it in a ref
-  // as well so the drag handler (registered once) can always read the latest value.
   const [timeWindow, setTimeWindow] = useState<{ top: number; bottom: number }>(deriveWindow(props.segments, DEFAULT_START_HOUR));
+  const timeWindowRef = useRef(timeWindow);
+  const rebasedTopRef = useRef<number>(timeWindow.top);
+
+  useEffect(() => { timeWindowRef.current = timeWindow; }, [timeWindow]);
+  useEffect(() => { focusedIdRef.current = focusedId; }, [focusedId]);
 
   useEffect(() => {
     const newWidths = new Map<string, number>(
       Array.from(segmentsRef.current.entries()).map(([id, el]) => {
-        if (el) {
-          return [id, el.clientWidth];
-        }
+        if (el) return [id, el.clientWidth];
       }).filter((value) => value !== undefined) as [string, number][]
     );
     setSegmentWidths(newWidths);
-  }, [
-    segmentsRef.current.size,
-  ])
+  }, [segmentsRef.current.size]);
 
   useEffect(() => {
-    if(dragRef.current === null) {
-      const newWindow = deriveWindow(props.segments, timeWindow.top);
-      setTimeWindow((prev) => {
-        if (prev.top === newWindow.top && prev.bottom === newWindow.bottom) return prev;
+    if (dragRef.current !== null) return;
 
-        // If the top changed we must rebase segment offsets so wall-clock times
-        // remain the same. We do it here so it's atomic with the window change.
-        if (newWindow.top !== prev.top) {
-          props.setSegments((segs) => rebaseSegments(segs, prev.top, newWindow.top));
-        }
+    const tw = timeWindowRef.current;
+    const newWindow = deriveWindow(props.segments, tw.top);
 
-        return newWindow;
-      });
+    if (newWindow.top === tw.top && newWindow.bottom === tw.bottom) return;
+
+    if (newWindow.top !== tw.top && rebasedTopRef.current !== newWindow.top) {
+      rebasedTopRef.current = newWindow.top;
+      props.setSegments((segs) => rebaseSegments(segs, tw.top, newWindow.top));
     }
-  }, [props.segments])
 
+    setTimeWindow(newWindow);
+    timeWindowRef.current = newWindow;
+  }, [props.segments]);
 
   const startDrag = useCallback(
     (e: React.MouseEvent, id: string, type: 'move' | 'left' | 'right') => {
@@ -199,15 +204,83 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
       }
 
       const rect = barRef.current.getBoundingClientRect();
-      const totMins = totalMinutes(timeWindow);
+      const tw = timeWindowRef.current;
+      const totMins = totalMinutes(tw);
       const deltaMinsFull = (e.clientX - startX) / rect.width * totMins;
+
+      const dur = origEnd - origStart;
+      let projectedStart: number;
+      let projectedEnd: number;
+
+      if (type === "left") {
+        projectedStart = origStart + deltaMinsFull;
+        projectedEnd = origEnd;
+      } else if (type === "right") {
+        projectedStart = origStart;
+        projectedEnd = origEnd + deltaMinsFull;
+      } else {
+        projectedStart = origStart + deltaMinsFull;
+        projectedEnd = projectedStart + dur;
+      }
+
+      const now = Date.now();
+      const cooldownOk = now - lastEdgeScrollRef.current > EDGE_SCROLL_COOLDOWN_MS;
+
+      if (cooldownOk) {
+        const nearLeft  = projectedStart < EDGE_SCROLL_MARGIN_MINS && tw.top    > ABS_MIN_HOUR;
+        const nearRight = projectedEnd   > totMins - EDGE_SCROLL_MARGIN_MINS && tw.bottom < ABS_MAX_HOUR;
+
+        if (nearLeft || nearRight) {
+          lastEdgeScrollRef.current = now;
+
+          let newTop    = tw.top;
+          let newBottom = tw.bottom;
+
+          if (nearLeft) {
+            newTop = tw.top - 1;
+
+            // After expanding left the rebase will shift all offsets +60.
+            // Check post-rebase positions against the candidate final window
+            // to decide whether the right edge can be safely trimmed.
+            const candidateTw = { top: newTop, bottom: newBottom };
+            const rebasedSegments = rebaseSegments(props.segments, tw.top, newTop);
+            if (!segmentInLastHour(rebasedSegments, candidateTw) && tw.bottom > ABS_MIN_HOUR + 2) {
+              newBottom = tw.bottom - 1;
+            }
+          } else {
+            newBottom = tw.bottom + 1;
+
+            // No rebase happens when expanding right, so check current offsets
+            // against a candidate window with the potential left shrink applied.
+            if (!segmentInFirstHour(props.segments) && tw.top < ABS_MAX_HOUR - 1) {
+              newTop = tw.top + 1;
+            }
+          }
+
+          const newTw = { top: newTop, bottom: newBottom };
+
+          if (newTop !== tw.top) {
+            const addedMins = (tw.top - newTop) * 60;
+            dragRef.current = {
+              ...dragRef.current,
+              origStart: origStart + addedMins,
+              origEnd:   origEnd   + addedMins,
+              startX:    startX - (addedMins / totalMinutes(newTw)) * rect.width,
+            };
+            rebasedTopRef.current = newTop;
+            props.setSegments((segs) => rebaseSegments(segs, tw.top, newTop));
+          }
+
+          setTimeWindow(newTw);
+          timeWindowRef.current = newTw;
+          return;
+        }
+      }
 
       props.setSegments((prev) => {
         const others = prev.filter((s) => s.id !== id).sort((a, b) => a.startMin - b.startMin);
         const seg = prev.find((s) => s.id === id);
         if (!seg) return prev;
-
-        console.log(type)
 
         const leftNeighbourEnd = Math.max(
           0,
@@ -230,7 +303,6 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
           return prev.map((s) => s.id !== id ? s : { ...s, endMin: newEnd });
 
         } else {
-          const dur = origEnd - origStart;
           const clampedStart = snap(Math.max(leftNeighbourEnd, Math.min(rightNeighbourStart - dur, origStart + deltaMinsFull)));
           return prev.map((s) => s.id !== id ? s : { ...s, startMin: clampedStart, endMin: clampedStart + dur });
         }
@@ -238,16 +310,28 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     };
 
     const onMouseUp = () => {
-      if(dragRef.current) {
-        dragRef.current = null;
-        document.body.style.cursor = "";
-      }
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      document.body.style.cursor = "";
+      lastEdgeScrollRef.current = 0;
+
+      const tw = timeWindowRef.current;
+      props.setSegments((segs) => {
+        const newWindow = deriveWindow(segs, tw.top);
+        const topChanged = newWindow.top !== tw.top;
+        if (topChanged) rebasedTopRef.current = newWindow.top;
+        const rebased = topChanged ? rebaseSegments(segs, tw.top, newWindow.top) : segs;
+        setTimeWindow(newWindow);
+        timeWindowRef.current = newWindow;
+        return rebased;
+      });
     };
 
     const onMouseDown = (e: MouseEvent) => {
-      if (focusedId === null) return;
-      const popupEl = popupsRef.current.get(focusedId);
-      const segmentEl = segmentsRef.current.get(focusedId);
+      const cfid = focusedIdRef.current;
+      if (cfid === null) return;
+      const popupEl   = popupsRef.current.get(cfid);
+      const segmentEl = segmentsRef.current.get(cfid);
       const target = e.target as Node;
       if (!(popupEl?.contains(target) ?? false) && !(segmentEl?.contains(target) ?? false)) {
         setFocusedId(null);
@@ -257,12 +341,13 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (dragRef.current) return;
-      if (focusedId === null) return;
+      const cfid = focusedIdRef.current;
+      if (cfid === null) return;
       if (e.key !== 'Backspace' && e.key !== 'Delete') return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       e.preventDefault();
-      props.setSegments((prev) => prev.filter((s) => s.id !== focusedId));
+      props.setSegments((prev) => prev.filter((s) => s.id !== cfid));
       setFocusedId(null);
       setActivePopup(null);
     };
@@ -279,7 +364,6 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
       window.removeEventListener('keydown', onKeyDown);
     };
   }, []);
-
 
   const clearFocus = () => { setFocusedId(null); setActivePopup(null); };
 
@@ -339,7 +423,6 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     <div className="flex items-center justify-center px-6" onClick={clearFocus}>
       <div className="w-full max-w-4xl flex flex-col gap-2">
 
-        {/* Header */}
         <div className="flex flex-row items-end justify-between w-full">
           <div>{props.header}</div>
           <div>
@@ -356,10 +439,8 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
           </div>
         </div>
 
-        {/* Bar + popups */}
         <div className="relative">
 
-          {/* Popups */}
           <div className="relative h-0">
             {props.segments.map((seg) => {
               if (activePopup !== seg.id) return null;
@@ -405,10 +486,8 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
             })}
           </div>
 
-          {/* Bar track */}
           <div ref={barRef} className="relative h-24 rounded-2xl border border-slate-800/80">
 
-            {/* Hour grid lines */}
             {hourTicks.slice(1, -1).map((h) => (
               <div
                 key={h}
@@ -417,14 +496,12 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
               />
             ))}
 
-            {/* Empty state */}
             {props.segments.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center text-slate-700 text-sm font-mono">
                 No segments — click "+ Add Segment" to start
               </div>
             )}
 
-            {/* Segments */}
             {props.segments.map((seg, index) => {
               const totMin = totalMinutes(timeWindow);
               const leftPct = (seg.startMin / totMin) * 100;
@@ -447,11 +524,9 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     ${isFocused ? 'ring-2 ring-offset-1 ring-gray-400' : ''}
                   `}
                   style={{ left: `${leftPct}%`, width: `${widthPct}%`, cursor: "grab", outline: "none" }}
-                  // onClick={(e) => { setFocusedId(seg.id); }}
                   tabIndex={index}
                   onMouseDown={(e) => { startDrag(e, seg.id, "move"); }}
                 >
-                  {/* Interval ticks */}
                   <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
                     {Array.from({ length: tickCount }).map((_, ti) => {
                       const tickPct = ((ti + 1) * seg.interval / durationMins) * 100;
@@ -461,7 +536,6 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     })}
                   </div>
 
-                  {/* Label / popup trigger */}
                   <button
                     className="flex flex-col items-center gap-0.5 z-10 px-2 py-1 rounded-lg"
                     onMouseDown={(e) => e.stopPropagation()}
@@ -472,15 +546,14 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     }}
                   >
                     <span className="text-sm font-mono font-medium leading-none">{seg.interval}m</span>
-                    <span 
+                    <span
                       className="text-xs opacity-50 font-mono mt-1 truncate"
-                      style={{ maxWidth: `calc(${segmentWidths.get(seg.id) ?? 20}px - 2px)`}}
+                      style={{ maxWidth: `calc(${segmentWidths.get(seg.id) ?? 20}px - 2px)` }}
                     >
                       {formatTime(minutesToDate(seg.startMin, timeWindow.top))} - {formatTime(minutesToDate(seg.endMin, timeWindow.top))}
                     </span>
                   </button>
 
-                  {/* Left resize handle */}
                   {!props.individual && (
                     <div
                       className="absolute left-0 top-0 bottom-0 w-4 flex items-center justify-center rounded-l-xl cursor-col-resize z-20 group/lh"
@@ -493,7 +566,6 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     </div>
                   )}
 
-                  {/* Right resize handle */}
                   {!props.individual && (
                     <div
                       className="absolute right-0 top-0 bottom-0 w-4 flex items-center justify-center rounded-r-xl cursor-col-resize z-20 group/rh"
@@ -510,7 +582,6 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
             })}
           </div>
 
-          {/* Time axis */}
           <div className="relative h-7 mt-1">
             {hourTicks.map((h) => {
               const pct = (h * 60 / totalMinutes(timeWindow)) * 100;
@@ -527,7 +598,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     `${absHour}a`
                   )
                 )
-              )
+              );
               return (
                 <div
                   key={h}

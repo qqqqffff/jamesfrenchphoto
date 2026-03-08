@@ -8,7 +8,7 @@ import { TimeslotService, AdminRegisterTimeslotMutationParams } from "../../../s
 import { DateInput } from "../../common/DateInput";
 import { formatTimeslotDates } from "../../../utils";
 import { Dropdown, Label, Radio, TextInput, Tooltip } from "flowbite-react";
-import NotificationComponent from "../../timeslot/NotificationComponent";
+import { NotificationComponent } from "../../timeslot/NotificationComponent";
 import { ConfirmationModal } from "../../modals";
 import Loading from "../../common/Loading";
 import validator from 'validator'
@@ -223,7 +223,7 @@ export const DateCell = (props: DateCellProps) => {
             //TODO: search for other areas with the edge case of having a register but no participantId
             if(selectedTimeslot.current && foundParticipant) {
               props.registerTimeslot.mutate({
-                timeslot: selectedTimeslot.current.id,
+                timeslotId: selectedTimeslot.current.id,
                 userEmail: foundParticipant.user.email,
                 participantId: foundParticipant.participant.id,
                 additionalRecipients: foundParticipant.participant.contact && foundParticipant.participant.email ? [foundParticipant.participant.email] : [],
@@ -293,7 +293,7 @@ export const DateCell = (props: DateCellProps) => {
             //removing register/participant association
             if(selectedTimeslot.current) {
               props.registerTimeslot.mutate({
-                timeslot: selectedTimeslot.current.id,
+                timeslotId: selectedTimeslot.current.id,
                 notify: false,
                 unregister: true,
                 participantId: '',
