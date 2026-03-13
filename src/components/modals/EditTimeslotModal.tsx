@@ -1,15 +1,12 @@
 import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
 import { ModalProps } from ".";
 import { Participant, Segment, Timeslot, UserTag } from "../../types";
-import { Button, Checkbox, Label, Modal, TextInput, Tooltip } from "flowbite-react";
+import { Button, Checkbox, Modal, TextInput, Tooltip } from "flowbite-react";
 import { DAY_OFFSET, textInputTheme } from "../../utils";
 import { InfiniteData, UseInfiniteQueryResult, useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
 import { DeleteTimeslotMutationParams, SendTimeslotConfirmationParams, TimeslotService, UpdateTimeslotMutationParams } from "../../services/timeslotService";
 import { GetAllParticipantsData, UserService } from "../../services/userService";
 import { HiOutlineExclamation } from "react-icons/hi";
-import { formatParticipantName } from "../../functions/clientFunctions";
-import { HiOutlineXMark } from "react-icons/hi2";
-import { ParticipantPanel } from "../common/ParticipantPanel";
 import { CustomDatePicker } from "../common/CustomDatePicker";
 import { TagPicker } from "../common/TagPicker";
 import { TimeSegmentBar } from "../common/TimeSegmentBar";
@@ -19,6 +16,7 @@ import { UseNavigateResult } from "@tanstack/react-router";
 import { GetAllUserTagsData } from "../../services/tagService";
 import { PriceInput } from "../common/PriceInput";
 import { NotificationComponent } from "../timeslot/NotificationComponent";
+import { ParticipantPicker } from "../common/ParticipantPicker";
 
 interface EditTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,
@@ -42,23 +40,18 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
   const [segement, setSegment] = useState<Segment[]>([])
   const [description, setDescription] = useState<string>(props.timeslot.description ?? '')
   const [activeTag, setActiveTag] = useState<UserTag | undefined>(props.timeslot.tag)
-  const [participantId, setParticipantId] = useState<string | undefined>(props.timeslot.participantId)
+  const [participant, setParticipant] = useState<Participant | undefined>()
   const [noshowFee, setNoshowFee] = useState<number | undefined>(60)
   const [cancelationFee, setCancelationFee] = useState<{ amount: number, window: Duration } | undefined>({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([])
   const [notify, setNotify] = useState(true)
   const [previewTimeslot, setPreviewTimeslot] = useState(false)
 
-  const [participantSearch, setParticipantSearch] = useState<string>('')
-  const [participantSearchFocused, setParticipantSearchFocused] = useState(false)
-
-  const activeParticipant = props.participants.find((participant) => participant.id === participantId)
-
   const userProfile = useQuery({
-    ...props.UserService.getUserProfileByEmailQueryOptions(activeParticipant?.userEmail ?? '', {
+    ...props.UserService.getUserProfileByEmailQueryOptions(participant?.userEmail ?? '', {
       siTimeslot: true
     }),
-    enabled: activeParticipant !== undefined
+    enabled: participant !== undefined
   })
   
   const sendEmailConfirmation = useMutation({
@@ -73,7 +66,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
     if(props.open) {
       setDescription(props.timeslot.description ?? '')
       setActiveTag(props.timeslot.tag)
-      setParticipantId(props.timeslot.participantId)
+      setParticipant(props.participants.find((participant) => participant.id === props.timeslot.participantId))
       setNoshowFee(props.timeslot.noshowFee)
       setCancelationFee(props.timeslot.cancelationFee)
       setSegment(convertTimeslotListToSegments([props.timeslot]))
@@ -86,7 +79,9 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
     ...props.timeslot,
     noshowFee: noshowFee,
     description: description,
-    cancelationFee: cancelationFee
+    cancelationFee: cancelationFee,
+    tag: activeTag,
+    participantId: participant?.id
   }
 
   const selectedTimeslot = convertSegmentListToTimeslots(
@@ -116,17 +111,6 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
     if(found.some((timeslot) => timeslot.participantId !== undefined || timeslot.register !== undefined)) return 'emergency'
     return 'warning'
   })()
-
-  const filteredParticipants: Participant[] = props.participants
-    .filter((participant) => (
-      participant.firstName.trim().toLowerCase().includes(participantSearch.trim().toLowerCase()) ||
-      participant.lastName.trim().toLowerCase().includes(participantSearch.trim().toLowerCase())) ||
-      participant.preferredName?.trim().toLowerCase().includes(participantSearch.trim().toLowerCase()) ||
-      participant.email?.trim().toLowerCase().includes(participantSearch.trim().toLowerCase()) ||
-      participant.middleName?.trim().toLowerCase().includes(participantSearch.trim().toLowerCase())
-    )
-    .sort((a, b) => a.firstName.localeCompare(b.firstName))
-
   
   
   return (
@@ -167,7 +151,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
                   className=" placeholder:italic w-full min-w-[300px]"
                   sizing="md" 
                   onChange={(event) => {
-                      setDescription(event.target.value)
+                    setDescription(event.target.value)
                   }}
                   value={description}
                   name="Timeslot Description"
@@ -187,74 +171,19 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
           />
           <div className="grid grid-cols-2 place-items-center w-full rounded-lg py-2 px-4 gap-x-4">
             <div className="flex flex-col gap-1 self-center items-start justify-center relative border rounded-lg py-2 px-4 w-full">
-              <Label className="font-medium text-lg ms-2" htmlFor="participant">
-                  Participant:
-              </Label>
-              <TextInput 
-                id='participant'
-                theme={textInputTheme}
-                sizing="sm"
-                className="max-w-[250px]"
-                placeholder='Pick Participant'
-                onChange={(event) => setParticipantSearch(event.target.value)}
-                value={props.participants.some((participant) => participant.id === participantId) ? (
-                  formatParticipantName(props.participants.find((participant) => participant.id === participantId)!)
-                ) : participantSearch}
-                onFocus={() => setParticipantSearchFocused(true)}
-                onBlur={() => setTimeout(() => {
-                  setParticipantSearchFocused(false)
-                }, 200)}
-                onKeyDown={(event) => {
-                  if(event.key === 'Enter' && filteredParticipants.length > 0) {
-                    setParticipantId(filteredParticipants[0].id)
-                  }
-                  else if(event.key === 'Escape') {
-                    if(participantSearch !== '') {
-                      setParticipantSearch('')
-                    }
-                    else {
-                      setParticipantSearchFocused(false)
-                    }
-                  }
+              <ParticipantPicker 
+                type={{
+                  type: 'search',
+                  label: 'top'
                 }}
+                multiple={{
+                  multiple: 'false',
+                  selectedParticipant: participant,
+                  setSelectedParticipant: setParticipant
+                }}
+                participants={props.participants}
+                participantQuery={props.participantQuery}
               />
-              {participantSearchFocused && (
-                <div className="absolute z-10 top-1/2 mt-10 bg-white border border-gray-200 rounded-md shadow-lg">
-                  <div className="flex flex-row p-1 justify-between w-full border-b gap-8">
-                    <span className="ms-2 whitespace-nowrap">Participants</span>
-                    <button 
-                      onClick={() => setParticipantSearchFocused(false)}
-                    >
-                      <HiOutlineXMark size={16} className="text-gray-400 hover:text-gray-700"/>
-                    </button>
-                  </div>
-                  <ul className="max-h-40 overflow-y-auto py-1 min-w-max">
-                    {filteredParticipants.map((item, index) => {
-                      return (
-                        <Tooltip
-                          theme={{ target: undefined }}
-                          key={index}
-                          content={(
-                            <ParticipantPanel participant={item} />
-                          )}
-                          style="light"
-                        >
-                          <li
-                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => {
-                              setParticipantId(item.id)
-                              setParticipantSearch('')
-                              setParticipantSearchFocused(false)
-                            }}
-                          >
-                            {formatParticipantName(item)}
-                          </li>
-                        </Tooltip>
-                      )
-                    })}
-                  </ul>
-                </div>
-              )}
             </div>
             <div className="flex flex-col gap-1 self-center items-start justify-center border rounded-lg py-2 px-4 w-full">
               <span className="font-medium text-lg">
@@ -338,10 +267,10 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
               )}
             </div>
           </div>
-          {activeParticipant !== undefined && (
+          {participant !== undefined && (
               <NotificationComponent 
                 setNotify={setNotify}
-                email={activeParticipant.userEmail}
+                email={participant.userEmail}
                 notify={notify}
                 recipients={additionalRecipients}
                 setRecipients={setAdditionalRecipients}
@@ -370,33 +299,34 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
             >Delete</Button>
             <Button
               onClick={() => {
-                if(selectedTimeslot[0] === undefined) return
-                const newTimeslot = selectedTimeslot[0]
-                
+                const timeslot = selectedTimeslot[0]
+                if(timeslot === undefined) return
+
                 updateTimeslot.mutateAsync({
                   timeslot: props.timeslot,
-                  start: newTimeslot.start,
-                  end: newTimeslot.end,
-                  description: description,
-                  userTag: activeTag,
-                  participantId: participantId,
+                  start: timeslot.start,
+                  end: timeslot.end,
+                  description: timeslot.description,
+                  userTag: timeslot.tag,
+                  participantId: timeslot.participantId,
                   register: userProfile.data?.email,
-                  noShowFee: noshowFee,
-                  cancelationFee: cancelationFee,
+                  noShowFee: timeslot.noshowFee,
+                  cancelationFee: timeslot.cancelationFee,
                   options: {
                     logging: true
                   }
                 }).then(() => {
                   //TODO: handle response
                   if(
-                    participantId !== props.timeslot.participantId && 
-                    userProfile.data && participantId && 
+                    participant &&
+                    participant.id !== props.timeslot.participantId && 
+                    userProfile.data && 
                     notify
                   ) {
                     sendEmailConfirmation.mutate({
                       timeslotId: props.timeslot.id,
                       bypassTagValidation: true,
-                      participantId: participantId,
+                      participantId: participant.id,
                       userEmail: userProfile.data.email,
                       additionalRecipients: additionalRecipients,
                       options: {
@@ -408,25 +338,25 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
                 
 
                 //participant - append to new participant and remove from old
-                props.parentUpdateParticipants((prev) => prev.map((participant) => participant.id === participantId ? ({
-                  ...participant,
-                  timeslot: participant.timeslot ? [...participant.timeslot, newTimeslot] : [newTimeslot]
-                }) : participant.id === props.timeslot.participantId && props.timeslot.participantId !== participantId ? ({
-                  ...participant,
-                  timeslot: participant.timeslot ? participant.timeslot.filter((timeslot) => timeslot.id !== props.timeslot.id) : []
+                props.parentUpdateParticipants((prev) => prev.map((pParticipant) => participant?.id === pParticipant.id ? ({
+                  ...pParticipant,
+                  timeslot: [...(pParticipant.timeslot ?? []), timeslot]
+                }) : pParticipant.id === props.timeslot.participantId && timeslot.participantId !== participant?.id ? ({
+                  ...pParticipant,
+                  timeslot: [...pParticipant.timeslot ?? []].filter((timeslot) => timeslot.id !== props.timeslot.id)
                 }) : (
-                  participant
+                  pParticipant
                 )))
                 //tag - append to new tag and remove from old
                 props.parentUpdateTags((prev) => prev.map((tag) => tag.id === activeTag?.id ? ({
                   ...tag,
-                  timeslots: [...tag.timeslots ?? [], newTimeslot]
+                  timeslots: [...tag.timeslots ?? [], timeslot]
                 }) : tag.id === props.timeslot.tag?.id && props.timeslot.tag.id !== activeTag?.id ? ({
                   ...tag,
-                  timeslots: tag.timeslots?.filter((timeslot) => timeslot.id !== newTimeslot.id)
+                  timeslots: (tag.timeslots ?? []).filter((pTimeslot) => pTimeslot.id !== timeslot.id)
                 }) : tag ))
                 //timeslot - update timeslots
-                props.parentUpdateTimeslots((prev) => prev.map((timeslot) => timeslot.id === newTimeslot.id ? newTimeslot : timeslot))
+                props.parentUpdateTimeslots((prev) => prev.map((pTimeslot) => timeslot.id === pTimeslot.id ? timeslot : pTimeslot))
               }}
               isProcessing={updateTimeslot.isPending || sendEmailConfirmation.isPending}
               disabled={(

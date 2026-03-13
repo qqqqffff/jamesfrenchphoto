@@ -57,13 +57,14 @@ function RouteComponent() {
   function NotificationComponent() {
     return (
       <div className="flex justify-center items-center font-main mb-4 mt-4">
-        {notifications.map((notification) => {
+        {notifications.map((notification, index) => {
           let text = 'Unknown Notification'
           if(notification.item === 'logout') {
             text = notification.status === 'success' ? 'Successfully logged out.' : 'Failed to logout, please try again later.'
           }
           return (
             <NotificationObject
+              key={index}
               text={text} 
               color={notification.status === 'success' ? 'green' : 'red'} 
               remove={() => {

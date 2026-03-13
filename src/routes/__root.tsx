@@ -47,7 +47,7 @@ const RootComponent = () => {
 
   function UserComponent(){
     if(auth.user == null) return (<LoginComponent />)
-    else if (auth.user !== null && selectedParticipant) {
+    else if (auth.user !== null) {
       return (
         <UserProfileComponent 
           width={width}

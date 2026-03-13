@@ -132,6 +132,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
   const [activePopup, setActivePopup] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [segmentWidths, setSegmentWidths] = useState<Map<string, number>>(new Map());
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const barRef = useRef<HTMLDivElement | null>(null);
   const popupsRef = useRef<Map<string, HTMLDivElement | null>>(new Map());
@@ -538,6 +539,16 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
 
                   <button
                     className="flex flex-col items-center gap-0.5 z-10 px-2 py-1 rounded-lg"
+                    onMouseEnter={() => {
+                      if(!isFocused) {
+                        setHoveredId(seg.id)
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if(hoveredId !== null) {
+                        setHoveredId(null)
+                      }
+                    }}
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -545,10 +556,18 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                       setActivePopup(isActive ? null : seg.id);
                     }}
                   >
-                    <span className="text-sm font-mono font-medium leading-none">{seg.interval}m</span>
+                    <span 
+                      className="text-sm font-mono font-medium leading-none"
+                      style={{
+                        textDecorationLine: hoveredId === seg.id ? 'underline' : 'none'
+                      }}
+                    >{seg.interval}m</span>
                     <span
-                      className="text-xs opacity-50 font-mono mt-1 truncate"
-                      style={{ maxWidth: `calc(${segmentWidths.get(seg.id) ?? 20}px - 2px)` }}
+                      className={`text-xs opacity-50 font-mono mt-1 ${hoveredId === seg.id ? 'text-nowrap' : 'truncate'}`}
+                      style={{ 
+                        maxWidth: `calc(${segmentWidths.get(seg.id) ?? 20}px - 2px)`,
+                        
+                      }}
                     >
                       {formatTime(minutesToDate(seg.startMin, timeWindow.top))} - {formatTime(minutesToDate(seg.endMin, timeWindow.top))}
                     </span>

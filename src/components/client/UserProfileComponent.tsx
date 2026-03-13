@@ -10,7 +10,7 @@ interface UserProfileComponentProps {
   width: number,
   admin: boolean, 
   logout: () => Promise<'success' | 'fail'>,
-  selectedParticipant: Participant
+  selectedParticipant?: Participant
   setSelectedParticipant: Dispatch<SetStateAction<Participant | undefined>>
   user: UserProfile,
   participantMutation: UseMutationResult<'success' | 'fail', Error, string, unknown>
@@ -40,49 +40,51 @@ export const UserProfileComponent = (props: UserProfileComponentProps) => {
 
   return (
     <div className={`flex flex-row items-center text-2xl w-full justify-end ${props.width > 800 ? 'gap-10' : 'gap-4'}`}>
-      <BorderWrapper>
-        <Dropdown
-          arrowIcon={props.user.participant.length > 1}
-          inline
-          trigger="hover"
-          dismissOnClick={false}
-          label={props.width > 800 ? (
-            structureActiveParticipantName(props.selectedParticipant)
-          ) : (
-            <HiOutlineUserCircle size={32} />
-          )}
-        >
-          {props.user.participant.map((participant, index) => {
-            return (
-              <Dropdown.Item 
-                className='whitespace-nowrap flex flex-row gap-1 items-center'
-                disabled={participant.id === props.selectedParticipant.id}
-                key={index} 
-                onClick={async () => {
-                  if(props.user.activeParticipant?.id !== participant.id){
-                    props.participantMutation
-                    .mutateAsync(participant.id)
-                    .then((response) => {
-                      if(response === 'success') {
-                        props.setSelectedParticipant(participant)
-                      }
-                    })
-                  }
-                }}
-              >
-                {participant.id === props.selectedParticipant.id && (
-                  props.participantMutation.isPending ? (
-                    <CgSpinner size={20} className="animate-spin text-gray-600"/>
-                  ) : (
-                    <HiOutlineCheckCircle size={20} />
-                  )
-                )}
-                {structureActiveParticipantName(participant)}
-              </Dropdown.Item>
+      {props.selectedParticipant !== undefined && (
+        <BorderWrapper>
+          <Dropdown
+            arrowIcon={props.user.participant.length > 1}
+            inline
+            trigger="hover"
+            dismissOnClick={false}
+            label={props.width > 800 ? (
+              structureActiveParticipantName(props.selectedParticipant)
+            ) : (
+              <HiOutlineUserCircle size={32} />
             )}
-          )}
-        </Dropdown>
-      </BorderWrapper>
+          >
+            {props.user.participant.map((participant, index) => {
+              return (
+                <Dropdown.Item 
+                  className='whitespace-nowrap flex flex-row gap-1 items-center'
+                  disabled={participant.id === props.selectedParticipant?.id}
+                  key={index} 
+                  onClick={async () => {
+                    if(props.user.activeParticipant?.id !== participant.id){
+                      props.participantMutation
+                      .mutateAsync(participant.id)
+                      .then((response) => {
+                        if(response === 'success') {
+                          props.setSelectedParticipant(participant)
+                        }
+                      })
+                    }
+                  }}
+                >
+                  {participant.id === props.selectedParticipant?.id && (
+                    props.participantMutation.isPending ? (
+                      <CgSpinner size={20} className="animate-spin text-gray-600"/>
+                    ) : (
+                      <HiOutlineCheckCircle size={20} />
+                    )
+                  )}
+                  {structureActiveParticipantName(participant)}
+                </Dropdown.Item>
+              )}
+            )}
+          </Dropdown>
+        </BorderWrapper>
+      )}
       <BorderWrapper>
         <Dropdown
           arrowIcon={false}

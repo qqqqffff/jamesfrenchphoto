@@ -22,6 +22,8 @@ export const TagPicker = (props: TagPickerProps) => {
   const windowRef = useRef<HTMLDivElement | null>(null)
   const [search, setSearch] = useState<string>('')
   const [focused, setFocused] = useState(false)
+  const tagItems = useRef<Map<string, HTMLDivElement | null>>(new Map())
+  const bottomObserver = useRef<IntersectionObserver>(null)
 
   const filteredItems = props.tags.filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase().trim()))
 
@@ -55,6 +57,50 @@ export const TagPicker = (props: TagPickerProps) => {
     props.tagQuery, 
     search,
     focused
+  ])
+
+  useEffect(() => {
+    if(!bottomObserverRef.current) {
+      bottomObserverRef.current = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const foundKey = Array.from(tagItems.current.keys()).findIndex((id) => entry.target.id === id)
+          const validIndex = foundKey >= participantItems.current.size - 3
+          if(
+            entry.isIntersecting &&
+            validIndex &&
+            props.tagQuery && (
+              props.tagQuery.hasNextPage &&
+              !props.tagQuery.isFetching
+            )
+          ) {
+            props.tagQuery.fetchNextPage()
+          }
+        })
+      }, {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1
+      })
+    }
+
+    const bottomRef = tagItems.current.size - 3
+    if(bottomRef >= 0 && bottomObserverRef.current) {
+      const el = tagItems.current.get(Array.from(tagItems.current.keys())[bottomRef])
+      if(el !== undefined && el !== null) {
+        bottomObserverRef.current.observer(el)
+      }
+    }
+
+    return () => {
+      if(bottomObserverRef.current) {
+        bottomObserverRef.current.disconnect()
+      }
+    }
+  }, [
+    props.tagQuery?.hasNextPage,
+    props.tagQuery?.isFetching,
+    bottomObserverRef.current,
+    tagItems.current.size
   ])
 
   return (
@@ -142,6 +188,8 @@ export const TagPicker = (props: TagPickerProps) => {
                   <div 
                     className="flex flex-row justify-start items-center pe-2 w-full" 
                     key={index}
+                    ref={el => tagItems.current.set(tag.id, el)}
+                    id={tag.id}
                   >
                     <button 
                       className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:bg-gray-100 cursor-pointer disabled:hover:cursor-wait" 
