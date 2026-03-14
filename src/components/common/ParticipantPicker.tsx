@@ -318,7 +318,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
       ref={containerRef}
       className={`
         flex ${props.type.label === 'top' ? 'flex-col' : 'flex-row'} 
-        gap-1 self-center items-center justify-center relative
+        gap-1 items-start relative w-full
       `}
     >
       <Label className="font-medium text-lg ms-2" htmlFor="participant">
@@ -328,7 +328,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
         id='participant'
         theme={textInputTheme}
         sizing="sm"
-        className="max-w-[250px]"
+        className="max-w-[250px] w-full"
         onFocus={() => setIsFocused(true)}
         onChange={(event) => setParticipantSearch(event.target.value)}
         value={isFocused ? (
@@ -382,6 +382,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
                           }
                           else {
                             props.multiple.setSelectedParticipant(undefined)
+                            setIsFocused(false)
                           }
                         }
                         else {
@@ -390,6 +391,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
                           }
                           else {
                             props.multiple.setSelectedParticipant(item)
+                            setIsFocused(false)
                           }
                         }
                       }}

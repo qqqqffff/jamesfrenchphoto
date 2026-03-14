@@ -6,6 +6,8 @@ import { Alert, Button, FlowbiteColors, Label, Modal, TextInput } from 'flowbite
 import { DynamicStringEnumKeysOf, textInputTheme } from '../utils'
 import { HiOutlineEyeSlash, HiOutlineEye } from "react-icons/hi2";
 import { ForgotPasswordModal } from '../components/modals/ForgotPassword'
+import { v4 } from 'uuid'
+import validator from 'validator'
 
 interface LoginParams {
   createAccount?: boolean,
@@ -124,7 +126,11 @@ function RouteComponent() {
   const router = useRouter()
 
   const [notifications, setNotifications] = useState<LoginNotificationTypes[]>([])
-  const [formErrors, setFormErrors] = useState<string[]>([])
+  const [formErrors, setFormErrors] = useState<{
+    id: string,
+    message: string,
+    type: 'submit' | 'email'
+  }[]>([])
   const [submitting, setSubmitting] = useState(false)
   const { width } = useWindowDimensions()
   const [passwordResetVisible, setPasswordResetVisible] = useState(false)
@@ -205,6 +211,8 @@ function RouteComponent() {
         password
       )
 
+      if(response === 'fail') throw new Error()
+
       if(response === 'nextStep'){
         setSubmitting(false)
         setPasswordResetVisible(true)
@@ -224,8 +232,11 @@ function RouteComponent() {
       }
       setSubmitting(false)
     } catch(err){
-      const error = err as Error
-      setFormErrors([error.message])
+      setFormErrors([...formErrors, {
+        id: v4(),
+        message: 'Incorrect username or password',
+        type: 'submit'
+      }])
       setSubmitting(false)
     }
   }
@@ -246,8 +257,11 @@ function RouteComponent() {
       }
       setSubmitting(false)
     }catch(err){
-      const error = err as Error
-      setFormErrors([error.message])
+      setFormErrors([...formErrors, {
+        id: v4(),
+        message: 'Failed to confirm signin with new password.',
+        type: 'submit'
+      }])
       setSubmitting(false)
     }
   }
@@ -315,10 +329,15 @@ function RouteComponent() {
         >
           <div className="mt-2 w-full relative">
             <div className="items-center mb-4 absolute top-0 left-0 right-0 mx-20">
-              {formErrors.length > 0 && formErrors.map((error, index) => {
+              {formErrors.filter((item) => item.type === 'submit').map((error, index) => {
                 return (
-                  <Alert key={index} color='red' className="text-base w-full opacity-70 font-semibold" onDismiss={() => {setFormErrors(formErrors.filter((e) => e != error))}}>
-                    <p>{error}</p>
+                  <Alert 
+                    key={index} 
+                    color='red' 
+                    className="text-base w-full opacity-70 font-semibold" 
+                    onDismiss={() => {setFormErrors(formErrors.filter((e) => e.id != error.id))}}
+                  >
+                    <p>{error.message}</p>
                   </Alert>
                 )
               })}
@@ -327,7 +346,33 @@ function RouteComponent() {
           <p className="font-bold text-4xl mb-8 mt-8 text-center">Welcome Back</p>
           <div className={`flex flex-col gap-3 ${width > 500 ? 'w-[60%]' : 'w-full px-6'}  max-w-[32rem]`}>
             <span className="ms-2 font-semibold text-xl">Email:</span>
-            <TextInput sizing='lg' className="mb-4 w-full" placeholder="Email" type="email" onChange={(event) => setUsername(event.target.value)} value={username} />
+            <TextInput 
+              sizing='lg' 
+              className="mb-4 w-full" 
+              placeholder="Your Email" 
+              type="email" 
+              onChange={(event) => {
+                setUsername(event.target.value)
+              }} 
+              value={username} 
+              onBlur={() => {
+                if(!validator.isEmail(username)) {
+                  setFormErrors([...formErrors, {
+                    id: v4(),
+                    message: 'Invalid Email Address',
+                    type: 'email'
+                  }])
+                }
+              }}
+              onFocus={() => {
+                if(formErrors.some((error) => error.type === 'email')) {
+                  setFormErrors(prev => prev.filter((error) => error.type === 'email'))
+                }
+              }}
+              helperText={(
+                <p className='text-xs text-red-500'>Invalid Email Address</p>
+              )}
+            />
             <span className="ms-2 font-semibold text-xl">Password:</span>
             <div className='w-full relative h-auto'>
               <TextInput 

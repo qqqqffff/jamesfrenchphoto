@@ -23,7 +23,7 @@ export const TagPicker = (props: TagPickerProps) => {
   const [search, setSearch] = useState<string>('')
   const [focused, setFocused] = useState(false)
   const tagItems = useRef<Map<string, HTMLDivElement | null>>(new Map())
-  const bottomObserver = useRef<IntersectionObserver>(null)
+  const bottomObserver = useRef<IntersectionObserver | null>(null)
 
   const filteredItems = props.tags.filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase().trim()))
 
@@ -60,11 +60,11 @@ export const TagPicker = (props: TagPickerProps) => {
   ])
 
   useEffect(() => {
-    if(!bottomObserverRef.current) {
-      bottomObserverRef.current = new IntersectionObserver((entries) => {
+    if(!bottomObserver.current) {
+      bottomObserver.current = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
           const foundKey = Array.from(tagItems.current.keys()).findIndex((id) => entry.target.id === id)
-          const validIndex = foundKey >= participantItems.current.size - 3
+          const validIndex = foundKey >= tagItems.current.size - 3
           if(
             entry.isIntersecting &&
             validIndex &&
@@ -84,22 +84,22 @@ export const TagPicker = (props: TagPickerProps) => {
     }
 
     const bottomRef = tagItems.current.size - 3
-    if(bottomRef >= 0 && bottomObserverRef.current) {
+    if(bottomRef >= 0 && bottomObserver.current) {
       const el = tagItems.current.get(Array.from(tagItems.current.keys())[bottomRef])
       if(el !== undefined && el !== null) {
-        bottomObserverRef.current.observer(el)
+        bottomObserver.current.observe(el)
       }
     }
 
     return () => {
-      if(bottomObserverRef.current) {
-        bottomObserverRef.current.disconnect()
+      if(bottomObserver.current) {
+        bottomObserver.current.disconnect()
       }
     }
   }, [
     props.tagQuery?.hasNextPage,
     props.tagQuery?.isFetching,
-    bottomObserverRef.current,
+    bottomObserver.current,
     tagItems.current.size
   ])
 
