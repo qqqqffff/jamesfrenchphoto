@@ -1,5 +1,4 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
-import { getPaymentIntent } from '../functions/get-payment-intent/resource';
 import { postConfirmation } from '../auth/post-confirmation/resource';
 import { getAuthUsers } from '../auth/get-auth-users/resource';
 import { addCreateUserQueue } from '../functions/add-create-user-queue/resource';
@@ -16,6 +15,7 @@ import { registerUser } from '../functions/register-user/resource';
 import { adminUpdateUserAttributes } from '../auth/admin-update-user-attributes/resource';
 import { registerTimeslot } from '../functions/register-timeslot/resource';
 import { notifyUser } from '../functions/notify-user/resource';
+import { chargeNoShowFee } from '../functions/charge-no-show-fee/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -316,7 +316,11 @@ const schema = a.schema({
       lastName: a.string(),
     })
     .identifier(['email'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['get'])]),
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.ownerDefinedIn('email').identityClaim('email').to(['get', 'update']), 
+      allow.guest().to(['get'])
+    ]),
   Participant: a.
     model({
       id: a.id().required(),
@@ -343,7 +347,6 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'), 
-      // allow.authenticated().to(['get', 'update', 'list']),
       allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
       allow.guest().to(['get', 'list'])
     ]),
@@ -369,6 +372,59 @@ const schema = a.schema({
     .identifier(['id'])
     .secondaryIndexes((index) => [index('participantId'), index('collectionId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
+  CustomerProfile: a.
+    model({
+      userEmail: a.string().required(),
+      userId: a.string().required(),
+      paypalCustomerId: a.string().required(),
+      savedPaymentMethods: a.hasMany('SavedPaymentMethod', 'paypalCustomerId'),
+      orders: a.hasMany('Orders', 'paypalCustomerId')
+    })
+    .identifier(['userEmail'])
+    .authorization((allow) => [
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get'])
+    ]),
+  SavedPaymentMethod: a.
+    model({
+      paypalCustomerId: a.id().required(),
+      customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
+      paypalVaultId: a.string().required(),
+      type: a.enum(['PAYPAL', 'CARD', 'VENMO', 'APPLEPAY']),
+      isDefault: a.boolean().default(false),
+
+      last4: a.string(),
+      brand: a.string(),
+      expireMoth: a.integer(),
+      expireYear: a.integer(),
+      userEmail: a.string().required(),
+    })
+    .identifier(['paypalCustomerId'])
+    .secondaryIndexes((index) => [
+      index('paypalCustomerId')
+    ])
+    .authorization((allow) => [
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list', 'update', 'delete'])
+    ]),
+  Orders: a.
+    model({
+      paypalCustomerId: a.id().required(),
+      customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
+      paypalOrderId: a.string().required(),
+      paypalVaultId: a.string(),
+      amount: a.float().required(),
+      currency: a.string().default('USD').required(),
+      status: a.enum(['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED']),
+      items: a.json(),
+      userEmail: a.string().required()
+    })
+    .identifier(['paypalOrderId'])
+    .secondaryIndexes((index) => [
+      index('userEmail')
+    ])
+    .authorization((allow) => [
+      allow.group('ADMINS'),
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
+    ]),
   Notifications: a.
     model({
       id: a.id().required(),
@@ -488,20 +544,6 @@ const schema = a.schema({
       price: a.integer(),
     })
     .authorization((allow) => [allow.authenticated()]),
-  PaymentIntent: a
-    .customType({
-      objects: a.string().array(),
-      total: a.integer(),
-      currency: a.string(),
-    }),
-  GetPaymentIntent: a
-    .query()
-    .arguments({
-      objects: a.string().array(),
-    })
-    .returns(a.ref('PaymentIntent'))
-    .authorization((allow) => [allow.authenticated()])
-    .handler(a.handler.function(getPaymentIntent)),
   SendTimeslotConfirmation: a
     .query()
     .arguments({
@@ -597,6 +639,15 @@ const schema = a.schema({
     .handler(a.handler.function(notifyUser))
     .authorization((allow) => [allow.group('ADMINS')])
     .returns(a.json()),
+  ChargeNoShowFee: a
+    .mutation()
+    .arguments({
+      timeslotId: a.string().required(),
+      userEmail: a.string().required(),
+    })
+    .handler(a.handler.function(chargeNoShowFee))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.json()),
   TemporaryAccessToken: a
     .model({
       id: a.id().required(),
@@ -617,6 +668,8 @@ const schema = a.schema({
   allow.resource(registerTimeslot),
   allow.resource(notifyUser),
   allow.resource(sendTimeslotConfirmation),
+  allow.resource(chargeNoShowFee),
+  // allow.resource()
 ]);
 
 export type Schema = ClientSchema<typeof schema>;
