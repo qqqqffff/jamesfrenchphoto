@@ -7,28 +7,33 @@ import {
   draggable,
   dropTargetForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { Participant, Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from '../../../types';
+import { Notification, Participant, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from '../../../types';
 import { Dispatch, HTMLAttributes, MutableRefObject, SetStateAction, useEffect, useRef, useState } from 'react';
 import { Dropdown } from 'flowbite-react';
 import { getColumnTypeColor } from '../../../utils';
 import { ColorComponent } from '../../common/ColorComponent';
 import { DropIndicator } from '../../common/DropIndicator';
 import { EditableTextField } from '../../common/EditableTextField';
-import { UseMutationResult } from '@tanstack/react-query';
-import { CreateTableColumnParams, UpdateTableColumnParams } from '../../../services/tableService';
+import { useMutation, UseMutationResult } from '@tanstack/react-query';
+import { CreateTableColumnParams, ReorderTableMutationParams, TableService, UpdateTableColumnParams } from '../../../services/tableService';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import invariant from 'tiny-invariant';
 import { getTableColumnData, isTableColumnData } from './TableColumnData';
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
 import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview';
 import { createPortal } from 'react-dom';
+import { GoTriangleDown, GoTriangleUp } from 'react-icons/go'
+import { reorderRows, sortColumnValues } from '../../../functions/tableFunctions';
 
 
 interface TableColumnProps {
+  TableService: TableService
   table: Table
   column: TableColumn
   refColumn: MutableRefObject<TableColumn | null>
   tags: UserTag[]
+  timeslots: Timeslot[]
+  notifications: Notification[]
   users: UserData[]
   tempUsers: UserProfile[]
   createColumn: UseMutationResult<void, Error, CreateTableColumnParams, unknown>
@@ -65,6 +70,7 @@ const idle: TableColumnState = { type: 'idle' }
 export const TableColumnComponent = (props: TableColumnProps) => {
   const tableColumnRef = useRef<HTMLTableCellElement | null>(null)
   const [columnState, setColumnState] = useState<TableColumnState>(idle)
+  const [mouseHover, setMouseHover] = useState(false)
 
   useEffect(() => {
     const element = tableColumnRef.current
@@ -140,6 +146,39 @@ export const TableColumnComponent = (props: TableColumnProps) => {
     props.column
   ])
 
+  const sortOrder: 'ASC' | 'DSC' | null = (() => {
+    const values = [...props.column.values]
+    
+    const sortedValuesASC = sortColumnValues(props.column, props.tags, props.timeslots, props.notifications)
+    const sortedValuesDSC = [...sortedValuesASC].reverse()
+
+    let sortedASC = true
+    let sortedDSC = true
+
+    for(let i = 0, j = 0; i < values.length; i++) {
+      if(values[i] === '') continue
+      
+      if(sortedValuesASC[j] !== values[i]) {
+        sortedASC = false
+      }
+      else if(sortedValuesDSC[j] !== values[i]) {
+        sortedDSC = false
+      }
+
+      j++
+      if(!sortedASC && !sortedDSC) return null
+    }
+
+    if(sortedASC && sortedDSC) return null
+    else if(sortedASC) return 'ASC'
+    else if(sortedDSC) return 'DSC'
+    return null
+  })()
+
+  const reorderTable = useMutation({
+    mutationFn: (params: ReorderTableMutationParams) => props.TableService.reorderTableMutation(params)
+  })
+  
   return (
     <th
       data-table-column-id={props.column.id}
@@ -150,6 +189,8 @@ export const TableColumnComponent = (props: TableColumnProps) => {
         place-items-center bg-gray-50
         ${stateStyles[columnState.type] ?? ''}
       `}
+      onMouseEnter={() => setMouseHover(true)}
+      onMouseLeave={() => setMouseHover(false)}
     >
       {columnState.type === 'is-dragging-over' && columnState.closestEdge && columnState.closestEdge === 'left' && (
         <DropIndicator edge={columnState.closestEdge} gap={'8px'} />
@@ -162,12 +203,8 @@ export const TableColumnComponent = (props: TableColumnProps) => {
             placeholder="Enter Column Name..."
             onSubmitText={(text) => {
               if(props.column.temporary && text !== ''){
-                const valuesArray = [] as string[]
-                const choiceArray = [] as string[]
-                for(let i = 0; i < props.table.columns[0].values.length; i++) {
-                  valuesArray.push('')
-                  choiceArray.push('')
-                }
+                const valuesArray = [...props.column.values]
+                const choiceArray = [...(props.column.choices ?? [])]
 
                 const normalText = text.toLowerCase()
                 const participant = 
@@ -177,7 +214,10 @@ export const TableColumnComponent = (props: TableColumnProps) => {
                   normalText.includes('escort') ||
                   normalText.includes('daughter') ||
                   normalText.includes('son') ||
-                  normalText.includes('child')
+                  normalText.includes('child') ||
+                  props.column.type === 'date' ||
+                  props.column.type === 'notification' ||
+                  props.column.type === 'tag'
                 
                 const field: 'first' | 'last' | 'sitting' | 'email' | 'preferred' | 'middle' | undefined = props.column.type === 'value' ? (() => {
                   if(normalText.includes('first')) {
@@ -202,126 +242,154 @@ export const TableColumnComponent = (props: TableColumnProps) => {
                 })(): undefined 
 
                 //check existing links for duplicates
-                let existingLink = false;
-                if(field) {
-                  for(let i = 0; i < props.table.columns.length; i++) {
-                    if((props.table.columns[i].choices ?? []).some((choice) => {
-                      if(participant) {
-                        return choice.includes(String(field)) && choice.includes('participantId:')
-                      }
-                      else {
-                        return choice.includes(String(field)) && choice.includes('userEmail:')
-                      }
-                    })) {
-                      existingLink = true
-                      break;
-                    }
-                  }
-                }
+                let existingLink: { link: boolean, user: { user: boolean, id: string } | null }[] = [];
+                existingLink = existingLink.fill({ link: false, user: null }, 0, props.table.columns[0].values.length);
                   
                 //value & choice injection
                 if(
-                  (field || props.column.type === 'date' || props.column.type === 'tag') && 
-                  !existingLink
+                  (
+                    field || 
+                    props.column.type === 'date' || 
+                    props.column.type === 'tag' ||
+                    props.column.type === 'notification'
+                  )
                 ) {
-                  for(let i = 0; i < valuesArray.length; i++) {
-                    //search other columns for potential ids at the same row index
+                  //search for the existing links
+                  for(let i = 0; i < choiceArray.length; i++) {
                     for(let j = 0; j < props.table.columns.length; j++) {
-                      const foundChoice = props.table.columns[j].choices?.[i] ?? ''
-                      if(foundChoice.includes('participantId:') && participant) {
-                        const foundId = foundChoice.substring(foundChoice.indexOf(':') + 1, foundChoice.indexOf(',') === -1 ? foundChoice.length : foundChoice.indexOf(','))
-                        const foundParticipant = [
-                          ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant),
-                          ...props.tempUsers.flatMap((profile) => profile.participant)
-                        ].reduce((prev, cur) => {
-                          if(!prev.some((participant) => participant.id === cur.id)) {
-                            prev.push(cur)
+                      const parsedChoice = (props.table.columns[j].choices ?? [])[i]
+                      if(participant && parsedChoice !== undefined && parsedChoice.includes('participantId:')) {
+                        existingLink[i] = {
+                          link: true,
+                          user: {
+                            user: false,
+                            id: parsedChoice.substring(
+                              parsedChoice.indexOf(':') + 1, 
+                              parsedChoice.indexOf(',') === -1 ? 
+                                parsedChoice.length 
+                              : 
+                                parsedChoice.indexOf(',')
+                            )
                           }
-                          return prev
-                        }, [] as Participant[])
-                        .find((participant) => participant.id === foundId)
-
-                        if(foundParticipant === undefined) continue;
-
-                        choiceArray[i] = 'participantId:' + foundId + (field ? (',' + field) : '')
-                        
-                        //inject the values since cells should not be editable 
-                        //TODO: make the cells not editable while the column is temporary
-                        switch(field) {
-                          case 'first':
-                            valuesArray[i] = foundParticipant.firstName
-                            break;
-                          case 'last':
-                            valuesArray[i] = foundParticipant.lastName
-                            break;
-                          case 'middle':
-                            valuesArray[i] = foundParticipant.middleName ?? ''
-                            break;
-                          case 'email':
-                            valuesArray[i] = foundParticipant.email ?? ''
-                            break;
-                          case 'preferred':
-                            valuesArray[i] = foundParticipant.preferredName ?? ''
-                            break;
-                          default:
-                            if(props.column.type === 'date') {
-                              const dateValue = (foundParticipant.timeslot ?? [])
-                                .map((timeslot) => timeslot.id)
-                                .reduce((prev, cur) => {
-                                  return prev + ',' + cur
-                                }, '')
-                              valuesArray[i] = dateValue.charAt(0) === ',' ? dateValue.substring(0) : dateValue
-                            }
-                            else if(props.column.type === 'tag'){
-                              const tagValue = foundParticipant.userTags
-                                .map((timeslot) => timeslot.id)
-                                .reduce((prev, cur) => {
-                                  return prev + ',' + cur
-                                }, '')
-                              valuesArray[i] = tagValue.charAt(0) === ',' ? tagValue.substring(0) : tagValue
-                            }
-
-                            break;
                         }
-
                         break;
                       }
-                      else if(foundChoice.includes('userEmail:') && !participant && field) {
-                        const foundEmail = foundChoice.substring(foundChoice.indexOf(':') + 1, foundChoice.indexOf(',') === -1 ? foundChoice.length : foundChoice.indexOf(',')).toLowerCase()
-                        const foundUser = [
-                          ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
-                          ...props.tempUsers
-                        ]
-                        .reduce((prev, cur) => {
-                          if(!prev.some((user) => user.email.toLowerCase() === cur.email.toLowerCase())) {
-                            prev.push(cur)
+                      else if(!participant && parsedChoice !== undefined && parsedChoice.includes('userEmail:')) {
+                        existingLink[i] = {
+                          link: true,
+                          user: {
+                            user: true,
+                            id: parsedChoice.substring(
+                              parsedChoice.indexOf(':') + 1,
+                              parsedChoice.indexOf(',') === -1 ?
+                                parsedChoice.length
+                              :
+                                parsedChoice.indexOf(',')
+                            )
                           }
-                          return prev
-                        }, [] as UserProfile[])
-                        .find((user) => user.email.toLowerCase() === foundEmail)
-
-                        if(foundUser === undefined) continue
-
-                        choiceArray[i] = 'userEmail:' + foundEmail + ',' + field
-                        
-                        //inject the values since cells should not be editable 
-                        //TODO: make the cells not editable while the column is temporary
-                        switch(field) {
-                          case 'first':
-                            valuesArray[i] = foundUser.firstName ?? ''
-                            break;
-                          case 'last':
-                            valuesArray[i] = foundUser.lastName ?? ''
-                            break;
-                          case 'sitting':
-                            valuesArray[i] = String(foundUser.sittingNumber) ?? ''
-                            break;
-                          case 'email':
-                            //idk how this case will work but ill leave it
-                            valuesArray[i] = foundUser.email
-                            break;
                         }
                         break;
+                      }
+                    }
+                  }
+
+                  //update the values array
+                  for(let i = 0; i < valuesArray.length; i++) {
+                    const existingChoice = existingLink[i]
+                    if(existingChoice !== undefined && existingChoice.link && existingChoice.user !== null && !existingChoice.user.user) {
+                      const foundId = existingChoice.user.id
+                      const foundParticipant = [
+                        ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined).flatMap((profile) => profile.participant),
+                        ...props.tempUsers.flatMap((profile) => profile.participant)
+                      ].reduce((prev, cur) => {
+                        if(!prev.some((participant) => participant.id === cur.id)) {
+                          prev.push(cur)
+                        }
+                        return prev
+                      }, [] as Participant[])
+                      .find((participant) => participant.id === foundId)
+
+                      if(foundParticipant === undefined) continue;
+
+                      choiceArray[i] = 'participantId:' + foundId + (field ? (',' + field) : '')
+                      
+                      //inject the values since cells should not be editable 
+                      //TODO: make the cells not editable while the column is temporary
+                      switch(field) {
+                        case 'first':
+                          valuesArray[i] = foundParticipant.firstName
+                          break;
+                        case 'last':
+                          valuesArray[i] = foundParticipant.lastName
+                          break;
+                        case 'middle':
+                          valuesArray[i] = foundParticipant.middleName ?? ''
+                          break;
+                        case 'email':
+                          valuesArray[i] = foundParticipant.email ?? ''
+                          break;
+                        case 'preferred':
+                          valuesArray[i] = foundParticipant.preferredName ?? ''
+                          break;
+                        default:
+                          if(props.column.type === 'date') {
+                            const dateValue = (foundParticipant.timeslot ?? [])
+                              .map((timeslot) => timeslot.id)
+                              .reduce((prev, cur) => {
+                                return prev + ',' + cur
+                              }, '')
+                            valuesArray[i] = dateValue.charAt(0) === ',' ? dateValue.substring(0) : dateValue
+                          }
+                          else if(props.column.type === 'tag'){
+                            const tagValue = foundParticipant.userTags
+                              .map((timeslot) => timeslot.id)
+                              .reduce((prev, cur) => {
+                                return prev + ',' + cur
+                              }, '')
+                            valuesArray[i] = tagValue.charAt(0) === ',' ? tagValue.substring(0) : tagValue
+                          }
+                          else if(props.column.type === 'notification') {
+                            const notificationValue = foundParticipant.notifications[0]?.id ?? ''
+                            valuesArray[i] = notificationValue
+                          }
+
+                          break;
+                      }
+                    }
+                    else if(existingChoice !== undefined && existingChoice.link && existingChoice.user !== null && existingChoice.user.user) {
+                      const foundEmail = existingChoice.user.id.toLowerCase()
+                      const foundUser = [
+                        ...props.users.map((user) => user.profile).filter((profile) => profile !== undefined),
+                        ...props.tempUsers
+                      ]
+                      .reduce((prev, cur) => {
+                        if(!prev.some((user) => user.email.toLowerCase() === cur.email.toLowerCase())) {
+                          prev.push(cur)
+                        }
+                        return prev
+                      }, [] as UserProfile[])
+                      .find((user) => user.email.toLowerCase() === foundEmail)
+
+                      if(foundUser === undefined) continue
+
+                      choiceArray[i] = 'userEmail:' + foundEmail + ',' + field
+                      
+                      //inject the values since cells should not be editable 
+                      //TODO: make the cells not editable while the column is temporary
+                      switch(field) {
+                        case 'first':
+                          valuesArray[i] = foundUser.firstName ?? ''
+                          break;
+                        case 'last':
+                          valuesArray[i] = foundUser.lastName ?? ''
+                          break;
+                        case 'sitting':
+                          valuesArray[i] = String(foundUser.sittingNumber) ?? ''
+                          break;
+                        case 'email':
+                          //idk how this case will work but ill leave it
+                          valuesArray[i] = foundUser.email
+                          break;
                       }
                     }
                   }
@@ -519,6 +587,73 @@ export const TableColumnComponent = (props: TableColumnProps) => {
             >Delete</Dropdown.Item>
           </div>
         </Dropdown>
+      )}
+      {(
+        mouseHover && 
+        !props.column.temporary && 
+        !props.column.edit
+      ) && (
+        <button 
+          className='absolute right-0 top-3 p-1 hover:bg-gray-200 text-gray-500 hover:text-black'
+          onClick={() => {
+            let reorderedRows: Record<string, { values: string[], choices: string[] }> = {}
+            if(sortOrder === 'DSC' || sortOrder === null) {
+              reorderedRows = reorderRows('ASC', props.column, props.table, props.tags, props.timeslots, props.notifications)
+            }
+            else {
+              reorderedRows = reorderRows('DSC', props.column, props.table, props.tags, props.timeslots, props.notifications)
+            }
+
+            console.log(Object.values(reorderedRows))
+
+            if(props.table.id === '1') {
+              reorderTable.mutate({
+                tableColumns: props.table.columns.map((column) => ({
+                  ...column,
+                  values: reorderedRows[column.id].values,
+                  choices: reorderedRows[column.id].choices,
+                })),
+                options: {
+                  logging: true
+                }
+              })
+
+              const updateGroups = (prev: TableGroup[]) => prev.map((group) => props.table.tableGroupId === group.id ? ({
+                ...group,
+                tables: group.tables.map((table) => table.id === props.table.id ? ({
+                  ...table,
+                  columns: table.columns.map((column) => ({
+                    ...column,
+                    values: reorderedRows[column.id].values,
+                    choices: reorderedRows[column.id].choices
+                  }))
+                }) : table)
+              }) : group)
+
+              props.parentUpdateSelectedTableGroups(prev => updateGroups(prev))
+              props.parentUpdateTableGroups(prev => updateGroups(prev))
+              props.parentUpdateTable(prev => prev !== undefined ? ({
+                ...prev,
+                columns: prev.columns.map((column) => ({
+                  ...column,
+                  values: reorderedRows[column.id].values,
+                  choices: reorderedRows[column.id].choices
+                }))
+              }) : prev)
+              props.parentUpdateTableColumns(prev => prev.map((column) => ({
+                ...column,
+                values: reorderedRows[column.id].values,
+                choices: reorderedRows[column.id].choices
+              })))
+              }
+          }}
+        >
+          {sortOrder === 'DSC' || sortOrder === null ? (
+            <GoTriangleDown size={16} />
+          ) : (
+            <GoTriangleUp size={16} />
+          )}
+        </button>
       )}
       {columnState.type === 'is-dragging-over' && columnState.closestEdge && columnState.closestEdge === 'right' && (
         <DropIndicator edge={columnState.closestEdge} gap={'8px'} />

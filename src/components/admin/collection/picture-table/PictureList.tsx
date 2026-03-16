@@ -1,28 +1,29 @@
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ComponentProps, Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { ComponentProps, Dispatch, MutableRefObject, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { isDraggingAPicture, isPictureData, isPictureDropTargetData } from "./PictureData";
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { flushSync } from "react-dom";
-import { reorderWithEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/reorder-with-edge';
 import { triggerPostMoveFlash } from "@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash";
 import { Picture } from "./Picture";
 import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
 import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
-import { InfiniteData, UseInfiniteQueryResult, useMutation, UseMutationResult, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
+import { useMutation, UseMutationResult, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
 import { CollectionService, RepairItemCountsParams } from '../../../../services/collectionService';
 import { PhotoSetService, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
-import { GetInfinitePathsData, PhotoPathService } from '../../../../services/photoPathService';
+import { PhotoPathService } from '../../../../services/photoPathService';
 import Loading from '../../../common/Loading';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import useWindowDimensions from '../../../../hooks/windowDimensions';
+import { FavoriteService } from '../../../../services/favoriteService';
 
 interface PictureListProps extends ComponentProps<'div'> {
   CollectionService: CollectionService,
   PhotoPathService: PhotoPathService,
   PhotoSetService: PhotoSetService,
+  FavoriteService: FavoriteService,
   set: PhotoSet,
   collection: PhotoCollection
   paths: PicturePath[],
@@ -30,27 +31,25 @@ interface PictureListProps extends ComponentProps<'div'> {
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
-  pictureStyle: (id: string) => string,
   selectedPhotos: PicturePath[]
-  setSelectedPhotos: (photos: PicturePath[]) => void
-  setDisplayPhotoControls: (id?: string) => void
-  controlsEnabled: (id: string, override: boolean) => string
+  setSelectedPhotos: Dispatch<SetStateAction<PicturePath[]>>
   displayTitleOverride: boolean
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
-  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>
+  setFilesUploading: Dispatch<SetStateAction<File[] | undefined>>
+
+  uploadInputRef: MutableRefObject<HTMLInputElement | null>
+
   participantId?: string,
-  pathsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePathsData, unknown>, Error>
+  pathsQuery: UseQueryResult<PhotoSet | null, Error>
   repairItemCounts: UseMutationResult<PhotoCollection | undefined, Error, RepairItemCountsParams, unknown>
 }
 
 export const PictureList = (props: PictureListProps) => {
   const { width } = useWindowDimensions()
-  const [pictures, setPictures] = useState<PicturePath[]>(props.paths)
   const bottomObserverRef = useRef<IntersectionObserver | null>(null)
   const topObserverRef = useRef<IntersectionObserver | null>(null)
-  const currentOffsetIndex = useRef<number | undefined>()
-  const topIndex = useRef<number>(0)
-  const bottomIndex = useRef<number>(props.paths.length - 1)
+  const topIndex = useRef<number>(-1)
+  const bottomIndex = useRef<number>(-1)
   const picturesRef = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const [isDragging, setIsDragging] = useState<PicturePath>()
   const [watermarkPath, setWatermarkPath] = useState<string>()
@@ -64,32 +63,13 @@ export const PictureList = (props: PictureListProps) => {
     props.CollectionService.getPathQueryOptions(props.set.watermarkPath ?? props.collection.watermarkPath, props.collection.id)
   )
 
-  const getTriggerItems = useCallback((allItems: PicturePath[], offset?: number): {
-    bottom: PicturePath, 
-    top?: PicturePath,
-  } => {
-    //38 = 2.5 pages for indexes
-    //32 = 2 pages for trigger
-    if(offset) {
-      bottomIndex.current = (offset) + ((offset + 38) >= allItems.length ? allItems.length - offset - 1 : 38)
-      topIndex.current = (offset) - ((offset - 38) > 0 ? 38 : offset)
-      return {
-        bottom: allItems[(offset) + ((offset + 32) >= allItems.length ? allItems.length - offset - 1 : 32)],
-        top: allItems[(offset) - ((offset - 32) > 0 ? 32 : offset)]
-      }
-    }
-    //when downward scrolling 4 pages up will remain rendered (64 pictures )
-    //first row of bottom page will trigger
-    bottomIndex.current = allItems.length - 1
-    topIndex.current = allItems.length - 65
-    return {
-      bottom: allItems[allItems.length - allItems.length % 4 - 4],
-      top: allItems?.[allItems.length - allItems.length % 4 - 61],
-    }
-  }, [])
-
   useEffect(() => {
-    setPictures(props.paths)
+    if(topIndex.current === -1) {
+      topIndex.current = 0
+    }
+    if(bottomIndex.current === -1) {
+      bottomIndex.current = props.paths.length - 1 < 16 ? props.paths.length - 1 : 15
+    }
     const element = listRef.current
     
     if(!element) {
@@ -111,60 +91,55 @@ export const PictureList = (props: PictureListProps) => {
             return
           }
 
-          //TODO: update with revamped algo from setlist.tsx
           //if the dnd-ed object is the single selected photo or if it is not a selected photo
           const draggingSelected = props.selectedPhotos.some((picture) => picture.id === sourceData.picture.id)
           if(props.selectedPhotos.length == 1 && !draggingSelected) {
-            const indexOfSource = pictures.findIndex((picture) => picture.id === sourceData.picture.id)
-            const indexOfTarget = pictures.findIndex((picture) => picture.id === targetData.picture.id)
+            const indexOfSource = props.paths.findIndex((picture) => picture.id === sourceData.picture.id)
+            const indexOfTarget = props.paths.findIndex((picture) => picture.id === targetData.picture.id)
   
             //should be a reorder with edge instead of a swap
             if(indexOfSource < 0 || indexOfTarget < 0) {
               return
             }
-  
-            const updatedPaths = pictures.map((path) => {
-              if(path.id === sourceData.picture.id) {
-                return {
-                  ...path,
-                  order: indexOfTarget
-                }
-              }
-              else if(path.id === targetData.picture.id) {
-                return {
-                  ...path,
-                  order: indexOfSource
-                }
-              }
-              return path
-            })
-  
-            reorderPaths.mutate({
-              paths: updatedPaths,
-              options: {
-                logging: true
-              }
-            })
-  
+
             const closestEdgeOfTarget = extractClosestEdge(targetData)
   
-            flushSync(() => {
-              const newPictures = reorderWithEdge({
-                list: updatedPaths,
-                startIndex: indexOfSource,
-                indexOfTarget,
-                closestEdgeOfTarget,
-                axis: 'horizontal'
+            const updatedPaths: PicturePath[] = []
+  
+            for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'left' ? 0 : 1); i++) {
+              if(i === indexOfSource) continue
+              updatedPaths.push({
+                ...props.paths[i],
+                order: i
               })
-              setPictures(newPictures)
-              props.parentUpdatePaths(newPictures)
+            }
+            updatedPaths.push({
+              ...props.paths[indexOfSource],
+              order: indexOfTarget
+            })
+            for(let i = indexOfTarget + (closestEdgeOfTarget === 'left' ? 0 : 1); i < props.paths.length; i++) {
+              if(i === indexOfSource) continue
+              updatedPaths.push({
+                ...props.paths[i],
+                order: i
+              })
+            }
+  
+            flushSync(() => {
+              props.parentUpdatePaths(updatedPaths)
               props.parentUpdateSet({
                 ...props.set,
-                paths: newPictures
+                paths: updatedPaths
               })
               props.parentUpdateCollection({
                 ...props.collection,
-                sets: props.collection.sets.map((set) => set.id === props.set.id ? ({...props.set, paths: newPictures}) : set)
+                sets: props.collection.sets.map((set) => set.id === props.set.id ? ({ ...props.set, paths: updatedPaths }) : set)
+              })
+              reorderPaths.mutate({
+                paths: updatedPaths,
+                options: {
+                  logging: true
+                }
               })
             })
   
@@ -174,55 +149,86 @@ export const PictureList = (props: PictureListProps) => {
             }
           }
           //if the dnd-ed object is in the set of selected photos
+          //TODO: validate updated logic
           else {
-            const targetIndex = pictures.findIndex((picture) => picture.id == targetData.picture.id)
+            const targetIndex = props.paths.findIndex((picture) => picture.id == targetData.picture.id)
             if(targetIndex < 0) return;
 
-            const filteredFirstSlice: PicturePath[] = pictures
-              .slice(0, targetIndex)
-              .filter((picture) => !props.selectedPhotos.some((sPicture) => sPicture.id === picture.id))
+            const closestEdgeOfTarget = extractClosestEdge(targetData)
+            const set: Set<number> = new Set(props.selectedPhotos.map((picture) => picture.order))
+            const updatedPaths: PicturePath[] = []
 
-            const filteredSecondSlice: PicturePath[] = pictures
-              .slice(targetIndex)
-              .filter((picture) => !props.selectedPhotos.some((sPicture) => sPicture.id === picture.id))
+            const rightTarget = targetIndex + (closestEdgeOfTarget === 'left' ? 0 : 1)
+            for(let i = 0; i < rightTarget; i++) {
+              if(set.has(i)) continue
+              updatedPaths.push({
+                ...props.paths[i],
+                order: i
+              })
+            }
+            const leftLength = updatedPaths.length
+            for(let i = 0; i < props.selectedPhotos.length; i++) {
+              updatedPaths.push({
+                ...props.selectedPhotos[i],
+                order: leftLength + i
+              })
+            }
+            
+            for(let i = rightTarget; i < props.paths.length; i++) {
+              if(set.has(i)) continue
+              updatedPaths.push({
+                ...props.paths[i],
+                order: leftLength + props.selectedPhotos.length + i - targetIndex - (closestEdgeOfTarget === 'left' ? 1 : 0)
+              })
+            }
 
-            const mergedArray: PicturePath[] = [
-              ...filteredFirstSlice,
-              ...props.selectedPhotos.sort((a, b) => a.order - b.order),
-              ...filteredSecondSlice
-            ].map((picture, index) => ({...picture, order: index}))
+            // const filteredFirstSlice: PicturePath[] = props.paths
+            //   .slice(0, targetIndex)
+            //   .filter((picture) => !props.selectedPhotos.some((sPicture) => sPicture.id === picture.id))
 
-            reorderPaths.mutate({
-              paths: mergedArray,
-              options: {
-                logging: true
-              }
-            })
-  
-            setPictures(mergedArray)
-            props.setSelectedPhotos([...props.selectedPhotos].map((picture) => {
-              return {
-                ...picture,
-                order: mergedArray.findIndex((pPicture) => pPicture.id === picture.id)
-              }
-            }))
-            props.parentUpdatePaths(mergedArray)
-            props.parentUpdateSet({
-              ...props.set,
-              paths: mergedArray
-            })
-            props.parentUpdateCollection({
-              ...props.collection,
-              sets: props.collection.sets.map((set) => set.id === props.set.id ? ({...props.set, paths: mergedArray}) : set)
-            })
+            // const filteredSecondSlice: PicturePath[] = props.paths
+            //   .slice(targetIndex)
+            //   .filter((picture) => !props.selectedPhotos.some((sPicture) => sPicture.id === picture.id))
 
-            props.selectedPhotos
-              .map((picture) => document.querySelector(`[data-picture-id="${picture.id}"]`))
-              .forEach((element) => {
-                if(element instanceof HTMLElement) {
-                  triggerPostMoveFlash(element)
+            // const mergedArray: PicturePath[] = [
+            //   ...filteredFirstSlice,
+            //   ...props.selectedPhotos.sort((a, b) => a.order - b.order),
+            //   ...filteredSecondSlice
+            // ].map((picture, index) => ({...picture, order: index}))
+
+            flushSync(() => {
+              reorderPaths.mutate({
+                paths: updatedPaths,
+                options: {
+                  logging: true
                 }
               })
+    
+              props.setSelectedPhotos([...props.selectedPhotos].map((picture) => {
+                return {
+                  ...picture,
+                  order: updatedPaths.findIndex((pPicture) => pPicture.id === picture.id)
+                }
+              }))
+              props.parentUpdatePaths(updatedPaths)
+              props.parentUpdateSet({
+                ...props.set,
+                paths: updatedPaths
+              })
+              props.parentUpdateCollection({
+                ...props.collection,
+                sets: props.collection.sets.map((set) => set.id === props.set.id ? ({...props.set, paths: updatedPaths}) : set)
+              })
+            })
+            
+
+            props.selectedPhotos
+            .map((picture) => document.querySelector(`[data-picture-id="${picture.id}"]`))
+            .forEach((element) => {
+              if(element instanceof HTMLElement) {
+                triggerPostMoveFlash(element)
+              }
+            })
           }
         }
       }),
@@ -239,43 +245,20 @@ export const PictureList = (props: PictureListProps) => {
   ])
 
   useEffect(() => {
-    if(props.paths.length == 0) return
-
-    if(!bottomObserverRef.current) {
+    if(!bottomObserverRef.current) {  
       bottomObserverRef.current = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-          if(entry.isIntersecting && 
-            currentOffsetIndex.current &&
-            currentOffsetIndex.current + 32 > pictures.length
-          ) {
-            currentOffsetIndex.current = undefined
-          }
-          else if(entry.isIntersecting &&
-            currentOffsetIndex.current &&
-            currentOffsetIndex.current + 32 < pictures.length
-          ) {
-            currentOffsetIndex.current = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-          }
-          if(entry.isIntersecting && 
-            props.pathsQuery.hasNextPage && 
-            !props.pathsQuery.isFetchingNextPage &&
-            !currentOffsetIndex.current
-          ) {
-            props.pathsQuery.fetchNextPage()
-          }
-          
-          else if(
+          const path = props.paths.find((path) => path.id === entry.target.id)
+          if(
             entry.isIntersecting && 
-            !props.pathsQuery.hasNextPage && 
-            props.paths.length !== props.set.items &&
-            !props.repairItemCounts.isPending
+            path !== undefined &&
+            path.order >= bottomIndex.current - 4 &&
+            bottomIndex.current < props.paths.length - 1
           ) {
-            props.repairItemCounts.mutate({
-              collection: props.collection,
-              options: {
-                logging: true
-              }
-            })
+            const countOffset = ((props.paths.length - 1) > (bottomIndex.current + 4) ? 4 : props.paths.length - 1)
+
+            topIndex.current = topIndex.current + countOffset
+            bottomIndex.current = bottomIndex.current + countOffset
           }
         })
       }, {
@@ -287,30 +270,33 @@ export const PictureList = (props: PictureListProps) => {
     if(!topObserverRef.current) {
       topObserverRef.current = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-          const foundIndex = pictures.findIndex((path) => path.id === entry.target.getAttribute('data-id'))
-          if(entry.isIntersecting && foundIndex !== 0) {
-            currentOffsetIndex.current = foundIndex
+          const path = props.paths.find((path) => path.id)
+          if(
+            entry.isIntersecting &&
+            path !== undefined &&
+            path.order <= topIndex.current + 4 &&
+            topIndex.current > 0
+          ) {
+            const countOffset = (topIndex.current - 4) > 0 ? 4 : topIndex.current
+
+            topIndex.current = topIndex.current - countOffset
+            bottomIndex.current = bottomIndex.current - countOffset
           }
         })
-      }, {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
       })
     }
 
-    const triggerReturn = getTriggerItems(props.paths, currentOffsetIndex.current)
-    // console.log(triggerReturn, bottomIndex.current, topIndex.current, props.paths.length)
-
-    const Tel = picturesRef.current.get(triggerReturn.top?.id ?? '')
-    const Bel = picturesRef.current.get(triggerReturn.bottom?.id ?? '')
-    if(Tel && topObserverRef.current && triggerReturn.top?.id) {
-      Tel.setAttribute('data-id', triggerReturn.top.id)
-      topObserverRef.current.observe(Tel)
+    const bottomElement = picturesRef.current.get(props.paths[bottomIndex.current]?.id ?? '')
+    const topElement = picturesRef.current.get(props.paths[topIndex.current]?.id ?? '')
+    if(bottomElement && bottomObserverRef.current) {
+      bottomObserverRef.current.observe(bottomElement)
     }
-    if(Bel && bottomObserverRef.current) {
-      Bel.setAttribute('data-id', triggerReturn.bottom.id)
-      bottomObserverRef.current.observe(Bel)
+    if(topElement && topObserverRef.current) {
+      topObserverRef.current.observe(topElement)
+    }
+    if(bottomIndex.current - topIndex.current <= 8) {
+      bottomIndex.current = topIndex.current + 8 < props.paths.length - 1 ? topIndex.current + 8 : props.paths.length - 1
+      topIndex.current = bottomIndex.current - 8 >= 0 ? bottomIndex.current - 8 : 0
     }
 
     return () => {
@@ -325,12 +311,9 @@ export const PictureList = (props: PictureListProps) => {
     }
   }, [
     props.paths,
-    currentOffsetIndex,
-    props.pathsQuery.fetchNextPage, 
-    props.pathsQuery.hasNextPage, 
-    props.pathsQuery.isFetchingNextPage,
-    getTriggerItems,
-    props.repairItemCounts.isPending,
+    props.pathsQuery,
+    bottomIndex.current,
+    topIndex.current
   ])
 
   useEffect(() => {
@@ -348,7 +331,7 @@ export const PictureList = (props: PictureListProps) => {
   const urls: Record<string, UseQueryResult<[string | undefined, string], Error>> = 
   Object.fromEntries(
     useQueries({
-      queries: pictures
+      queries: props.paths
         .slice(topIndex.current > 0 ? topIndex.current : 0, bottomIndex.current + 1)
         .map((path) => {
           return props.CollectionService.getPathQueryOptions(path.path, path.id)
@@ -356,13 +339,13 @@ export const PictureList = (props: PictureListProps) => {
     })
     .map((query, index) => {
       return [
-        pictures[index + (topIndex.current > 0 ? topIndex.current : 0)].id,
+        props.paths[index + (topIndex.current > 0 ? topIndex.current : 0)].id,
         query
       ]
     })
   )
 
-  
+  // console.log(topIndex.current, bottomIndex.current)
 
   const gridClassName = ` 
     grid-cols-${width > 1500 ? '4' : width > 1200 ? '3' : '2'} 
@@ -372,34 +355,32 @@ export const PictureList = (props: PictureListProps) => {
   return (
     <div className="pt-6 my-0 mx-auto h-[90vh] px-4">
       <div className={gridClassName} ref={listRef}>
-        {pictures.map((item, index) => {
+        {props.paths.map((item, index) => {
           return (
             <div 
               className="relative" 
               ref={el => setItemRef(el, item.id)}
               key={index}
+              id={item.id}
             >
               <Picture 
                 PhotoSetService={props.PhotoSetService}
                 PhotoPathService={props.PhotoPathService}
+                FavoriteService={props.FavoriteService}
                 index={index}
                 set={props.set}
                 collection={props.collection}
-                paths={pictures}
+                paths={props.paths}
                 picture={item}
                 url={urls[item.id]}
                 parentUpdatePaths={props.parentUpdatePaths}
                 parentUpdateSet={props.parentUpdateSet}
                 parentUpdateCollection={props.parentUpdateCollection}
                 parentUpdateCollections={props.parentUpdateCollections}
-                pictureStyle={props.pictureStyle}
                 selectedPhotos={props.selectedPhotos}
                 setSelectedPhotos={props.setSelectedPhotos}
-                setDisplayPhotoControls={props.setDisplayPhotoControls}
-                controlsEnabled={props.controlsEnabled}
                 displayTitleOverride={props.displayTitleOverride}
                 notify={props.notify}
-                setFilesUploading={props.setFilesUploading}
                 participantId={props.participantId}
                 reorderPaths={reorderPaths}
                 watermarkQuery={watermarkQuery}
@@ -410,18 +391,15 @@ export const PictureList = (props: PictureListProps) => {
             </div>
           )
         })}
-        {props.pathsQuery.hasNextPage && (
+        {props.pathsQuery.isLoading && (
           <div id="set-picture-loading-trigger" className="h-5 my-3 text-center text-sm text-gray-500">
-            {props.pathsQuery.isFetchingNextPage && (
-              <>
-                <span>Loading</span>
-                <Loading />
-              </>
-            )}
+            <span>Loading</span>
+            <Loading />
           </div>
         )}
         <UploadImagePlaceholder
           setFilesUploading={props.setFilesUploading}
+          uploadInputRef={props.uploadInputRef}
           className="h-full place-self-center w-full"
         />
       </div>

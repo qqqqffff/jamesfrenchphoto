@@ -15,11 +15,12 @@ import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-
 import { DynamicStringEnumKeysOf, parsePathName } from "../../../../utils";
 import { FlowbiteColors } from "flowbite-react";
 import { LazyImage } from "../../../common/LazyImage";
-import { PhotoSetService, DeleteImagesMutationParams, FavoriteImageMutationParams, ReorderPathsParams, UnfavoriteImageMutationParams } from "../../../../services/photoSetService";
+import { PhotoSetService, DeleteImagesMutationParams, ReorderPathsParams } from "../../../../services/photoSetService";
 import { HiOutlineDownload, HiOutlineHeart } from 'react-icons/hi'
 import { DownloadImageMutationParams, PhotoPathService } from "../../../../services/photoPathService";
 import { CgArrowsExpandRight, CgSpinner } from "react-icons/cg";
 import { HiOutlineBarsArrowDown, HiOutlineBarsArrowUp, HiOutlineTrash, HiOutlineXCircle } from "react-icons/hi2";
+import { FavoriteImageMutationParams, FavoriteService, UnfavoriteImageMutationParams } from "../../../../services/favoriteService";
 
 type PictureState = 
   | {
@@ -49,6 +50,7 @@ const idle: PictureState = { type: 'idle' }
 interface PictureProps {
   PhotoPathService: PhotoPathService,
   PhotoSetService: PhotoSetService,
+  FavoriteService: FavoriteService,
   index: number,
   paths: PicturePath[],
   set: PhotoSet,
@@ -59,14 +61,10 @@ interface PictureProps {
   parentUpdateSet: Dispatch<SetStateAction<PhotoSet | undefined>>,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>,
   parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>,
-  pictureStyle: (id: string) => string,
   selectedPhotos: PicturePath[],
-  setSelectedPhotos: (photos: PicturePath[]) => void,
-  setDisplayPhotoControls: (id?: string) => void,
-  controlsEnabled: (id: string, override: boolean) => string,
+  setSelectedPhotos: Dispatch<SetStateAction<PicturePath[]>>,
   displayTitleOverride: boolean,
   notify: (text: string, color: DynamicStringEnumKeysOf<FlowbiteColors>) => void,
-  setFilesUploading: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>,
   participantId?: string,
   reorderPaths: UseMutationResult<void, Error, ReorderPathsParams, unknown>,
   watermarkQuery?: UseQueryResult<[string | undefined, string] | undefined, Error>,
@@ -91,6 +89,7 @@ export const Picture = (props: PictureProps) => {
     startHeight: 0
   })
   const [expandedDimensions, setExpandedDimensions] = useState<number>()
+  const [displayControls, setDisplayControls] = useState(false)
 
   const handleExpand = () => {
     if (outerRef.current) {
@@ -120,12 +119,13 @@ export const Picture = (props: PictureProps) => {
     }, 300);
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>, selectedPhotos: PicturePath[]) => {
-    if(selectedPhotos[selectedPhotos.length - 1].id === props.picture.id) {
-      if(event.key === ' ') handleExpand()
-      if(event.ctrlKey && event.key.toLowerCase() == 'a') {
-        props.setSelectedPhotos(props.set.paths)
-      }
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if(event.key === ' ') handleExpand()
+    else if(event.ctrlKey && event.key.toLowerCase() == 'a') {
+      props.setSelectedPhotos(props.paths)
+    }
+    else if(event.key === 'Backspace' && props.selectedPhotos.some((path) => path.id === props.picture.id)) {
+      props.setSelectedPhotos(prev => prev.filter((path) => path.id !== props.picture.id))
     }
   }
 
@@ -284,7 +284,7 @@ export const Picture = (props: PictureProps) => {
   })
 
   const favorite = useMutation({
-    mutationFn: (params: FavoriteImageMutationParams) => props.PhotoSetService.favoriteImageMutation(params),
+    mutationFn: (params: FavoriteImageMutationParams) => props.FavoriteService.favoriteImageMutation(params),
     onSettled: (favorite) => {
       if(favorite) {
         props.parentUpdatePaths(props.paths.map((path) => {
@@ -301,7 +301,7 @@ export const Picture = (props: PictureProps) => {
   })
 
   const unfavorite = useMutation({
-    mutationFn: (params: UnfavoriteImageMutationParams) => props.PhotoSetService.unfavoriteImageMutation(params)
+    mutationFn: (params: UnfavoriteImageMutationParams) => props.FavoriteService.unfavoriteImageMutation(params)
   })
 
   const downloadImage = useMutation({
@@ -322,6 +322,12 @@ export const Picture = (props: PictureProps) => {
     }
   })
 
+  const pictureStyle = (id: string) => {
+    const conditionalBackground = props.selectedPhotos.find((path) => path.id === id) !== undefined ? 
+    `bg-gray-100 border-cyan-400` : `bg-transparent border-gray-500`
+    return 'relative px-8 py-8 border hover:bg-gray-200 rounded-lg focus:ring-transparent min-w-max focus:outline-none ' + conditionalBackground
+  }
+
   return (
     <>
       <div
@@ -329,7 +335,7 @@ export const Picture = (props: PictureProps) => {
         id='image-container'
         ref={outerRef}
         className={`
-          ${props.pictureStyle(props.picture.id)} ${outerStyles[state.type] ?? ''} 
+          ${pictureStyle(props.picture.id)} ${outerStyles[state.type] ?? ''} 
           ${props.parentIsDragging !== undefined && props.parentIsDragging.id !== props.picture.id && 
             props.selectedPhotos.some((picture) => props.parentIsDragging?.id === picture.id) && props.selectedPhotos.some((picture) => picture.id === props.picture.id) ? 
             'opacity-40' : ''}
@@ -366,24 +372,25 @@ export const Picture = (props: PictureProps) => {
             }
           }
         }}
-        onMouseEnter={() => {
-          props.setDisplayPhotoControls(props.picture.id)
+        onMouseEnter={(event) => {
+          setDisplayControls(true)
+          event.currentTarget.focus({ preventScroll: true })
         }}  
-        onMouseLeave={() => {
-          props.setDisplayPhotoControls(undefined)
+        onMouseLeave={(event) => {
+          setDisplayControls(false)
+          event.currentTarget.blur()
         }}
         onKeyDown={(e) => {
+          console.log(e.key)
           e.preventDefault()
-          if(props.selectedPhotos.length > 0) {
-            if(!expanded) {
-              handleKeyDown(e, props.selectedPhotos)
-            }
+          if(!expanded) {
+            handleKeyDown(e)
           }
           else if(expanded || e.key === 'Escape') {
             handleClose()
           }
         }}
-        tabIndex={0}
+        tabIndex={props.index}
       >
         {props.url === undefined || props.url.isLoading ? (
           <div className="flex items-center justify-center w-[200px] h-[300px] bg-gray-300 rounded sm:w-96">
@@ -393,7 +400,7 @@ export const Picture = (props: PictureProps) => {
           </div>
         ) : (
           <LazyImage 
-            src={props.url} 
+            srcPathQuery={props.url} 
             className="
               object-cover rounded-lg w-[200px] h-[300px] justify-self-center 
               pointer-events-none duration-300 transition-transform ease-in-out
@@ -456,7 +463,10 @@ export const Picture = (props: PictureProps) => {
             </div>
           </div>
         )}
-        <div className={`absolute bottom-0 inset-x-0 pb-1 justify-end flex-row gap-1 me-3 ${props.controlsEnabled(props.picture.id, false)}`}>
+        <div className={`
+          absolute bottom-0 inset-x-0 pb-1 justify-end flex-row gap-1 me-3 
+          ${displayControls || props.displayTitleOverride ? 'flex' : 'hidden'}
+        `}>
           <button 
             title={`${props.picture.favorite !== undefined ? 'Unfavorite' : 'Favorite'}`} 
             className="" 
@@ -510,6 +520,7 @@ export const Picture = (props: PictureProps) => {
                   pathId: props.picture.id,
                   participantId: props.participantId,
                   collectionId: props.collection.id,
+                  setId: props.set.id,
                   options: {
                     logging: true
                   }
@@ -552,11 +563,12 @@ export const Picture = (props: PictureProps) => {
               }
             }}
           >
-            <HiOutlineHeart size={20} className={`${props.picture.favorite !== undefined ? 'fill-red-400' : ''}`}/>
+            <HiOutlineHeart size={20} className={`${props.picture.favorite !== undefined ? 'fill-red-400 hover:fill-red-700' : 'hover:fill-red-200'}`}/>
           </button>
           <button 
             title='Download' 
-            className={`${downloadImage.isPending ? 'cursor-wait' : ''}`} 
+            disabled={downloadImage.isPending}
+            className={`${downloadImage.isPending ? 'cursor-wait' : ''} enabled:hover:text-gray-500`} 
             onClick={() => {
               if(!downloadImage.isPending){
                 downloadImage.mutate({
@@ -569,6 +581,7 @@ export const Picture = (props: PictureProps) => {
           </button>
           <button
             title='Full Screen View'
+            className="hover:text-gray-500"
             onClick={() =>
               navigate({
                 to: `/photo-fullscreen`,
@@ -583,7 +596,7 @@ export const Picture = (props: PictureProps) => {
           </button>
           <button 
             title='Move to Top' 
-            className="" 
+            className="hover:text-gray-500"
             onClick={() => {
               const temp = [props.picture, ...props.paths.filter((p) => p.id !== props.picture.id)].map((path, index) => {
                 return {
@@ -626,7 +639,7 @@ export const Picture = (props: PictureProps) => {
           </button>
           <button 
             title='Move to Bottom'
-            className="" 
+            className="hover:text-gray-500"
             onClick={() => {
               const temp = [...props.paths.filter((p) => p.id !== props.picture.id), props.picture].map((path, index) => {
                 return {
@@ -669,8 +682,10 @@ export const Picture = (props: PictureProps) => {
           </button>
           <button 
             title='Delete' 
-            className="" 
+            disabled={deletePath.isPending}
+            className="enabled:hover:text-gray-500 disabled:cursor-wait"
             onClick={() => {
+              //TODO: add notification impl
               deletePath.mutate({
                 picturePaths: [props.picture],
                 collection: props.collection,
@@ -711,7 +726,10 @@ export const Picture = (props: PictureProps) => {
             <HiOutlineTrash size={20} />
           </button>
         </div>
-        <div className={`absolute top-1 inset-x-0 justify-center flex-row ${props.controlsEnabled(props.picture.id, props.displayTitleOverride)}`}>
+        <div className={`
+          absolute top-1 inset-x-0 justify-center flex-row 
+          ${displayControls || props.displayTitleOverride ? 'flex' : 'hidden'}
+        `}>
           <p id="image-name">{parsePathName(props.picture.path)}</p>
         </div>
       </div>

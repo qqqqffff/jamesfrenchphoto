@@ -1,17 +1,60 @@
-import { useState } from "react"
-import { currentDate, defaultColumnColors } from "../../utils"
-import { UserTag } from "../../types"
+import { useEffect, useRef, useState } from "react"
+import { compareDate, currentDate, defaultColumnColors } from "../../utils"
+import { Timeslot, UserTag } from "../../types"
 import { HiOutlineCalendar, HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi2'
+import { useQuery } from "@tanstack/react-query"
+import { TimeslotService } from "../../services/timeslotService"
 
 interface CustomDatePickerProps {
   selectDate: (date: Date | null) => void
   selectedDate?: Date
-  tags: UserTag[]
+  fetchMonthTimeslots?: TimeslotService
+  small?: boolean
 }
 
 export const CustomDatePicker = (props: CustomDatePickerProps) => {
   const [activeDate, setActiveDate] = useState(props.selectedDate ?? currentDate)
   const [isOpen, setIsOpen] = useState(false)
+  const windowRef = useRef<HTMLDivElement | null>(null)
+  const [timeslots, setTimeslots] = useState<Timeslot[]>([])
+
+  const calendarTimeslotQuery = props.fetchMonthTimeslots ? 
+    useQuery(props.fetchMonthTimeslots.getAllTimeslotsByMonthQueryOptions(activeDate, { siTag: true }))
+  : undefined
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if(
+        isOpen &&
+        windowRef.current &&
+        !windowRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false)
+      }
+    }
+
+    if(isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    
+    if(props.selectedDate && !compareDate(props.selectedDate, activeDate)) {
+      setActiveDate(props.selectedDate)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [
+    isOpen,
+  ])
+
+  useEffect(() => {
+    if(calendarTimeslotQuery?.data) {
+      setTimeslots(calendarTimeslotQuery.data)
+    }
+  }, [
+    calendarTimeslotQuery
+  ])
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -45,7 +88,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
 
   const formatDate = (date?: Date) => {
     if (!date) return '';
-    return date.toLocaleDateString("en-us")
+    return date.toLocaleDateString()
   };
 
   const formatDisplayDate = (date?: Date) => {
@@ -66,7 +109,7 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
   }
 
   const handleDateClick = (date?: Date) => {
-    if(!date || formatDate(date) === formatDate(activeDate)) {
+    if(!date || formatDate(date) === formatDate(props.selectedDate)) {
       props.selectDate(null)
       setIsOpen(false)
       return
@@ -77,19 +120,22 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
     props.selectDate(date)
   }
 
-  
-
   const getDateClassName = (date?: Date) => {
     if(!date) return ''
 
     const dateKey = formatDate(date)
     //do something custom if there are more than one tag on a date otherwise display the ascociation
-    const taggedDate = props.tags.reduce((prev, cur) => {
-      if(cur.timeslots?.some((timeslot) => formatDate(timeslot.start) === dateKey)) {
-        prev.push(cur)
+    const taggedDate = timeslots.reduce((prev, cur) => {
+      if(
+        formatDate(cur.start) === dateKey && 
+        cur.tag && 
+        !prev.some((tag) => tag.id === cur.tag?.id)
+      ) {
+        prev.push(cur.tag)
       }
       return prev
     }, [] as UserTag[])
+
     const customDate: [UserTag | null, Date] | undefined = taggedDate.length > 0 ? [taggedDate.length > 1 ? null : taggedDate[0], date] : undefined
     const isSelected = formatDate(props.selectedDate ?? activeDate) === formatDate(date) 
     const isToday = formatDate(date) === formatDate(currentDate)
@@ -120,9 +166,9 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
   const getDateTitle = (date?: Date) => {
     if(!date) return ''
     const dateKey = formatDate(date)
-    const taggedDate = props.tags.reduce((prev, cur) => {
-      if(cur.timeslots?.some((timeslot) => formatDate(timeslot.start) === dateKey)) {
-        prev.push(cur)
+    const taggedDate = timeslots.reduce((prev, cur) => {
+      if(formatDate(cur.start) === dateKey && cur.tag) {
+        prev.push(cur.tag)
       }
       return prev
     }, [] as UserTag[])
@@ -135,18 +181,26 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
   const days = getDaysInMonth(activeDate)
 
   return (
-    <div className="relative">
+    <div className="relative" ref={windowRef}>
       <button
-        className="w-full px-4 py-2 border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 flex items-center justify-between"
+        className="w-full border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className='text-gray-900'>
-          {formatDisplayDate(props.selectedDate ?? activeDate)}
-        </span>
-        <HiOutlineCalendar size={24} />
+        {(props.small === undefined || !props.small) ? (
+          <div className="flex items-center justify-between px-4 py-2">
+            <span className='text-gray-900 text-nowrap pe-2'>
+              {formatDisplayDate(props.selectedDate ?? activeDate)}
+            </span>
+            <HiOutlineCalendar size={24} />
+          </div>
+        ) : (
+          <div className="p-1">
+            <HiOutlineCalendar size={24} className="text-gray-900" />
+          </div>
+        )}
       </button>
       {isOpen && (
-        <div className="absolute mt-2 border border-gray-200 rounded-lg p-4 bg-gray-50 z-10 min-w-[350px]">
+        <div className="absolute mt-2 border border-gray-200 rounded-lg p-4 bg-gray-50 z-50 min-w-[350px]">
           <div className="flex items-center justify-between mb-4">
             <button
               className="p-2"
@@ -170,19 +224,21 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">
-            {days.map((date, index) => (
-              <div key={index} className="aspect-square">
-                {date && (
-                  <button
-                    onClick={() => handleDateClick(date)}
-                    className={getDateClassName(date)}
-                    title={getDateTitle(date)}
-                  >
-                    {date.getDate()}
-                  </button>
-                )}
-              </div>
-            ))}
+            {days.map((date, index) => {
+              return (
+                <div key={index} className="aspect-square">
+                  {date && (
+                    <button
+                      onClick={() => handleDateClick(date)}
+                      className={getDateClassName(date)}
+                      title={getDateTitle(date)}
+                    >
+                      {date.getDate()}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

@@ -1,33 +1,27 @@
 import { Schema } from "../../amplify/data/resource";
-import { Notification, Package, Participant, PhotoCollection, TableColumn, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
-import { queryOptions } from "@tanstack/react-query";
+import { Notification, Participant, PhotoCollection, TableColumn, TemporaryAccessToken, Timeslot, UserData, UserProfile, UserTag } from "../types";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
 import { signUp, updateUserAttributes } from "aws-amplify/auth";
 import { Duration } from "luxon";
-import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
+// import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
 import { RegistrationProfile } from "../components/register/RegisterForm";
-import { v4 } from 'uuid'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
 import validator from 'validator'
 import { mapTimeslot } from "./timeslotService";
+import sgMail from '@sendgrid/mail'
+import { mapNotification } from "./notificationService";
+import { mapUserTag } from "./tagService";
 
-interface GetUserProfileByEmailOptions {
-  siTags?: boolean,
-  siTimeslot?: boolean,
-  siCollections?: boolean,
-  siSets?: boolean,
+interface GetUserProfileByEmailOptions extends MapParticipantOptions {
   siTemporaryToken?: boolean,
-  siNotifications?: boolean
-  unauthenticated?: boolean,
-  memo?: {
-    tags?: UserTag[]
-  }
 }
 
 interface GetAuthUsersOptions {
   siProfiles?: boolean,
+  nextToken?: string,
   logging?: boolean
   metric?: boolean
 }
@@ -62,7 +56,6 @@ export interface MapParticipantOptions {
   siTags?: {
     siChildren?: boolean
     siPackages?: boolean
-    siCollections?: boolean
     siTimeslots?: boolean
   },
   siTimeslot?: boolean,
@@ -74,229 +67,102 @@ export interface MapParticipantOptions {
     collectionsMemo?: PhotoCollection[]
   }
 }
-//TODO: add pagination where necessary (timeslots and collections)
-export async function mapParticipant(client: V6Client<Schema>, participantResponse: Schema['Participant']['type'], options?: MapParticipantOptions): Promise<Participant> {
+
+//TODO: investigate if passing client and directly calling si is quicker than si by reference.
+export async function mapParticipant(participantResponse: Schema['Participant']['type'], options?: MapParticipantOptions): Promise<Participant> {
   const userTags: UserTag[] = []
+  let userTagsResponse: Promise<(UserTag | undefined)[]> | undefined
+
   const notifications: Notification[] = []
+  let notificationsResponse: Promise<(Notification | undefined)[]> | undefined
+
   const timeslots: Timeslot[] = []
+  let timeslotsResponse: Promise<(Timeslot | undefined)[]> | undefined
+
   const collections: PhotoCollection[] = []
+  let collectionsResponse: Promise<(PhotoCollection | undefined)[]> | undefined
 
   const notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
   const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
   //no need to create a tags memo since the memo does not change
-  console.log(options?.siTags)
+
   if(options?.siTags !== undefined) {
-    let tagsResponse = await participantResponse.tags({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
-    //TODO: next token parsing
-    console.log(tagsResponse)
-    if(tagsResponse.data.length === 0) {
-      tagsResponse = await client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: participantResponse.id }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
-      console.log(tagsResponse)
-    }
-    
-    userTags.push(...(
-      (await Promise.all(
-        (tagsResponse.data ?? []).map(async (tag) => {
-          let mappedTag: UserTag | undefined = options.memos?.tagsMemo?.find((mTag) => tag.tagId === mTag.id)
-          console.log(mappedTag)
-          if(mappedTag) {
-            return mappedTag
-          }
-          if(!tag) return
-          const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
-          //when unauthenticated shallow auth required
-          if(tagResponse.data) {
-            const children: UserTag[] = []
-            const notifications: Notification[] = []
-            const collections: PhotoCollection[] = []
-            const timeslots: Timeslot[] = []
-            let pack: Package | undefined
-
-            if(options.siTags?.siChildren && !options.unauthenticated) {
-              //assume that a parent's children are unique and will not show up in a different tag therefore memoization will make no difference
-              //TODO: next tokening, preform all operations simultaneously, children, notifications, collections and timeslots instead of synchronously in order
-              children.push(...(
-                await Promise.all((await tagResponse.data.childTags()).data.map(async (child) => {
-                  const packageResponse = (await child.package()).data
-                  if(!packageResponse) return
-                  const foundTag = options.memos?.tagsMemo?.find((tag) => tag.id === packageResponse.tagId)
-                  if(foundTag) {
-                    return foundTag
-                  }
-                  const childResponse = (await packageResponse.tag()).data
-                  //package required for si inside of dashboard
-                  const pack: Package = {
-                    ...packageResponse,
-                    parentTagId: tag.id,
-                    items: [],
-                    pdfPath: packageResponse.pdfPath ?? undefined,
-                    description: packageResponse.description ?? undefined,
-                    price: packageResponse.price ?? undefined
-                  }
-                  if(childResponse) {
-                    //only shallow depth required for children since they will not be included in the tag memo
-                    const mappedTag: UserTag = {
-                      ...childResponse,
-                      color: childResponse.color ?? undefined,
-                      notifications: [],
-                      package: pack,
-                      children: [],
-                      participants: []
-                    }
-                    return mappedTag
-                  }
-                }))
-              ).filter((tag) => tag !== undefined))
-            }
-
-            if(options?.siNotifications && !options.unauthenticated) {
-              notifications.push(...(
-                await Promise.all((await tagResponse.data.notifications()).data.map(async (notification) => {
-                  const foundNotification = options.memos?.notificationsMemo?.find((noti) => noti.id === notification.id)
-                  if(foundNotification) return foundNotification
-                  const notificationResponse = await notification.notification()
-                  if(notificationResponse.data) {
-                    const mappedNotification: Notification = {
-                      ...notificationResponse.data,
-                      location: notificationResponse.data.location ?? 'dashboard',
-                      expiration: notificationResponse.data.expiration ?? undefined,
-                      //unecessary
-                      participants: [],
-                      tags: []
-                    }
-                    return mappedNotification
-                  }
-                }))
-              ).filter((notification) => notification !== undefined))
-            }
-
-            if(options?.siTags?.siCollections && !options.unauthenticated) {
-              collections.push(...(
-                await Promise.all((await tagResponse.data.collectionTags()).data.map(async (collection) => {
-                  const foundCollection = collectionsMemo.find((col) => col.id === collection.collectionId)
-                  if(foundCollection) return foundCollection
-                  const collectionResponse = await collection.collection()
-
-                  if(collectionResponse.data) {
-                    const mappedCollection: PhotoCollection = {
-                      ...collectionResponse.data,
-                      coverPath: collectionResponse.data.coverPath ?? undefined,
-                      coverType: {
-                        textColor: collectionResponse.data.coverType?.textColor ?? undefined,
-                        bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
-                        placement: collectionResponse.data.coverType?.placement ?? undefined,
-                        textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
-                        date: collectionResponse.data.coverType?.date ?? undefined,
-                      },
-                      publicCoverPath: collectionResponse.data.publicCoverPath ?? undefined,
-                      watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
-                      downloadable: collectionResponse.data.downloadable ?? false,
-                      items: collectionResponse.data.items ?? 0,
-                      published: collectionResponse.data.published ?? false,
-                      //unnecessary or shallow depth only
-                      tags: [],
-                      sets: []
-                    }
-
-                    return mappedCollection
-                  }
-                }))
-              ).filter((collection) => collection !== undefined))
-            }
-
-            if(options?.siTags?.siTimeslots && !options.unauthenticated) {
-              //timeslots are not memoized since they are unique for user tags
-              timeslots.push(...(
-                await Promise.all((await tagResponse.data.timeslotTags()).data.map(async (timeslot) => {
-                  const timeslotResponse = await timeslot.timeslot()
-                  if(timeslotResponse.data) {
-                    //TODO: use timeslot mapping function
-                    const mappedTimeslot: Timeslot = {
-                      ...timeslotResponse.data,
-                      description: timeslotResponse.data.description ?? undefined,
-                      register: timeslotResponse.data.register ?? undefined,
-                      start: new Date(timeslotResponse.data.start),
-                      end: new Date(timeslotResponse.data.end),
-                      participantId: timeslotResponse.data.participantId ?? undefined
-                    }
-                    return mappedTimeslot
-                  }
-                }))
-              ).filter((timeslot) => timeslot !== undefined))
-            }
-
-            if(options?.siTags?.siPackages && !options.unauthenticated) {
-              //packages are tag unique, memo not required
-              const packageResponse = await tagResponse.data.packages()
-              if(packageResponse.data) {
-                pack = {
-                ...packageResponse.data,
-                parentTagId: (await packageResponse.data.packageParentTag()).data?.tagId ?? '',
-                description: packageResponse.data.description ?? undefined,
-                pdfPath: packageResponse.data.pdfPath ?? undefined,
-                price: packageResponse.data.price ?? undefined,
-                //shallow depth
-                items: []
-                }
-              }
-            }
-
-            mappedTag = {
-              ...tagResponse.data,
-              color: tagResponse.data.color ?? undefined,
-              children: children,
-              notifications: notifications,
-              collections: collections,
-              timeslots: timeslots,
-              package: pack,
-              participants: []
-            }
-
-            //push to the memo for those that don't exist into the memo
-            notificationMemo.push(...notifications
-              .filter((noti) => !notificationMemo.some((notification) => notification.id === noti.id))
-            )
-            collectionsMemo.push(...collections
-              .filter((col) => !collectionsMemo.some((collection) => collection.id === col.id))
-            )
-          }
+    userTagsResponse = new Promise<(UserTag | undefined)[]>(async (resolve) => {
+      let tagsResponse = await participantResponse.tags({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+      const tagsData = tagsResponse.data
+      while(tagsResponse.nextToken) {
+        tagsResponse = await participantResponse.tags({ nextToken: tagsResponse.nextToken, authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+        tagsData.push(...tagsResponse.data)
+      }
+      resolve(Promise.all(tagsData.map(async (tag) => {
+        let mappedTag: UserTag | undefined = options.memos?.tagsMemo?.find((mTag) => tag.tagId === mTag.id)
+        if(mappedTag) {
           return mappedTag
-        })
-      ))).filter((tag) => tag !== undefined)
-    )
+        }
+        if(!tag) return
+        const tagResponse = await tag.tag({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+        if(tagResponse.data) {
+          const mappedTag = await mapUserTag(tagResponse.data, {
+            unauthenticated: options?.unauthenticated,
+            siChildren: options.siTags?.siChildren,
+            siCollections: options.siCollections,
+            siNotifications: options.siNotifications,
+            siPackages: options.siTags?.siPackages ? {
+              siCollections: options.siCollections,
+              siItems: false
+            } : undefined,
+            siTimeslots: options.siTags?.siTimeslots,
+            siParticipants: false,
+            memos: {
+              notificationsMemo: notificationMemo,
+              collectionsMemo: collectionsMemo,
+            }
+          })
+
+          return mappedTag
+        }
+      })))
+    })
   }
 
-  if(options?.siNotifications) {
-    notifications.push(...(
-      await Promise.all((await participantResponse.notifications()).data.map(async (notification) => {
+  if(options?.siNotifications && !options.unauthenticated) {
+    notificationsResponse = new Promise<(Notification | undefined)[]>(async (resolve) => {
+      let notificationResponse = await participantResponse.notifications()
+      const notificationData = notificationResponse.data
+      while(notificationResponse.nextToken) {
+        notificationResponse = await participantResponse.notifications({ nextToken: notificationResponse.nextToken })
+        notificationData.push(...notificationResponse.data)
+      }
+
+      resolve(Promise.all(notificationData.map(async (notification) => {
         const foundNotification = notificationMemo.find((noti) => noti.id === notification.notificationId)
         if(foundNotification) return foundNotification
         const notificationResponse = await notification.notification()
-        console.log(notificationResponse)
         if(notificationResponse.data) {
-          const mappedNotification: Notification = {
-            ...notificationResponse.data,
-            location: notificationResponse.data.location ?? 'dashboard',
-            expiration: notificationResponse.data.expiration ?? undefined,
-            //unnecessary
-            participants: [],
-            tags: []
-          }
+          const mappedNotification: Notification = await mapNotification(notificationResponse.data, {
+            siParticipants: undefined,
+            siTags: undefined
+          })
           return mappedNotification
         }
-      }))
-    ).filter((notification) => notification !== undefined))
+      })))
+    })
   }
 
-  if(options?.siCollections) {
-    collections.push(...(
-      await Promise.all((await participantResponse.collections()).data.map(async (collection) => {
+  if(options?.siCollections && !options.unauthenticated) {
+    collectionsResponse = new Promise<(PhotoCollection | undefined)[]>(async (resolve) => {
+      let collectionResponse = await participantResponse.collections()
+      const collectionData = collectionResponse.data
+      while(collectionResponse.nextToken) {
+        collectionResponse = await participantResponse.collections({ nextToken: collectionResponse.nextToken })
+        collectionData.push(...collectionResponse.data)
+      }
+      resolve(Promise.all(collectionData.map(async (collection) => {
         const foundCollection = collectionsMemo.find((col) => col.id === collection.collectionId)
         if(foundCollection) {
           return foundCollection
         }
         const collectionResponse = await collection.collection()
-        console.log(collectionResponse)
         if(collectionResponse.data) {
           const mappedCollection: PhotoCollection = {
             ...collectionResponse.data,
@@ -319,28 +185,41 @@ export async function mapParticipant(client: V6Client<Schema>, participantRespon
           }
           return mappedCollection
         }
-      }))
-    ).filter((collection) => collection !== undefined))
+      })))
+    })
   }
 
-  if(options?.siTimeslot) {
-    const timeslotResponse = await participantResponse.timeslot()
-    console.log(timeslotResponse)
-    timeslots.push(...(
-      //TODO: use timeslot mapping function
-      await Promise.all(timeslotResponse.data.map(async (timeslot) => {
-        const mappedTimeslot: Timeslot = {
-          ...timeslot,
-          description: timeslot.description ?? undefined,
-          register: timeslot.register ?? undefined,
-          start: new Date(timeslot.start),
-          end: new Date(timeslot.end),
-          participantId: timeslot.participantId ?? undefined
-        }
+  if(options?.siTimeslot && !options.unauthenticated) {
+    timeslotsResponse = new Promise<(Timeslot | undefined)[]>(async (resolve) => {
+      let timeslotResponse = await participantResponse.timeslot()
+      const timeslotData = timeslotResponse.data
+      while(timeslotResponse.nextToken) {
+        timeslotResponse = await participantResponse.timeslot({ nextToken: timeslotResponse.nextToken })
+        timeslotData.push(...timeslotResponse.data)
+      }
+      resolve(Promise.all(timeslotResponse.data.map(async (timeslot) => {
+        const mappedTimeslot: Timeslot = await mapTimeslot(timeslot, {
+          siTag: undefined,
+        })
         return mappedTimeslot
-      }))
-    ).filter((timeslot) => timeslot !== undefined))
+      })))
+    })
   }
+
+  await Promise.all([
+    userTagsResponse !== undefined ? userTagsResponse.then((t) => {
+      userTags.push(...(t.filter((tag) => tag !== undefined)))
+    }) : Promise.resolve(),
+    notificationsResponse !== undefined ? notificationsResponse.then((n) => {
+      notifications.push(...(n.filter((noti) => noti !== undefined)))
+    }) : Promise.resolve(),
+    collectionsResponse !== undefined ? collectionsResponse.then((c) => {
+      collections.push(...(c.filter((col) => col !== undefined)))
+    }) : Promise.resolve(),
+    timeslotsResponse !== undefined ? timeslotsResponse.then((t) => {
+      timeslots.push(...(t.filter((time) => time !== undefined)))
+    }) : Promise.resolve()
+  ])
 
   const mappedParticipant: Participant = {
     ...participantResponse,
@@ -357,28 +236,58 @@ export async function mapParticipant(client: V6Client<Schema>, participantRespon
   return mappedParticipant
 }
 
-//TODO: convert me to infinite query
-interface GetAllParticipantsOptions extends MapParticipantOptions { }
-async function getAllParticipants(client: V6Client<Schema>, options?: GetAllParticipantsOptions): Promise<Participant[]> {
-  let participantResponse = await client.models.Participant.list()
+/*
+@default maxItems: 16 items
+*/
+interface GetAllParticipantsOptions extends MapParticipantOptions { 
+  maxItems?: number
+}
+export interface GetAllParticipantsData {
+  participants: Participant[],
+  nextToken?: string,
+}
+async function getAllParticipants(client: V6Client<Schema>, initial: GetAllParticipantsData, options?: GetAllParticipantsOptions): Promise<GetAllParticipantsData> {
+  const maxItems = options?.maxItems ?? 16
+  let participantResponse = await client.models.Participant.listParticipantByFlagAndCreatedAt({
+    flag: 'true',
+  }, {
+    sortDirection: 'DESC',
+    limit: maxItems,
+    nextToken: initial.nextToken,
+  })
   const participantData = participantResponse.data
 
-  while(participantResponse.nextToken) {
-    participantResponse = await client.models.Participant.list({ nextToken: participantResponse.nextToken })
-    participantData.push(...participantResponse.data)
-  }
-
-  const notificationMemo: Notification[] = []
-  const collectionsMemo: PhotoCollection[] = []
-  const tagsMemo: UserTag[] = []
+  const notificationMemo: Notification[] = initial.participants
+  .flatMap((participant) => participant.notifications)
+  .reduce((prev, cur) => {
+    if(!prev.some((notification) => notification.id === cur.id)) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as Notification[])
+  const collectionsMemo: PhotoCollection[] = initial.participants
+  .flatMap((participant) => participant.collections)
+  .reduce((prev, cur) => {
+    if(!prev.some((collection) => collection.id === cur.id)) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as PhotoCollection[])
+  const tagsMemo: UserTag[] = initial.participants
+  .flatMap((participant) => participant.userTags)
+  .reduce((prev, cur) => {
+    if(!prev.some((tag) => tag.id === cur.id)) {
+      prev.push(cur)
+    }
+    return prev
+  }, [] as UserTag[])
 
   const mappedParticipants: Participant[] = await Promise.all(participantData.map(async (participant) => {
-    const newParticipant = await mapParticipant(client, participant, {
+    const newParticipant = await mapParticipant(participant, {
       siCollections: options?.siCollections,
       siNotifications: options?.siNotifications,
       siTags: options?.siTags ? {
         siChildren: true, //TODO: remove the hard coding
-        siCollections: options.siCollections,
         siPackages: true,
         siTimeslots: options.siTimeslot
       } : undefined,
@@ -389,47 +298,17 @@ async function getAllParticipants(client: V6Client<Schema>, options?: GetAllPart
         collectionsMemo: collectionsMemo,
       }
     })
-
-    //pushing to the memo, combining the items from the user tag with the participant specific items and deudplication
-    notificationMemo.push(...[
-      ...(newParticipant.userTags
-        .flatMap((tag) => tag.notifications ?? [])
-        .filter((notification) => (
-          !notificationMemo.some((noti) => noti.id === notification?.id)
-        ))
-      ),
-      ...newParticipant.notifications
-        .filter((notification) => !notificationMemo.some((noti) => noti.id === notification.id))
-    ].reduce((prev, cur) => {
-      if(!prev.some((notification) => notification.id === cur.id)) {
-        prev.push(cur)
-      }
-      return prev
-    }, [] as Notification[]))
-
-
-    collectionsMemo.push(...[
-      ...(newParticipant.userTags
-        .flatMap((tag) => tag.collections ?? [])
-        .filter((collection) => (
-          !collectionsMemo.some((col) => col.id !== collection.id)
-        ))
-      ),
-      ...newParticipant.collections
-        .filter((collection) => !collectionsMemo.some((col) => col.id !== collection.id))
-    ].reduce((prev, cur) => {
-      if(!prev.some((collection) => collection.id === cur.id)) {
-        prev.push(cur)
-      }
-      return prev
-    }, [] as PhotoCollection[]))
-
-    //pushing to the memo with deduplication
-    tagsMemo.push(...newParticipant.userTags.filter((tag) => !tagsMemo.some((mTag) => mTag.id !== tag.id)))
+    
     return newParticipant
   }))
 
-  return mappedParticipants
+  const newParticipants: Participant[] = [...initial.participants, ...mappedParticipants]
+  const returnData: GetAllParticipantsData = {
+    participants: newParticipants,
+    nextToken: participantResponse.nextToken ?? undefined
+  }
+
+  return returnData
 }
 
 export interface RegisterUserMutationParams {
@@ -539,6 +418,15 @@ export interface LinkUserFieldMutationParams {
   }
 }
 
+export interface UnlinkUserRowMutationParams {
+  tableColumns: TableColumn[],
+  rowIndex: number,
+  userProfile: UserProfile,
+  options?: {
+    logging?: boolean
+  }
+}
+
 export interface LinkUserMutationParams {
   tableColumns: TableColumn[],
   rowIndex: number,
@@ -562,6 +450,11 @@ export interface LinkParticipantMutationParams {
   }
 }
 
+interface UpdateActiveParticipantMutationParams {
+  profile: UserProfile,
+  participantId: string,
+}
+
 
 export class UserService {
   private client: V6Client<Schema>
@@ -569,14 +462,14 @@ export class UserService {
     this.client = client
   }
 
-  async getTemporaryUser(client: V6Client<Schema>, id?: string, options?: GetTemporaryUserOptions): Promise<UserProfile | null> {
+  async getTemporaryUser(id?: string, options?: GetTemporaryUserOptions): Promise<UserProfile | null> {
     if(id) {
-      const tokenResponse = await client.models.TemporaryCreateUsersTokens.get({ id: id }, { authMode: 'identityPool' })
+      const tokenResponse = await this.client.models.TemporaryCreateUsersTokens.get({ id: id }, { authMode: 'identityPool' })
 
       if(options?.logging) console.log(tokenResponse)
       if(!tokenResponse.data) return null
 
-      const mappedResponse = await this.getUserProfileByEmail(client, tokenResponse.data.userEmail, { siTags: true, unauthenticated: true })
+      const mappedResponse = await this.getUserProfileByEmail(tokenResponse.data.userEmail, { siTags: { }, unauthenticated: true })
       if(options?.logging) console.log(mappedResponse)
 
       return mappedResponse ?? null
@@ -584,12 +477,12 @@ export class UserService {
     return null
   }
 
-  async getAllTemporaryUsers(client: V6Client<Schema>, options?: GetAllTemporaryUsersOptions): Promise<UserProfile[] | undefined> {
-    let response = await client.models.TemporaryCreateUsersTokens.list()
+  async getAllTemporaryUsers(options?: GetAllTemporaryUsersOptions): Promise<UserProfile[] | undefined> {
+    let response = await this.client.models.TemporaryCreateUsersTokens.list()
     const temporaryUserData = response.data
 
     while(response.nextToken) {
-      response = await client.models.TemporaryCreateUsersTokens.list({ nextToken: response.nextToken })
+      response = await this.client.models.TemporaryCreateUsersTokens.list({ nextToken: response.nextToken })
       temporaryUserData.push(...response.data)
     }
 
@@ -597,11 +490,10 @@ export class UserService {
 
     const tagsMemo: UserTag[] = []
     const mappedResponse: UserProfile[] = (await Promise.all(temporaryUserData.map(async (token) => {
-      const userProfile = await this.getUserProfileByEmail(
-        client, 
+      const userProfile = await this.getUserProfileByEmail( 
         token.userEmail, { 
-          siTags: options?.siTags, 
-          memo: { tags: tagsMemo } 
+          siTags: options?.siTags ? { } : undefined, 
+          memos: { tagsMemo: tagsMemo }
         }
       )
       if(userProfile) {
@@ -630,38 +522,36 @@ export class UserService {
     return mappedResponse
   }
 
-  async getUserProfileByEmail(client: V6Client<Schema>, email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
+  async getUserProfileByEmail(email: string, options?: GetUserProfileByEmailOptions): Promise<UserProfile | undefined> {
     if(email === '') return
-    const profileResponse = await client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
-    console.log(profileResponse)
+    const profileResponse = await this.client.models.UserProfile.get({ email: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    console.log(profileResponse, email)
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data?.id : undefined
-    let participantResponse = (await profileResponse.data.participant({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
-    console.log(participantResponse)
-    if(participantResponse.length === 0) {
-      participantResponse = (await client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
-      console.log(participantResponse)
-      if(participantResponse.length === 0 && profileResponse.data.activeParticipant !== null) {
-        const getActiveParticipant = (await client.models.Participant.get({ id: profileResponse.data.activeParticipant }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data
-        console.log(getActiveParticipant)
-        if(getActiveParticipant) participantResponse = [getActiveParticipant]
-      }
+    
+    let participantResponse = await this.client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    const participantData = participantResponse.data
+
+    while(participantResponse.nextToken) {
+      participantResponse = await this.client.models.Participant.listParticipantByUserEmail(
+        { userEmail: email }, 
+        { 
+          authMode: options?.unauthenticated ? 'identityPool' : 'userPool',
+          nextToken: participantResponse.nextToken
+        }
+      )
+      participantData.push(...participantResponse.data)
     }
 
-    const notificationMemo: Notification[] = []
-    const collectionsMemo: PhotoCollection[] = []
-    const tagsMemo: UserTag[] = options?.memo?.tags ?? []
+    const notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
+    const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
+    const tagsMemo: UserTag[] = options?.memos?.tagsMemo ?? []
 
-    const mappedParticipants: Participant[] = await Promise.all(participantResponse.map(async (participant) => {
-      const newParticipant = await mapParticipant(client, participant, {
+    const mappedParticipants: Participant[] = await Promise.all(participantData.map(async (participant) => {
+      const newParticipant = await mapParticipant(participant, {
         siCollections: options?.siCollections,
         siNotifications: options?.siNotifications,
-        siTags: options?.siTags ? {
-          siChildren: true, //TODO: remove the hard coding
-          siCollections: options.siCollections,
-          siPackages: true,
-          siTimeslots: options.siTimeslot
-        } : undefined,
+        siTags: options?.siTags,
         siTimeslot: options?.siTimeslot,
         unauthenticated: options?.unauthenticated,
         memos: {
@@ -710,53 +600,11 @@ export class UserService {
       return newParticipant
     }))
 
-    if(
-      mappedParticipants.length === 0 && 
-      profileResponse.data.participantFirstName && 
-      profileResponse.data.participantLastName
-    ){
-      try {
-        const participant: Participant = {
-          id: v4(),
-          firstName: profileResponse.data.participantFirstName,
-          lastName: profileResponse.data.participantLastName,
-          middleName: profileResponse.data.participantMiddleName ?? undefined,
-          preferredName: profileResponse.data.participantPreferredName ?? undefined,
-          contact: profileResponse.data.participantContact ?? false,
-          email: profileResponse.data.participantEmail ?? undefined,
-          createdAt: new Date().toISOString(),
-          userTags: (profileResponse.data.userTags ?? []).map((tagString) => {
-            if(!tagString) return
-            const mappedTag: UserTag = {
-              id: tagString,
-              name: '',
-              children: [],
-              participants: [],
-              createdAt: new Date().toISOString()
-            }
-            return mappedTag
-          }).filter((tag) => tag !== undefined),
-          userEmail: email,
-          collections: [],
-          notifications: []
-        }
-
-        await this.createParticipantMutation({
-          participant: participant,
-          authMode: options?.unauthenticated ? 'identityPool' : 'userPool',
-        })
-
-        mappedParticipants.push(participant)
-      } catch(err) {
-        //TODO: do something with the error
-      }
-    }
-
     //in theory there should be at least one participant upon reaching this point
     let activeParticipant = mappedParticipants.find((participant) => participant.id === profileResponse.data?.activeParticipant)
     if(!profileResponse.data.activeParticipant && mappedParticipants.length > 0){
       activeParticipant = mappedParticipants[0]
-      await client.models.UserProfile.update({
+      await this.client.models.UserProfile.update({
         email: email,
         activeParticipant: activeParticipant?.id
       })
@@ -768,15 +616,6 @@ export class UserService {
       participant: mappedParticipants,
       activeParticipant: activeParticipant,
       preferredContact: profileResponse.data.preferredContact ?? 'EMAIL',
-      //deprecated
-      userTags: [],
-      timeslot: undefined,
-      participantFirstName: profileResponse.data.participantFirstName ?? undefined,
-      participantLastName: profileResponse.data.participantLastName ?? undefined,
-      participantMiddleName: profileResponse.data.participantMiddleName ?? undefined,
-      participantPreferredName: profileResponse.data.participantPreferredName ?? undefined,
-      participantContact: undefined,
-      participantEmail: undefined,
       firstName: profileResponse.data.firstName ?? undefined,
       lastName: profileResponse.data.lastName ?? undefined,
       temporary: temporaryToken
@@ -785,19 +624,27 @@ export class UserService {
     return userProfile
   }
 
-  async getAuthUsers(client: V6Client<Schema>, filter?: string | null, options?: GetAuthUsersOptions): Promise<UserData[] | undefined> {
-    const start = new Date().getTime()
-    const json = await client.queries.GetAuthUsers({authMode: 'userPool'})
-        
-    const usersResponse = JSON.parse(json.data?.toString()!) as ListUsersCommandOutput[]
-    
-    let users = usersResponse.reduce((prev, cur) => {
-      if(cur.Users) {
-        prev.push(...cur.Users)
-      }
+  async getParticipantById(id?: string, options?: MapParticipantOptions): Promise<Participant | undefined> {
+    if(!id) return
+    const participantResponse = await this.client.models.Participant.get({ id: id }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    if(!participantResponse.data) return
 
-      return prev
-    }, [] as UserType[])
+    return mapParticipant(participantResponse.data, options)
+  }
+
+  //TODO: convert me to infinite query with pagination token
+  async getAuthUsers(filter?: string | null, options?: GetAuthUsersOptions): Promise<UserData[] | undefined> {
+    const start = new Date().getTime()
+    const json = await this.client.queries.GetAuthUsers({ paginationToken: options?.nextToken }, {authMode: 'userPool'})
+    
+    if(!json.data) return
+
+    const usersResponse = JSON.parse(json.data.toString()) as {
+      response: ListUsersCommandOutput,
+      paginationToken?: string,
+    }
+    
+    let users = usersResponse.response.Users ?? []
 
     const parsedUsersData = (await Promise.all(users.map(async (user) => {
       let attributes = new Map<string, string>()
@@ -815,12 +662,13 @@ export class UserService {
       let profile: UserProfile | undefined
       const email = attributes.get('email')
       if(options?.siProfiles && email){
-        profile = await this.getUserProfileByEmail(client, email, {
-          siCollections: true,
-          siSets: true,
-          siTags: true,
-          siTimeslot: true
-        })
+        profile = await this.getUserProfileByEmail(
+          email, {
+            siCollections: true,
+            siTags: { },
+            siTimeslot: true
+          }
+        )
       }
 
       return {
@@ -887,6 +735,8 @@ export class UserService {
       contact: params.participant.contact,
       email: params.participant.email,
       userEmail: params.participant.userEmail,
+      flag: 'true',
+      createdAt: new Date().toISOString(),
     }, { authMode: params.authMode })
 
     if(params.options?.logging) console.log(createResponse)
@@ -1035,16 +885,8 @@ export class UserService {
       const mappedProfile: UserProfile = {
         ...response.data,
         sittingNumber: -1,
-        userTags: [],
-        timeslot: undefined,
         participant: [],
-        participantFirstName: undefined,
-        participantLastName: undefined,
-        participantPreferredName: undefined,
-        participantMiddleName: undefined,
         preferredContact: 'EMAIL',
-        participantContact: false,
-        participantEmail: undefined,
         activeParticipant: undefined,
         firstName: response.data.firstName ?? undefined,
         lastName: response.data.lastName ?? undefined
@@ -1055,8 +897,8 @@ export class UserService {
   }
 
   //TODO: enhance error handling
-  async sendUserInviteEmail(params: SendUserInviteEmailParams) {
-    if(!params.profile.firstName || !params.profile.lastName) return null
+  async sendUserInviteEmail(params: SendUserInviteEmailParams): Promise<{ email: string, success: boolean }> {
+    if(!params.profile.firstName || !params.profile.lastName) return { email: params.profile.email, success: false }
     
     let temp: String | undefined = params.profile.temporary
 
@@ -1067,18 +909,35 @@ export class UserService {
       }
     }
 
-    if(!temp) return null
+    if(!temp) return { email: params.profile.email, success: false }
 
     const response = await this.client.queries.ShareUserInvite({
       email: params.profile.email.toLocaleLowerCase(),
       firstName: params.profile.email,
       lastName: params.profile.email,
       link: params.baseLink + `?token=${temp}`
-    }, {
-      authMode: 'userPool'
     })
 
     if(params.options?.logging) console.log(response)
+    if(response.data === null) return { 
+      email: params.profile.email,
+      success: false, 
+    }
+
+    try {
+      const parsedResponse: sgMail.ClientResponse = JSON.parse(response.data.toString())
+      return {
+        email: params.profile.email,
+        success: parsedResponse.statusCode >= 200 && parsedResponse.statusCode < 300
+      }
+    } catch (err) {
+      return {
+        success: false,
+        email: params.profile.email,
+      }
+    }
+
+    
   }
 
   async inviteUserMutation(params: InviteUserParams) {
@@ -1094,6 +953,8 @@ export class UserService {
         middleName: participant.middleName,
         lastName: participant.lastName,
         email: participant.email ? participant.email.toLocaleLowerCase() : undefined,
+        flag: 'true',
+        createdAt: new Date().toISOString()
       })
       return [
         response.data,
@@ -1142,14 +1003,15 @@ export class UserService {
 
   async revokeUserInviteMutation(params: RevokeUserInviteMutationParams) {
     const start = new Date()
-    const profile = await this.getUserProfileByEmail(this.client, params.userEmail, {
-      siCollections: false, // check if individual collections / notifications are needed too 
-      siNotifications: false,
-      siSets: false,
-      siTags: true, //tags needed
-      siTimeslot: false, //not possible to register for a timeslot if user is temporary
-      siTemporaryToken: true
-    })
+    const profile = await this.getUserProfileByEmail(
+      params.userEmail, {
+        siCollections: false, // check if individual collections / notifications are needed too 
+        siNotifications: false,
+        siTags: { }, //tags needed
+        siTimeslot: false, //not possible to register for a timeslot if user is temporary
+        siTemporaryToken: true
+      }
+    )
 
     if(params.options?.logging) console.log(profile)
 
@@ -1273,7 +1135,7 @@ export class UserService {
    * with field being any of the potentially mappable 
    * field is not applicable to tags or timeslots (not necessary for those col types)
    */
-  async linkUserMutation(params: LinkUserMutationParams): Promise<TableColumn[]> {
+  async linkUserMutation(params: LinkUserMutationParams): Promise<{columns: TableColumn[], user: UserProfile }> {
     const updatedColumns = [...params.tableColumns]
     if(params.tableColumns.some((column) => column.id === params.userFieldLinks.email[1])) {
       const columnIndex = params.tableColumns.findIndex((column) => column.id === params.userFieldLinks.email[1])
@@ -1783,12 +1645,106 @@ export class UserService {
           updatedColumns[columnIndex].choices = choices
         }
       }
+      if(
+        link.notifications !== null &&
+        params.tableColumns.some((column) => column.id === link.notifications?.[0])
+      ) {
+        const columnIndex = params.tableColumns.findIndex((column) => column.id === link.notifications?.[0])
+        const column = params.tableColumns[columnIndex]
+        
+        if(column !== undefined) {
+          const choices = (column.choices ?? [])
+          const values = column.values
+          if(choices[params.rowIndex] === undefined) {
+            for(let i = 0; i <= params.rowIndex; i++) {
+              if(choices[i] === undefined) {
+                choices[i] === ''
+              }
+            }
+          }
+          choices[params.rowIndex] = 'participantId:' + link.id
+          if(
+            link.notifications[1] === 'update' && 
+            column.values[params.rowIndex] !== undefined && 
+            column.values[params.rowIndex] !== ''
+          ) {
+            const columnNotifications = await Promise.all((await Promise.all(column.values[params.rowIndex].split(',')
+            //done for validation of existance
+            .map(async (notificationId) => {
+              const response = await this.client.models.Notifications.get({ id: notificationId })
+              if(response.data !== null) {
+                return mapNotification(response.data, { siParticipants: { memo: [] }, siTags: undefined })
+              }
+            }))).filter((response) => response !== undefined)
+            .map((notification) => {
+              if(!notification.participants.some((participant) => participant.id === link.id)) {
+                return this.client.models.NotificationParticipants.create({
+                  notificationId: notification.id,
+                  participantId: link.id,
+                })
+              }
+            }))
+
+            if(params.options?.logging) console.log(columnNotifications)
+          }
+          else if(
+            link.notifications[1] === 'override'
+          ) {
+            values[params.rowIndex] = (participant.notifications ?? []).reduce((prev, cur) => prev + ',' + cur.id, '').substring(1)
+          }
+          const response = this.client.models.TableColumn.update({
+            id: column.id,
+            choices: choices,
+            values: values
+          })
+          if(params.options?.logging) console.log(response)
+          updatedColumns[columnIndex].values = values
+          updatedColumns[columnIndex].choices = choices
+        }
+      }
     }))
 
-    return updatedColumns
+    return {
+      columns: updatedColumns,
+      user: params.userProfile
+    }
   }
 
-  async linkParticipantMutation(params: LinkParticipantMutationParams): Promise<TableColumn[]> {
+  async unlinkUserRowMutation(params: UnlinkUserRowMutationParams): Promise<{ columns: TableColumn[], user: UserProfile }> {
+    const updatedColumns: TableColumn[] = await Promise.all([...params.tableColumns].map(async (column) => {
+      const choices = (column.choices ?? [])
+      if(
+        (
+          column.type === 'date' ||
+          column.type === 'notification' ||
+          column.type === 'tag' ||
+          column.type === 'value'
+        ) && (
+          choices[params.rowIndex] !== undefined &&
+          choices[params.rowIndex] !== ''
+        )
+      ) {
+        choices[params.rowIndex] = ''
+        const updatedColumnResponse = await this.client.models.TableColumn.update({
+          id: column.id,
+          choices: choices
+        })
+        if(params.options?.logging) console.log(updatedColumnResponse)
+        return ({
+          ...column,
+          choices: choices
+        })
+      }
+      return column
+    }));
+
+    return {
+      columns: updatedColumns,
+      user: params.userProfile
+    }
+  }
+
+  async linkParticipantMutation(params: LinkParticipantMutationParams): Promise<{ columns: TableColumn[], participant: Participant }> {
     const updatedColumns = [...params.tableColumns]
 
     //creating the user
@@ -1814,7 +1770,9 @@ export class UserService {
         const column = params.tableColumns.find((column) => params.participantFieldLinks.email?.[0] === column.id)
         return column !== undefined && column.values[params.rowIndex] !== undefined && column.values[params.rowIndex] !== ''
       })() ? params.tableColumns.find((column) => column.id === params.participantFieldLinks.email?.[0])!.values[params.rowIndex] : params.participant.email,
-      userEmail: params.participant.userEmail.toLowerCase()
+      userEmail: params.participant.userEmail.toLowerCase(),
+      flag: 'true',
+      createdAt: new Date().toISOString(),
     })
 
     if(params.options?.logging) console.log(createParticipantResponse)
@@ -2109,17 +2067,40 @@ export class UserService {
       }
     }
 
-    return updatedColumns
+    return {
+      columns: updatedColumns,
+      participant: params.participant
+    }
+  }
+
+  async updateActiveParticipant(params: UpdateActiveParticipantMutationParams): Promise<'success' | 'fail' | 'nochange'> {
+    if(
+      params.profile.activeParticipant?.id === params.participantId || 
+      !params.profile.participant.some((participant) => participant.id === params.participantId)
+    ) {
+      return 'nochange'
+    }
+
+    const response = await this.client.models.UserProfile.update({
+      email: params.profile.email,
+      activeParticipant: params.participantId
+    })
+
+    if(response.data?.activeParticipant === params.participantId) {
+      return 'success'
+    }
+
+    return 'fail'
   }
 
   getUserProfileByEmailQueryOptions = (email: string, options?: GetUserProfileByEmailOptions) => queryOptions({
     queryKey: ['userProfile', email, options],
-    queryFn: () => this.getUserProfileByEmail(this.client, email, options)
+    queryFn: () => this.getUserProfileByEmail(email, options)
   })
 
   getAuthUsersQueryOptions = (filter?: string | null, options?: GetAuthUsersOptions) =>  queryOptions({
     queryKey: ['authUsers', filter, options],
-    queryFn: () => this.getAuthUsers(this.client, filter, options)
+    queryFn: () => this.getAuthUsers(filter, options)
   })
 
   getTemporaryAccessTokenQueryOptions = (id: string) => queryOptions({
@@ -2129,17 +2110,22 @@ export class UserService {
 
   getAllTemporaryUsersQueryOptions = (options?: GetAllTemporaryUsersOptions) => queryOptions({
     queryKey: ['temporaryUsers', options],
-    queryFn: () => this.getAllTemporaryUsers(this.client, options)
+    queryFn: () => this.getAllTemporaryUsers(options)
   })
 
   getTemporaryUserQueryOptions = (id?: string, options?: GetTemporaryUserOptions) => queryOptions({
     queryKey: ['temporaryUser', options],
-    queryFn: () => this.getTemporaryUser(this.client, id, options)
+    queryFn: () => this.getTemporaryUser(id, options)
   })
 
 
-  getAllParticipantsQueryOptions = (options?: GetAllParticipantsOptions) => queryOptions({
+  getAllParticipantsQueryOptions = (options?: GetAllParticipantsOptions) => infiniteQueryOptions({
     queryKey: ['participants', options],
-    queryFn: () => getAllParticipants(this.client, options)
+    queryFn: ({ pageParam }) => getAllParticipants(this.client, pageParam, options),
+    getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
+    initialPageParam: ({
+      participants: [] as Participant[],
+    } as GetAllParticipantsData),
+    refetchOnWindowFocus: false
   })
 }

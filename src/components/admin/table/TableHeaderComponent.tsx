@@ -1,9 +1,9 @@
 import { Dropdown } from "flowbite-react"
-import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag } from "../../../types"
+import { Notification, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
 import { TableColumnComponent } from "./TableColumnComponent"
-import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
+import { UseMutationResult } from "@tanstack/react-query"
 import { MutableRefObject, Dispatch, SetStateAction, useRef, useEffect } from "react"
-import { CreateTableColumnParams, ReorderTableColumnsParams, UpdateTableColumnParams } from "../../../services/tableService"
+import { CreateTableColumnParams, ReorderTableColumnsParams, TableService, UpdateTableColumnParams } from "../../../services/tableService"
 import { HiOutlineCalendar, HiOutlineDocumentText, HiOutlineListBullet, HiOutlinePencil, HiOutlinePlusCircle, HiOutlineTag } from 'react-icons/hi2'
 import { v4 } from 'uuid'
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
@@ -14,11 +14,14 @@ import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 
 interface TableHeaderComponentProps {
+  TableService: TableService
   table: Table
   refColumn: MutableRefObject<TableColumn | null>
   users: UserData[]
   tempUsers: UserProfile[]
-  tagData: UseQueryResult<UserTag[] | undefined, Error>
+  tags: UserTag[]
+  timeslots: Timeslot[]
+  notifications: Notification[]
   createColumn: UseMutationResult<void, Error, CreateTableColumnParams, unknown>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
   reorderTableColumns: UseMutationResult<void, Error, ReorderTableColumnsParams, unknown>
@@ -71,25 +74,25 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
           for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'left' ? 0 : 1); i++) {
             if(i === indexOfSource) continue
             updatedTableColumns.push({
-              ...props.table.columns[i],
+              ...tableColumns[i],
               order: i
             })
           }
           updatedTableColumns.push({
-            ...props.table.columns[indexOfSource],
+            ...tableColumns[indexOfSource],
             order: indexOfTarget
           })
           for(let i = indexOfTarget + (closestEdgeOfTarget === 'left' ? 0 : 1); i < props.table.columns.length; i++) {
             if(i === indexOfSource) continue
             updatedTableColumns.push({
-              ...props.table.columns[i],
+              ...tableColumns[i],
               order: i
             })
           }
           
           flushSync(() => {
             const updateGroup = (prev: TableGroup[]): TableGroup[] => {
-              return prev.map((group) => group.tables.some((table) => table.id === props.table.id) ? ({
+              return prev.map((group) => group.id === props.table.tableGroupId ? ({
                 ...group,
                 tables: group.tables.map((table) => table.id === props.table.id ? ({
                   ...table,
@@ -176,10 +179,13 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
           return (
             <TableColumnComponent 
               key={column.id}
+              TableService={props.TableService}
               table={props.table}
               column={column}
               refColumn={props.refColumn}
-              tags={props.tagData.data ?? []}
+              tags={props.tags}
+              notifications={props.notifications}
+              timeslots={props.timeslots}
               users={props.users}
               tempUsers={props.tempUsers}
               createColumn={props.createColumn}
@@ -196,8 +202,7 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
           className="
             bg-gray-50
             relative px-6 py-3 border-e border-e-gray-300 border-b border-b-gray-300
-            min-w-[50px] max-w-[50px] whitespace-normal break-words
-            text-center
+            w-full whitespace-normal break-words justify-center flex items-center
           "
         >
           <Dropdown
@@ -266,7 +271,7 @@ export const TableHeaderComponent = (props: TableHeaderComponentProps) => {
                 <Dropdown.Item  
                   as='button'
                   className="p-1 flex flex-row w-fit gap-1 items-center border-transparent border hover:border-gray-600 hover:bg-gray-100 rounded-lg"
-                  onClick={() => pushColumn('tag')}
+                  onClick={() => pushColumn('notification')}
                 >
                   <HiOutlineTag size={32} className="bg-purple-600 border-4 border-purple-600 rounded-lg"/>
                   <div className="flex flex-col">

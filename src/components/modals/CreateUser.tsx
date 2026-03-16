@@ -5,9 +5,9 @@ import { Participant, TableColumn, Timeslot, UserProfile, UserTag } from "../../
 import { v4 } from 'uuid'
 import { validateMapField } from "../../functions/tableFunctions";
 import validator from 'validator'
-import { useMutation, UseQueryResult } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { HiOutlinePlusCircle } from "react-icons/hi2";
-import { TagPicker } from "../admin/package/TagPicker";
+import { TagPicker } from "../common/TagPicker";
 import { ParticipantFieldLinks, UserFieldLinks } from "./LinkUser";
 import { LinkUserMutationParams, UserService } from "../../services/userService";
 
@@ -15,7 +15,7 @@ interface CreateUserModalProps extends ModalProps {
   createUser: (userProfile: UserProfile) => void
   tableColumns: TableColumn[]
   rowNumber: number,
-  tags: UseQueryResult<UserTag[] | undefined, Error>
+  tags: UserTag[]
   UserService: UserService,
 }
 
@@ -39,7 +39,6 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
     }
   }
   const [participants, setParticipants] = useState<Participant[]>([emptyParticipant()])
-  const [availableTags, setAvailableTags] = useState<UserTag[]>([])
   const [loading, setLoading] = useState(false)
 
   const [participantFieldLinks, setParticipantFieldLinks] = useState<ParticipantFieldLinks[]>([])
@@ -95,24 +94,32 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
             normalizedHeader.includes('child')
           ) {
             if(normalizedHeader.includes('first')) {
-              const updatedParticipant = validateMapField('first', { 
-                participant: tempParticipants[0], 
-                value: props.tableColumns[i].values[props.rowNumber] 
-              }, undefined)[1] as Participant | undefined
+              const updatedParticipant = validateMapField(
+                'first', 
+                { 
+                  participant: tempParticipants[0], 
+                  value: props.tableColumns[i].values[props.rowNumber] 
+                }, 
+                undefined
+              )
 
-              if(updatedParticipant && updatedParticipant.firstName === props.tableColumns[i].values[props.rowNumber]) {
-                tempParticipants[0] = updatedParticipant
+              if(updatedParticipant && updatedParticipant.type === 'participant' && updatedParticipant.data.firstName === props.tableColumns[i].values[props.rowNumber]) {
+                tempParticipants[0] = updatedParticipant.data
                 participantFieldLinks[0].first = [props.tableColumns[i].id, 'override']
               }
             }
             if(normalizedHeader.includes('last')) {
-              const updatedParticipant = validateMapField('last', { 
-                participant: tempParticipants[0], 
-                value: props.tableColumns[i].values[props.rowNumber] 
-              }, undefined)[1] as Participant | undefined
+              const updatedParticipant = validateMapField(
+                'last', 
+                { 
+                  participant: tempParticipants[0], 
+                  value: props.tableColumns[i].values[props.rowNumber] 
+                }, 
+                undefined
+              )
 
-              if(updatedParticipant && updatedParticipant.lastName === props.tableColumns[i].values[props.rowNumber]) {
-                tempParticipants[0] = updatedParticipant
+              if(updatedParticipant && updatedParticipant.type === 'participant' && updatedParticipant.data.lastName === props.tableColumns[i].values[props.rowNumber]) {
+                tempParticipants[0] = updatedParticipant.data
                 participantFieldLinks[0].last = [props.tableColumns[i].id, 'override']
               }
             }
@@ -120,10 +127,10 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
               const updatedParticipant = validateMapField('middle', { 
                 participant: tempParticipants[0], 
                 value: props.tableColumns[i].values[props.rowNumber] 
-              }, undefined)[1] as Participant | undefined
+              }, undefined)
 
-              if(updatedParticipant && updatedParticipant.middleName === props.tableColumns[i].values[props.rowNumber]) {
-                tempParticipants[0] = updatedParticipant
+              if(updatedParticipant && updatedParticipant.type === 'participant' && updatedParticipant.data.middleName === props.tableColumns[i].values[props.rowNumber]) {
+                tempParticipants[0] = updatedParticipant.data
                 participantFieldLinks[0].middle = [props.tableColumns[i].id, 'override']
               }
             }
@@ -131,10 +138,10 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
               const updatedParticipant = validateMapField('preferred', { 
                 participant: tempParticipants[0], 
                 value: props.tableColumns[i].values[props.rowNumber] 
-              }, undefined)[1] as Participant | undefined
+              }, undefined)
 
-              if(updatedParticipant && updatedParticipant.preferredName === props.tableColumns[i].values[props.rowNumber]) {
-                tempParticipants[0] = updatedParticipant
+              if(updatedParticipant && updatedParticipant.type === 'participant' && updatedParticipant.data.preferredName === props.tableColumns[i].values[props.rowNumber]) {
+                tempParticipants[0] = updatedParticipant.data
                 participantFieldLinks[0].preferred = [props.tableColumns[i].id, 'override']
               }
             }
@@ -142,10 +149,10 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
               const updatedParticipant = validateMapField('middle', { 
                 participant: tempParticipants[0], 
                 value: props.tableColumns[i].values[props.rowNumber] 
-              }, undefined)[1] as Participant | undefined
+              }, undefined)
 
-              if(updatedParticipant && updatedParticipant.middleName === props.tableColumns[i].values[props.rowNumber]) {
-                tempParticipants[0] = updatedParticipant
+              if(updatedParticipant && updatedParticipant.type === 'participant' && updatedParticipant.data.middleName === props.tableColumns[i].values[props.rowNumber]) {
+                tempParticipants[0] = updatedParticipant.data
                 participantFieldLinks[0].middle = [props.tableColumns[i].id, 'override']
               }
             }
@@ -214,6 +221,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
               id: timeslot,
               start: new Date(),
               end: new Date(),
+              updatedAt: new Date().toISOString(),
             }
 
             return shallowTimeslots
@@ -234,12 +242,6 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
     setParticipantFieldLinks(participantFieldLinks)
     setUserFieldLinks(userFieldLinks)
   }, [props.tableColumns, props.open])
-
-  useEffect(() => {
-    if(props.tags.data) {
-      setAvailableTags(props.tags.data)
-    }
-  }, [props.tags])
 
   function clearStates() {
     setSittingNumber('')
@@ -520,11 +522,9 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                     <div className="flex flex-col justify-between">
                       <TagPicker 
                         allowMultiple
-                        className='
-                          font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
-                          border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic italic
-                        '
-                        tags={availableTags}
+                        small
+                        allowClear
+                        tags={props.tags}
                         parentPickTag={(tag) => {
                           //TODO: address tag null case
                           if(tag) {
@@ -565,7 +565,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                           }
                         }}
                         pickedTag={participant.userTags.map((tag) => {
-                          return availableTags.find((availableTag) => availableTag.id === tag.id)
+                          return props.tags.find((availableTag) => availableTag.id === tag.id)
                         }).filter((tag) => tag !== undefined)}
                       />
                       <button 
@@ -592,7 +592,6 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
             const profile: UserProfile = {
               sittingNumber: Number(sittingNumber),
               email: email,
-              userTags: [],
               participant: participants,
               firstName: firstName,
               lastName: lastName,
@@ -616,7 +615,7 @@ export const CreateUserModal: FC<CreateUserModalProps> = (props) => {
                 participantFieldLinks: participantFieldLinks,
                 userFieldLinks: userFieldLinks,
                 userProfile: profile,
-                availableTags: props.tags.data ?? [],
+                availableTags: props.tags,
                 options: {
                   logging: true
                 }

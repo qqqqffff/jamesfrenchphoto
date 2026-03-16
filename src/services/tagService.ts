@@ -1,14 +1,15 @@
-import { queryOptions } from "@tanstack/react-query"
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query"
 import { Schema } from "../../amplify/data/resource"
 import { V6Client } from '@aws-amplify/api-graphql'
-import { PhotoCollection, Participant, UserTag, Timeslot, Package, PackageItem, Notification } from "../types"
-import { getAllCollectionsFromUserTagId } from "./collectionService"
-import { getAllNotificationsFromUserTag } from "./notificationService"
-import { getAllTimeslotsByUserTag } from "./timeslotService"
+import { PhotoCollection, Participant, UserTag, Timeslot, Package, Notification } from "../types"
+import { mapNotification } from "./notificationService"
 import { mapParticipant, MapParticipantOptions } from "./userService"
+import { mapTimeslot } from "./timeslotService"
 
 interface MapUserTagOptions {
+  unauthenticated?: boolean
   siCollections?: boolean,
+  siChildren?: boolean,
   siTimeslots?: boolean,
   siNotifications?: boolean,
   siPackages?: {
@@ -20,143 +21,224 @@ interface MapUserTagOptions {
     notificationsMemo?: Notification[]
     collectionsMemo?: PhotoCollection[]
     participantsMemo?: Participant[]
-    tagsMemo?: Schema['UserTag']['type'][]
   }
 }
-async function mapUserTag(client: V6Client<Schema>, tagResponse: Schema['UserTag']['type'], options?: MapUserTagOptions): Promise<UserTag> {
-  let collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
-  let notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
-  let participantsMemo: Participant[] = options?.memos?.participantsMemo ?? []
+export async function mapUserTag(tagResponse: Schema['UserTag']['type'], options?: MapUserTagOptions): Promise<UserTag> {
+  const children: UserTag[] = []
+  let childrenResponse: Promise<(UserTag | undefined)[]> | undefined
+
+  const notifications: Notification[] = []
+  let notificationsResponse: Promise<(Notification | undefined)[]> | undefined
+  const notificationMemo: Notification[] = options?.memos?.notificationsMemo ?? []
 
   const collections: PhotoCollection[] = []
+  let collectionsResponse: Promise<(PhotoCollection | undefined)[]> | undefined
+  const collectionsMemo: PhotoCollection[] = options?.memos?.collectionsMemo ?? []
+
   const timeslots: Timeslot[] = []
-  const notifications: Notification[] = []
+  let timeslotsResponse: Promise<(Timeslot | undefined)[]> | undefined 
+
   const participants: Participant[] = []
+  let participantResponse: Promise<(Participant | undefined)[]> | undefined
+  const participantsMemo: Participant[] = options?.memos?.participantsMemo ?? []
+
   let pack: Package | undefined
-  if(options?.siCollections) {
-    const foundCollections = await getAllCollectionsFromUserTagId(client, tagResponse.id, {
-        siTags: false,
-        collectionsMemo: options?.memos?.collectionsMemo
+
+  if(options?.siChildren && !options.unauthenticated) {
+    //assume that a parent's children are unique and will not show up in a different tag therefore memoization will make no difference
+    //TODO: next tokening, preform all operations simultaneously, children, notifications, collections and timeslots instead of synchronously in order
+    childrenResponse = new Promise<(UserTag | undefined)[]>(async (resolve) => {
+      let childTagResponse = await tagResponse.childTags()
+      const childTagData = childTagResponse.data
+      while(childTagResponse.nextToken) {
+        childTagResponse = await tagResponse.childTags({ nextToken: childTagResponse.nextToken })
+        childTagData.push(...childTagResponse.data)
       }
-    )
-    collections.push(...foundCollections)
-    collectionsMemo.push(...foundCollections)
-  }
-  if(options?.siTimeslots) {
-    timeslots.push(...(await getAllTimeslotsByUserTag(client, tagResponse.id)))
-  }
-  if(options?.siNotifications) {
-    const response = await getAllNotificationsFromUserTag(client, notificationMemo, tagResponse.id)
-    notifications.push(...response[0])
-    notificationMemo = response[1]
+      
+      resolve(Promise.all(childTagData.map(async (tag) => {
+        const packageResponse = (await tag.package()).data
+        if(!packageResponse) return
+        
+        const childResponse = (await packageResponse.tag()).data
+        //package required for si inside of dashboard
+        const pack: Package = {
+          ...packageResponse,
+          parentTagId: tag.id,
+          items: [],
+          pdfPath: packageResponse.pdfPath ?? undefined,
+          description: packageResponse.description ?? undefined,
+          price: packageResponse.price ?? undefined
+        }
+        if(childResponse) {
+          //only shallow depth required for children since they will not be included in the tag memo
+          const mappedTag: UserTag = {
+            ...childResponse,
+            color: childResponse.color ?? undefined,
+            notifications: [],
+            package: pack,
+            children: [],
+            participants: []
+          }
+          return mappedTag
+        }
+        
+        return undefined
+      })))
+    })
   }
 
-  if(options?.siPackages) {
+  if(options?.siNotifications && !options.unauthenticated) {
+    notificationsResponse = new Promise<(Notification | undefined)[]>(async (resolve) => {
+      let notificationResponse = await tagResponse.notifications()
+      const notificationData = notificationResponse.data
+      while(notificationResponse.nextToken) {
+        notificationResponse = await tagResponse.notifications({ nextToken: notificationResponse.nextToken })
+        notificationData.push(...notificationResponse.data)
+      }
+
+      
+      resolve(Promise.all(notificationData.map(async (notification) => {
+        const foundNotification = notificationMemo.find((noti) => noti.id === notification.id)
+        if(foundNotification) return foundNotification
+        const notificationResponse = await notification.notification()
+        if(notificationResponse.data) {
+          const mappedNotification: Notification = await mapNotification(notificationResponse.data)
+          notificationMemo.push(mappedNotification)
+          return mappedNotification
+        }
+      })))
+    })
+  }
+
+  if(options?.siCollections && !options.unauthenticated) {
+    collectionsResponse = new Promise<(PhotoCollection | undefined)[]>(async (resolve) => {
+      let tagCollectionResponse = await tagResponse.collectionTags()
+      const tagCollectionData = tagCollectionResponse.data
+      while(tagCollectionResponse.nextToken) {
+        tagCollectionResponse = await tagResponse.collectionTags({ nextToken: tagCollectionResponse.nextToken })
+        tagCollectionData.push(...tagCollectionResponse.data)
+      }
+      resolve(Promise.all(tagCollectionData.map(async (collection) => {
+        const foundCollection = collectionsMemo.find((col) => col.id === collection.collectionId)
+        if(foundCollection) return foundCollection
+        const collectionResponse = await collection.collection()
+
+        if(collectionResponse.data) {
+          const mappedCollection: PhotoCollection = {
+            ...collectionResponse.data,
+            coverPath: collectionResponse.data.coverPath ?? undefined,
+            coverType: {
+              textColor: collectionResponse.data.coverType?.textColor ?? undefined,
+              bgColor: collectionResponse.data.coverType?.bgColor ?? undefined,
+              placement: collectionResponse.data.coverType?.placement ?? undefined,
+              textPlacement: collectionResponse.data.coverType?.textPlacement ?? undefined,
+              date: collectionResponse.data.coverType?.date ?? undefined,
+            },
+            publicCoverPath: collectionResponse.data.publicCoverPath ?? undefined,
+            watermarkPath: collectionResponse.data.watermarkPath ?? undefined,
+            downloadable: collectionResponse.data.downloadable ?? false,
+            items: collectionResponse.data.items ?? 0,
+            published: collectionResponse.data.published ?? false,
+            //unnecessary or shallow depth only
+            tags: [],
+            sets: []
+          }
+          collectionsMemo.push(mappedCollection)
+
+          return mappedCollection
+        }
+      })))
+    })
+  }
+
+  if(options?.siTimeslots && !options.unauthenticated) {
+    //timeslots are not memoized since they are unique for user tags
+    timeslotsResponse = new Promise<(Timeslot | undefined)[]>(async (resolve) => {
+      let tagTimeslotResponse = await tagResponse.timeslotTags()
+      const tagTimeslotData = tagTimeslotResponse.data
+      while(tagTimeslotResponse.nextToken) {
+        tagTimeslotResponse = await tagResponse.timeslotTags({ nextToken: tagTimeslotResponse.nextToken })
+        tagTimeslotData.push(...tagTimeslotResponse.data)
+      }
+      resolve(Promise.all(tagTimeslotData.map(async (timeslot) => {
+        const timeslotResponse = await timeslot.timeslot()
+        if(timeslotResponse.data) {
+          const mappedTimeslot: Timeslot = await mapTimeslot(timeslotResponse.data)
+          return mappedTimeslot
+        }
+      })))
+    })
+  }
+
+  if(options?.siPackages && !options.unauthenticated) {
+    //packages are tag unique, memo not required
     const packageResponse = await tagResponse.packages()
     if(packageResponse.data) {
       pack = {
         ...packageResponse.data,
-        parentTagId: (await packageResponse.data.packageParentTag()).data?.tagId ?? '',
-        pdfPath: packageResponse.data.pdfPath ?? undefined,
+        parentTagId: (await packageResponse.data.packageParentTag()).data?.tagId,
         description: packageResponse.data.description ?? undefined,
+        pdfPath: packageResponse.data.pdfPath ?? undefined,
         price: packageResponse.data.price ?? undefined,
-        items: options.siPackages.siItems ? (
-          await Promise.all((await packageResponse.data.items()).data.map(async (itemResponse) => {
-            const collections: string[] = []
-            if(options.siPackages?.siCollections) {
-              collections.push(
-                ...await Promise.all(
-                  (await itemResponse.itemCollections()).data
-                  .map((connection) => connection.collectionId)
-                )
-              )
-            }
-            const mappedItem: PackageItem = {
-              ...itemResponse,
-              description: itemResponse.description ?? undefined,
-              max: itemResponse.max ?? undefined,
-              price: itemResponse.price ?? undefined,
-              quantities: itemResponse.quantity ?? undefined,
-              hardCap: itemResponse.hardCap ?? undefined,
-              dependent: itemResponse.dependent ?? undefined,
-              unique: itemResponse.unique ?? undefined,
-              statements: itemResponse.statements?.filter((item) => item !== null),
-              aLaCarte: itemResponse.aLaCarte ?? undefined,
-              display: itemResponse.display ?? true,
-              collectionIds: collections
-            }
-            return mappedItem
-          }))
-        ) : []
+        //shallow depth
+        items: []
       }
     }
   }
 
-  if(options?.siParticipants) {
-    let participantResponse = await tagResponse.participants()
-    const participantData = participantResponse.data
-
-    while(participantResponse.nextToken) {
-      participantResponse = await tagResponse.participants({ nextToken: participantResponse.nextToken })
-      participantData.push(...participantResponse.data)
-    }
-
-    participants.push(...(await Promise.all(
-      participantData.map(async (participant) => {
-        const foundParticipant = participantsMemo.find((part) => part.id === participant.participantId)
-        if(foundParticipant !== undefined) return foundParticipant
-        const participantData = (await participant.participant()).data
-        if(!participantData) return
-        //no secondary indexing -> no memos needed
-        return mapParticipant(client, participantData, { 
-          siCollections: false, 
-          siNotifications: false, 
-          siTags: undefined, 
-          siTimeslot: false,
-        })
-      })
-    )).filter((participant) => participant !== undefined))
+  if(options?.siParticipants && !options.unauthenticated) {
+    participantResponse = new Promise<(Participant | undefined)[]>(async (resolve) => {
+      let tagParticipantResponse = await tagResponse.participants()
+      const tagParticipantData = tagParticipantResponse.data
+      while(tagParticipantResponse.nextToken) {
+        tagParticipantResponse = await tagResponse.participants({ nextToken: tagParticipantResponse.nextToken })
+        tagParticipantData.push(...tagParticipantResponse.data)
+      }
+      resolve(Promise.all(tagParticipantData.map(async (participantTag) => {
+        const foundParticipant = participantsMemo.find((part) => part.id === participantTag.participantId)
+        if(foundParticipant) return foundParticipant
+        const participantResponse = await participantTag.participant()
+        if(participantResponse.data) {
+          const mappedParticipant: Participant = await mapParticipant(participantResponse.data, {
+            siCollections: false,
+            siNotifications: false,
+            siTags: undefined,
+            siTimeslot: false
+          })
+          participantsMemo.push(mappedParticipant)
+          return mappedParticipant
+        }
+      })))
+    })
   }
 
-  //shallow depth for children
-  const children = (await Promise.all((await tagResponse.childTags()).data.map(async (tag) => {
-    const packageResponse = await tag.package()
-    if(packageResponse.data !== null) {
-      const foundTag = options?.memos?.tagsMemo?.find((tag) => tag.id === packageResponse.data!.tagId)
-      if(foundTag) {
-        const mappedTag: UserTag = {
-          ...foundTag,
-          color: foundTag.color ?? undefined,
-          notifications: [],
-          children: [],
-          participants: [],
-        }
-        return mappedTag
-      }
-
-      const tagResponse = await packageResponse.data.tag()
-      if(tagResponse.data !== null) {
-        const mappedTag: UserTag = {
-          ...tagResponse.data,
-          color: tagResponse.data.color ?? undefined,
-          notifications: [],
-          children: [],
-          participants: []
-        }
-        return mappedTag
-      }
-    }
-  }))).filter((tag) => tag !== undefined)
+  await Promise.all([
+    childrenResponse !== undefined ? childrenResponse.then((c) => {
+      children.push(...c.filter((child) => child !== undefined))
+    }) : Promise.resolve(),
+    notificationsResponse !== undefined? notificationsResponse.then((n) => {
+      notifications.push(...n.filter((noti) => noti !== undefined))
+    }) : Promise.resolve(),
+    collectionsResponse !== undefined ? collectionsResponse.then((c) => {
+      collections.push(...c.filter((col) => col !== undefined))
+    }) : Promise.resolve(),
+    timeslotsResponse !== undefined ? timeslotsResponse.then((t) => {
+      timeslots.push(...t.filter((time) => time !== undefined))
+    }) : Promise.resolve(),
+    participantResponse !== undefined ? participantResponse.then((p) => {
+      participants.push(...p.filter((part) => part !== undefined))
+    }) : Promise.resolve(),
+  ])
 
   const mappedTag: UserTag = {
     ...tagResponse,
-    collections: collections,
     color: tagResponse.color ?? undefined,
-    notifications: notifications,
     children: children,
+    notifications: notifications,
+    collections: collections,
+    timeslots: timeslots,
     package: pack,
-    participants: participants,
-    timeslots: timeslots
+    participants: participants
   }
   return mappedTag
 }
@@ -164,53 +246,49 @@ async function mapUserTag(client: V6Client<Schema>, tagResponse: Schema['UserTag
 interface GetTagByIdOptions extends MapUserTagOptions { 
   metric?: boolean
 }
-async function getTagById(client: V6Client<Schema>, tagId?: string, options?: GetTagByIdOptions): Promise<UserTag | null> {
-  const start = new Date()
-  if(!tagId) return null
 
-  const tagResponse = await client.models.UserTag.get({ id: tagId })
-  if(tagResponse.data) {
-    const tag = await mapUserTag(client, tagResponse.data, options)
-    if(options?.metric) console.log(`GETTAGBYID:${new Date().getTime() - start.getTime()}`)
-    return tag
-  }
-  return null
+/* 
+  @default maxItems: 16 items
+*/
+interface GetAllUserTagsOptions extends GetTagByIdOptions {
+  maxItems?: number
 }
-
-//TODO: implement me please
-// interface GetAllUserTagsInfiniteData {
-// }
-// interface GetAllUserTagsInfiniteOptions { 
-// }
-// async function getAllUserTagsInfinite(client: V6Client<Schema>, initial: GetAllUserTagsInfiniteData, options?: GetAllUserTagsInfiniteOptions) {
-// }
-
-interface GetAllUserTagsOptions extends GetTagByIdOptions { }
-async function getAllUserTags(client: V6Client<Schema>, options?: GetAllUserTagsOptions): Promise<UserTag[]> {
+export interface GetAllUserTagsData {
+  tags: UserTag[],
+  nextToken?: string,
+}
+async function getAllUserTags(client: V6Client<Schema>, initial: GetAllUserTagsData, options?: GetAllUserTagsOptions): Promise<GetAllUserTagsData> {
   const start = new Date()
-  let userTagsResponse = await client.models.UserTag.list()
-  let userTagData: Schema['UserTag']['type'][] = userTagsResponse.data
+  const maxItems = options?.maxItems ?? 16
+  let userTagsResponse = await client.models.UserTag.listUserTagByFlagAndCreatedAt({
+    flag: 'true',
+  }, {
+    sortDirection: 'DESC',
+    limit : maxItems,
+    nextToken: initial.nextToken,
+  })
 
-  while(userTagsResponse.nextToken) {
-    userTagsResponse = await client.models.UserTag.list({ nextToken: userTagsResponse.nextToken })
-    userTagData.push(...userTagsResponse.data)
-  }
+  let notificationMemo: Notification[] = initial.tags.flatMap((tag) => tag.notifications ?? [])
+  let collectionsMemo: PhotoCollection[] = initial.tags.flatMap((tag) => tag.collections ?? [])
 
-  let notificationMemo: Notification[] = []
-  let collectionsMemo: PhotoCollection[] = []
-
-  const mappedTags = await Promise.all(userTagData.map(async (tag) => {
-    return mapUserTag(client, tag, {
+  const mappedTags = await Promise.all(userTagsResponse.data.map(async (tag) => {
+    return mapUserTag(tag, {
       ...options,
       memos: {
         notificationsMemo: notificationMemo,
         collectionsMemo: collectionsMemo,
-        tagsMemo: userTagData
       }
     })
   }))
   if(options?.metric) console.log(`GETALLTAGS:${new Date().getTime() - start.getTime()}ms`)
-  return mappedTags
+
+  const newTags: UserTag[] = [...initial.tags, ...mappedTags]
+  const returnData: GetAllUserTagsData = {
+    tags: newTags,
+    nextToken: userTagsResponse.nextToken ?? undefined,
+  }
+
+  return returnData
 }
 
 interface GetAllParticipantsByUserTagOptions extends MapParticipantOptions { }
@@ -227,7 +305,7 @@ async function getAllParticipantsByUserTag(client: V6Client<Schema>, tagId?: str
       await Promise.all((await tagResponse.data.participants()).data.map(async (participant) => {
         const participantResponse = (await participant.participant()).data
         if(participantResponse) {
-          const newParticipant = await mapParticipant(client, participantResponse, options)
+          const newParticipant = await mapParticipant(participantResponse, options)
           //pushing to the memo, combining the items from the user tag with the participant specific items and deudplication
           notificationMemo.push(...[
             ...(newParticipant.userTags
@@ -301,12 +379,27 @@ export class TagService {
     this.client = client
   }
 
+  async getTagById(tagId?: string, options?: GetTagByIdOptions): Promise<UserTag | null> {
+    const start = new Date()
+    if(!tagId) return null
+
+    const tagResponse = await this.client.models.UserTag.get({ id: tagId })
+    if(tagResponse.data) {
+      const tag = await mapUserTag(tagResponse.data, options)
+      if(options?.metric) console.log(`GETTAGBYID:${new Date().getTime() - start.getTime()}`)
+      return tag
+    }
+    return null
+  }
+
   async createTagMutation(params: CreateTagParams) {
     const start = new Date()
     const createTagResponse = await this.client.models.UserTag.create({
       id: params.tag.id,
       name: params.tag.name,
       color: params.tag.color,
+      flag: 'true',
+      createdAt: new Date().toISOString()
     })
 
     if(params.options?.logging) console.log(createTagResponse)
@@ -489,14 +582,19 @@ export class TagService {
     if(params.options?.metric) console.log(`UPDATETAG:${new Date().getTime() - start.getTime()}ms`)
   }
 
-  getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => queryOptions({
+  getAllUserTagsQueryOptions = (options?: GetAllUserTagsOptions) => infiniteQueryOptions({
     queryKey: ['userTags', options],
-    queryFn: () => getAllUserTags(this.client, options)
+    queryFn: ({ pageParam }) => getAllUserTags(this.client, pageParam, options),
+    getNextPageParam: (lastPage) => lastPage.nextToken ? lastPage : undefined,
+    initialPageParam: ({
+      tags: [] as UserTag[]
+    } as GetAllUserTagsData),
+    refetchOnWindowFocus: false,
   })
 
     getUserTagByIdQueryOptions = (tagId?: string, options?: GetTagByIdOptions) => queryOptions({
     queryKey: ['userTag', options],
-    queryFn: () => getTagById(this.client, tagId, options)
+    queryFn: () => this.getTagById(tagId, options)
   })
 
   getAllParticipantsByUserTagQueryOptions = (tagId?: string, options?: GetAllParticipantsByUserTagOptions) => queryOptions({

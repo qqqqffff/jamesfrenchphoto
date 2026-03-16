@@ -9,6 +9,7 @@ interface ForgotPasswordModalProps extends ModalProps {
   successCallback: () => void
 }
 
+//TODO: implement NotificationCell.tsx  cooldown method
 export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
   const [cooldown, setCooldown] = useState<NodeJS.Timeout | null>(null)
   const [email, setEmail] = useState('')

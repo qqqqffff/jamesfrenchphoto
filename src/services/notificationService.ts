@@ -3,6 +3,104 @@ import { V6Client } from '@aws-amplify/api-graphql'
 import { Notification, Participant, UserTag } from "../types";
 import { queryOptions } from "@tanstack/react-query";
 import sgMail from '@sendgrid/mail'
+import { mapParticipant } from "./userService";
+import { mapUserTag } from "./tagService";
+
+interface MapNotificationOptions {
+  siParticipants?: {
+    memo: Participant[]
+  }
+  siTags?: {
+    memo: UserTag[]
+  }
+}
+
+export async function mapNotification(notificationResponse: Schema['Notifications']['type'], options?: MapNotificationOptions): Promise<Notification> {
+  const participants: Participant[] = []
+  let participantsResponse: Promise<(Participant | undefined)[]> | undefined
+  const tags: UserTag[] = []
+  let tagsResponse: Promise<(UserTag | undefined)[]> | undefined
+
+  if(options?.siParticipants !== undefined) {
+    participantsResponse = new Promise<(Participant | undefined)[]>(async (resolve) => {
+      let participantResponse = await notificationResponse.participant()
+      const participantData = participantResponse.data
+      while(participantResponse.nextToken) {
+        participantResponse = await notificationResponse.participant({ 
+          nextToken: participantResponse.nextToken 
+        })
+        participantData.push(...participantResponse.data)
+      }
+
+      resolve(Promise.all(participantData.map(async (participantTag) => {
+        const existingParticipant = options.siParticipants?.memo.find((p) => p.id === participantTag.participantId)
+        if(existingParticipant !== undefined) return existingParticipant
+
+        const participant = await participantTag.participant()
+        if(participant.data) {
+          const mappedParticipant: Participant = await mapParticipant(participant.data, {
+            siCollections: false,
+            siNotifications: false,
+            siTags: undefined,
+            siTimeslot: false
+          })
+          return mappedParticipant
+        }
+      })))
+    })
+  }
+
+  if(options?.siTags !== undefined) {
+    tagsResponse = new Promise<(UserTag | undefined)[]>(async (resolve) => {
+      let tagResponse = await notificationResponse.tags()
+      const tagData = tagResponse.data
+      while(tagResponse.nextToken) {
+        tagResponse = await notificationResponse.tags({ 
+          nextToken: tagResponse.nextToken 
+        })
+        tagData.push(...tagResponse.data)
+      }
+
+      resolve(Promise.all(tagData.map(async (userTagTag) => {
+        const existingTag = options.siTags?.memo.find((t) => t.id === userTagTag.tagId)
+        if(existingTag !== undefined) return existingTag
+
+        const tag = await userTagTag.tag()
+        if(tag.data) {
+          const mappedTag: UserTag = await mapUserTag(tag.data, {
+            siPackages: undefined,
+            siTimeslots: false,
+            siParticipants: false,
+            siNotifications: false,
+            siChildren: false,
+            siCollections: false,
+            memos: undefined
+          })
+          return mappedTag
+        }
+      })))
+    })
+  }
+
+  await Promise.all([
+    participantsResponse !== undefined ? participantsResponse.then((p) => {
+      participants.push(...(p.filter((part) => part !== undefined)))
+    }) : Promise.resolve(),
+    tagsResponse !== undefined ? tagsResponse.then((t) => {
+      tags.push(...(t.filter((tag) => tag !== undefined)))
+    }) : Promise.resolve()
+  ])
+
+  const mappedNotification: Notification = {
+    ...notificationResponse,
+    participants: participants,
+    location: notificationResponse.location ?? undefined,
+    tags: tags,
+    expiration: notificationResponse.expiration ?? undefined
+  }
+
+  return mappedNotification
+}
 
 interface GetAllNotificationOptions {
   siParticipants?: boolean
@@ -201,6 +299,7 @@ export interface DeleteNotificationParams {
 
 export interface SendUserEmailNotificationParams {
   email: string,
+  additionalRecipients: string[]
   content: string,
   options?: {
     logging?: boolean
@@ -219,7 +318,7 @@ export class NotificationService {
     this.client = client
   }
 
-  async createNotificationMutation(params: CreateNotificationParams): Promise<string | undefined> {
+  async createNotificationMutation(params: CreateNotificationParams): Promise<'success' | 'fail'> {
     const response = await this.client.models.Notifications.create({
       id: params.notification.id,
       content: params.notification.content,
@@ -230,30 +329,42 @@ export class NotificationService {
     if(params.options?.logging) console.log(response)
 
     if(response.data) {
-      const userTagResponse = Promise.all((params.notification.tags ?? []).map((tag) => {
+      const notificationId = response.data.id
+
+      const userTagResponse = await Promise.all((params.notification.tags ?? []).map((tag) => {
         return this.client.models.NotificationUserTags.create({
           tagId: tag.id,
-          notificationId: response.data!.id
+          notificationId: notificationId
         })
       }))
 
       if(params.options?.logging) console.log(userTagResponse)
 
-      const participantResponse = Promise.all((params.notification.participants ?? []).map((participant) => {
+      const participantResponse = await Promise.all((params.notification.participants ?? []).map((participant) => {
         return this.client.models.NotificationParticipants.create({
           participantId: participant.id,
-          notificationId: response.data!.id
+          notificationId: notificationId
         })
       }))
 
       if(params.options?.logging) console.log(participantResponse)
 
-      return response.data.id
+      return [
+        ...participantResponse.map((data) => data.data).filter((data) => data !== null),
+        ...userTagResponse.map((data) => data.data).filter((data) => data !== null)
+      ].length === (
+        params.notification.participants.length + 
+        params.notification.tags.length
+      ) ? 'success' : 'fail'
     }
+    return 'fail'
   }
 
   async updateNotificationMutation(params: UpdateNotificationParams) {
-    if(params.participantIds?.some((cPid) => !params.notification.participants.some((participant) => cPid === participant.id))) {
+    if(
+      params.participantIds?.some((cPid) => !params.notification.participants.some((participant) => cPid === participant.id)) ||
+      params.notification.participants.some((participant) => !params.participantIds.some((pid) => pid === participant.id))
+    ) {
       const deletedParticipants: string[] = params.notification.participants
         .filter((participant) => !params.participantIds?.some((id) => id === participant.id))
         .map((participant) => participant.id)
@@ -262,25 +373,31 @@ export class NotificationService {
         .filter((id) => !params.notification.participants.some((participant) => participant.id === id))
 
 
-      let tagResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
+      let participantResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
         notificationId: params.notification.id 
       })
-      let tagData = tagResponse.data
+      const participantData = participantResponse.data
 
-      while(tagResponse.nextToken) {
-        tagResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
+      while(
+        participantResponse.nextToken || 
+        deletedParticipants.reduce((prev, cur) => {
+          if(prev) return prev
+          if(!participantData.some((data) => data.participantId === cur)) return true
+          return prev
+        }, false)
+      ) {
+        participantResponse = await this.client.models.NotificationParticipants.listNotificationParticipantsByNotificationId({ 
           notificationId: params.notification.id 
         }, { 
-          nextToken: tagResponse.nextToken 
+          nextToken: participantResponse.nextToken 
         })
-        tagData.push(...tagResponse.data)
+        participantData.push(...participantResponse.data)
       }
 
-      const deleteResponse = Promise.all(deletedParticipants.map((pId) => {
-        const foundId = tagData.find((tag) => tag.participantId === pId)?.id
-        if(foundId) {
+      const deleteResponse = Promise.all(participantData.map((data) => {
+        if(deletedParticipants.some((pId) => pId === data.participantId)) {
           return this.client.models.NotificationParticipants.delete({
-            id: foundId,
+            id: data.id
           })
         }
       }))
@@ -297,7 +414,10 @@ export class NotificationService {
       if(params.options?.logging) console.log(addResponse)
     }
 
-    if(params.tagIds?.some((cTid) => !params.notification.tags.some((tag) => cTid === tag.id))) {
+    if(
+      params.tagIds?.some((cTid) => !params.notification.tags.some((tag) => cTid === tag.id)) ||
+      params.notification.tags.some((tag) => !params.tagIds.some((tagId) => tagId === tag.id))
+    ) {
       const deletedTags: string[] = params.notification.tags
         .filter((tag) => !params.tagIds?.some((id) => id === tag.id))
         .map((tag) => tag.id)
@@ -309,9 +429,16 @@ export class NotificationService {
       let tagResponse = await this.client.models.NotificationUserTags.listNotificationUserTagsByNotificationId({ 
         notificationId: params.notification.id 
       })
-      let tagData = tagResponse.data
+      const tagData = tagResponse.data
 
-      while(tagResponse.nextToken) {
+      while(
+        tagResponse.nextToken || 
+        deletedTags.reduce((prev, cur) => {
+          if(prev) return prev
+          if(!tagData.some((data) => data.tagId === cur)) return true
+          return prev
+        }, false)
+      ) {
         tagResponse = await this.client.models.NotificationUserTags.listNotificationUserTagsByNotificationId({ 
           notificationId: params.notification.id 
         }, { 
@@ -320,11 +447,10 @@ export class NotificationService {
         tagData.push(...tagResponse.data)
       }
 
-      const deleteResponse = Promise.all(deletedTags.map((tId) => {
-        const foundId = tagData.find((tag) => tag.tagId === tId)?.id
-        if(foundId) {
+      const deleteResponse = Promise.all(tagData.map((data) => {
+        if(deletedTags.some((tagId) => tagId === data.tagId)) {
           return this.client.models.NotificationUserTags.delete({
-            id: foundId,
+            id: data.id,
           })
         }
       }))
@@ -357,16 +483,39 @@ export class NotificationService {
   }
 
   async deleteNotificationMutation(params: DeleteNotificationParams) {
-    const response = this.client.models.Notifications.delete({ id: params.notificationId })
-
+    const response = await this.client.models.Notifications.delete({ id: params.notificationId })
     if(params.options?.logging) console.log(response)
+    if(response.data) {
+      let participantResponse = await response.data.participant()
+      const participantData = participantResponse.data
+
+      while(participantResponse.nextToken) {
+        participantResponse = await response.data.participant({ nextToken: participantResponse.nextToken })
+        participantData.push(...participantResponse.data)
+      }
+
+      const deleteParticipantResponse = Promise.all(participantData.map((data) => this.client.models.NotificationParticipants.delete({ id: data.id })))
+      if(params.options?.logging) console.log(deleteParticipantResponse)
+
+      let tagResponse = await response.data.tags()
+      const tagData = tagResponse.data
+
+      while(tagResponse.nextToken) {
+        tagResponse = await response.data.tags({ nextToken: tagResponse.nextToken })
+        tagData.push(...tagResponse.data)
+      }
+
+      const deleteTagsResponse = Promise.all(tagData.map((data) => this.client.models.NotificationUserTags.delete({ id: data.id })))
+      if(params.options?.logging) console.log(deleteTagsResponse)
+    }
   }
 
   async sendUserEmailNotificationMutation(params: SendUserEmailNotificationParams): Promise<{message: string, status: 'fail' | 'success'}> {
     try {
       const response = await this.client.queries.NotifyUser({
         email: params.email,
-        content: params.content
+        content: params.content,
+        additionalRecipients: params.additionalRecipients
       })
 
       if(params.options?.logging) {
@@ -375,18 +524,18 @@ export class NotificationService {
       if(response.data !== null) {
         const sgResponse: [sgMail.ClientResponse, {}] = JSON.parse(response.data.toString())
         if(sgResponse[0].statusCode >= 200 && sgResponse[0].statusCode < 300) {
-          return { message: 'Email sent successfully.', status: 'success' }
+          return { message: 'Email notification sent successfully.', status: 'success' }
         }
         else {
-          return { message: 'Failed to send email.', status: 'fail' }
+          return { message: 'Failed to send email notification.', status: 'fail' }
         }
       }
       else {
-        return { message: 'Failed to send email.', status: 'fail' }
+        return { message: 'Failed to send email notification.', status: 'fail' }
       }
       
     } catch(error) {
-      return { message: 'Failed to send email.', status: 'fail' }
+      return { message: 'Failed to send email notification.', status: 'fail' }
     }
   }
 

@@ -44,7 +44,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
   return (
     <div className="flex flex-col">
       <span className='text-purple-400 py-2 text-sm'>Participant</span>
-      <div className="flex flex-col text-xs pb-1 max-h-80 overflow-y-auto">
+      <div className="flex flex-col text-xs pb-1 max-h-96 overflow-y-auto">
         <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-y py-1 px-2 min-h-[36px]">
           <div className="flex flex-row gap-2 items-center">
             <span>First Name:</span>
@@ -647,7 +647,7 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
         )}
 
         {props.showOptions?.notifications && (
-          <div className="flex flex-row gap-2 items-center text-nowrap justify-between w-full border-b py-1 px-2 min-h-[36px]">
+          <div className="flex flex-row gap-2 items-center text-nowrap justify-between border-b py-1 px-2 min-h-[36px] w-full">
             <div className="flex flex-row items-center">
               {props.showOptions.linkedFields?.participantLinks.notifications !== null &&
               props.showOptions.linkedFields?.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.notifications?.[0]) &&
@@ -663,17 +663,80 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
               ) : props.participant.notifications.length > 0 ? (
                 props.participant.notifications.map((notification) => {
                   return (
-                    <div className="border rounded-sm px-3 py-1 text-left" key={notification.id}>
+                    <div className="border rounded-sm px-3 py-1 text-left max-w-[200px] truncate" key={notification.id}>
                       <span>{notification.content}</span>
                     </div>
                   )
                 }
               )) : (
-                <div className="border rounded-sm px-3 py-1 text-left">
-                  <span>No Notifications</span>
+                <div className="py-1 text-left">
+                  <span>No Notifications.</span>
                 </div>
               )}
             </div>
+            {props.showOptions.linkedFields && (
+              <div className="flex flex-row gap-4 me-2 items-center">
+                {props.showOptions.linkedFields.noColumnModification !== true &&
+                props.showOptions.linkedFields.participantLinks.notifications !== null && 
+                props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.notifications?.[0]) && (
+                  <button
+                    className="px-2 py-1 rounded-lg border hover:bg-gray-200"
+                    onClick={() => {
+                      if(props.showOptions?.linkedFields?.participantLinks.notifications !== null) {
+                        props.showOptions?.linkedFields?.toggleField((prev) => prev.map((participant) => participant.id === props.showOptions?.linkedFields?.participantLinks.id ? ({
+                          ...props.showOptions.linkedFields.participantLinks,
+                          notifications: [
+                            props.showOptions.linkedFields.participantLinks.notifications![0], 
+                            props.showOptions.linkedFields.participantLinks.notifications![1] === 'override' ? 'update' : 'override'
+                          ]
+                        }) : participant))
+                      }
+                    }}
+                  >
+                    {props.showOptions.linkedFields.participantLinks.notifications[1] === 'override' ? 'Override' : 'Update'}
+                  </button>
+                )}
+                <Dropdown
+                  inline
+                  arrowIcon={false}
+                  label={props.showOptions.linkedFields.participantLinks.notifications !== null ? (
+                    <HiOutlineLockClosed size={16} className="hover:text-gray-300" />
+                  ) : (
+                    <HiOutlineLockOpen size={16} className="hover:text-gray-300" />
+                  )}
+                >
+                  {props.showOptions.linkedFields.participantLinks.notifications !== null && 
+                  props.showOptions.linkedFields.allColumns.some((column) => column.id === props.showOptions?.linkedFields?.participantLinks.notifications?.[0]) && (
+                      <Dropdown.Item 
+                        className="bg-gray-200 hover:bg-transparent" 
+                        onClick={() => {
+                          props.showOptions?.linkedFields?.toggleField((prev) => prev.map((linkedFields) => linkedFields.id === props.participant.id ? ({
+                            ...linkedFields,
+                            notifications: null
+                          }) : linkedFields))
+                        }}
+                      >{props.showOptions.linkedFields.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.notifications?.[0])?.header}</Dropdown.Item>
+                  )}
+                  {props.showOptions.linkedFields.availableOptions.filter((column) => column.type === 'notification').length === 0 ? (
+                    <Dropdown.Item disabled>No Available Columns</Dropdown.Item>
+                  ) : (props.showOptions.linkedFields.availableOptions.filter((column) => column.type === 'notification').map((column, index) => {
+                    return (
+                      <Dropdown.Item 
+                        key={index}
+                        onClick={() => {
+                          props.showOptions?.linkedFields?.toggleField((prev) => prev.map((linkedFields) => linkedFields.id === props.participant.id ? ({
+                            ...linkedFields,
+                            notifications: linkedFields.notifications === null || linkedFields.notifications[0] !== column.id ? [
+                              column.id, linkedFields.notifications === null ? 'update' : linkedFields.notifications[1]
+                            ] : null
+                          }) : linkedFields))
+                        }}
+                      >{column.header}</Dropdown.Item>
+                    )
+                  }))}
+                </Dropdown>
+              </div>
+            )}
           </div>
         )}
       </div>

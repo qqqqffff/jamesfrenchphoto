@@ -6,9 +6,10 @@ import {
   UserData, 
   UserProfile, 
   UserTag,
-  Notification
+  Notification,
+  Timeslot
 } from "../../../types"
-import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { 
   TableService,
   AppendTableRowParams,
@@ -18,7 +19,9 @@ import {
   DeleteTableRowParams, 
   UpdateTableColumnParams, 
   ReorderTableColumnsParams,
-  ReorderTableRowsParams
+  ReorderTableRowsParams,
+  UpdateChoiceParams,
+  DeleteChoiceParams
 } from "../../../services/tableService"
 import { currentDate } from "../../../utils"
 import { ConfirmationModal, CreateUserModal } from "../../modals"
@@ -28,29 +31,30 @@ import { PhotoPathService } from "../../../services/photoPathService"
 import { TableHeaderComponent } from "./TableHeaderComponent"
 import { TableBodyComponent } from "./TableBodyComponent"
 import { NotificationService } from "../../../services/notificationService"
+import { TablePanelNotification } from "./TablePanel"
 
 interface TableComponentProps {
   TableService: TableService,
   TimeslotService: TimeslotService,
   UserService: UserService,
   table: Table,
+  search: string
   PhotoPathService: PhotoPathService,
   NotificationService: NotificationService,
   tempUsers: UserProfile[],
   users: UserData[],
   notifications: Notification[],
+  tags: UserTag[],
+  timeslots: Timeslot[],
   sidePanelExpanded: boolean,
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
+  setTableNotifications: Dispatch<SetStateAction<TablePanelNotification[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
   parentUpdateTableColumns: Dispatch<SetStateAction<TableColumn[]>>
-  userData: UseQueryResult<UserData[] | undefined, Error>
-  tagData: UseQueryResult<UserTag[] | undefined, Error>
-  tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
-  notificationsData: UseQueryResult<Notification[], Error>
 }
 
 export const TableComponent = (props: TableComponentProps) => {
@@ -78,7 +82,30 @@ export const TableComponent = (props: TableComponentProps) => {
       for(let j = 0; j < props.table.columns.length; j++){
         row.push([props.table.columns[j].values[i], props.table.columns[j].type, props.table.columns[j].id])
       }
-      tableRows.push(row)
+      if(
+        props.search === '' ||
+        row.some((value) => (
+          (
+            (
+              value[1] === 'value' ||
+              value[1] === 'choice' ||
+              value[1] === 'file'
+            ) && value[0].toLowerCase().includes(props.search.toLowerCase())) ||
+            (value[1] === 'notification' && props.notifications.find((notification) => notification.content.toLowerCase().includes(props.search.toLowerCase()))) ||
+            (value[1] === 'date' && props.timeslots
+              .some((timeslot) => (
+                new Date(timeslot.start).toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase()) ||
+                new Date(timeslot.end).toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase())
+              ))
+            ) ||
+            (value[1] === 'tag' && (props.tags)
+              .filter((tag) => value[0].includes(tag.id))
+              .some((tag) => tag.name.toLowerCase().includes(props.search.toLowerCase()))
+            )
+        ))
+      ) {
+        tableRows.push(row)
+      }
     }
   }
 
@@ -104,6 +131,14 @@ export const TableComponent = (props: TableComponentProps) => {
 
   const createChoice = useMutation({
     mutationFn: (params: CreateChoiceParams) => props.TableService.createChoiceMutation(params),
+  })
+
+  const updateChoice = useMutation({
+    mutationFn: (params: UpdateChoiceParams) => props.TableService.updateChoiceMutation(params)
+  })
+  
+  const deleteChoice = useMutation({
+    mutationFn: (params: DeleteChoiceParams) => props.TableService.deleteChoiceMutation(params)
   })
 
   const inviteUser = useMutation({
@@ -215,7 +250,7 @@ export const TableComponent = (props: TableComponentProps) => {
         }}
         tableColumns={props.table.columns}
         rowNumber={refRow.current}
-        tags={props.tagData}
+        tags={props.tags}
         open={createUser}
         onClose={() => {
           setCreateUser(false)
@@ -227,10 +262,13 @@ export const TableComponent = (props: TableComponentProps) => {
           className={`text-sm w-full h-full`}
         >
           <TableHeaderComponent 
+            TableService={props.TableService}
             table={props.table}
             refColumn={refColumn}
-            tagData={props.tagData}
+            tags={props.tags}
             users={props.users}
+            notifications={props.notifications}
+            timeslots={props.timeslots}
             tempUsers={props.tempUsers}
             createColumn={createColumn}
             updateColumn={updateColumn}
@@ -249,23 +287,24 @@ export const TableComponent = (props: TableComponentProps) => {
             NotificationService={props.NotificationService}
             table={props.table}
             tableRows={tableRows}
+            search={props.search}
             users={props.users}
             tempUsers={props.tempUsers}
             notifications={props.notifications}
+            timeslots={props.timeslots}
+            tags={props.tags}
             selectedTag={selectedTag}
             selectedDate={selectedDate}
             baseLink={link}
             refRow={refRow}
             timeslotsQuery={timeslotsQuery}
             tagTimeslotQuery={tagTimeslotQuery}
-            tagData={props.tagData}
-            userData={props.userData}
-            tempUsersData={props.tempUsersData}
-            notificationsData={props.notificationsData}
             deleteRow={deleteRow}
             appendRow={appendRow}
             updateColumn={updateColumn}
             createChoice={createChoice}
+            updateChoice={updateChoice}
+            deleteChoice={deleteChoice}
             reorderTableRows={reorderTableRows}
             updateUserAttribute={updateUserAttribute}
             updateUserProfile={updateUserProfile}
@@ -278,6 +317,7 @@ export const TableComponent = (props: TableComponentProps) => {
             setSelectedTag={setSelectedTag}
             setCreateUser={setCreateUser}
             setNotifications={props.setNotifications}
+            setTableNotifications={props.setTableNotifications}
             parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
             parentUpdateTableGroups={props.parentUpdateTableGroups}
             parentUpdateTable={props.parentUpdateTable}

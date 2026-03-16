@@ -5,7 +5,7 @@ import { NotificationPanel } from '../../../components/admin/notification/Notifi
 import { Notification, Participant, UserTag } from '../../../types'
 import { UserService } from '../../../services/userService'
 import { NotificationSidePanel } from '../../../components/admin/notification/NotificationSidePanel'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { v4 } from 'uuid'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { Schema } from '../../../../amplify/data/resource'
@@ -40,18 +40,19 @@ function RouteComponent() {
     siParticipants: true, 
     siTags: true 
   }))
-  //TODO: convert me to infinite query
-  const participantsQuery = useQuery(data.UserService.getAllParticipantsQueryOptions({ 
+
+  //TODO: implement infinite query
+  const participantsQuery = useInfiniteQuery(data.UserService.getAllParticipantsQueryOptions({ 
     siNotifications: true, 
     siTags: { 
       siChildren: false,
-      siCollections: false,
       siPackages: false,
       siTimeslots: false
     } 
   }))
-  //TODO: convert me to infinite query
-  const userTagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({ siCollections: false, siTimeslots: false, siNotifications: true }))
+  
+  //TODO: implement infinite query
+  const userTagsQuery = useInfiniteQuery(data.TagService.getAllUserTagsQueryOptions({ siCollections: false, siTimeslots: false, siNotifications: true }))
   
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [selectedNotification, setSelectedNotification] = useState<Notification>()
@@ -66,19 +67,22 @@ function RouteComponent() {
     if(foundNotification) {
       setSelectedNotification(foundNotification)
     }
-  }, [notificationsQuery.data])
-
-  useEffect(() => {
-    if(participantsQuery.data?.some((pPart) => !participants.some((part) => pPart.id === part.id))) {
-      setParticipants(participantsQuery.data)
+    if(
+      userTagsQuery.data !== undefined && (
+        !userTags.some((tag) => userTagsQuery.data.pages[userTagsQuery.data.pages.length - 1].tags.some((pTag) => pTag.id === tag.id)) ||
+        !userTagsQuery.data.pages[userTagsQuery.data.pages.length - 1].tags.some((pTag) => userTags.some((tag) => tag.id === pTag.id))
+      )
+    ) {
+      setUserTags(userTagsQuery.data.pages[userTagsQuery.data.pages.length - 1].tags)
     }
-  }, [participantsQuery.data])
-
-  useEffect(() => {
-    if(userTagsQuery.data?.some((pTag) => !userTags.some((tag) => pTag.id === tag.id))) {
-      setUserTags(userTagsQuery.data)
+    if(participantsQuery.data?.pages) {
+      setParticipants(participantsQuery.data.pages[participantsQuery.data.pages.length - 1].participants)
     }
-  }, [userTagsQuery.data])
+  }, [
+    notificationsQuery.data,
+    userTagsQuery.data,
+    participantsQuery.data
+  ])
 
   return (
     <div className="flex flex-row mx-4 mt-4 gap-4">

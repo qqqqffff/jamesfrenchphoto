@@ -1,14 +1,14 @@
-import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { ComponentProps, Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
 import { Participant, Table, Timeslot, UserData, UserProfile, UserTag } from "../../../types";
 import { HiOutlineCalendar, HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineTag, HiOutlineXMark } from "react-icons/hi2";
 import { currentDate, DAY_OFFSET, defaultColumnColors, formatTime, textInputTheme } from "../../../utils";
 import { formatParticipantName } from "../../../functions/clientFunctions";
-import { useMutation, useQueries, UseQueryResult } from "@tanstack/react-query";
+import { UseMutationResult, useQueries, UseQueryResult } from "@tanstack/react-query";
 import { TimeslotService, AdminRegisterTimeslotMutationParams } from "../../../services/timeslotService";
 import { DateInput } from "../../common/DateInput";
 import { formatTimeslotDates } from "../../../utils";
-import { Dropdown, Label, Radio, TextInput } from "flowbite-react";
-import NotificationComponent from "../../timeslot/NotificationComponent";
+import { Dropdown, Label, Radio, TextInput, Tooltip } from "flowbite-react";
+import { NotificationComponent } from "../../timeslot/NotificationComponent";
 import { ConfirmationModal } from "../../modals";
 import Loading from "../../common/Loading";
 import validator from 'validator'
@@ -16,39 +16,40 @@ import validator from 'validator'
 interface DateCellProps extends ComponentProps<'td'> {
   TimeslotService: TimeslotService
   value: string,
-  updateValue: (text: string) => void,
+  updateValue: (text: string, skipLinks: boolean) => void,
   table: Table,
   linkedParticipantId?: string,
-  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>
   userData: {
     users: UserProfile[]
     tempUsers: UserProfile[]
   }
-  usersQuery: UseQueryResult<UserData[] | undefined, Error>
+  setUsers: Dispatch<SetStateAction<UserData[]>>
+  setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
-  tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
-  updateParticipant: (
-    timeslot: Timeslot,
-    participantId: string,
-    userEmail: string,
-    tempUser: boolean
-  ) => void,
-  selectedDate: Date
+  tags: UserTag[]
+  selectedDate: Date,
   updateDateSelection: Dispatch<SetStateAction<Date>>
   updateTagSelection: Dispatch<SetStateAction<UserTag | undefined>>
+  registerTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
   rowIndex: number,
   columnId: string,
+  search: string,
 }
 
+//TODO: state is not getting updated when rows are reordered
 export const DateCell = (props: DateCellProps) => {
+  const dateRef = useRef<HTMLButtonElement | null>(null)
+  const actionWindowRef = useRef<HTMLDivElement | null>(null)
+
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile, participant: Participant }  | undefined>()
+  
   const [availableTimeslots, setAvailableTimeslots] = useState<Timeslot[]>(props.timeslotsQuery.data ?? [])
-  const [availableTags, setAvailableTags] = useState<UserTag[]>(props.tagsQuery.data ?? [])
   const [filterOption, setFilterOption] = useState<'date' | 'tag'>('date')
   const [selectedTag, setSelectedTag] = useState<UserTag>()
   const [tagSearch, setTagSearch] = useState<string>('')
+
   const [registerConfirmationVisible, setRegisterConfirmationVisible] = useState(false)
   const selectedTimeslot = useRef<Timeslot | null>(null)
   const [notify, setNotify] = useState<boolean>(true)
@@ -56,89 +57,134 @@ export const DateCell = (props: DateCellProps) => {
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([])
   
   useEffect(() => {
-    if(props.value !== value){
-      setValue(props.value)
-    }
-  }, [props.value])
+    if(!props.registerTimeslot.isPending) {
+      let parentValue = props.value !== value ? props.value : value
+      let foundUser: { user: UserProfile, participant: Participant } | undefined = foundParticipant
 
-  useEffect(() => {
-    setFoundParticipant((_) => {
-      if(!props.linkedParticipantId) return undefined
-      let user: UserProfile | undefined
-      let participant = props.userData.users
-        .flatMap((user) => user.participant)
-        .find((participant) => participant.id === props.linkedParticipantId)
-      if(!participant) {
-        participant = props.userData.tempUsers
-          .flatMap((user) => user.participant)
-          .find((participant) => participant.id === props.linkedParticipantId)
+      if(
+        props.linkedParticipantId !== undefined && 
+        (foundUser === undefined || foundUser.participant.id !== props.linkedParticipantId)
+      ) {
+        foundUser = (() => {
+          let user: UserProfile | undefined
+          let participant = props.userData.users
+            .flatMap((user) => user.participant)
+            .find((participant) => participant.id === props.linkedParticipantId)
+          if(!participant) {
+            participant = props.userData.tempUsers
+              .flatMap((user) => user.participant)
+              .find((participant) => participant.id === props.linkedParticipantId)
 
-        if(participant) {
-          user = props.userData.tempUsers.find((profile) => profile.email === participant?.userEmail)!
-          return ({
-            participant: participant,
-            user: user
-          })
-        }
+            if(participant) {
+              user = props.userData.tempUsers.find((profile) => profile.email === participant?.userEmail)!
+              return ({
+                participant: participant,
+                user: user
+              })
+            }
+          }
+          else {
+            user = props.userData.users.find((profile) => profile.email === participant?.userEmail)!
+            return ({
+              participant: participant,
+              user: user
+            })
+          }
+        })() 
       }
-      else {
-        user = props.userData.users.find((profile) => profile.email === participant?.userEmail)!
-        return ({
-          participant: participant,
-          user: user
-        })
+
+      setValue(prev => parentValue !== prev ? parentValue : prev)
+      setFoundParticipant(prev => foundUser !== undefined ? foundUser : prev)
+      setAvailableTimeslots(prev => props.timeslotsQuery.data ? props.timeslotsQuery.data : prev)
+    }
+  }, [
+    props.value,
+    props.linkedParticipantId,
+    props.timeslotsQuery.data,
+    props.registerTimeslot.isPending,
+  ])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if(
+        isFocused &&
+        actionWindowRef.current &&
+        dateRef.current &&
+        !actionWindowRef.current.contains(event.target as Node) &&
+        !dateRef.current.contains(event.target as Node)
+      ) {
+        setIsFocused(false)
+        setFilterOption('date')
+        setSelectedTag(undefined)
+        setTagSearch('')
       }
-      return undefined
-    })
-  }, [
-    props.linkedParticipantId
-  ])
-
-  useEffect(() => {
-    if(props.timeslotsQuery.data) {
-      setAvailableTimeslots(props.timeslotsQuery.data)
     }
-  }, [
-    props.timeslotsQuery.data
-  ])
 
-  useEffect(() => {
-    if(props.tagsQuery.data) {
-      setAvailableTags(props.tagsQuery.data)
+    if(isFocused) {
+      document.addEventListener('mousedown', handleClickOutside)
     }
-  }, [
-    props.tagsQuery
-  ])
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isFocused])
 
+  console.log(props.table.columns.find((column) => column.id === props.columnId), foundParticipant)
+  
   // const updateParticipant = useMutation({
   //   mutationFn: (params: UpdateParticipantMutationParams) => updateParticipantMutation(params)
   // })
 
-  const registerTimeslot = useMutation({
-    mutationFn: (params: AdminRegisterTimeslotMutationParams) => props.TimeslotService.adminRegisterTimeslotMutation(params)
-  })
-
   const cellTimeslotIds = (value.split(',') ?? []).filter((timeslotId) => timeslotId !== '')
+  //TODO: don't have queries here
   const cellTimeslotQueries = useQueries({
     queries: cellTimeslotIds.map((timeslotId) => {
       return props.TimeslotService.getTimeslotByIdQueryOptions(timeslotId, { siTag: true })
     })
   })
 
-  const timeslotValue = (() => {
+  const timeslotValue: ReactNode = (() => {
+    const firstTimeslot = cellTimeslotQueries
+        .map((query) => query.data)
+        .filter((query) => query !== null && query !== undefined)[0]
     if(cellTimeslotQueries.some((query) => query.isLoading)) return 'Loading...'
-    if(cellTimeslotIds.length == 0) return 'No Timeslots'
-    if(cellTimeslotIds.length > 0) {
+    else if(cellTimeslotIds.length === 0) return 'No Timeslots'
+    else if(
+      cellTimeslotIds.length === 1 && 
+      firstTimeslot !== undefined
+    ) {
+      return (
+        <div className="flex flex-col items-center">
+          <span className="text-sm">{new Date(firstTimeslot.start).toLocaleDateString('en-us', { timeZone: 'America/Chicago'})}</span>
+          <span className="text-xs">{formatTimeslotDates(firstTimeslot)}</span>
+        </div>
+      )
+    }
+    else if(cellTimeslotIds.length > 1) {
       return `Timeslots: ${cellTimeslotQueries
         .map((query) => query.data)
-        .filter((query) => query !== null && query !== undefined).length
+        .filter((data) => data !== null && data !== undefined).length
       }`
     }
-    return ''
+    return 'Pick Timeslot(s)...'
   })()
 
-  const filteredTags = availableTags.filter((tag) => tag.name.trim().toLocaleLowerCase().includes(tagSearch.trim().toLocaleLowerCase()))
-  const timeslotRecord: Record<number, Timeslot> = Object.fromEntries(availableTimeslots.map((timeslot) => [timeslot.start.getTime(), timeslot]))
+  const filteredTags = props.tags.filter((tag) => tag.name.trim().toLocaleLowerCase().includes(tagSearch.trim().toLocaleLowerCase()))
+  const filteredTimeslots = availableTimeslots.filter((timeslot) => {
+    if(filterOption === 'date') {
+      const timeslotDate = new Date(timeslot.start)
+      return (
+        timeslotDate.getFullYear() === props.selectedDate.getFullYear() &&
+        timeslotDate.getMonth() === props.selectedDate.getMonth() &&
+        timeslotDate.getDate() === props.selectedDate.getDate()
+      )
+    }
+    else if(filterOption === 'tag' && selectedTag !== undefined) {
+      return timeslot.tag?.id === selectedTag.id
+    }
+    else if(filterOption === 'tag' && selectedTag === undefined) {
+      return timeslot.tag === undefined
+    }
+  })
   const selectedTimeslotParticipant = [...props.userData.users, ...props.userData.tempUsers]
     .reduce((prev, cur) => {
       if(!prev.some((profile) => profile.email === cur.email)) {
@@ -155,6 +201,13 @@ export const DateCell = (props: DateCellProps) => {
     }, [] as Participant[])
     .find((participant) => participant.id === selectedTimeslot.current?.participantId)
 
+  const cellColoring = props.rowIndex % 2 ? foundParticipant ? 'bg-yellow-200 bg-opacity-40' : 'bg-gray-200 bg-opacity-40' : foundParticipant ? 'bg-yellow-100 bg-opacity-20' : '';
+  const selectedSearch = props.search !== '' &&
+  cellTimeslotQueries.some((query) => query.data !== null && query.data !== undefined && (
+    query.data.start.toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase()) ||
+    query.data.end.toLocaleString('en-us', { timeZone: 'America/Chicago' }).toLowerCase().includes(props.search.toLowerCase()) 
+  ))
+
   return (
     <>
       {selectedTimeslot.current && (
@@ -169,8 +222,8 @@ export const DateCell = (props: DateCellProps) => {
           confirmAction={() => {
             //TODO: search for other areas with the edge case of having a register but no participantId
             if(selectedTimeslot.current && foundParticipant) {
-              registerTimeslot.mutate({
-                timeslot: selectedTimeslot.current.id,
+              props.registerTimeslot.mutate({
+                timeslotId: selectedTimeslot.current.id,
                 userEmail: foundParticipant.user.email,
                 participantId: foundParticipant.participant.id,
                 additionalRecipients: foundParticipant.participant.contact && foundParticipant.participant.email ? [foundParticipant.participant.email] : [],
@@ -184,6 +237,8 @@ export const DateCell = (props: DateCellProps) => {
                   logging: true
                 }
               })
+
+
               
               //update state
               let newValue = cellTimeslotIds
@@ -191,17 +246,8 @@ export const DateCell = (props: DateCellProps) => {
                 .reduce((prev, cur) => {
                   return prev + ',' + cur
                 }, '')
-              props.updateValue((newValue.charAt(0) === ',' ? newValue.substring(1) : newValue) + (cellTimeslotIds.length > 0 ? ',' : '') + selectedTimeslot.current.id)
 
-              //update participant state
-              if(foundParticipant) { 
-                props.updateParticipant(
-                  selectedTimeslot.current,
-                  foundParticipant.participant.id,
-                  foundParticipant.user.email,
-                  props.tempUsersQuery.data?.some((user) => user.email === foundParticipant.user.email) ?? false
-                )
-              }
+              props.updateValue((newValue.charAt(0) === ',' ? newValue.substring(1) : newValue) + (cellTimeslotIds.length > 0 ? ',' : '') + selectedTimeslot.current.id, false)
             }
           }}
           children={!foundParticipant ? (
@@ -220,7 +266,8 @@ export const DateCell = (props: DateCellProps) => {
             <NotificationComponent 
               setNotify={setNotify} 
               email={foundParticipant.user.email} 
-              notify={notify} recipients={additionalRecipients} 
+              notify={notify} 
+              recipients={additionalRecipients} 
               setRecipients={setAdditionalRecipients} 
             />
           )}
@@ -245,8 +292,8 @@ export const DateCell = (props: DateCellProps) => {
           confirmAction={async () => {
             //removing register/participant association
             if(selectedTimeslot.current) {
-              registerTimeslot.mutate({
-                timeslot: selectedTimeslot.current.id,
+              props.registerTimeslot.mutate({
+                timeslotId: selectedTimeslot.current.id,
                 notify: false,
                 unregister: true,
                 participantId: '',
@@ -256,6 +303,8 @@ export const DateCell = (props: DateCellProps) => {
                   logging: true
                 }
               })
+
+
               
               //update state
               let newValue = cellTimeslotIds
@@ -264,17 +313,7 @@ export const DateCell = (props: DateCellProps) => {
                   return prev + ',' + cur
                 }, '')
 
-              props.updateValue(newValue.charAt(0) === ',' ? newValue.substring(1) : newValue)
-
-              //update super participant state
-              if(foundParticipant) {
-                props.updateParticipant(
-                  selectedTimeslot.current,
-                  foundParticipant.participant.id,
-                  foundParticipant.user.email,
-                  props.tempUsersQuery.data?.some((user) => user.email === foundParticipant.user.email) ?? false
-                )
-              }
+              props.updateValue(newValue.charAt(0) === ',' ? newValue.substring(1) : newValue, true)
             }
           }}
           title="Confirm Unregistration"
@@ -284,24 +323,26 @@ export const DateCell = (props: DateCellProps) => {
       )}
       <td className={`
         text-ellipsis border py-3 px-3 max-w-[150px]
-        ${foundParticipant !== undefined ? 'bg-yellow-50 bg-opacity-40' : ''}
+        ${selectedSearch ? 'outline outline-green-400' : ''}
+        ${cellColoring}
       `}>
-        <input
-          placeholder="Pick Timeslots..."
-          className="
-            font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
-            border py-0.5 focus:outline-none placeholder:text-gray-400 placeholder:italic
-            hover:cursor-pointer
-          "
-          value={timeslotValue}
+        <button
+          ref={dateRef}
+          className={`
+            font-thin p-0 text-sm border-transparent ring-transparent w-full border
+          `}
           onFocus={() => setIsFocused(true)}
-          readOnly
-        />
+        >
+          {timeslotValue}
+        </button>
         {isFocused && (
-          <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
+          <div 
+            className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]"
+            ref={actionWindowRef}
+          >
             <div className="w-full whitespace-nowrap border-b p-1 text-base self-center flex flex-row justify-between">
               {foundParticipant ? (
-                <span>Linked with: {formatParticipantName(foundParticipant.participant)}</span>
+                <span className="me-2">Linked with: {formatParticipantName(foundParticipant.participant)}</span>
               ) : (
                 <span>Pick Timeslot(s)</span>
               )}
@@ -338,84 +379,80 @@ export const DateCell = (props: DateCellProps) => {
                 </button>
               </div>
             </div>
-            {props.tagsQuery.isLoading || props.usersQuery.isLoading || props.tempUsersQuery.isLoading || cellTimeslotQueries.some((query) => query.isLoading) ? (  
+            {cellTimeslotQueries.some((query) => query.isLoading) ? (  
               <div className="flex flex-row">
                 <span>Loading</span>
                 <Loading />
               </div>
             ) : ( 
               <>
-                <div className="w-full px-2 py-2 flex flex-row gap-2 justify-between border-b">
+                <div className="w-full px-2 py-2 flex flex-row gap-2 justify-center border-b">
                   {filterOption === 'tag' ? (
-                    <>
-                      <div />
-                      {/* TODO: convert me to a tag picker */}
-                        <Dropdown 
-                          dismissOnClick={false}
-                          // onChange={(event) => event.stopPropagation()}
-                          label={selectedTag ? (
-                            <span 
-                              className={`
-                                bg-${selectedTag.color ? defaultColumnColors[selectedTag.color].bg : 'white'} 
-                                text-${selectedTag.color ? defaultColumnColors[selectedTag.color].text : 'black'}
-                              `}
-                            >{selectedTag.name}</span>
-                          ) : (
-                            'Pick Tag'
-                          )}
-                          size="xs"
-                          color="light"
-                          placement="left"
-                        >
-                          <div className="max-h-[150px] overflow-auto ">
-                            <div className="py-1 px-2">
-                              <TextInput 
-                              // key press and stop the propegation
-                                theme={textInputTheme}
-                                sizing="sm"
-                                type="text"
-                                placeholder="Search..."
-                                value={tagSearch}
-                                onKeyDown={(event) => {
-                                  event.stopPropagation()
-                                }}
-                                onChange={(event) => setTagSearch(event.target.value)}
-                                className="w-full"
-                              />
-                            </div>
-                            <Dropdown.Divider />
-                            {filteredTags.length > 0 ? (
-                              filteredTags.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                              .map((tag, index) => {
-                                return (
-                                  <Dropdown.Item 
-                                    key={index} 
-                                    onClick={() => {
-                                      setSelectedTag(tag)
-                                      props.updateTagSelection(tag)
-                                    }} 
-                                    className={`
-                                      bg-${tag.color ? defaultColumnColors[tag.color].bg : 'white'} 
-                                      text-${tag.color ? defaultColumnColors[tag.color].text : 'black'}
-                                      ${tag.color ? defaultColumnColors[tag.color].hover : ''}
-                                      flex flex-row items-center gap-2
-                                    `}
-                                  >
-                                    <Radio readOnly onClick={() => {
-                                      setSelectedTag(tag)
-                                      props.updateTagSelection(tag)
-                                    }} checked={selectedTag?.id === tag.id} className={`text-${tag.color ?? 'black'}`}/>
-                                    <span>{tag.name}</span>
-                                  </Dropdown.Item>
-                                )
-                              })
-                            ) : (
-                              <Dropdown.Item disabled>No Matching Tags</Dropdown.Item>
-                            )}
-                          </div>
-                        </Dropdown>
-                      <div />
-                    </>
+                      // {/* TODO: convert me to a tag picker */}
+                    <Dropdown 
+                      dismissOnClick={false}
+                      // onChange={(event) => event.stopPropagation()}
+                      label={selectedTag ? (
+                        <span 
+                          className={`
+                            bg-${selectedTag.color ? defaultColumnColors[selectedTag.color].bg : 'white'} 
+                            text-${selectedTag.color ? defaultColumnColors[selectedTag.color].text : 'black'}
+                          `}
+                        >{selectedTag.name}</span>
+                      ) : (
+                        'Pick Tag'
+                      )}
+                      size="xs"
+                      color="light"
+                      placement="left"
+                    >
+                      <div className="max-h-[150px] overflow-auto ">
+                        <div className="py-1 px-2">
+                          <TextInput 
+                          // key press and stop the propegation
+                            theme={textInputTheme}
+                            sizing="sm"
+                            type="text"
+                            placeholder="Search..."
+                            value={tagSearch}
+                            onKeyDown={(event) => {
+                              event.stopPropagation()
+                            }}
+                            onChange={(event) => setTagSearch(event.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                        <Dropdown.Divider />
+                        {filteredTags.length > 0 ? (
+                          filteredTags.sort((a, b) => a.name.localeCompare(b.name))
+                          .map((tag, index) => {
+                            return (
+                              <Dropdown.Item 
+                                key={index} 
+                                onClick={() => {
+                                  setSelectedTag(tag)
+                                  props.updateTagSelection(tag)
+                                }} 
+                                className={`
+                                  bg-${tag.color ? defaultColumnColors[tag.color].bg : 'white'} 
+                                  text-${tag.color ? defaultColumnColors[tag.color].text : 'black'}
+                                  ${tag.color ? defaultColumnColors[tag.color].hover : ''}
+                                  flex flex-row items-center gap-2
+                                `}
+                              >
+                                <Radio readOnly onClick={() => {
+                                  setSelectedTag(tag)
+                                  props.updateTagSelection(tag)
+                                }} checked={selectedTag?.id === tag.id} className={`text-${tag.color ?? 'black'}`}/>
+                                <span>{tag.name}</span>
+                              </Dropdown.Item>
+                            )
+                          })
+                        ) : (
+                          <Dropdown.Item disabled>No Matching Tags</Dropdown.Item>
+                        )}
+                      </div>
+                    </Dropdown>
                   ) : (
                     <>
                       <div className="flex flex-row"> 
@@ -496,6 +533,55 @@ export const DateCell = (props: DateCellProps) => {
                   )}
                 </div>
                 <div className="flex flex-col gap-2 px-2 py-2 max-h-[150px] overflow-auto">
+                  {cellTimeslotQueries
+                  .map((query) => query.data)
+                  .filter((query) => query !== null && query !== undefined)
+                  .map((timeslot, index) => {
+                    return (
+                      timeslot.tag !== undefined ? (
+                        <Tooltip
+                          key={index} 
+                          style="light"
+                          theme={{ target: undefined }}
+                          content={<span className={`text-${timeslot.tag.color}`}>{timeslot.tag.name}</span>}
+                        >
+                          <button 
+                            disabled={props.registerTimeslot.isPending}
+                            className={`
+                              flex flex-col border w-full rounded-lg items-center py-1 
+                              enabled:hover:bg-gray-100 bg-gray-300 
+                              disabled:bg-gray-200 disabled:cursor-not-allowed
+                              text-${timeslot.tag.color}
+                            `}
+                            onClick={() => {
+                              selectedTimeslot.current = timeslot
+                              setRegisterConfirmationVisible(true)
+                            }}
+                          >
+                            <span className={`whitespace-nowrap text-nowrap font-semibold`}>{formatTime(timeslot.start, {timeString: false})}</span>
+                            <span className={`text-xs whitespace-nowrap text-nowrap font-semibold`}>{formatTimeslotDates(timeslot)}</span>
+                          </button>
+                        </Tooltip>
+                      ): (
+                        <button 
+                          key={index}
+                          disabled={props.registerTimeslot.isPending}
+                          className={`
+                            flex flex-col border w-full rounded-lg items-center py-1 
+                            enabled:hover:bg-gray-100 bg-gray-300 
+                            disabled:bg-gray-200 disabled:cursor-not-allowed
+                          `}
+                          onClick={() => {
+                            selectedTimeslot.current = timeslot
+                            setRegisterConfirmationVisible(true)
+                          }}
+                        >
+                          <span className={`whitespace-nowrap text-nowrap font-semibold`}>{formatTime(timeslot.start, {timeString: false})}</span>
+                          <span className={`text-xs whitespace-nowrap text-nowrap font-semibold`}>{formatTimeslotDates(timeslot)}</span>
+                        </button>
+                      )
+                    )
+                  })}
                   {(availableTimeslots.length == 0 || (filterOption === 'tag' && selectedTag === undefined)) && (
                     <div className="flex flex-col w-full items-center py-1">
                       <span className="text-nowrap">{filterOption === 'tag' && selectedTag === undefined ? 
@@ -505,63 +591,56 @@ export const DateCell = (props: DateCellProps) => {
                       }</span>
                     </div>
                   )}
-                  {cellTimeslotQueries.map((query) => query.data).filter((query) => query !== null && query !== undefined).map((timeslot, index) => {
-                    return (
-                      <button 
-                        className="flex flex-col border w-full rounded-lg items-center py-1 hover:bg-gray-100 bg-gray-300" 
-                        key={index} 
-                        onClick={() => {
-                          selectedTimeslot.current = timeslot
-                          setRegisterConfirmationVisible(true)
-                        }}
-                      >
-                        <span className={`whitespace-nowrap text-nowrap font-semibold`}>{formatTime(timeslot.start, {timeString: false})}</span>
-                        <span className={`text-xs whitespace-nowrap text-nowrap font-semibold`}>{formatTimeslotDates(timeslot)}</span>
-                      </button>
-                    )
-                  })}
-                  {filterOption === 'tag' ? (
-                    availableTimeslots.flatMap((timeslot) => timeslot.start).sort((a, b) => {
-                      const diffA = Math.abs(a.getTime() - currentDate.getTime());
-                      const diffB = Math.abs(b.getTime() - currentDate.getTime());
-                      return diffA - diffB;
-                    })
-                    .filter((date) => !cellTimeslotQueries.flatMap((query) => query.data).some((timeslot) => timeslot?.id === timeslotRecord[date.getTime()].id))
-                    .map((date, index) => {
-                      const timeslot = timeslotRecord[date.getTime()]
+                  {filteredTimeslots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+                    .filter((timeslot) => !cellTimeslotQueries.flatMap((query) => query.data)
+                      .filter((timeslot) => timeslot !== null && timeslot !== undefined)
+                      .some((cellTimeslot) => cellTimeslot.id === timeslot.id)
+                    ).map((timeslot, index) => {
+                      const register = [
+                        ...props.userData.users,
+                        ...props.userData.tempUsers
+                      ].find((user) => (
+                        user.email === timeslot.register || 
+                        user.participant.some((participant) => participant.id === timeslot.participantId))
+                      )
+                      const foundRegisterParticipant = register !== undefined ? register.participant.find((participant) => participant.id === timeslot.participantId) : undefined
+                      const tag = props.tags.find((tag) => tag.id === timeslot.tag?.id)
+
                       return (
-                        <button 
-                          className="flex flex-col border w-full rounded-lg items-center py-1 hover:bg-gray-100" 
-                          key={index} 
-                          onClick={() => {
-                            selectedTimeslot.current = timeslot
-                            setRegisterConfirmationVisible(true)
-                          }}
+                        <Tooltip
+                          key={index}
+                          style="light"
+                          theme={{ target: undefined }}
+                          content={(
+                            <div className="text-xs italic text-gray-700 whitespace-nowrap flex flex-col">
+                              {register !== undefined && (<span>{foundRegisterParticipant ? formatParticipantName(foundRegisterParticipant) : register.email}</span>)}
+                              {tag !== undefined ? (
+                                <span className={`text-${tag.color ?? 'black'}`}>{tag.name}</span>
+                              ) : (
+                                <span>No Tag</span>
+                              )}
+                            </div>
+                          )}
                         >
-                          <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId !== undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>
-                          <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId != undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{formatTimeslotDates(timeslot)}</span>
-                        </button>
+                          <button 
+                            disabled={props.registerTimeslot.isPending}
+                            className={`
+                              flex flex-col border w-full rounded-lg items-center py-1 enabled:hover:bg-gray-100
+                              disabled:bg-gray-200 disabled:cursor-not-allowed
+                              text-${tag?.color ?? 'black'}
+                            `}
+                            onClick={() => {
+                              selectedTimeslot.current = timeslot
+                              setRegisterConfirmationVisible(true)
+                            }}
+                          >
+                            <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId !== undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>
+                            <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId != undefined || timeslot.register !== undefined ? 'line-through' : ''}`}>{formatTimeslotDates(timeslot)}</span>
+                          </button>
+                        </Tooltip>
                       )
                     })
-                  ) : (
-                    availableTimeslots
-                    .filter((timeslot) => !cellTimeslotQueries.flatMap((query) => query.data).some((cellTimeslot) => cellTimeslot?.id === timeslot.id))
-                    .map((timeslot, index) => {
-                      return (
-                        <button 
-                          className="flex flex-col border w-full rounded-lg items-center py-1" 
-                          key={index} 
-                          onClick={() => {
-                            selectedTimeslot.current = timeslot
-                            setRegisterConfirmationVisible(true)
-                          }}
-                        >
-                          <span className={`whitespace-nowrap text-nowrap ${timeslot.participantId ? 'line-through' : ''}`}>{formatTime(timeslot.start, {timeString: false})}</span>
-                          <span className={`text-xs whitespace-nowrap text-nowrap ${timeslot.participantId ? 'line-through' : ''}`}>{formatTimeslotDates(timeslot)}</span>
-                        </button>
-                      )
-                    })
-                  )}
+                  }
                 </div>
               </>
             )}

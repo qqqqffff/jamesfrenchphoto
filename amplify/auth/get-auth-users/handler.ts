@@ -6,21 +6,17 @@ type Handler = Schema['GetAuthUsers']['functionHandler']
 const client = new CognitoIdentityProviderClient()
 
 export const handler: Handler = async (event) => {
+    const paginationToken = event.arguments.paginationToken ? event.arguments.paginationToken : undefined
+
     const command = new ListUsersCommand({
         UserPoolId: env.AMPLIFY_AUTH_USERPOOL_ID,
+        PaginationToken: paginationToken,
     })
     let response = await client.send(command)
 
-    let aggregatedResponse = [response]
-    while(response.PaginationToken){
-        const paginatedCommand = new ListUsersCommand({
-            UserPoolId: env.AMPLIFY_AUTH_USERPOOL_ID,
-            PaginationToken: response.PaginationToken
-        })
-        response = await client.send(paginatedCommand)
 
-        aggregatedResponse.push(response)
+    return {
+        response: response,
+        paginationToken: response.PaginationToken
     }
-
-    return aggregatedResponse
 }

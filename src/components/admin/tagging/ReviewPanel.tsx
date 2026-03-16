@@ -4,13 +4,14 @@ import { FormStep } from "./BuilderForm"
 import { HiOutlineChevronRight, HiOutlineChevronDown } from 'react-icons/hi2'
 import { CollectionItem } from "./CollectionItem"
 import { SlotComponent } from "../../timeslot/Slot"
-import { UseQueryResult } from "@tanstack/react-query"
+import { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query"
 import { ParticipantItem } from "./ParticipantItem"
+import { GetAllParticipantsData } from "../../../services/userService"
 
 //TODO: shows the children tags and associated package if any
 interface ReviewPanelProps {
   selectedTag: UserTag
-  participantQuery: UseQueryResult<Participant[] | undefined, Error>
+  participantsQuery: UseInfiniteQueryResult<InfiniteData<GetAllParticipantsData, unknown>, Error>
 }
 export const ReviewPanel = (props: ReviewPanelProps) => {
   const [sections, setSections] = useState<{
@@ -62,6 +63,15 @@ export const ReviewPanel = (props: ReviewPanelProps) => {
 
     return returnGroup
   })()
+
+  const participants = (props.participantsQuery.data?.pages ?? []).reduce((prev, cur) => {
+    cur.participants.forEach((cParticipant) => {
+      if(!prev.some((participant) => participant.id === cParticipant.id)) {
+        prev.push(cParticipant)
+      }
+    })
+    return prev
+  }, [] as Participant[])
 
   return (
     <div className="flex flex-row px-10">
@@ -183,9 +193,7 @@ export const ReviewPanel = (props: ReviewPanelProps) => {
                         className="w-full"
                         key={jindex}
                         timeslot={timeslot}
-                        participant={props.participantQuery.data
-                          ?.find((participant) => participant.id === timeslot.participantId)
-                        }
+                        participant={participants.find((participant) => participant.id === timeslot.participantId)}
                         tag={props.selectedTag}
                       />
                     )

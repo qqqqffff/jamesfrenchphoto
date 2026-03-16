@@ -4,8 +4,11 @@ import { Badge, Label, Tooltip } from "flowbite-react";
 import { badgeColorThemeMap, defaultColumnColors, normalizeDate } from "../../utils";
 import { HiOutlineArrowLeft, HiOutlineArrowRight, HiOutlineInformationCircle } from "react-icons/hi"
 import { Timeslot } from "../../types";
+import { useNavigate } from "@tanstack/react-router";
 
 const component: FC<TimeslotDisplayProps> = ({timeslots, tags, setActiveDate, activeDate, setActiveTag, activeTag, formatTimeslot, formatRegisteredTimeslot }) => {
+  const navigate = useNavigate()
+
   return (
     <div className="grid grid-cols-6 gap-4 font-main mt-6">
       <div className="flex flex-col ms-4 border border-gray-400 rounded-lg px-6 py-2 gap-2">
@@ -27,6 +30,7 @@ const component: FC<TimeslotDisplayProps> = ({timeslots, tags, setActiveDate, ac
                   const index = tags.findIndex((tag) => tag.id === activeTag.id)
                   const newTag = index === -1 ? tags[0] : index - 1 < 0 ? tags[tags.length - 1] : tags[index - 1]
                   setActiveTag(newTag)
+                  navigate({ to: '.', search: { tagId: newTag.id }})
                 }}
               >
                 <HiOutlineArrowLeft />
@@ -40,6 +44,7 @@ const component: FC<TimeslotDisplayProps> = ({timeslots, tags, setActiveDate, ac
                   const index = tags.findIndex((tag) => tag.id === activeTag.id)
                   const newTag = index === -1 ? tags[0] : index + 1 >= tags.length ? tags[0] : tags[index + 1]
                   setActiveTag(newTag)
+                  navigate({ to: '.', search: { tagId: newTag.id }})
                 }}
               >
                 <HiOutlineArrowRight />

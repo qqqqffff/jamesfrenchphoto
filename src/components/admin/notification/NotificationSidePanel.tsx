@@ -18,6 +18,7 @@ interface NotificationSidePanelProps {
 export const NotificationSidePanel = (props: NotificationSidePanelProps) => {
   const [filter, setFilter] = useState('')
   const [openedTags, setOpenedTags] = useState<UserTag[]>([])
+  const [untaggedOpenned, setUntaggedOpen] = useState(false)
   const navigate = useNavigate()
 
   const notificationMap: Record<string, Notification> = Object.fromEntries(
@@ -167,6 +168,105 @@ export const NotificationSidePanel = (props: NotificationSidePanelProps) => {
             </div>
           )
         })
+      )}
+      {props.notifications.filter((notification) => ((
+        notification.tags.length === 0 &&
+        notification.content.toLowerCase().trim().includes(filter.toLowerCase().trim())
+      ))).length > 0 && (
+        <div className="flex flex-col w-full gap-2">
+          <div className='flex flex-row items-center w-full'>
+            <button 
+              className={`
+                flex flex-row gap-2 justify-between items-center w-full px-2 py-1 border 
+                border-transparent rounded-lg hover:text-gray-500 hover:border-gray-200
+              `}
+              onClick={() => setUntaggedOpen(!untaggedOpenned)}
+            >
+              <div className="flex flex-row items-center text-lg font-light gap-2">
+                <span>Untagged</span>
+              </div>
+              {untaggedOpenned ? (
+                <HiOutlineChevronDown size={20} />
+              ) : (
+                <HiOutlineChevronLeft size={20} />
+              )}
+            </button>
+          </div>
+          {untaggedOpenned && 
+          props.notifications.filter((notification) => ((
+            notification.tags.length === 0 &&
+            notification.content.toLowerCase().trim().includes(filter.toLowerCase().trim())
+          ))).map((notification, i) => {
+            const notificationSelected = props.selectedNotification?.id === notification.id
+            const notificationState: 'expired' | 'not-expired' | 'no-expiration' = (() => {
+              if(notification.expiration) {
+                const expirationDate = new Date(notification.expiration)
+                if(!isNaN(expirationDate.getTime())) {
+                  if(currentDate.getTime() < expirationDate.getTime()) {
+                    return 'not-expired'
+                  }
+                  else {
+                    return 'expired'
+                  }
+                }
+                return 'no-expiration'
+              }
+              else {
+                return 'no-expiration'
+              }
+            })()
+            return (
+              <button
+                key={i}
+                className={`
+                  flex flex-row justify-between px-4 py-2 border border-gray-400
+                  hover:border-gray-700 ${notificationSelected ? 'bg-gray-200 hover:bg-gray-100' : 'hover:bg-gray-200'}
+                  rounded-lg w-full font-thin
+                `}
+                onClick={() => {
+                  props.parentUpdateSelectedNotification(notificationSelected ? undefined : notification)
+                  if(!notificationSelected) {
+                    navigate({ to: '.', search: { notificationId: notification.id }})
+                  }
+                  else {
+                    navigate({ to: '.', search: { notificationId: '' }})
+                  }
+                }}
+              >
+                <span className='max-w-[60%] overflow-hidden whitespace-nowrap text-ellipsis'>{notification.content}</span>
+                <div className="flex flex-row gap-2 items-center">
+                  <span>{formatTime(new Date(notification.updatedAt), { timeString: false })}</span>
+                  <Tooltip
+                    style="light"
+                    placement="bottom"
+                    content={(
+                      <div>
+                        {notificationState === 'expired' ? (
+                          `Expired ${formatTime(new Date(new Date(notification.expiration!).getTime() + DAY_OFFSET), { timeString: false })}`
+                        ) : (
+                        notificationState === 'not-expired' ? (
+                          `Expires ${formatTime(new Date(new Date(notification.expiration!).getTime() + DAY_OFFSET), { timeString: false })}`
+                        ) : (
+                          'No Expiration'
+                        ))}
+                      </div>
+                    )}
+                  >
+                    {notificationState === 'expired' ? (
+                      <FcExpired size={20} />
+                    ) : (
+                    notificationState === 'not-expired' ? (
+                      <FcClock size={20} />
+                    ) : (
+                      <HiOutlineClock className="text-gray-500" size={20}/>
+                    ))}
+                  </Tooltip>
+                </div>
+                
+              </button>
+            )
+          })}
+        </div>
       )}
     </>
   )

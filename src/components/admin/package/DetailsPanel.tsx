@@ -3,7 +3,7 @@ import { textInputTheme } from "../../../utils"
 import { Package, UserTag } from "../../../types"
 import { Dispatch, SetStateAction } from "react"
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea"
-import { TagPicker } from "./TagPicker"
+import { TagPicker } from "../../common/TagPicker"
 import { PriceInput } from "../../common/PriceInput"
 
 interface DetailsPanelProps {

@@ -1,10 +1,10 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { TimeslotService, RegisterTimeslotMutationParams } from '../../../services/timeslotService'
 import { useEffect, useState } from 'react'
-import { currentDate, formatTime, formatTimeslotDates, normalizeDate, sortDatesAround } from '../../../utils'
+import { currentDate, formatTime, formatTimeslotDates, normalizeDate } from '../../../utils'
 import { Timeslot, UserTag } from '../../../types'
 import { ConfirmationModal } from '../../../components/modals'
-import NotificationComponent from '../../../components/timeslot/NotificationComponent'
+import { NotificationComponent } from '../../../components/timeslot/NotificationComponent'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { SlotComponent } from '../../../components/timeslot/Slot'
 import useWindowDimensions from '../../../hooks/windowDimensions'
@@ -14,7 +14,7 @@ import { useAuth } from '../../../auth'
 import { Schema } from '../../../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
 import validator from 'validator'
-import { Alert } from 'flowbite-react'
+import { Alert, Tooltip } from 'flowbite-react'
 
 interface SchedulerParams {
   tagId?: string
@@ -64,10 +64,7 @@ function RouteComponent() {
     }, userTags[0])
   )
 
-  const [activeDate, setActiveDate] = useState<Date>(sortDatesAround(
-    (timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).map((timeslot) => {
-      return normalizeDate(timeslot.start)
-    }), currentDate)[0] ?? currentDate)
+  const [activeDate, setActiveDate] = useState<Date>(currentDate)
   const [selectedTimeslot, setSelectedTimeslot] = useState<Timeslot>()
   const [registrationResponse, setRegistrationResponse] = useState<{ status: 'Fail' | 'Success', error?: string }>()
   
@@ -78,26 +75,27 @@ function RouteComponent() {
   const [notifyAdditionalRecipients, setNotifyAdditionalRecipients] = useState<string[]>([])
   const { width } = useWindowDimensions()
 
+  //automatically setting date based on the closest date to present
   useEffect(() => {
+    const timeslotsData = (timeslots.data ?? [])
+      .filter((timeslot) => timeslot !== undefined)
+      .filter((timeslot) => timeslot.tag?.id === activeTag.id)
+      .sort((a, b) => {
+        if(a.start.getTime() < currentDate.getTime()) {
+          return -1
+        }
+        else if(b.start.getTime() < currentDate.getTime()) {
+          return 1
+        }
+        return a.start.getTime() - b.start.getTime()
+      })
     const foundTag = userTags.find((tag) => tag.id === data.tagId)
+    if(timeslotsData.length > 0 && timeslotsData[0].start !== undefined) { 
+      setActiveDate(timeslotsData[0].start) 
+    }
     if(activeTag.id !== data.tagId && foundTag !== undefined) {
       setActiveTag(foundTag)
     }
-  }, [data.tagId])
-
-  //automatically setting date based on the closest date to present
-  useEffect(() => {
-    if((timeslots.data ?? []).filter((timeslot) => timeslot.tag?.id === activeTag.id).length > 0) { 
-      setActiveDate(new Date((timeslots.data ?? [])
-      .filter((timeslot) => timeslot.tag?.id === activeTag.id)
-      .sort((a, b) => {
-        if(new Date(a.start).getTime() < currentDate.getTime()) return 1
-        return new Date(a.start).getTime() - new Date(b.start).getTime()
-      })[0].start)) 
-    }
-  }, [timeslots.data, activeTag])
-
-  useEffect(() => {
     if(
       participant.contact && 
       participant.email && 
@@ -106,14 +104,20 @@ function RouteComponent() {
     ) {
       setNotifyAdditionalRecipients([...notifyAdditionalRecipients, participant.email])
     }
-  }, [participant])
+  }, [
+    timeslots.data, 
+    activeTag,
+    data.tagId,
+    participant
+  ])
 
-  const registerTimeslot= useMutation({
+  const registerTimeslot = useMutation({
     mutationFn: (params: RegisterTimeslotMutationParams) => data.TimeslotService.registerTimeslotMutation(params)
   })
 
   function FormattedTimeslots() {
     return (timeslots.data ?? [])
+      .filter((timeslot) => timeslot !== undefined)
       .filter((timeslot) => {
         return activeDate.toISOString().includes(timeslot.start.toISOString().substring(0, timeslot.start.toISOString().indexOf('T')))
       })
@@ -135,17 +139,20 @@ function RouteComponent() {
         ? 'bg-gray-200' : '')
         const alreadyRegistered = (timeslots.data ?? [])
           .find((tagTimeslot) => (
-            (tagTimeslot.participantId === participant.id || tagTimeslot.register === userProfile.email) && 
+            (tagTimeslot?.participantId === participant.id || tagTimeslot?.register === userProfile.email) && 
             tagTimeslot?.tag?.id === tag?.id
           ))
         
+        let participantDisabled = 
+          (timeslot.register !== undefined && userProfile.email !== timeslot.register) &&
+          (timeslot.participantId !== undefined && (userProfile.activeParticipant?.id ?? userProfile.participant[0].id ?? participant.id) !== timeslot.participantId)
+        let pastedDateDisabled = currentDate.getTime() > activeDate.getTime()
+        let alreadyRegisteredDisabled = (alreadyRegistered !== undefined && timeslot.id !== alreadyRegistered.id)
+
         let disabled = 
-          (
-            (timeslot.register !== undefined && userProfile.email !== timeslot.register) &&
-            (timeslot.participantId !== undefined && (userProfile.activeParticipant?.id ?? userProfile.participant[0].id ?? participant.id) !== timeslot.participantId)
-          ) || 
-          currentDate > activeDate ||
-          (alreadyRegistered !== undefined && timeslot.id !== alreadyRegistered.id)
+          participantDisabled ||
+          pastedDateDisabled ||
+          alreadyRegisteredDisabled
 
         const disabledText = disabled ? 'line-through cursor-not-allowed' : ''
 
@@ -160,7 +167,18 @@ function RouteComponent() {
               setSelectedTimeslot(timeslot)
             }
           }} disabled={disabled} className={`${selected} rounded-lg enabled:hover:bg-gray-300 ${disabledText}`}>
-            <SlotComponent timeslot={{...timeslot, tag: tag }} tag={tag} participant={null} />
+            {disabled ? (
+              <Tooltip
+                style='light'
+                placement='bottom'
+                theme={{ target: undefined }}
+                content={(<span className='text-xs italic whitespace-nowrap font-sans'>{pastedDateDisabled ? 'You can only register for future timeslots.' : alreadyRegisteredDisabled ? 'Only one timeslot is allowed per user.' : 'This timeslot has been taken by another user.'}</span>)}
+              >
+                <SlotComponent timeslot={{...timeslot, tag: tag }} tag={tag} participant={null} />
+              </Tooltip>
+            ) : (
+              <SlotComponent timeslot={{...timeslot, tag: tag }} tag={tag} participant={null} />
+            )}
           </button>
         )
       })
@@ -168,6 +186,7 @@ function RouteComponent() {
 
   function FormattedRegisteredTimeslots(){
     return (timeslots.data ?? [])
+      .filter((timeslot) => timeslot !== undefined)
       .filter((timeslot) => timeslot.participantId === participant.id)
       .map((timeslot, index) => {
         const tag = userTags.find((tag) => tag.id === timeslot.tag?.id)
@@ -262,6 +281,7 @@ function RouteComponent() {
           recipients={notifyAdditionalRecipients}
         />)}
         title="Confirm Timeslot Selection" 
+        //TODO: update short notice rebooking with cancelation fee / noshow fee
         body={`<b>Registration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nMake sure that this is the right timeslot for you, since you only have one!${shortNoticeRebook ? '\nRescheduling within a 48 hours of the selected date will incur an additional short notice rescheduling fee.' : ''}`}
       />
       <ConfirmationModal open={unregisterConfirmationVisible} onClose={() => setUnegisterConfirmationVisible(false)}
@@ -306,7 +326,7 @@ function RouteComponent() {
             })
           }
         }}
-        title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}.</b>\nAre you sure you want to unregister from this timeslot?`} 
+        title="Confirm Unregistration" body={`<b>Unregistration for Timeslot: ${selectedTimeslot?.start.toLocaleDateString("en-us", { timeZone: 'America/Chicago' })} at ${formatTime(selectedTimeslot?.start, {timeString: true})} - ${formatTime(selectedTimeslot?.end, {timeString: true})}</b>\nAre you sure you want to unregister from this timeslot?`} 
       />
       {registrationResponse !== undefined && (
         <div className={`relative top-8 ${ width > 1200 ? 'left-[20%] w-[60%]' : 'left-[12.5%] w-[75%]'} z-10`}>
@@ -321,12 +341,16 @@ function RouteComponent() {
       )} 
       {width > 1200 ? (
         <FullSizeTimeslot 
-          timeslots={(timeslots.data ?? []).map((timeslot) => ({
-            ...timeslot,
-            tag: userProfile.participant
-              .find((participant) => participant.id === userProfile.activeParticipant?.id)
-              ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
-          }))}
+          timeslots={
+            (timeslots.data ?? [])
+            .filter((timeslot) => timeslot !== undefined)
+            .map((timeslot) => ({
+              ...timeslot,
+              tag: userProfile.participant
+                .find((participant) => participant.id === userProfile.activeParticipant?.id)
+                ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
+            }))
+          }
           activeDate={activeDate}
           setActiveDate={setActiveDate}
           tags={userTags}
@@ -339,12 +363,16 @@ function RouteComponent() {
         />
       ) : (
         <SmallSizeTimeslot
-          timeslots={(timeslots.data ?? []).map((timeslot) => ({
-            ...timeslot,
-            tag: userProfile.participant
-              .find((participant) => participant.id === userProfile.activeParticipant?.id)
-              ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
-          }))}
+          timeslots={
+            (timeslots.data ?? [])
+            .filter((timeslot) => timeslot !== undefined)
+            .map((timeslot) => ({
+              ...timeslot,
+              tag: userProfile.participant
+                .find((participant) => participant.id === userProfile.activeParticipant?.id)
+                ?.userTags.find((tag) => tag.id === timeslot.tag?.id)
+            }))
+          }
           activeDate={activeDate}
           setActiveDate={setActiveDate}
           tags={userTags}

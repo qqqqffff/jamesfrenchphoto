@@ -1,45 +1,33 @@
 import { queryOptions } from "@tanstack/react-query";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
-import { Timeslot, UserTag } from "../types";
+import { APIMutationResponse, BaseAPIParams, Timeslot, UserTag } from "../types";
+import { DateTime } from "luxon";
+import { TagService } from "./tagService";
+import { Duration } from "luxon";
 
-//TODO: add metricing
 interface MapTimeslotOptions {
   siTag?: {
+    TagService: TagService,
     memo: UserTag[]
   } //only allow shallow mapping
 }
 export async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], options?: MapTimeslotOptions): Promise<Timeslot> {
-  let mappedTag: UserTag | undefined
+  let mappedTag: UserTag | undefined = options?.siTag?.memo.find((tag) => tag.id === timeslotResponse.tagId)
 
-  if (options?.siTag !== undefined) {
-    const taggingResponse = await timeslotResponse.timeslotTag()
-    if (taggingResponse.data !== null) {
-      const foundTag = options.siTag.memo.find((tag) => tag.id === taggingResponse.data?.tagId)
-      if (foundTag) {
-        mappedTag = foundTag
-      }
-      else {
-        const tagResponse = await taggingResponse.data.tag()
-        if (tagResponse.data) {
-          mappedTag = {
-            ...tagResponse.data,
-            color: tagResponse.data?.color ?? undefined,
-            //shallow only
-            children: [],
-            notifications: [],
-            participants: []
-          }
-          options.siTag.memo.push(mappedTag)
-        }
-      }
-    }
+  if (options?.siTag !== undefined && mappedTag === undefined && timeslotResponse?.tagId !== null) {
+    mappedTag = (await options.siTag.TagService.getTagById(timeslotResponse.tagId)) ?? undefined
   }
 
   const mappedTimeslot: Timeslot = {
     ...timeslotResponse,
     description: timeslotResponse.description ?? undefined,
     register: timeslotResponse.register ?? undefined,
+    noshowFee: timeslotResponse.noshowFee ?? undefined,
+    cancelationFee: timeslotResponse.cancelationFee ? {
+      amount: timeslotResponse.cancelationFee.amount,
+      window: Duration.fromISO(timeslotResponse.cancelationFee.window)
+    } : undefined,
     start: new Date(timeslotResponse.start),
     end: new Date(timeslotResponse.end),
     participantId: timeslotResponse.participantId ?? undefined,
@@ -49,52 +37,108 @@ export async function mapTimeslot(timeslotResponse: Schema['Timeslot']['type'], 
   return mappedTimeslot
 }
 
-async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date) {
-  console.log('api call')
-  const timeslots: Timeslot[] = (await Promise.all((await client.models.Timeslot.list({
-    filter: {
-      start: { contains: date.toISOString().substring(0, date.toISOString().indexOf('T')) }
-    }
-  })).data.map(async (timeslot) => {
+interface GetAllTimeslotsByDateOptions extends BaseAPIParams{ 
+  siTag?: boolean 
+}
+
+async function getAllTimeslotsByDate(client: V6Client<Schema>, date: Date, options?: GetAllTimeslotsByDateOptions) {
+  if(options?.options?.logging) console.log('api call')
+
+  let timeslotResponse = await client.models.Timeslot.listTimeslotByStartDate({
+    startDate: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy')
+  })
+
+  const timeslotData = timeslotResponse.data
+
+  while(timeslotResponse.nextToken) {
+    timeslotResponse = await client.models.Timeslot.listTimeslotByStartDate({
+      startDate: DateTime.fromJSDate(date).toFormat('MM-dd-yyyy')
+    }, {
+      nextToken: timeslotResponse.nextToken
+    })
+
+    timeslotData.push(...timeslotResponse.data)
+  }
+
+  const tagMemo: UserTag[] = []
+
+  const timeslots: Timeslot[] = (await Promise.all(timeslotData.map(async (timeslot) => {
     if (timeslot === undefined ||
       timeslot.id === undefined ||
       timeslot.start === undefined ||
       timeslot.end === undefined
     ) return
-    const tsTagResponse = await timeslot.timeslotTag()
-    let tag: UserTag | undefined
-    if (tsTagResponse && tsTagResponse.data) {
-      const tagResponse = await tsTagResponse.data.tag()
-      if (tagResponse && tagResponse.data) {
-        tag = {
-          ...tagResponse.data,
-          color: tagResponse.data.color ?? undefined,
-          notifications: undefined,
-          //TODO: implement children
-          children: [],
-          participants: []
-        }
-      }
-    }
-
-    const mappedTimeslot: Timeslot = {
-      id: timeslot.id as string,
-      register: timeslot.register ?? undefined,
-      participantId: timeslot.participantId ?? undefined,
-      description: timeslot.description ?? undefined,
-      start: new Date(timeslot.start),
-      end: new Date(timeslot.end),
-      tag: tag,
+    const mappedTimeslot = await mapTimeslot(
+      timeslot, 
+      options?.siTag ? { 
+        siTag: { 
+          memo: tagMemo,
+          TagService: new TagService(client)
+        } 
+      } : undefined
+    )
+    if(mappedTimeslot.tag && !tagMemo.some((tag) => tag.id === mappedTimeslot.tag?.id)) {
+      tagMemo.push(mappedTimeslot.tag)
     }
     return mappedTimeslot
   })))
-    .filter((timeslot) => timeslot !== undefined)
-    .sort((a, b) => a.start.getTime() - b.start.getTime())
+  .filter((timeslot) => timeslot !== undefined)
+  .sort((a, b) => a.start.getTime() - b.start.getTime())
+
   return timeslots
 }
 
-export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, tagId?: string) {
-  console.log('api call')
+interface GetAllTimeslotsByMonthOptions extends GetAllTimeslotsByDateOptions { }
+
+async function getAllTimeslotsByMonth(client: V6Client<Schema>, date: Date, options?: GetAllTimeslotsByMonthOptions) {
+  if(options?.options?.logging) console.log('api call')
+
+  let timeslotResponse = await client.models.Timeslot.listTimeslotByStartMonth({
+    startMonth: DateTime.fromJSDate(date).toFormat('MM-yyyy'),
+  })
+
+  const timeslotData = timeslotResponse.data
+
+  while(timeslotResponse.nextToken) {
+    timeslotResponse = await client.models.Timeslot.listTimeslotByStartMonth({
+      startMonth: DateTime.fromJSDate(date).toFormat('MM-yyyy'),
+    }, {
+      nextToken: timeslotResponse.nextToken
+    })
+
+    timeslotData.push(...timeslotResponse.data)
+  }
+
+  const tagMemo: UserTag[] = []
+
+  const timeslots: Timeslot[] = (await Promise.all(timeslotData.map(async (timeslot) => {
+    if (timeslot === undefined ||
+      timeslot.id === undefined ||
+      timeslot.start === undefined ||
+      timeslot.end === undefined
+    ) return
+    const mappedTimeslot = await mapTimeslot(
+      timeslot, 
+      options?.siTag ? { 
+        siTag: { 
+          memo: tagMemo,
+          TagService: new TagService(client)
+        } 
+      } : undefined
+    )
+    if(mappedTimeslot.tag && !tagMemo.some((tag) => tag.id === mappedTimeslot.tag?.id)) {
+      tagMemo.push(mappedTimeslot.tag)
+    }
+    return mappedTimeslot
+  })))
+  .filter((timeslot) => timeslot !== undefined)
+  .sort((a, b) => a.start.getTime() - b.start.getTime())
+
+  return timeslots
+}
+
+export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, tagId?: string, options?: BaseAPIParams) {
+  if(options?.options?.logging) console.log('api call')
   if (!tagId) return []
   let timeslotTagsResponse = await client.models.TimeslotTag.listTimeslotTagByTagId({ tagId: tagId })
   let timeslotTagsData = timeslotTagsResponse.data
@@ -108,22 +152,8 @@ export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, tagId?:
     .map(async (timeslotTag) => {
       const timeslot = await timeslotTag.timeslot()
       if (!timeslot || !timeslot.data) return
-      //TODO: use timeslot mapping function
-      const mappedTimeslot: Timeslot = {
-        ...timeslot.data,
-        description: timeslot.data.description ?? undefined,
-        start: new Date(timeslot.data.start),
-        end: new Date(timeslot.data.end),
-        register: timeslot.data.register ?? undefined,
-        participantId: timeslot.data.participantId ?? undefined,
-        tag: {
-          id: tagId,
-          participants: [],
-          children: [],
-          name: '',
-          createdAt: new Date().toISOString()
-        }
-      }
+      const mappedTimeslot = await mapTimeslot(timeslot.data)
+
       return mappedTimeslot
     })
   )).filter((timeslot) => timeslot !== undefined)
@@ -143,11 +173,7 @@ async function getAllTimeslotsByUserTagList(client: V6Client<Schema>, userTagIds
   return timeslots
 }
 
-interface GetAllUntaggedTimeslotsOptions {
-  logging?: boolean
-  metric?: boolean
-}
-async function getAllUntaggedTimeslots(client: V6Client<Schema>, options?: GetAllUntaggedTimeslotsOptions): Promise<Timeslot[]> {
+async function getAllUntaggedTimeslots(client: V6Client<Schema>, options?: BaseAPIParams): Promise<Timeslot[]> {
   const start = new Date()
 
   let timeslotsResponse = await client.models.Timeslot.list()
@@ -158,77 +184,73 @@ async function getAllUntaggedTimeslots(client: V6Client<Schema>, options?: GetAl
     timeslotsData.push(...timeslotsResponse.data)
   }
 
-  if (options?.logging) console.log(timeslotsData)
+  if (options?.options?.logging) console.log(timeslotsData)
 
   const filteredTimeslots = await Promise.all(
     (await Promise.all(timeslotsData.filter(async (timeslot) => {
       const taggingResponse = (await timeslot.timeslotTag()).data
-      if (options?.logging) console.log(taggingResponse)
+      if (options?.options?.logging) console.log(taggingResponse)
       return taggingResponse === null
     }))).map(async (timeslot) => mapTimeslot(timeslot, { siTag: undefined }))
   )
 
-  if (options?.logging) console.log(filteredTimeslots)
+  if (options?.options?.logging) console.log(filteredTimeslots)
 
-  if (options?.metric) console.log(`GETALLUNTAGGEDTIMESLOTS:${new Date().getTime() - start.getTime()}ms`)
+  if (options?.options?.metric) console.log(`GETALLUNTAGGEDTIMESLOTS:${new Date().getTime() - start.getTime()}ms`)
   //no register / participant without a tag
   return filteredTimeslots
 }
 
-interface GetTimeslotByIdOptions {
+interface GetTimeslotByIdOptions extends BaseAPIParams {
   siTag?: boolean
-  logging?: boolean,
-  metric?: boolean,
-}
-async function getTimeslotById(client: V6Client<Schema>, timeslotId: string, options?: GetTimeslotByIdOptions): Promise<Timeslot | null> {
-  if(timeslotId === '') return null
-  const start = new Date()
-  const timeslotResponse = await client.models.Timeslot.get({ id: timeslotId })
-  if (!timeslotResponse.data) return null
-  if (options?.metric) console.log(`GETTIMESLOTBYID:${new Date().getTime() - start.getTime()}ms`)
-  return mapTimeslot(timeslotResponse.data, {
-    siTag: options?.siTag ? {
-      memo: []
-    } : undefined
-  })
 }
 
-export interface CreateTimeslotsMutationParams {
+export interface CreateTimeslotsMutationParams extends BaseAPIParams{
   timeslots: Timeslot[],
-  options?: {
-    logging?: boolean
-  }
 }
-
-export interface UpdateTimeslotsMutationParams {
+export interface UpdateTimeslotsMutationParams extends BaseAPIParams {
   timeslots: Timeslot[]
   previousTimeslots: Timeslot[]
-  options?: {
-    logging?: boolean
-  }
 }
 
-export interface DeleteTimeslotsMutationParams {
+export interface UpdateTimeslotMutationParams extends BaseAPIParams {
+  timeslot: Timeslot,
+  description?: string,
+  register?: string,
+  participantId?: string,
+  start: Date,
+  end: Date,
+  userTag?: UserTag,
+  noShowFee?: number,
+  cancelationFee?: {
+    amount: number,
+    window: Duration
+  },
+}
+
+export interface DeleteTimeslotsMutationParams extends BaseAPIParams {
   timeslots: Timeslot[]
-  options?: {
-    logging?: boolean
-  }
 }
 
-export interface RegisterTimeslotMutationParams {
+export interface DeleteTimeslotMutationParams extends BaseAPIParams{
+  timeslot: Timeslot
+}
+
+export interface RegisterTimeslotMutationParams extends BaseAPIParams {
   timeslot: Timeslot,
   participantId: string,
   userEmail: string,
   unregister: boolean,
   additionalRecipients: string[]
   notify: boolean,
-  options?: {
-    logging: boolean
-  }
 }
 
 export interface AdminRegisterTimeslotMutationParams extends Omit<RegisterTimeslotMutationParams, 'timeslot'> {
-  timeslot: string
+  timeslotId: string
+}
+
+export interface SendTimeslotConfirmationParams extends Omit<AdminRegisterTimeslotMutationParams, 'notify' | 'unregister'> { 
+  bypassTagValidation?: boolean
 }
 
 export class TimeslotService {
@@ -238,21 +260,31 @@ export class TimeslotService {
   }
 
   async createTimeslotsMutation(params: CreateTimeslotsMutationParams) {
-    const response = await Promise.all(params.timeslots.map((timeslot) => {
-
+    const response = await Promise.all(params.timeslots.map(async (timeslot) => {
+      const formattedDate = DateTime.fromJSDate(timeslot.start)
       return [
-        this.client.models.Timeslot.create({
+        await this.client.models.Timeslot.create({
           id: timeslot.id,
           start: timeslot.start.toISOString(),
           end: timeslot.end.toISOString(),
-          description: timeslot.description
+          description: timeslot.description,
+          tagId: timeslot.tag?.id,
+          startDate: formattedDate.toFormat('MM-dd-yyyy'),
+          startMonth: formattedDate.toFormat('MM-yyyy'),
+          noshowFee: timeslot.noshowFee,
+          cancelationFee: timeslot.cancelationFee ? {
+            amount: timeslot.cancelationFee.amount,
+            window: timeslot.cancelationFee.window.toISO() ?? Duration.fromObject({ hours: 48 }).toISO()
+          } : undefined,
         }),
-        timeslot.tag ? this.client.models.TimeslotTag.create({
+        timeslot.tag ? await this.client.models.TimeslotTag.create({
           timeslotId: timeslot.id,
           tagId: timeslot.tag.id
         }) : undefined
       ]
     }))
+
+      
 
     if (params.options?.logging) console.log(response)
   }
@@ -265,7 +297,7 @@ export class TimeslotService {
   timeslots are the new timeslots that overlap with the previous
   previous are just the previous version that are being updated
   */
-  async updateTimeslotMutation(params: UpdateTimeslotsMutationParams) {
+  async updateTimeslotsMutation(params: UpdateTimeslotsMutationParams) {
     const response = await Promise.all(params.timeslots.map(async (timeslot) => {
       const previousTimeslot = params.previousTimeslots.find((pTimeslot) => pTimeslot.id === timeslot.id)
 
@@ -368,6 +400,76 @@ export class TimeslotService {
     if (params.options?.logging) console.log(response)
   }
 
+  async updateTimeslotMutation(params: UpdateTimeslotMutationParams) {
+    const start = new Date().getTime()
+    if(
+      params.timeslot.description !== params.description ||
+      params.timeslot.register !== params.register ||
+      params.timeslot.participantId !== params.participantId ||
+      params.timeslot.start.toISOString() !== params.start.toISOString() ||
+      params.timeslot.end.toISOString() !== params.end.toISOString() ||
+      params.timeslot.noshowFee !== params.noShowFee ||
+      (
+        (params.timeslot.cancelationFee !== undefined && params.cancelationFee === undefined) ||
+        (params.timeslot.cancelationFee === undefined && params.cancelationFee !== undefined) || (
+          params.timeslot.cancelationFee?.amount !== params.cancelationFee?.amount ||
+          params.timeslot.cancelationFee?.window.toISO() !== params.timeslot.cancelationFee?.window.toISO()
+        )
+      ) ||
+      params.timeslot.tag?.id !== params.userTag?.id
+    ) {
+      const date = DateTime.fromJSDate(params.start)
+      const updateResponse = await this.client.models.Timeslot.update({
+        id: params.timeslot.id,
+        register: params.register ?? null,
+        participantId: params.participantId ?? null,
+        description: params.description ?? null,
+        startDate: date.toFormat('MM-dd-yyyy'),
+        startMonth: date.toFormat('MM-yyyy'),
+        start: params.start.toISOString(),
+        end: params.start.toISOString(),
+        noshowFee: params.noShowFee ?? null,
+        cancelationFee: params.cancelationFee ? {
+          amount: params.cancelationFee.amount,
+          window: params.cancelationFee.window.toISO()!
+        } : null,
+        tagId: params.userTag?.id ?? null,
+      })
+      if(params.options?.logging) console.log(updateResponse)
+
+      const previousTaggingResponse = new Promise<boolean>(async (resolve) => {
+        if(updateResponse.data && params.timeslot.tag?.id !== undefined && params.timeslot.tag.id !== params.userTag?.id) {
+          const timeslotTagResponse = await updateResponse.data.timeslotTag()
+          if(params.options?.logging) console.log(timeslotTagResponse)
+          if(timeslotTagResponse.data) {
+            const deleteTimeslotResponse = await this.client.models.TimeslotTag.delete({ id: timeslotTagResponse.data.id })
+            if(params.options?.logging) console.log(deleteTimeslotResponse)
+          }
+        }
+        resolve(true)
+      })
+
+      const currentTaggingResponse = new Promise<boolean>(async (resolve) => {
+        if(params.userTag !== undefined && params.timeslot.tag?.id !== params.userTag.id) {
+          const timeslotTagResponse = await this.client.models.TimeslotTag.create({
+            timeslotId: params.timeslot.id,
+            tagId: params.userTag.id
+          })
+          if(params.options?.logging) console.log(timeslotTagResponse)
+        }
+        resolve(true)
+      })
+
+      if(params.options?.metric) {
+        await Promise.all([
+          previousTaggingResponse,
+          currentTaggingResponse
+        ])
+        console.log(`UPDATETIMESLOT:${new Date().getTime() - start}ms`)
+      }
+    }
+  }
+
   async deleteTimeslotsMutation(params: DeleteTimeslotsMutationParams) {
     const response = await Promise.all(params.timeslots.map(async (timeslot) => {
       if (timeslot.tag) {
@@ -391,10 +493,8 @@ export class TimeslotService {
     if (params.options?.logging) console.log(response)
   }
 
-  //TODO: convert me into a lambda function
-  //TODO: also handle errors with email sending
   //TODO: validate that the current user is able to register to this timeslot by receiving first
-  async registerTimeslotMutation(params: RegisterTimeslotMutationParams): Promise<{ status: 'Success' | 'Fail', error?: string }> {
+  async registerTimeslotMutation(params: RegisterTimeslotMutationParams): Promise<APIMutationResponse> {
     if(!params.timeslot.tag) return { status: 'Fail', error: 'Unable to register for a timeslot with no tag' }
     
     const response = await this.client.mutations.RegisterTimeslot({
@@ -407,7 +507,7 @@ export class TimeslotService {
     if (params.options?.logging) console.log(response)
     if (!response.data) return { status: 'Fail', error: 'Failed to register for timeslot.' }
     try {
-      const parsedResponse: { status: 'Fail' | 'Success', error?: string } = JSON.parse(response.data.toString())
+      const parsedResponse: APIMutationResponse = JSON.parse(response.data.toString())
       if(params.options?.logging) console.log(parsedResponse.status === 'Success', params.notify, !params.unregister)
       if(parsedResponse.status === 'Success' && params.notify && !params.unregister) {
         //continue with registration
@@ -436,8 +536,95 @@ export class TimeslotService {
     }
   }
 
+  async sendTimeslotConfirmation(params: SendTimeslotConfirmationParams): Promise<APIMutationResponse> {
+    const getTimeslotResponse = await this.client.models.Timeslot.get({ id: params.timeslotId })
+    if(!getTimeslotResponse.data) {
+      return { status: 'Fail', error: 'Timeslot for this id does not exist.'}
+    }
+
+    const timeslotTag = getTimeslotResponse.data.tagId
+
+    //participant tag ownership validation
+    if(timeslotTag !== null && !params.bypassTagValidation) {
+      let getParticipantTagIdsResponse = await this.client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({ participantId: params.participantId })
+      const getParticipantTagIdsData = getParticipantTagIdsResponse.data
+
+      while(getParticipantTagIdsResponse.nextToken) {
+        getParticipantTagIdsResponse = await this.client.models.ParticipantUserTag.listParticipantUserTagByParticipantId({
+          participantId: params.participantId,
+        }, {
+          nextToken: getParticipantTagIdsResponse.nextToken
+        })
+        getParticipantTagIdsData.push(...getParticipantTagIdsResponse.data)
+      }
+
+      if(!getParticipantTagIdsData.some((tag) => tag.tagId === timeslotTag)) {
+        return { status: 'Fail', error: 'Participant does not own the tag required for registration.' }
+      }
+    }
+
+    const response = await this.client.queries.SendTimeslotConfirmation({
+      email: params.userEmail,
+      start: getTimeslotResponse.data.start,
+      end: getTimeslotResponse.data.end,
+      additionalRecipients: params.additionalRecipients,
+      tagId: getTimeslotResponse.data.tagId,
+      participantId: params.participantId,
+    }, {
+      authMode: 'userPool'
+    })
+
+    if(response.data === null) return { status: 'Success', error: 'Failed to send confirmation email.'}
+        
+    const emailParsedResponse: { success: boolean } = JSON.parse(response.data.toString())
+    if(!emailParsedResponse.success) {
+      return { status: 'Success', error: 'Failed to send confirmation email.'}
+    }
+    return { status: 'Success' }
+}
+
+  async getTimeslotById(timeslotId: string, options?: GetTimeslotByIdOptions): Promise<Timeslot | null> {
+    if(timeslotId === '') return null
+    const start = new Date()
+    const timeslotResponse = await this.client.models.Timeslot.get({ id: timeslotId })
+    if (!timeslotResponse.data) return null
+    if (options?.options?.metric) console.log(`GETTIMESLOTBYID:${new Date().getTime() - start.getTime()}ms`)
+    return mapTimeslot(timeslotResponse.data, {
+      siTag: options?.siTag ? {
+        memo: [],
+        TagService: new TagService(this.client)
+      } : undefined
+    })
+  }
+
+  async getTimeslotsByParticipantId(participantId: string, options?: GetTimeslotByIdOptions): Promise<Timeslot[]> {
+    const returnArray: Timeslot[] = []
+
+    let timeslotResponse = await this.client.models.Timeslot.listTimeslotByParticipantId({ participantId: participantId })
+    const timeslotData = timeslotResponse.data
+
+    while(timeslotResponse.nextToken) {
+      timeslotResponse = await this.client.models.Timeslot.listTimeslotByParticipantId({ participantId: participantId }, { nextToken: timeslotResponse.nextToken })
+      timeslotData.push(...timeslotResponse.data)
+    }
+
+    await Promise.all(timeslotData.map(async (timeslot) => {
+      if(timeslot) {
+        const mappedTimeslot = await mapTimeslot(timeslot, {
+          siTag: options?.siTag ? {
+            memo: [],
+            TagService: new TagService(this.client)
+          } : undefined
+        })
+        returnArray.push(mappedTimeslot)
+      }
+    }))
+
+    return returnArray.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  }
+
   async adminRegisterTimeslotMutation(params: AdminRegisterTimeslotMutationParams): Promise<Timeslot | null> {
-    const getTimeslot = await getTimeslotById(this.client, params.timeslot, { siTag: true })
+    const getTimeslot = await this.getTimeslotById(params.timeslotId, { siTag: true })
 
     if(getTimeslot === null) return null
 
@@ -469,9 +656,58 @@ export class TimeslotService {
     return returnedTimeslot
   }
 
-  getAllTimeslotsByDateQueryOptions = (date: Date) => queryOptions({
-    queryKey: ['timeslot', date],
-    queryFn: () => getAllTimeslotsByDate(this.client, date)
+  async deleteTimeslot(params: DeleteTimeslotMutationParams): Promise<APIMutationResponse> {
+    const response = await this.client.models.Timeslot.delete({ id: params.timeslot.id })
+    if(response.data) {
+      if(params.timeslot.tag?.id !== undefined) {
+        const timeslotTagResponse = await this.client.models.TimeslotTag.listTimeslotTagByTimeslotId({ timeslotId: params.timeslot.id })
+        if(timeslotTagResponse.data) {
+          const response = await Promise.all(
+            timeslotTagResponse.data
+            .filter((data) => data.tagId === params.timeslot.tag?.id)
+            .map((timeslotTag) => this.client.models.TimeslotTag.delete({ id: timeslotTag.id }))
+          )
+          if(response.length > 0) {
+            return {
+              status: 'Success'
+            }
+          }
+          else {
+            return {
+              status: 'Success',
+              error: 'Failed to delete timeslot tag association.'
+            }
+          }
+        }
+        return {
+          status: 'Success',
+          error: 'Failed to get timeslot tag association'
+        }
+      }
+      return {
+        status: 'Success'
+      }
+    }
+    else if(response.errors) {
+      return {
+        status: 'Fail',
+        error: response.errors.map((error) => error.message).join(', ')
+      }
+    }
+    return { 
+      status: 'Fail',
+      error: 'Failed to delete timeslot.'
+    }
+  }
+
+  getAllTimeslotsByDateQueryOptions = (date: Date, options?: GetAllTimeslotsByDateOptions) => queryOptions({
+    queryKey: ['timeslot-date', date],
+    queryFn: () => getAllTimeslotsByDate(this.client, date, options)
+  })
+
+  getAllTimeslotsByMonthQueryOptions = (date: Date, options?: GetAllTimeslotsByMonthOptions) => queryOptions({
+    queryKey: ['timeslots-month', date],
+    queryFn: () => getAllTimeslotsByMonth(this.client, date, options)
   })
 
   getAllTimeslotsByUserTagQueryOptions = (tagId?: string) => queryOptions({
@@ -484,13 +720,13 @@ export class TimeslotService {
     queryFn: () => getAllTimeslotsByUserTagList(this.client, userTagIds)
   })
 
-  getAllUntaggedTimeslotsQueryOptions = (options?: GetAllUntaggedTimeslotsOptions) => queryOptions({
+  getAllUntaggedTimeslotsQueryOptions = (options?: BaseAPIParams) => queryOptions({
     queryKey: ['untaggedTimeslots', options],
     queryFn: () => getAllUntaggedTimeslots(this.client, options)
   })
 
   getTimeslotByIdQueryOptions = (timeslotId: string, options?: GetTimeslotByIdOptions) => queryOptions({
     queryKey: ['timeslot', timeslotId],
-    queryFn: () => getTimeslotById(this.client, timeslotId, options)
+    queryFn: () => this.getTimeslotById(timeslotId, options)
   })
 }

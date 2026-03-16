@@ -1,5 +1,5 @@
-import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
-import { Participant, PhotoCollection, Timeslot, UserTag } from "../../../types";
+import { InfiniteData, UseInfiniteQueryResult, useMutation, useQuery, UseQueryResult } from "@tanstack/react-query";
+import { PhotoCollection, Timeslot, UserTag } from "../../../types";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Alert, Button, FlowbiteColors } from "flowbite-react";
 import { DynamicStringEnumKeysOf } from "../../../utils";
@@ -11,7 +11,8 @@ import { TimeslotsPanel } from "./TimeslotsPanel";
 import { UsersPanel } from "./UsersPanel";
 import { ReviewPanel } from "./ReviewPanel";
 import { evaluateTagDif } from "../../../functions/tagFunctions";
-import { CreateTagParams, TagService, UpdateTagParams } from "../../../services/tagService";
+import { CreateTagParams, GetAllUserTagsData, TagService, UpdateTagParams } from "../../../services/tagService";
+import { GetAllParticipantsData } from "../../../services/userService";
 
 interface BuilderFormProps {
   CollectionService: CollectionService,
@@ -19,13 +20,15 @@ interface BuilderFormProps {
   TagService: TagService,
   selectedTag: UserTag,
   queriedTag?: UserTag,
-  tagsQuery: UseQueryResult<UserTag[] | undefined, Error>
+  tagsQuery: UseInfiniteQueryResult<InfiniteData<GetAllUserTagsData, unknown>, Error>
   parentUpdateSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
   parentUpdateTagList: Dispatch<SetStateAction<UserTag[]>>
+  //TODO: implement infinite query
+  participantsQuery: UseInfiniteQueryResult<InfiniteData<GetAllParticipantsData, unknown>, Error>
   //TODO: convert me to infinite query
   collectionListQuery: UseQueryResult<PhotoCollection[] | undefined, Error>
   timeslotListQuery: UseQueryResult<Timeslot[] | undefined, Error>
-  participantsQuery: UseQueryResult<Participant[] | undefined, Error>
+  
 }
 
 export enum FormStep {
@@ -301,19 +304,19 @@ export const BuilderForm = (props: BuilderFormProps) => {
             selectedTag={props.selectedTag}
             parentUpdateTag={props.parentUpdateSelectedTag}
             timeslotQuery={props.timeslotListQuery}
-            participantQuery={props.participantsQuery}
+            participantsQuery={props.participantsQuery}
           />
         ) : (
         formStep === FormStep.Users ? (
           <UsersPanel 
             selectedTag={props.selectedTag}
             parentUpdateTag={props.parentUpdateSelectedTag}
-            participantQuery={props.participantsQuery}
+            participantsQuery={props.participantsQuery}
           />
         ) : (
           <ReviewPanel 
             selectedTag={props.selectedTag}
-            participantQuery={props.participantsQuery}
+            participantsQuery={props.participantsQuery}
           />
         ))))}
         <div className="w-full flex flex-row items-center justify-end gap-2 col-start-2 mt-4 pe-10">

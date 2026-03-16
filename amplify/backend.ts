@@ -3,8 +3,8 @@ import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
 import { PublicStorage } from './custom/public-storage/resource';
-import { addPublicPhoto } from './functions/add-public-photo/resource';
-import { deletePublicPhoto } from './functions/delete-public-photo/resource';
+import { addPublicPhoto } from './functions/collections/add-public-photo/resource';
+import { deletePublicPhoto } from './functions/collections/delete-public-photo/resource';
 import { customMessage } from './auth/custom-message/resource';
 
 /**
