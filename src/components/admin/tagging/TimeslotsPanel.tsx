@@ -2,17 +2,18 @@ import { Dispatch, SetStateAction, useState } from "react"
 import { currentDate, normalizeDate } from "../../../utils"
 import { Datepicker, Label } from "flowbite-react"
 import { Participant, Timeslot, UserTag } from "../../../types"
-import { UseQueryResult } from "@tanstack/react-query"
+import { InfiniteData, UseInfiniteQueryResult, UseQueryResult } from "@tanstack/react-query"
 import { SlotComponent } from "../../timeslot/Slot"
 import { Link } from "@tanstack/react-router"
 import Loading from "../../common/Loading"
 import { DateTime } from "luxon"
+import { GetAllParticipantsData } from "../../../services/userService"
 
 interface TimeslotsPanelProps {
   selectedTag: UserTag
   parentUpdateTag: Dispatch<SetStateAction<UserTag | undefined>>
   timeslotQuery: UseQueryResult<Timeslot[] | undefined, Error>
-  participantQuery: UseQueryResult<Participant[] | undefined, Error>
+  participantsQuery: UseInfiniteQueryResult<InfiniteData<GetAllParticipantsData, unknown>, Error>
 }
 export const TimeslotsPanel = (props: TimeslotsPanelProps) => {
   const [filterDate, setFilterDate] = useState<Date>()
@@ -22,6 +23,15 @@ export const TimeslotsPanel = (props: TimeslotsPanelProps) => {
       filterDate === undefined || 
       normalizeDate(filterDate).getTime() === normalizeDate(timeslot.end).getTime())
     ) && !props.selectedTag.timeslots?.some((pTimeslot) => pTimeslot.id === timeslot.id))
+
+  const participants = (props.participantsQuery.data?.pages ?? []).reduce((prev, cur) => {
+    cur.participants.forEach((cParticipant) => {
+      if(!prev.some((participant) => participant.id === cParticipant.id)) {
+        prev.push(cParticipant)
+      }
+    })
+    return prev
+  }, [] as Participant[])
 
   return (
     <div className="flex flex-col items-center justify-center w-full gap-4">
@@ -77,9 +87,7 @@ export const TimeslotsPanel = (props: TimeslotsPanelProps) => {
                       >
                         <SlotComponent 
                           timeslot={timeslot} 
-                          participant={props.participantQuery.data
-                            ?.find((participant) => participant.id === timeslot.participantId)
-                          } 
+                          participant={participants.find((participant) => participant.id === timeslot.participantId)} 
                           tag={undefined} 
                         />
                       </button>
@@ -116,9 +124,7 @@ export const TimeslotsPanel = (props: TimeslotsPanelProps) => {
                 >
                   <SlotComponent 
                     timeslot={timeslot} 
-                    participant={props.participantQuery.data
-                      ?.find((participant) => participant.id === timeslot.participantId) 
-                    } 
+                    participant={participants.find((participant) => participant.id === timeslot.participantId)} 
                     tag={props.selectedTag} 
                   />
                 </button>

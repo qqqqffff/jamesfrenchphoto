@@ -40,8 +40,9 @@ function RouteComponent() {
     siParticipants: true, 
     siTags: true 
   }))
-  //TODO: convert me to infinite query
-  const participantsQuery = useQuery(data.UserService.getAllParticipantsQueryOptions({ 
+
+  //TODO: implement infinite query
+  const participantsQuery = useInfiniteQuery(data.UserService.getAllParticipantsQueryOptions({ 
     siNotifications: true, 
     siTags: { 
       siChildren: false,
@@ -74,8 +75,8 @@ function RouteComponent() {
     ) {
       setUserTags(userTagsQuery.data.pages[userTagsQuery.data.pages.length - 1].tags)
     }
-    if(participantsQuery.data?.some((pPart) => !participants.some((part) => pPart.id === part.id))) {
-      setParticipants(participantsQuery.data)
+    if(participantsQuery.data?.pages) {
+      setParticipants(participantsQuery.data.pages[participantsQuery.data.pages.length - 1].participants)
     }
   }, [
     notificationsQuery.data,

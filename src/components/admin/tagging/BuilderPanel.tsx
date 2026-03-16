@@ -1,5 +1,5 @@
 import { InfiniteData, UseInfiniteQueryResult, UseQueryResult } from "@tanstack/react-query";
-import { Participant, PhotoCollection, Timeslot, UserTag } from "../../../types";
+import { PhotoCollection, Timeslot, UserTag } from "../../../types";
 import { Dispatch, SetStateAction, useState } from "react";
 import { v4 } from "uuid";
 import { HiOutlinePlusCircle } from "react-icons/hi2";
@@ -8,6 +8,7 @@ import Loading from "../../common/Loading";
 import { CollectionService } from "../../../services/collectionService";
 import { TimeslotService } from "../../../services/timeslotService";
 import { GetAllUserTagsData, TagService } from "../../../services/tagService";
+import { GetAllParticipantsData } from "../../../services/userService";
 
 interface BuilderPanelProps {
   CollectionService: CollectionService,
@@ -18,7 +19,7 @@ interface BuilderPanelProps {
   parentUpdateTagList: Dispatch<SetStateAction<UserTag[]>>
   collectionListQuery: UseQueryResult<PhotoCollection[] | undefined, Error>
   timeslotListQuery: UseQueryResult<Timeslot[] | undefined, Error>
-  participantsQuery: UseQueryResult<Participant[] | undefined, Error>
+  participantsQuery: UseInfiniteQueryResult<InfiniteData<GetAllParticipantsData, unknown>, Error>
 }
 
 //TODO: implement infinite query

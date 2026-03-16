@@ -1,6 +1,6 @@
 import { Dispatch, FC, SetStateAction, useEffect, useRef, useState } from "react"
 import { UserTag, Watermark, PhotoCollection, PhotoSet, ShareTemplate } from "../../../types"
-import { useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQueries, useQuery, UseQueryResult } from "@tanstack/react-query"
 import { Dropdown, Label, Tooltip } from "flowbite-react"
 import { CollectionThumbnail } from "./CollectionThumbnail"
 import { HiOutlineCog6Tooth, HiOutlinePlusCircle, HiOutlineTrash } from "react-icons/hi2"
@@ -161,7 +161,8 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     }
   })
 
-  const participants = useQuery(UserService.getAllParticipantsQueryOptions({ 
+  //TODO: implement infinite query
+  const participants = useInfiniteQuery(UserService.getAllParticipantsQueryOptions({ 
     siTags: { },
     siCollections: true
   }))
@@ -900,7 +901,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                 collection={collection}
                 parentUpdateCollection={updateParentCollection}
                 parentUpdateCollections={updateParentCollections}
-                participants={participants.data ?? []}
+                participants={participants.data  && participants.data.pages.length > 0 ? participants.data.pages[participants.data.pages.length - 1].participants : []}
                 collectionParticipants={collectionParticipants}
                 userTags={availableTags}
                 updateCollectionMutation={updateCollection}

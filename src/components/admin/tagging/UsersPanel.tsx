@@ -1,20 +1,30 @@
 import { Dispatch, SetStateAction, useState } from "react"
 import { Participant, UserTag } from "../../../types"
-import { UseQueryResult } from "@tanstack/react-query"
+import { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query"
 import { TextInput } from "flowbite-react"
 import { textInputTheme } from "../../../utils"
 import Loading from "../../common/Loading"
 import { ParticipantItem } from "./ParticipantItem"
+import { GetAllParticipantsData } from "../../../services/userService"
 
 interface UsersPanelProps {
   selectedTag: UserTag
   parentUpdateTag: Dispatch<SetStateAction<UserTag | undefined>>
-  participantQuery: UseQueryResult<Participant[] | undefined, Error>
+  participantsQuery: UseInfiniteQueryResult<InfiniteData<GetAllParticipantsData, unknown>, Error>
 }
 export const UsersPanel = (props: UsersPanelProps) => {
   const [search, setSearch] = useState<string>('')
 
-  const filteredItems: Participant[] = (props.participantQuery.data ?? [])
+  const participants = (props.participantsQuery.data?.pages ?? []).reduce((prev, cur) => {
+    cur.participants.forEach((cParticipant) => {
+      if(!prev.some((participant) => participant.id === cParticipant.id)) {
+        prev.push(cParticipant)
+      }
+    })
+    return prev
+  }, [] as Participant[])
+
+  const filteredItems: Participant[] = participants
     .sort((a, b) => a.firstName.localeCompare(b.firstName))
     .filter((participant) => (
       participant.firstName.trim().toLowerCase().includes(search.trim().toLowerCase()) ||
@@ -48,7 +58,7 @@ export const UsersPanel = (props: UsersPanelProps) => {
       <div className="grid grid-cols-3 px-10 place-items-center gap-x-6 w-full h-full">
         <div className="flex flex-col border rounded-lg p-4 w-full max-h-full overflow-auto self-start">
           <div className="flex flex-col gap-4">
-            {props.participantQuery.isLoading ? (
+            {props.participantsQuery.isLoading ? (
               <span className="flex flex-row text-start gap-1 italic font-light">
                 <span>Loading</span>
                 <Loading />

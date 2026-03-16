@@ -50,12 +50,10 @@ function RouteComponent() {
   )
 
   const timeslotsQuery = useQuery(
-    data.TimeslotService.getAllUntaggedTimeslotsQueryOptions({
-      metric: true
-    })
+    data.TimeslotService.getAllUntaggedTimeslotsQueryOptions()
   )
 
-  const participantQuery = useQuery(data.UserService.getAllParticipantsQueryOptions({
+  const participantQuery = useInfiniteQuery(data.UserService.getAllParticipantsQueryOptions({
     siCollections: false,
     siNotifications: false,
     siTags: { 
