@@ -3,19 +3,22 @@ import { postConfirmation } from '../auth/post-confirmation/resource';
 import { getAuthUsers } from '../auth/get-auth-users/resource';
 import { addCreateUserQueue } from '../functions/add-create-user-queue/resource';
 import { verifyContactChallenge } from '../functions/verify-contact-challenge/resource';
-import { sendTimeslotConfirmation } from '../functions/send-timeslot-confirmation/resource';
+import { sendTimeslotConfirmation } from '../functions/timeslots/send-timeslot-confirmation/resource';
 import { updateUserAttribute } from '../auth/update-user-attribute/resource';
-import { downloadImages } from '../functions/download-images/resource';
-import { shareCollection } from '../functions/share-collection/resource';
-import { addPublicPhoto } from '../functions/add-public-photo/resource';
-import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
-import { shareUserInvite } from '../functions/share-user-invite/resource';
-import { repairPaths } from '../functions/repair-paths/resource';
-import { registerUser } from '../functions/register-user/resource';
+import { downloadImages } from '../functions/collections/download-images/resource';
+import { shareCollection } from '../functions/collections/share-collection/resource';
+import { addPublicPhoto } from '../functions/collections/add-public-photo/resource';
+import { deletePublicPhoto } from '../functions/collections/delete-public-photo/resource';
+import { shareUserInvite } from '../functions/collections/share-user-invite/resource';
+import { repairPaths } from '../functions/collections/repair-paths/resource';
+import { registerUser } from '../functions/users/register-user/resource';
 import { adminUpdateUserAttributes } from '../auth/admin-update-user-attributes/resource';
-import { registerTimeslot } from '../functions/register-timeslot/resource';
-import { notifyUser } from '../functions/notify-user/resource';
-import { chargeNoShowFee } from '../functions/charge-no-show-fee/resource';
+import { registerTimeslot } from '../functions/timeslots/register-timeslot/resource';
+import { notifyUser } from '../functions/users/notify-user/resource';
+import { chargeNoShowFee } from '../functions/timeslots/charge-no-show-fee/resource';
+import { chargeShortNoticeCancelation } from '../functions/timeslots/charge-short-notice-cancelation/resource';
+import { savePaymentInformation } from '../functions/users/save-payment-information/resource';
+import { confirmSavePaymentInformation } from '../functions/users/confirm-save-payment-information/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -312,6 +315,7 @@ const schema = a.schema({
       participant: a.hasMany('Participant', 'userEmail'),
       activeParticipant: a.id(),
       temporaryCreate: a.hasOne('TemporaryCreateUsersTokens', 'userEmail'),
+      customerProfile: a.hasOne('CustomerProfile', 'userEmail'),
       firstName: a.string(),
       lastName: a.string(),
     })
@@ -378,7 +382,8 @@ const schema = a.schema({
       userId: a.string().required(),
       paypalCustomerId: a.string().required(),
       savedPaymentMethods: a.hasMany('SavedPaymentMethod', 'paypalCustomerId'),
-      orders: a.hasMany('Orders', 'paypalCustomerId')
+      orders: a.hasMany('Orders', 'paypalCustomerId'),
+      userProfile: a.belongsTo('UserProfile', 'userEmail')
     })
     .identifier(['userEmail'])
     .authorization((allow) => [
@@ -386,19 +391,19 @@ const schema = a.schema({
     ]),
   SavedPaymentMethod: a.
     model({
+      paymentMethodId: a.id().required(),
       paypalCustomerId: a.id().required(),
       customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
       paypalVaultId: a.string().required(),
-      type: a.enum(['PAYPAL', 'CARD', 'VENMO', 'APPLEPAY']),
+      type: a.enum(['PAYPAL', 'CARD', 'APPLEPAY']),
       isDefault: a.boolean().default(false),
-
-      last4: a.string(),
+      lastDigits: a.integer(),
       brand: a.string(),
-      expireMoth: a.integer(),
+      expireMonth: a.integer(),
       expireYear: a.integer(),
       userEmail: a.string().required(),
     })
-    .identifier(['paypalCustomerId'])
+    .identifier(['paymentMethodId'])
     .secondaryIndexes((index) => [
       index('paypalCustomerId')
     ])
@@ -648,6 +653,35 @@ const schema = a.schema({
     .handler(a.handler.function(chargeNoShowFee))
     .authorization((allow) => [allow.group('ADMINS')])
     .returns(a.json()),
+  ChargeShortNoticeCancelation: a
+    .mutation()
+    .arguments({
+      timeslotId: a.string().required(),
+      userEmail: a.string().required(),
+    })
+    .handler(a.handler.function(chargeShortNoticeCancelation))
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
+    .returns(a.json()),
+  SavePaymentInformation: a
+    .mutation()
+    .arguments({
+      userEmail: a.string().required(),
+      userId: a.string().required(),
+      vaultRequest: a.json().required()
+    })
+    .handler(a.handler.function(savePaymentInformation))
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
+    .returns(a.json()),
+  ConfirmSavePaymentInformation: a
+    .mutation()
+    .arguments({
+      userEmail: a.string().required(),
+      setupToken: a.string().required(),
+      requestDefault: a.boolean()
+    })
+    .handler(a.handler.function(confirmSavePaymentInformation))
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
+    .returns(a.json()),
   TemporaryAccessToken: a
     .model({
       id: a.id().required(),
@@ -669,7 +703,9 @@ const schema = a.schema({
   allow.resource(notifyUser),
   allow.resource(sendTimeslotConfirmation),
   allow.resource(chargeNoShowFee),
-  // allow.resource()
+  allow.resource(chargeShortNoticeCancelation),
+  allow.resource(savePaymentInformation),
+  allow.resource(confirmSavePaymentInformation)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

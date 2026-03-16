@@ -1,8 +1,8 @@
 import { defineStorage } from "@aws-amplify/backend";
-import { downloadImages } from "../functions/download-images/resource";
-import { shareCollection } from "../functions/share-collection/resource";
-import { addPublicPhoto } from "../functions/add-public-photo/resource";
-import { repairPaths } from "../functions/repair-paths/resource";
+import { downloadImages } from "../functions/collections/download-images/resource";
+import { shareCollection } from "../functions/collections/share-collection/resource";
+import { addPublicPhoto } from "../functions/collections/add-public-photo/resource";
+import { repairPaths } from "../functions/collections/repair-paths/resource";
 
 export const storage = defineStorage({
     name: 'jamesfrenchphoto',
