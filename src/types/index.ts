@@ -1,5 +1,6 @@
 import { AuthSession, AuthUser, FetchUserAttributesOutput } from "aws-amplify/auth";
 import { Duration } from "luxon";
+import { OrderRefID } from "./order-ref-id";
 
 export interface UserStorage {
     user: AuthUser
@@ -8,6 +9,15 @@ export interface UserStorage {
     groups: string
     profile: UserProfile
 } 
+
+export type OrderItem = {
+    name: string,
+    description: string,
+    amount: number,
+    serviceChargeAmount: number,
+    refrenceId: OrderRefID,
+    invoiceId: string,
+}
 
 export interface UserData {
     email: string;

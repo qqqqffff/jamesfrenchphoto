@@ -1,11 +1,11 @@
 import { APIMutationResponse } from "../../../../src/types";
 import { Schema } from "../../../data/resource";
 
-export const handler: Schema['ChargeShortNoticeCancelation']['functionHandler'] = async (event) => {
+export const handler: Schema['AuthorizeShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
   let response: APIMutationResponse | undefined
 
   response = {
-    status: "Success"
+    status: 'Success'
   }
 
   return response

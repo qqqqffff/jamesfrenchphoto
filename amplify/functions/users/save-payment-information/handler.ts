@@ -126,7 +126,7 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
   
   if(!customerProfileResponse.data && setupTokenResponse.result.customer?.id) {
     const customerProfileResponse = await dynamoClient.models.CustomerProfile.create({
-      userEmail: event.arguments.userEmail,
+      userEmail: event.arguments.userEmail.toLowerCase(),
       userId: event.arguments.userId,
       paypalCustomerId: setupTokenResponse.result.customer.id
     })
