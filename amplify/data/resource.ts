@@ -425,12 +425,13 @@ const schema = a.schema({
       serviceFee: a.float().required(),
       currency: a.string().default('USD').required(),
       status: a.enum(['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED']),
-      items: a.json(), //format -> array of OrderItems,
+      transactionType: a.enum(['timeslot']),
+      items: a.json().required(), //format -> array of OrderItems,
       userEmail: a.string().required()
     })
     .identifier(['paypalOrderId'])
     .secondaryIndexes((index) => [
-      index('userEmail')
+      index('userEmail').sortKeys(['transactionType'])
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),

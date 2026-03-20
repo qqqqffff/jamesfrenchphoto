@@ -19,3 +19,9 @@ export const generateTimeslotInvoiceId = (
     timestampPart
   )
 }
+
+export const timeslotIdInvoiceIdCompare = (invoiceId: string, timeslotId: string): boolean | null => {
+  const parts = invoiceId.split('-')
+  if(parts[3] === undefined) return null
+  return parts[3] === timeslotId.replace(/[^A-z0-9]*/g, '').toUpperCase()
+}

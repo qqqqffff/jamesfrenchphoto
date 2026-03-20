@@ -1,6 +1,6 @@
-import { APIMutationResponse, OrderItem, Timeslot } from "../../../../src/types";
+import { APIMutationResponse, Timeslot } from "../../../../src/types";
 import { Schema } from "../../../data/resource";
-import { env } from '$amplify/env/charge-short-notice-cancelation'
+import { env } from '$amplify/env/create-short-notice-cancelation-order'
 import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
@@ -31,10 +31,10 @@ export interface CreateShortNoticeCancelationOrderResponse extends APIMutationRe
 
 export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
   let response: CreateShortNoticeCancelationOrderResponse | undefined
-  if(!event.arguments.timeslotId || !event.arguments.userEmail || !event.arguments.userId) {
+  if(!event.arguments.timeslotId || !event.arguments.userEmail) {
     response = {
       status: 'Fail',
-      error: 'Timeslot Id or User Email or User Id Missing.'
+      error: 'Timeslot Id or User Email Missing.'
     }
     return response
   }
@@ -91,7 +91,9 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
     end: new Date(timeslotData.data.end),
     participantId: timeslotData.data.participantId ?? undefined,
   }
-  const timeuntilSlot = DateTime.fromJSDate(timeslot.start).diffNow()
+  const timeuntilSlot = DateTime.fromJSDate(timeslot.start).diffNow().toMillis()
+
+  Duration.fromObject({ hours: 24 })
 
   if(!timeslot.cancelationFee) {
     return {
@@ -103,10 +105,15 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
       status: 'Fail',
       error: 'Timeslot is not registered'
     }
-  } else if(timeuntilSlot.minus(timeslot.cancelationFee.window)) {
+  } else if(timeuntilSlot < 0) {
     return {
       status: 'Fail',
-      error: 'Timeslot is not within the cancelation fee window'
+      error: 'Cannot register for a slot that already past'
+    }
+  } else if(timeuntilSlot > timeslot.cancelationFee.window.toMillis()) {
+    return {
+      status: 'Fail',
+      error: 'Timeslot registration not in cancelation window'
     }
   }
 

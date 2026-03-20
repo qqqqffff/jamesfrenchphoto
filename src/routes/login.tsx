@@ -312,6 +312,7 @@ function RouteComponent() {
       </Modal>
 
       <ForgotPasswordModal 
+        initialEmailAddress={username}
         onClose={() => {
           setForgotPasswordVisible(false)
         }}
@@ -369,9 +370,9 @@ function RouteComponent() {
                   setFormErrors(prev => prev.filter((error) => error.type === 'email'))
                 }
               }}
-              helperText={(
+              helperText={formErrors.some((error) => error.type === 'email') ? (
                 <p className='text-xs text-red-500'>Invalid Email Address</p>
-              )}
+              ) : undefined}
             />
             <span className="ms-2 font-semibold text-xl">Password:</span>
             <div className='w-full relative h-auto'>
