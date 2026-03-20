@@ -427,7 +427,8 @@ const schema = a.schema({
       status: a.enum(['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED']),
       transactionType: a.enum(['timeslot']),
       items: a.json().required(), //format -> array of OrderItems,
-      userEmail: a.string().required()
+      userEmail: a.string().required(),
+      approvalUrl: a.string(),
     })
     .identifier(['paypalOrderId'])
     .secondaryIndexes((index) => [
