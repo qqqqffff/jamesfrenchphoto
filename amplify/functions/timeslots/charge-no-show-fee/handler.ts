@@ -29,7 +29,6 @@ const dynamoClient = generateClient<Schema>()
 
 export interface ChargeNoShowFeeAPIResponse extends Omit<APIMutationResponse, 'status'> {
   status: 'Success' | 'Fail' | 'ActionRequired'
-  approvalUrl?: string
 }
 
 export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (event) => {
@@ -310,19 +309,53 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
     }))
   }
 
-  
-  if(customerOrdersData.length > 0) {
+  let orderResponse: ApiResponse<Order> | undefined
+
+  if(customerOrdersData.some((order) => order.status === 'COMPLETED')) {
     return {
       status: 'Fail',
-      error: 'Payment already attempted to capture'
+      error: 'Payment already captured'
     }
   }
+  else if(customerOrdersData.length > 0) {
+    const foundOrder = customerOrdersData.find((order) => order.status !== OrderStatus.Completed)
+    if(foundOrder) {
+      orderResponse = await orderController.captureOrder({
+        id: foundOrder.paypalOrderId,
+        prefer: 'return=representation',
+        paypalRequestId: `${noshowInvoiceId}-capture`
+      })
 
-  const orderResponse = await orderController.createOrder({
-    body: request,
-    prefer: 'return=minimal',
-    paypalRequestId: noshowInvoiceId,
-  })
+      const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'payer-action')?.href
+
+      await dynamoClient.models.Orders.update({
+        paypalOrderId: foundOrder.paypalOrderId,
+        status: orderResponse.result.status,
+        approvalUrl: approvalUrl,
+      })
+      if (orderResponse.result.status === 'COMPLETED') {
+        return { status: 'Success' }
+      } else {
+        return { 
+          status: 'Fail', 
+          error: `Retry capture returned: ${orderResponse.result.status}` 
+        }
+      }
+    }
+    else {
+      return {
+        status: 'Fail',
+        error: 'Failed to retry payment capture'
+      }
+    }
+  }
+  else {
+    orderResponse = await orderController.createOrder({
+      body: request,
+      prefer: 'return=representation',
+      paypalRequestId: noshowInvoiceId,
+    })
+  }
 
   console.log(orderResponse.result)
 
@@ -337,8 +370,10 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
   }
 
   switch (status) {
-    case 'COMPLETED':
+    case 'COMPLETED': {
+      finalOrderStatus = OrderStatus.Completed
       break
+    }
     case 'CREATED':
     case 'APPROVED': {
       const captureResponse = await orderController.captureOrder({
@@ -348,6 +383,7 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
       })
 
       if(captureResponse.result.status !== 'COMPLETED') {
+        const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'payer-action')?.href
         const logResponse = await dynamoClient.models.Orders.create({
           paypalCustomerId: customerProfile.data.paypalCustomerId,
           paypalOrderId: id,
@@ -357,7 +393,8 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
           status: captureResponse.result.status,
           transactionType: 'timeslot',
           items: orderItems,
-          userEmail: registeredEmail.toLowerCase()
+          userEmail: registeredEmail.toLowerCase(),
+          approvalUrl: approvalUrl
         })
 
         if(!logResponse.data) {
@@ -377,7 +414,10 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
 
       break
     }
-    case 'PAYER_ACTION_REQUIRED':
+    case 'PAYER_ACTION_REQUIRED': {
+      finalOrderStatus = OrderStatus.PayerActionRequired
+      break
+    }
     case 'VOIDED':
     default: {
       return {
@@ -389,25 +429,45 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
 
   console.log(orderItems)
 
-  const orderLogResponse = await dynamoClient.models.Orders.create({
+  const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'payer-action')?.href
+  let orderLogResponse: Schema['Orders']['type'] | null = (await dynamoClient.models.Orders.create({
     paypalCustomerId: customerProfile.data.paypalCustomerId,
     paypalOrderId: id,
     amount: timeslotData.data.noshowFee,
     serviceFee: serviceFee,
     currency: 'USD',
-    status: finalOrderStatus ? finalOrderStatus : status,
+    status: finalOrderStatus,
     transactionType: 'timeslot',
     items: orderItems,
     userEmail: registeredEmail.toLowerCase(),
-  })
+    approvalUrl: approvalUrl,
+  })).data
+  
 
-  if(!orderLogResponse.data) {
+  if(orderLogResponse === null) {
     return {
       status: 'Fail',
       error: 'Failed to log order in database'
     }
   }
 
+
+  if(finalOrderStatus === 'PAYER_ACTION_REQUIRED') {
+    dynamoClient.queries.NotifyUser({
+      email: registeredEmail,
+      subject: softDescriptor,
+      content: `<p>You are being charged a <strong>$${timeslotData.data.noshowFee.toFixed(2)}</strong> ${description}.</p><p>Please approve the charge${approvalUrl ? ` at <a href='${approvalUrl}'>${approvalUrl}</a>` : ''} to prevent further disruptions in our services.</p><p>Thank you from the JFP team</p><br/><br/><p style="font-size: 12px;">Please note: Charges are subject to a 2% service fee to keep our platform running.</p>`
+    })
+    return {
+      status: 'ActionRequired'
+    }
+  }
+
+  dynamoClient.queries.NotifyUser({
+    email: registeredEmail,
+    subject: softDescriptor,
+    content: `<p>You are being charged a <strong>$${timeslotData.data.noshowFee.toFixed(2)}</strong> ${description}.</p><p>Thank you from the JFP team</p><br/><br/><p style="font-size: 12px;">Please note: Charges are subject to a 2% service fee to keep our platform running.</p>`
+  })
   response = {
     status: 'Success'
   }

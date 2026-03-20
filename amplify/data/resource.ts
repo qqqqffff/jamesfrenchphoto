@@ -645,6 +645,7 @@ const schema = a.schema({
     .query()
     .arguments({
       email: a.string().required(),
+      subject: a.string().required().default('Notification from James French Photography'),
       content: a.string().required(),
       additionalRecipients: a.string().required().array(),
     })
