@@ -42,9 +42,9 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
   }
 
   //cleaning secrets
-  const paypalClientId = (process.env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
-  const paypalSecretKey = (process.env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
-  const paypalMerchantId = (process.env.PAYPAL_MERCHANT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
+  const paypalClientId = (env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
+  const paypalSecretKey = (env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
+  const paypalMerchantId = (env.PAYPAL_MERCHANT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
 
   if(!paypalClientId || !paypalSecretKey || !paypalMerchantId) {
     response = {
@@ -62,7 +62,7 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
       oAuthClientId: paypalClientId,
       oAuthClientSecret: paypalSecretKey
     },
-    timeout: 120000,
+    timeout: 180000,
     environment: isProd ? Environment.Production : Environment.Sandbox,
     logging: {
       logLevel: isProd ? LogLevel.Warn : LogLevel.Info,
@@ -150,14 +150,14 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
     }
   }
 
-  let savedPaymentMethodsResponse = await dynamoClient.models.SavedPaymentMethod.listSavedPaymentMethodByPaypalCustomerId({ 
-    paypalCustomerId: customerProfile.data.paypalCustomerId 
+  let savedPaymentMethodsResponse = await dynamoClient.models.SavedPaymentMethod.listSavedPaymentMethodByUserEmail({ 
+    userEmail: registeredEmail
   })
   const savedPaymentMethodsData = savedPaymentMethodsResponse.data
 
   while(savedPaymentMethodsResponse.nextToken) {
-    savedPaymentMethodsResponse = await dynamoClient.models.SavedPaymentMethod.listSavedPaymentMethodByPaypalCustomerId({
-      paypalCustomerId: customerProfile.data.paypalCustomerId,
+    savedPaymentMethodsResponse = await dynamoClient.models.SavedPaymentMethod.listSavedPaymentMethodByUserEmail({
+      userEmail: registeredEmail,
     }, {
       nextToken: savedPaymentMethodsResponse.nextToken
     })

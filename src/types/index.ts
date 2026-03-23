@@ -32,6 +32,19 @@ export interface UserData {
     profile?: UserProfile
 }
 
+export interface SavedPaymentMethod {
+    id: string,
+    customerId: string,
+    vaultId?: string,
+    type: 'PAYPAL' | 'CARD' | 'APPLEPAY'
+    isDefault: boolean,
+    lastDigits?: number,
+    brand?: string,
+    expireMonth?: number,
+    expireYear?: number,
+    userEmail: string,
+}
+
 export interface UserProfile {
     sittingNumber: number,
     email: string,

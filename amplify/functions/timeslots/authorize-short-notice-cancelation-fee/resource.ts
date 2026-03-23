@@ -7,8 +7,7 @@ export const authorizeShortNoticeCancelationFee = defineFunction({
     PAYPAL_CLIENT_ID: secret('paypal-client-id'),
     PAYPAL_SECRET_KEY: secret('paypal-secret-key'),
     PAYPAL_MERCHANT_ID: secret('paypal-merchant-id'),
-    
-    AMPLIFY_BRANCH: process.env.AWS_BRANCH ?? 'sandbox',
   },
-  runtime: 22
+  runtime: 22,
+  timeoutSeconds: 180
 })

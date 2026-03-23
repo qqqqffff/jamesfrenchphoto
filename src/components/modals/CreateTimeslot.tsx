@@ -1,6 +1,6 @@
 import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
 import { ModalProps } from ".";
-import { Button, Checkbox, Label, Modal, TextInput } from "flowbite-react";
+import { Button, Checkbox, Modal, TextInput } from "flowbite-react";
 import { DAY_OFFSET, formatTime, textInputTheme } from "../../utils";
 import { Segment, Timeslot, UserTag } from "../../types";
 import { InfiniteData, UseInfiniteQueryResult, useMutation } from "@tanstack/react-query";
@@ -35,6 +35,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
   const [description, setDescription] = useState<string>('')
   const [selectedTag, setSelectedTag] = useState<UserTag>()
   const [previewTimeslot, setPreviewTimeslot] = useState<Timeslot>()
+  const [selectedSegment, setSelectedSegment] = useState<Segment | undefined>()
 
   const createTimeslot = useMutation({
     mutationFn: (params: CreateTimeslotsMutationParams) => props.TimeslotService.createTimeslotsMutation(params)
@@ -49,19 +50,32 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
   })
 
   useEffect(() => {
-    if(props.open) {
-      setSegments(convertTimeslotListToSegments(props.timeslots))
-      setPreviewTimeslot(undefined)
+    setSegments(convertTimeslotListToSegments(props.timeslots))
+    setPreviewTimeslot(undefined)
+    setCancelationFee({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
+    setDescription('')
+    setNoshowFee(60)
+    setSelectedTag(undefined)
+  }, [
+    props.open
+  ])
+
+  useEffect(() => {
+    if(selectedSegment) {
+      setCancelationFee(selectedSegment.options?.cancelationFee)
+      setDescription(selectedSegment.options?.description ?? '')
+      setNoshowFee(selectedSegment.options?.noshowFee)
+      setSelectedTag(selectedSegment.userTag)
+    }
+    else {
       setCancelationFee({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
       setDescription('')
       setNoshowFee(60)
       setSelectedTag(undefined)
     }
   }, [
-    props.open
+    selectedSegment
   ])
-
-  
 
   const selectedTimeslots = convertSegmentListToTimeslots(
     props.day,
@@ -127,12 +141,87 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
       show={props.open} 
       onClose={() => {
         props.onClose()
-
       }}
-      size={previewTimeslot ? '6xl' : "2xl"}
+      size={previewTimeslot ? 'full' : "7xl"}
     >
       <Modal.Header>{props.timeslots.length > 0 ? 'Update Timeslots' : 'Create New Timeslots'}</Modal.Header>
-      <Modal.Body className={`grid grid-cols-${previewTimeslot ? '2' : "1"} w-full gap-4`}>
+      <Modal.Body className={`grid grid-cols-${previewTimeslot ? '3' : "2"} w-full gap-4 py-2`}>
+        <div className="flex flex-col gap-2 w-full">
+          <TimeSegmentBar 
+            segments={segments}
+            setSegments={setSegments}
+            activeTag={selectedTag}
+            activeOptions={{
+              noshowFee: noshowFee,
+              description: description,
+              cancelationFee: cancelationFee
+            }}
+            individual={{
+              individual: false,
+              setSelectedSegement: setSelectedSegment,
+              selectedSegment: selectedSegment
+            }}
+            header={(
+              <div className="flex flex-row gap-4 items-center">
+                <TextInput
+                  theme={textInputTheme} 
+                  autoComplete="off"
+                  placeholder="Timeslot Descripition..."
+                  className=" placeholder:italic w-full min-w-[300px]"
+                  sizing="md" 
+                  onChange={(event) => {
+                    if(selectedSegment) {
+                      setSegments(prev => prev.map((segment) => segment.id === selectedSegment.id ? ({
+                        ...segment,
+                        options: {
+                          description: event.target.value
+                        }
+                      }) : segment))
+                      setSelectedSegment({
+                        ...selectedSegment,
+                        options: {
+                          ...selectedSegment.options,
+                          description: event.target.value
+                        }
+                      })
+                      setDescription(event.target.value)
+                    }
+                    else {
+                      setDescription(event.target.value)
+                    }
+                  }}
+                  value={description}
+                  name="Timeslot Description"
+                />
+                <TagPicker 
+                  tags={props.tags}
+                  parentPickTag={(tag) => {
+                    if(selectedSegment) {
+                      setSegments(prev => prev.map((segment) => segment.id === selectedSegment.id ? ({
+                        ...segment,
+                        userTag: tag
+                      }) : segment))
+                      setSelectedSegment({
+                        ...selectedSegment,
+                        userTag: tag
+                      })
+                      setSelectedTag(tag)
+                    }
+                    else {
+                      setSelectedTag(tag)
+                    }
+                  }}
+                  pickedTag={selectedTag ? [selectedTag] : undefined}
+                  allowMultiple={false}
+                  small
+                  tagQuery={props.tagsQuery}
+                  placement="end"
+                  allowClear
+                />
+              </div>
+            )}
+          />
+        </div>
         <div className="flex flex-col gap-2 w-full">
           <div className="flex flex-row gap-3 items-center self-center">
             <button
@@ -149,45 +238,6 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
               <HiOutlineArrowRight size={20} className="text-gray-900"/>
             </button>
           </div>
-          <TimeSegmentBar 
-            segments={segments}
-            setSegments={setSegments}
-            activeTag={selectedTag}
-            activeOptions={{
-              noshowFee: noshowFee,
-              description: description,
-              cancelationFee: cancelationFee
-            }}
-            header={(
-              <div className="flex flex-col self-center">
-                <Label className="font-medium text-lg" htmlFor="timeslotDescription">Description:</Label>
-                <div className="flex flex-row gap-4 items-center">
-                  <TextInput
-                    id='timeslotDescription'
-                    theme={textInputTheme} 
-                    placeholder="Timeslot Descripition..."
-                    className=" placeholder:italic w-full min-w-[300px]"
-                    sizing="md" 
-                    onChange={(event) => {
-                        setDescription(event.target.value)
-                    }}
-                    value={description}
-                    name="Timeslot Description"
-                  />
-                  <TagPicker 
-                    tags={props.tags}
-                    parentPickTag={(tag) => setSelectedTag(tag)}
-                    pickedTag={selectedTag ? [selectedTag] : undefined}
-                    allowMultiple={false}
-                    small
-                    tagQuery={props.tagsQuery}
-                    placement="end"
-                    allowClear
-                  />
-                </div>
-              </div>
-            )}
-          />
           <div className="flex flex-row w-full px-6 justify-between border rounded-lg py-2">
             <div className="flex flex-col gap-2">
               <button 
@@ -216,7 +266,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                 }}
               >
                 <Checkbox readOnly checked={cancelationFee !== undefined} />
-                <span>Last Minute Booking Fee</span>
+                <span>Short Notice Booking Fee</span>
               </button>
               {cancelationFee !== undefined && (
                 <div className="flex flex-row gap-2">
@@ -256,7 +306,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
           {selectedTimeslots.length > 0 ? (
             <div className="w-full flex flex-col justify-center items-center gap-3">
               <span className="underline underline-offset-2">Timeslots Preview:</span>
-              <div className="grid grid-cols-3 w-full gap-2 max-h-[250px] overflow-auto border-2 border-gray-500 rounded-lg p-2">
+              <div className="grid grid-cols-3 w-full gap-2 max-h-[400px] overflow-auto border p-2">
                 {selectedTimeslots.map((timeslot, index) => {
                   const selected = previewTimeslot?.id === timeslot.id
                   return (
@@ -295,38 +345,42 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
               </div>
               <div className="text-center flex flex-col">
                 <span><b>Registration for Timeslot: {previewTimeslot.start.toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at {formatTime(previewTimeslot.start, { timeString: true })} - {formatTime(previewTimeslot.end, { timeString: true })}</b></span>
-                <span>Make sure that this is the right timeslot for you, since you only get one!</span>
+                <span>Make sure that this is the right timeslot for you, since you only can reserve one timeslot!</span>
                 {previewTimeslot.cancelationFee && (
-                  <span>Booking this timeslot within <b>{previewTimeslot.cancelationFee.window.as('hours')}</b> hours of the selected date will incur an additional short notice booking fee of <b>${previewTimeslot.cancelationFee.amount}</b></span>
+                  <span>Booking this timeslot within <b>{previewTimeslot.cancelationFee.window.as('hours')}</b> hours of the selected date will incur an additional short notice booking fee of <b>${previewTimeslot.cancelationFee.amount}</b>.</span>
                 )}
                 {previewTimeslot.noshowFee && (
-                  <span>Lastly, please show up for your timeslot otherwise you will be charged a <b>${previewTimeslot.noshowFee}</b> no show fee</span>
+                  <span>Please attend your reserved timeslot on time otherwise you will be charged a <b>${previewTimeslot.noshowFee}</b> no show fee.</span>
                 )}
+                <div  className="w-full border my-2"/>
                 {(previewTimeslot.cancelationFee !== undefined || previewTimeslot.noshowFee !== undefined) && (
                   <>
-                    <span className="italic text-sm text-gray-500">Payment information will be collected on following screen and will be charged for</span>
-                    <span className="italic text-sm text-gray-500">short notice booking (automatic charge) or noshow (select individual timeslot to charge).</span>
+                    <span className="italic text-sm text-gray-500 text-start">Payment information will be collected on following screen which will be subject to charges in the following cases:</span>
+                    {previewTimeslot.cancelationFee && (<span className="italic text-sm text-gray-500 text-start">&bull; Short notice booking (immediate) for booking within {previewTimeslot.cancelationFee.window.as('hours')} hours</span>)}
+                    {previewTimeslot.noshowFee && (<span className="italic text-sm text-gray-500 text-start">&bull; No show fee (processed within 7 days of timeslot date).</span>)}
                   </>
                 )}
-                <span className="italic text-sm text-gray-500 mt-4 border px-2 py-1 rounded-lg">Additional fields will display here to send email notifications</span>
+                {(previewTimeslot.noshowFee || previewTimeslot.cancelationFee) && (
+                  <span className="italic text-xs text-gray-500 text-start">Please note that charges are subject to a 2% platform service charge with a maximum charge of $10 to help keep our platform running.</span>
+                )}
+                <span className="italic text-sm text-gray-500 mt-4 border px-2 py-1 rounded-lg">Additional fields will display here to send email notifications to user and additional participants</span>
               </div>
             </div>
             <div className="flex flex-col rounded-lg border px-4 py-2 w-full">
               <div className="flex flex-row border-b-2">
                 <span className="text-xl font-medium">Confirm Unregistration</span>
               </div>
-              <div className="text-center flex flex-col">
+              <div className="text-center flex flex-col pt-2 pb-8">
                 <span><b>Unregistration for Timeslot: {previewTimeslot.start.toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at {formatTime(previewTimeslot.start, { timeString: true })} - {formatTime(previewTimeslot.end, { timeString: true })}</b></span>
                 <span>Are you sure you want to unregister from this timeslot?</span>
-
               </div>
             </div>
           </div>
         )}
       </Modal.Body>
       <Modal.Footer>
-        <div className={`grid grid-cols-${previewTimeslot ? '2' : '1'} justify-items-end w-full items-center`}>
-          <div className="flex flex-row justify-between w-full items-center">
+        <div className={`grid grid-cols-${previewTimeslot ? '3' : '2'} justify-items-end w-full items-center`}>
+          <div className="flex flex-row justify-between w-full items-center col-start-2">
             <div className="text-red-400 flex flex-row items-center gap-1 text-sm">
               {timeslotsWithParticipantsRemoved && (
                 <>

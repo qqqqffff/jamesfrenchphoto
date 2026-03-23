@@ -42,8 +42,8 @@ export const handler: Schema['ConfirmSavePaymentInformation']['functionHandler']
     }
     return response
   }
-  const paypalClientId = process.env.PAYPAL_CLIENT_ID
-  const paypalSecretKey = process.env.PAYPAL_SECRET_KEY
+  const paypalClientId = (env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
+  const paypalSecretKey = (env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
 
   if(!paypalClientId || !paypalSecretKey) {
     response = {
@@ -53,20 +53,23 @@ export const handler: Schema['ConfirmSavePaymentInformation']['functionHandler']
     return response
   }
 
+  const branch = process.env.AWS_BRANCH ?? 'sandbox'
+  const isProd = branch === 'main'
+
   const client = new Client({
     clientCredentialsAuthCredentials: {
       oAuthClientId: paypalClientId,
       oAuthClientSecret: paypalSecretKey,
     },
-    timeout: 10,
-    environment: Environment.Sandbox,
+    timeout: 180000,
+    environment: isProd ? Environment.Production : Environment.Sandbox,
     logging: {
-      logLevel: LogLevel.Info,
+      logLevel: isProd ? LogLevel.Warn : LogLevel.Info,
       logRequest: {
-        logBody: true
+        logBody: !isProd
       },
       logResponse: {
-        logHeaders: true
+        logHeaders: !isProd
       }
     }
   })

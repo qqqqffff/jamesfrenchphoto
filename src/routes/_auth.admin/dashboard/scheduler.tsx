@@ -17,6 +17,7 @@ import { TagService } from '../../../services/tagService'
 import { DateTime } from 'luxon'
 import { HiOutlineMinusCircle } from "react-icons/hi"
 import { HiOutlineChevronRight, HiOutlinePencil, HiOutlinePlus } from 'react-icons/hi2'
+import { PaymentService } from '../../../services/paymentService'
 
 interface SchedulerSearchParams {
   date: string
@@ -34,6 +35,7 @@ export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
       TimeslotService: new TimeslotService(client),
       UserService: new UserService(client),
       TagService: new TagService(client),
+      PaymentService: new PaymentService(client),
       date: new Date(context.date),
     }
   }
@@ -138,6 +140,7 @@ function RouteComponent() {
         <EditTimeslotModal 
           UserService={data.UserService}
           TimeslotService={data.TimeslotService}
+          PaymentService={data.PaymentService}
           open={editTimeslotVisible !== undefined} 
           onClose={() => {
             setEditTimeslotVisible(undefined)

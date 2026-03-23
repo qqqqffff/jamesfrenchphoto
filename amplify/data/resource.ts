@@ -410,7 +410,7 @@ const schema = a.schema({
     })
     .identifier(['paymentMethodId'])
     .secondaryIndexes((index) => [
-      index('paypalCustomerId')
+      index('userEmail')
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
@@ -646,7 +646,7 @@ const schema = a.schema({
     .query()
     .arguments({
       email: a.string().required(),
-      subject: a.string().required().default('Notification from James French Photography'),
+      subject: a.string().required(),
       content: a.string().required(),
       additionalRecipients: a.string().required().array(),
     })

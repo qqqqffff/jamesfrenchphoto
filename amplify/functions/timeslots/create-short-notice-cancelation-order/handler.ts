@@ -25,12 +25,12 @@ Amplify.configure(resourceConfig, libraryOptions)
 
 const dynamoClient = generateClient<Schema>()
 
-export interface CreateShortNoticeCancelationOrderResponse extends APIMutationResponse {
+export interface CreateShortNoticeCancelationOrderAPIResponse extends APIMutationResponse {
   orderId?: string
 }
 
 export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
-  let response: CreateShortNoticeCancelationOrderResponse | undefined
+  let response: CreateShortNoticeCancelationOrderAPIResponse | undefined
   if(!event.arguments.timeslotId || !event.arguments.userEmail) {
     response = {
       status: 'Fail',
@@ -52,20 +52,23 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
     return response
   }
 
+  const branch = process.env.AWS_BRANCH ?? 'sandbox'
+  const isProd = branch === 'main'
+
   const client = new Client({
     clientCredentialsAuthCredentials:  {
       oAuthClientId: paypalClientId,
       oAuthClientSecret: paypalSecretKey
     },
-    timeout: 10,
-    environment: Environment.Sandbox,
+    timeout: 180000,
+    environment: isProd ? Environment.Production : Environment.Sandbox,
     logging: {
-      logLevel: LogLevel.Info,
+      logLevel: isProd ? LogLevel.Warn : LogLevel.Info,
       logRequest: {
-        logBody: true
+        logBody: !isProd
       },
       logResponse: {
-        logHeaders: true
+        logHeaders: !isProd
       }
     }
   })
