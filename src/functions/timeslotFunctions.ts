@@ -5,11 +5,12 @@ import { v4 } from 'uuid'
 
 export const convertSegmentListToTimeslots = (
   activeDate: Date,
+  offset: number,
   segment: Segment[], 
   existingTimeslots: SegmentCorrelatedTimeslot[], 
 ): SegmentCorrelatedTimeslot[] => {
   const timeslots: SegmentCorrelatedTimeslot[] = []
-  const MIN_TIME = 8 * 60
+  const MIN_TIME = offset * 60
 
   for(let i = 0; i < segment.length; i++) {
     let counter = segment[i].startMin
@@ -24,12 +25,8 @@ export const convertSegmentListToTimeslots = (
       const endDT = startDT.plus({ minutes: segment[i].interval })
 
       const foundExistingTimeslot = existingTimeslots.find((timeslot) => (
-        (
-          (timeslot.start.getTime() >= startDT.toMillis() && timeslot.start.getTime() <= endDT.toMillis()) ||
-          (timeslot.end.getTime() >= startDT.toMillis() && timeslot.end.getTime() <= endDT.toMillis())
-        ) &&
         !timeslots.some((rTimeslot) => rTimeslot.id === timeslot.id) &&
-        (segment.some((segment) => segment.id === timeslot.segmentId) || timeslot.segmentId === undefined)
+        segment.some((segment) => segment.id === timeslot.segmentId)
       ))
 
       if(foundExistingTimeslot === undefined) {

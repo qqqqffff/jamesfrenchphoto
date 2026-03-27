@@ -359,7 +359,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
           </div>
           {filteredParticipants.length > 0 ? (
             <ul className="max-h-56 overlfow-y-auto min-w-max flex flex-col">
-            {filteredParticipants.map((item, index, arr) => {
+            {filteredParticipants.map((item, index) => {
               const selected = props.multiple.multiple === 'true' ? (
                 props.multiple.selectedParticipants.some((participant) => participant.id === item.id)
               ) : (
@@ -377,8 +377,9 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
                   {/* average h - 42px */}
                   <li 
                     className={`
-                      px-4 py-2 hover:bg-gray-100 flex flex-row gap-2
-                      ${index === 0 ? 'border-y' : index !== arr.length - 1 ? 'border-b border-gray-400' : ''}
+                      hover:bg-gray-100 flex flex-row gap-2
+                      ${index === 0 ? 'border-y' : 'border-b'}
+                      ${selected ? 'bg-gray-200' : ''}
                     `}
                     ref={el => participantItems.current.set(item.id, el)}
                     id={item.id}
@@ -404,6 +405,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
                           }
                         }
                       }}
+                      className="w-full text-start px-4 py-2"
                     >
                       {props.multiple.multiple === 'true' && (
                         <Checkbox 
@@ -426,7 +428,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
             </ul>
           ) : (
             <div>
-              <span>{props.participantQuery.isFetching ? (
+              <span className="px-4 py-2">{props.participantQuery.isFetching ? (
                 <span className="flex flex-row gap-1 items-center">
                   <span>Loading</span>
                   <Loading />
@@ -435,6 +437,22 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
                 'No participants found.'
               )}</span>
             </div>
+          )}
+          {props.multiple.multiple === 'false' && (
+            <button
+              className="
+                self-end rounded-lg border py-1 px-2 enabled:hover:bg-gray-100 
+                disabled:cursor-not-allowed me-2 mb-2 disabled:opacity-60
+              "
+              disabled={props.multiple.selectedParticipant === undefined}
+              onClick={() => {
+                if(props.multiple.multiple === 'false') {
+                  props.multiple.setSelectedParticipant(undefined)
+                }
+              }}
+            >
+              <span>Clear</span>
+            </button>
           )}
         </div>
       )}

@@ -2,18 +2,18 @@ import { Button, Checkbox, Modal, TextInput } from "flowbite-react"
 import { ModalProps } from "."
 import { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query"
 import { GetInfinitePackageItemsData } from "../../services/packageService"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { FC, useCallback, useEffect, useRef, useState } from "react"
 import { PackageItem } from "../../types"
 import { textInputTheme } from "../../utils"
 import { HiOutlineMinus, HiOutlinePlus } from "react-icons/hi"
 
-interface PackageItemLoaderProps extends ModalProps {
+interface PackageItemLoaderModalProps extends ModalProps {
   allPackageItems: PackageItem[]
   allPackageItemsQuery: UseInfiniteQueryResult<InfiniteData<GetInfinitePackageItemsData, unknown>, Error>
   updatePackageItems: (packageItems: {item: PackageItem, quantity: number}[]) => void
 }
 
-export const PackageItemLoader = (props: PackageItemLoaderProps) => {
+export const PackageItemLoaderModal: FC<PackageItemLoaderModalProps> = (props: PackageItemLoaderModalProps) => {
   const [search, setSearch] = useState<string>('')
   const [selectedPackageItems, setSelectedPackageItems] = useState<{item: PackageItem, quantity: number}[]>([])
   const observerRef = useRef<IntersectionObserver | null>(null)

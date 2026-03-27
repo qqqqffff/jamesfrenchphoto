@@ -78,6 +78,7 @@ function RouteComponent() {
     }
   ))
 
+  //TODO: use deltas to update state information stores to prevent data overwrite
   useEffect(() => {
     if(timeslotQuery.data) {
       setTimeslots(timeslotQuery.data)
@@ -148,7 +149,6 @@ function RouteComponent() {
           activeDate={activeDate}
           navigate={navigate}
           timeslot={editTimeslotVisible} 
-          timeslotQuery={timeslotQuery}
           existingTimeslots={timeslots}
           tags={tags}
           participantQuery={participantQuery}

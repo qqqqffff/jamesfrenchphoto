@@ -12,7 +12,7 @@ import {
   Order,
 } from '@paypal/paypal-server-sdk'
 import { Schema } from '../../../data/resource'
-import { APIMutationResponse, OrderItem, Timeslot } from '../../../../src/types'
+import { APIMutationResponse, OrderItem, Timeslot, Order as OrderType } from '../../../../src/types'
 import { env } from '$amplify/env/charge-no-show-fee'
 import { getAmplifyDataClientConfig } from '@aws-amplify/backend/function/runtime'
 import { Amplify } from 'aws-amplify'
@@ -20,7 +20,7 @@ import { generateClient } from 'aws-amplify/api'
 import { formatTimeslotDates } from '../../../../src/utils'
 import { Duration, DateTime } from 'luxon'
 import { OrderRefID } from '../../../../src/types/order-ref-id'
-import { generateTimeslotInvoiceId, timeslotIdInvoiceIdCompare } from "../../../../src/utils/timeslotOrderUtils";
+import { generateTimeslotInvoiceId, retrieveTimeslotOrderTransactionType, timeslotIdInvoiceIdCompare } from "../../../../src/utils/timeslotOrderUtils";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 Amplify.configure(resourceConfig, libraryOptions)
@@ -32,7 +32,7 @@ export interface ChargeNoShowFeeAPIResponse extends Omit<APIMutationResponse, 's
 }
 
 export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (event) => {
-  let response: APIMutationResponse | undefined
+  let response: ChargeNoShowFeeAPIResponse | undefined
   if(!event.arguments.timeslotId || !event.arguments.userEmail) {
     response = {
       status: 'Fail',
@@ -78,20 +78,23 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
   const timeslotData = await dynamoClient.models.Timeslot.get({ id: event.arguments.timeslotId })
 
   if(!timeslotData.data) {
-    return {
+    response = {
       status: 'Fail',
       error: 'Recieved no timeslot data'
     }
+    return response
   } else if(!timeslotData.data.noshowFee) {
-    return {
+    response = {
       status: 'Fail',
       error: 'Timeslot does not have a noshow fee'
     }
+    return response
   } else if(!timeslotData.data.participantId && !timeslotData.data.register) {
-    return {
+    response = {
       status: 'Fail',
       error: 'Timeslot is not registered'
     }
+    return response
   }
 
   const timeslot: Timeslot = {
@@ -113,41 +116,46 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
   if(registeredEmail === null) {
     const participantData = await dynamoClient.models.Participant.get({ id: timeslotData.data.participantId! })
     if(!participantData.data) {
-      return {
+      response = {
         status: 'Fail',
         error: 'Recieved invalid registration'
       }
+      return response
     }
     registeredEmail = participantData.data.userEmail
   }
 
   if(registeredEmail !== event.arguments.userEmail || registeredEmail === null) {
-    return {
+    response = {
       status: 'Fail',
       error: 'User email mismatch'
     }
+    return response
   }
 
   if(DateTime.fromJSDate(timeslot.start).diffNow().toMillis() > 0) {
-    return {
+    response = {
       status: 'Fail',
       error: 'Timeslot has not passed'
     }
+    return response
   }
   else if(Math.abs(DateTime.fromJSDate(timeslot.start).diffNow().toMillis()) > Duration.fromObject({ days: 7 }).toMillis()) {
-    return {
+    response = {
       status: 'Fail',
       error: 'Seven day window to charge no show fee has passed'
     }
+    return response
   }
 
   const customerProfile = await dynamoClient.models.CustomerProfile.get({ userEmail: registeredEmail.toLowerCase() })
 
   if(!customerProfile.data) {
-    return {
+    response = {
       status: 'Fail',
-      error: 'No customer profile for user'
+      error: 'No saved payment methods for user'
     }
+    return response
   }
 
   let savedPaymentMethodsResponse = await dynamoClient.models.SavedPaymentMethod.listSavedPaymentMethodByUserEmail({ 
@@ -165,10 +173,11 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
   }
 
   if(savedPaymentMethodsData.length === 0) {
-    return {
+    response = {
       status: 'Fail',
       error: 'Failed to recieve saved payment method to charge'
     }
+    return response
   }
 
   let paymentMethodToCharge = savedPaymentMethodsData.find(paymentMethod => paymentMethod.isDefault)
@@ -178,10 +187,11 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
   }
 
   if(!paymentMethodToCharge.paypalVaultId || paymentMethodToCharge.type === null) {
-    return {
+    response = {
       status: 'Fail',
       error: 'Failed to recieve saved payment method to charge'
     }
+    return response
   }
 
   const orderController = new OrdersController(client)
@@ -269,59 +279,63 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
 
   //try and retrieve inprogress orders before creating a new one
 
-  let customerOrdersResponse = await dynamoClient.models.Orders.listOrdersByUserEmailAndTransactionType({
-    userEmail: registeredEmail,
-    transactionType: {
-      eq: 'timeslot'
+  let timeslotIdOrders = await dynamoClient.models.OrderItems.listOrderItemsByItemIdAndUserEmail({
+    itemId: timeslot.id,
+    userEmail: {
+      eq: registeredEmail.toLowerCase()
     }
   })
-  const customerOrdersData = customerOrdersResponse.data.filter((data) => {
-    try {
-      const orderItems: OrderItem[] = JSON.parse(data.items.toString())
-      if(orderItems[0] === undefined || orderItems.length > 1) return false
-      return (
-        timeslotIdInvoiceIdCompare(orderItems[0].invoiceId, timeslot.id)
-      )
-    } catch (err) {
-      return false
-    }
-  })
+  const timeslotOrdersData = timeslotIdOrders.data
 
-  while(customerOrdersResponse.nextToken && customerOrdersData.length === 0) {
-    customerOrdersResponse = await dynamoClient.models.Orders.listOrdersByUserEmailAndTransactionType({
-      userEmail: registeredEmail,
-      transactionType: {
-        eq: 'timeslot'
+  while(timeslotIdOrders.nextToken) {
+    timeslotIdOrders = await dynamoClient.models.OrderItems.listOrderItemsByItemIdAndUserEmail({
+      itemId: timeslot.id,
+      userEmail: {
+        eq: registeredEmail.toLowerCase()
       }
     }, {
-      nextToken: customerOrdersResponse.nextToken
+      nextToken: timeslotIdOrders.nextToken
     })
-    customerOrdersData.push(...customerOrdersResponse.data.filter((data) => {
-      try {
-        const orderItems: OrderItem[] = JSON.parse(data.items.toString())
-        if(orderItems[0] === undefined || orderItems.length > 1) return false
-        return (
-          timeslotIdInvoiceIdCompare(orderItems[0].invoiceId, timeslot.id)
-        )
-      } catch (err) {
-        return false
-      }
-    }))
+    timeslotOrdersData.push(...timeslotIdOrders.data)
   }
+
+  const customerOrders = (await Promise.all(timeslotOrdersData.map(async (data) => {
+    const orderResponse = await data.order()
+    if(orderResponse.data) {
+      const mappedOrder: OrderType = {
+        ...orderResponse.data,
+        id: orderResponse.data.paypalOrderId,
+        currency: 'USD',
+        status: orderResponse.data.status ?? 'UNKNOWN',
+        transactionType: orderResponse.data.transactionType ?? 'timeslot',
+        items: JSON.parse(orderResponse.data.items.toString())
+      }
+      return mappedOrder
+    }
+  }))).filter((item) => item !== undefined)
 
   let orderResponse: ApiResponse<Order> | undefined
 
-  if(customerOrdersData.some((order) => order.status === 'COMPLETED')) {
-    return {
+  if(customerOrders.some((order) => (
+    order.status === 'COMPLETED' && 
+    order.items.length === 1 &&
+    retrieveTimeslotOrderTransactionType(order.items[0].invoiceId) === 'noshow'
+  ))) {
+    response = {
       status: 'Fail',
       error: 'Payment already captured'
     }
+    return response
   }
-  else if(customerOrdersData.length > 0) {
-    const foundOrder = customerOrdersData.find((order) => order.status !== OrderStatus.Completed)
+  else if(customerOrders.length > 0) {
+    const foundOrder = customerOrders.find((order) => (
+      order.status !== OrderStatus.Completed && 
+      order.items.length === 1 &&
+      retrieveTimeslotOrderTransactionType(order.items[0].invoiceId) === 'noshow'
+    ))
     if(foundOrder) {
       orderResponse = await orderController.captureOrder({
-        id: foundOrder.paypalOrderId,
+        id: foundOrder.id,
         prefer: 'return=representation',
         paypalRequestId: `${noshowInvoiceId}-capture`
       })
@@ -329,24 +343,29 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
       const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'payer-action')?.href
 
       await dynamoClient.models.Orders.update({
-        paypalOrderId: foundOrder.paypalOrderId,
+        paypalOrderId: foundOrder.id,
         status: orderResponse.result.status,
         approvalUrl: approvalUrl,
       })
       if (orderResponse.result.status === 'COMPLETED') {
-        return { status: 'Success' }
+        response = { 
+          status: 'Success' 
+        }
+        return response
       } else {
-        return { 
+        response = { 
           status: 'Fail', 
           error: `Retry capture returned: ${orderResponse.result.status}` 
         }
+        return response
       }
     }
     else {
-      return {
+      response = {
         status: 'Fail',
         error: 'Failed to retry payment capture'
       }
+      return response
     }
   }
   else {
@@ -363,10 +382,11 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
   let finalOrderStatus: OrderStatus | undefined
 
   if(!status || !id) {
-    return {
+    response = {
       status: 'Fail',
       error: 'Failed to capture payment'
     }
+    return response
   }
 
   switch (status) {
@@ -397,17 +417,25 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
           approvalUrl: approvalUrl
         })
 
-        if(!logResponse.data) {
-          return {
+        const logOrderItem = await dynamoClient.models.OrderItems.create({
+          itemId: timeslot.id,
+          orderId: id,
+          userEmail: registeredEmail.toLowerCase()
+        })
+
+        if(!logResponse.data || !logOrderItem.data) {
+          response = {
             status: 'Fail',
             error: 'Payment Capture Failure'
           }
+          return response
         }
 
-        return {
+        response = {
           status: 'Fail',
-          error: 'Capture incomplete'
+          error: 'Capture incomplete, retry available.'
         }
+        return response
       }
 
       finalOrderStatus = captureResponse.result.status
@@ -420,17 +448,18 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
     }
     case 'VOIDED':
     default: {
-      return {
+      response = {
         status: 'Fail',
         error: 'Failed to capture payment'
       }
+      return response
     }
   }
 
   console.log(orderItems)
 
   const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'payer-action')?.href
-  let orderLogResponse: Schema['Orders']['type'] | null = (await dynamoClient.models.Orders.create({
+  let orderLogResponse = await dynamoClient.models.Orders.create({
     paypalCustomerId: customerProfile.data.paypalCustomerId,
     paypalOrderId: id,
     amount: timeslotData.data.noshowFee,
@@ -441,14 +470,20 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
     items: orderItems,
     userEmail: registeredEmail.toLowerCase(),
     approvalUrl: approvalUrl,
-  })).data
+  })
   
+  let orderItemsLogResponse = await dynamoClient.models.OrderItems.create({
+    itemId: timeslot.id,
+    orderId: id,
+    userEmail: registeredEmail.toLowerCase()
+  })
 
-  if(orderLogResponse === null) {
-    return {
+  if(orderLogResponse.data === null || orderItemsLogResponse.data === null) {
+    response = {
       status: 'Fail',
       error: 'Failed to log order in database'
     }
+    return response
   }
 
 
@@ -458,9 +493,10 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
       subject: softDescriptor,
       content: `<p>You are being charged a <strong>$${timeslotData.data.noshowFee.toFixed(2)}</strong> ${description}.</p><p>Please approve the charge${approvalUrl ? ` at <a href='${approvalUrl}'>${approvalUrl}</a>` : ''} to prevent further disruptions in our services.</p><p>Thank you from the JFP team</p><br/><br/><p style="font-size: 12px;">Please note: Charges are subject to a 2% service fee to keep our platform running.</p>`
     })
-    return {
+    response = {
       status: 'ActionRequired'
     }
+    return response
   }
 
   dynamoClient.queries.NotifyUser({
@@ -468,6 +504,7 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
     subject: softDescriptor,
     content: `<p>You are being charged a <strong>$${timeslotData.data.noshowFee.toFixed(2)}</strong> ${description}.</p><p>Thank you from the JFP team</p><br/><br/><p style="font-size: 12px;">Please note: Charges are subject to a 2% service fee to keep our platform running.</p>`
   })
+
   response = {
     status: 'Success'
   }

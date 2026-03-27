@@ -42,7 +42,7 @@ function ceilToInterval(value: number, interval: number, anchor: number): number
   return anchor + offset - remainder + interval;
 }
 
-function deriveWindow(
+export function deriveWindow(
   segments: Segment[],
   currentTop: number,
 ): { top: number; bottom: number } {
@@ -105,6 +105,8 @@ interface DragSegment {
 
 interface TimeSegmentBarProps {
   segments: Segment[];
+  disabled?: boolean
+  setTopOffset: Dispatch<SetStateAction<number>>
   setSegments: Dispatch<SetStateAction<Segment[]>>;
   individual: {
     individual: false
@@ -159,6 +161,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     }
 
     setTimeWindow(newWindow);
+    props.setTopOffset(newWindow.top)
     timeWindowRef.current = newWindow;
   }, [props.segments]);
 
@@ -167,12 +170,12 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
       e.preventDefault();
       e.stopPropagation();
       const seg = props.segments.find((s) => s.id === id);
-      if (!seg) return;
+      if (!seg || props.disabled) return;
       dragRef.current = {
         id, type,
         startY: e.clientY,
         origStart: seg.startMin,
-        origEnd:   seg.endMin,
+        origEnd: seg.endMin,
         didMove: false,
       };
       document.body.style.cursor = type === "move" ? "grabbing" : "row-resize";
@@ -184,7 +187,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     const MOVE_THRESHOLD_PX = 4;
 
     const onMove = (e: MouseEvent) => {
-      if (!dragRef.current || !barRef.current) return;
+      if (!dragRef.current || !barRef.current || props.disabled) return;
       const { id, type, startY, origStart, origEnd } = dragRef.current;
 
       if (!dragRef.current.didMove && Math.abs(e.clientY - startY) >= MOVE_THRESHOLD_PX) {
@@ -218,13 +221,13 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
       if (cooldownOk) {
         // nearTop = segment approaching the top (early) edge of the window
         // nearBottom = segment approaching the bottom (late) edge of the window
-        const nearTop    = projectedStart < EDGE_SCROLL_MARGIN_MINS && tw.top    > ABS_MIN_HOUR;
+        const nearTop = projectedStart < EDGE_SCROLL_MARGIN_MINS && tw.top > ABS_MIN_HOUR;
         const nearBottom = projectedEnd   > totMins - EDGE_SCROLL_MARGIN_MINS && tw.bottom < ABS_MAX_HOUR;
 
         if (nearTop || nearBottom) {
           lastEdgeScrollRef.current = now;
 
-          let newTop    = tw.top;
+          let newTop = tw.top;
           let newBottom = tw.bottom;
 
           if (nearTop) {
@@ -250,14 +253,15 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
             dragRef.current = {
               ...dragRef.current,
               origStart: origStart + addedMins,
-              origEnd:   origEnd   + addedMins,
-              startY:    startY - (addedMins / totalMinutes(newTw)) * rect.height,
+              origEnd: origEnd + addedMins,
+              startY: startY - (addedMins / totalMinutes(newTw)) * rect.height,
             };
             rebasedTopRef.current = newTop;
             props.setSegments((segs) => rebaseSegments(segs, tw.top, newTop));
           }
 
           setTimeWindow(newTw);
+          props.setTopOffset(newTw.top)
           timeWindowRef.current = newTw;
           return;
         }
@@ -296,7 +300,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     };
 
     const onMouseUp = () => {
-      if (!dragRef.current) return;
+      if (!dragRef.current || props.disabled) return;
       dragRef.current = null;
       document.body.style.cursor = "";
       lastEdgeScrollRef.current = 0;
@@ -308,6 +312,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
         if (topChanged) rebasedTopRef.current = newWindow.top;
         const rebased = topChanged ? rebaseSegments(segs, tw.top, newWindow.top) : segs;
         setTimeWindow(newWindow);
+        props.setTopOffset(newWindow.top)
         timeWindowRef.current = newWindow;
         return rebased;
       });
@@ -372,7 +377,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
   const canAddSegment = largestGap() >= MIN_GAP_TO_ADD && !props.individual.individual;
 
   const addSegment = () => {
-    if (!canAddSegment) return;
+    if (!canAddSegment || props.disabled) return;
     const totMin = totalMinutes(timeWindow);
     const sorted = [...props.segments].sort((a, b) => a.startMin - b.startMin);
     const gaps: { from: number; to: number }[] = [];
@@ -387,10 +392,15 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
     const half = Math.min(30, Math.floor((gap.to - gap.from) / 2 / SNAP) * SNAP);
     const newStart = snap(Math.max(gap.from, mid - half));
     const newEnd = snap(Math.min(gap.to, newStart + half * 2));
-    props.setSegments((prev) => [
-      ...prev,
-      { id: v4(), startMin: newStart, endMin: newEnd, interval: 15, userTag: props.activeTag, options: props.activeOptions },
-    ]);
+    const newSegment: Segment = { id: v4(), startMin: newStart, endMin: newEnd, interval: 15, userTag: props.activeTag, options: props.activeOptions }
+    //can only add segments if not individual
+    if(!props.individual.individual) {
+      props.setSegments((prev) => [
+        ...prev,
+        newSegment,
+      ]);
+      props.individual.setSelectedSegement(newSegment)
+    }
   };
 
   const removeSegment = (id: string) => {
@@ -482,8 +492,9 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
             ))}
 
             {props.segments.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center text-slate-700 text-sm font-mono">
-                No segments — click "+ Add Segment" to start
+              <div className="absolute inset-0 flex flex-col items-center text-center justify-center text-slate-700 text-sm font-mono px-8">
+                <span>No segments — click</span>
+                <span>"Add Segment" to start</span>
               </div>
             )}
 
@@ -505,7 +516,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                   style={{ top: `${topPct}%`, height: `${heightPct}%` }}
                 >
                   {/* Popup — rendered to the right of the segment */}
-                  {activePopup === seg.id && (
+                  {activePopup === seg.id && !props.disabled && (
                     <div
                       ref={(el) => popupsRef.current.set(seg.id, el)}
                       className="absolute z-40 left-[calc(100%+8px)]"
@@ -552,7 +563,10 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                       ${seg.userTag?.color ? `bg-${seg.userTag.color}` : ''}
                       ${isFocused ? 'ring-2 ring-offset-1 ring-gray-400' : ''}
                     `}
-                    style={{ cursor: "grab", outline: "none" }}
+                    style={{ 
+                      cursor: !props.disabled ? "grab" : undefined, 
+                      outline: "none" 
+                    }}
                     tabIndex={index}
                     onMouseDown={(e) => { startDrag(e, seg.id, "move"); }}
                   >
@@ -598,7 +612,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                         {formatTime(minutesToDate(seg.startMin, timeWindow.top))} - {formatTime(minutesToDate(seg.endMin, timeWindow.top))}
                       </span>
                     </button>
-                    {!props.individual.individual && (
+                    {!props.individual.individual && !props.disabled && (
                       <button 
                         className="text-sm font-mono text-nowrap border-black border px-3 rounded-lg"
                         onClick={() => {
@@ -615,7 +629,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     )}
 
                     {/* Top resize handle */}
-                    {!props.individual.individual && (
+                    {!props.individual.individual && !props.disabled && (
                       <div
                         className="absolute top-0 left-0 right-0 h-4 flex items-center justify-center rounded-t-xl cursor-row-resize z-20 group/th"
                         onMouseDown={(e) => { e.stopPropagation(); startDrag(e, seg.id, "top"); }}
@@ -628,7 +642,7 @@ export function TimeSegmentBar(props: TimeSegmentBarProps) {
                     )}
 
                     {/* Bottom resize handle */}
-                    {!props.individual.individual && (
+                    {!props.individual.individual && !props.disabled && (
                       <div
                         className="absolute bottom-0 left-0 right-0 h-4 flex items-center justify-center rounded-b-xl cursor-row-resize z-20 group/bh"
                         onMouseDown={(e) => { e.stopPropagation(); startDrag(e, seg.id, "bottom"); }}

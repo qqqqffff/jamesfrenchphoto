@@ -96,8 +96,6 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
   }
   const timeuntilSlot = DateTime.fromJSDate(timeslot.start).diffNow().toMillis()
 
-  Duration.fromObject({ hours: 24 })
-
   if(!timeslot.cancelationFee) {
     return {
       status: 'Fail',
@@ -113,7 +111,7 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
       status: 'Fail',
       error: 'Cannot register for a slot that already past'
     }
-  } else if(timeuntilSlot > timeslot.cancelationFee.window.toMillis()) {
+  } else if(timeuntilSlot >= timeslot.cancelationFee.window.toMillis()) {
     return {
       status: 'Fail',
       error: 'Timeslot registration not in cancelation window'

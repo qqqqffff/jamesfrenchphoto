@@ -1,6 +1,6 @@
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
-import { APIMutationResponse, BaseAPIParams, SavedPaymentMethod } from "../types";
+import { APIMutationResponse, BaseAPIParams, Order, OrderItem, SavedPaymentMethod } from "../types";
 import { ChargeNoShowFeeAPIResponse } from '../../amplify/functions/timeslots/charge-no-show-fee/handler'
 import { CreateShortNoticeCancelationOrderAPIResponse } from '../../amplify/functions/timeslots/create-short-notice-cancelation-order/handler'
 import { SavePaymentInformationVaultRequest, SavePaymentInformationAPIResponse } from '../../amplify/functions/users/save-payment-information/handler'
@@ -27,6 +27,10 @@ export interface ConfirmSavePaymentInformationMutationParams extends BaseAPIPara
 export interface GetUserSavedPaymentInformationOptions extends BaseAPIParams {
   userEmail: string
   role: 'OWNER' | 'ADMIN'
+}
+
+export interface GetTimeslotOrdersOptions extends BaseAPIParams {
+  timeslotId: string,
 }
 
 export class PaymentService {
@@ -188,8 +192,63 @@ export class PaymentService {
     return mappedPaymentMethods
   }
 
+  private async getTimeslotOrders(options: GetTimeslotOrdersOptions): Promise<Order[]> {
+    const start = new Date().getTime()
+    if(options.options?.logging) console.log('API call')
+    let orderItemsResponse = await this.client.models.OrderItems.listOrderItemsByItemId({ 
+      itemId: options.timeslotId,
+    })
+    const orderItems = orderItemsResponse.data
+
+    while(orderItemsResponse.nextToken) {
+      orderItemsResponse = await this.client.models.OrderItems.listOrderItemsByItemIdAndUserEmail({ 
+        itemId: options.timeslotId,
+      }, {
+        nextToken: orderItemsResponse.nextToken
+      })
+      orderItems.push(...orderItemsResponse.data)
+    }
+    
+    const mappedOrders: Order[] = (await Promise.all(orderItems.map(async (data) => {
+      const order = await data.order()
+      if(order.data) {
+        try {
+          const items = JSON.parse(order.data.items.toString())
+          if(items as OrderItem[] === undefined || items.length !== 1) {
+            return
+          }
+          const mappedOrder: Order = {
+            id: order.data.paypalOrderId,
+            customerId: order.data.paypalCustomerId ?? undefined,
+            amount: order.data.amount,
+            serviceFee: order.data.serviceFee,
+            currency: 'USD',
+            status: order.data.status ?? 'UNKNOWN',
+            transactionType: 'timeslot',
+            items: items as OrderItem[],
+            userEmail: order.data.userEmail,
+            paymentApprovalUrl: order.data.approvalUrl ?? undefined
+          }
+
+          return mappedOrder
+        } catch {
+          return
+        }
+      }
+      return
+    }))).filter(order => order !== undefined)
+    if(options.options?.metric) console.log(`GETUSERTIMESLOTORDERS:${new Date().getTime() - start}`)
+
+    return mappedOrders
+  }
+
   getUserSavedPaymentMethodsQueryOptions = (options: GetUserSavedPaymentInformationOptions) => queryOptions({
     queryKey: ['saved-payment-methods', options.userEmail, options.role],
     queryFn: () => this.getUserSavedPaymentInformation(options)
+  })
+
+  getTimeslotOrdersQueryOptions = (options: GetTimeslotOrdersOptions) => queryOptions({
+    queryKey: ['timeslot-orders', options],
+    queryFn: () => this.getTimeslotOrders(options)
   })
 }

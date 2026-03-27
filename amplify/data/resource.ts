@@ -300,6 +300,7 @@ const schema = a.schema({
       timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),
       participant: a.belongsTo('Participant', 'participantId'),
       participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['read'])]), 
+      orders: a.hasMany('OrderItems', 'itemId')
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [
@@ -416,6 +417,24 @@ const schema = a.schema({
       allow.group('ADMINS'),
       allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list', 'update', 'delete'])
     ]),
+  OrderItems: a.
+    model({
+      id: a.id().required(),
+      itemId: a.id().required(),
+      timeslot: a.belongsTo('Timeslot', 'itemId'),
+      orderId: a.id().required(),
+      order: a.belongsTo('Orders', 'orderId'),
+      userEmail: a.string().required(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('itemId').sortKeys(['userEmail']),
+      index('itemId')
+    ])
+    .authorization((allow) => [
+      allow.group('ADMINS'),
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
+    ]),
   Orders: a.
     model({
       paypalOrderId: a.string().required(),
@@ -424,15 +443,17 @@ const schema = a.schema({
       amount: a.float().required(),
       serviceFee: a.float().required(),
       currency: a.string().default('USD').required(),
-      status: a.enum(['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED']),
+      status: a.enum(['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED', 'UNKNOWN']),
       transactionType: a.enum(['timeslot']),
       items: a.json().required(), //format -> array of OrderItems,
       userEmail: a.string().required(),
       approvalUrl: a.string(),
+      orderItems: a.hasMany('OrderItems', 'orderId'),
     })
     .identifier(['paypalOrderId'])
     .secondaryIndexes((index) => [
-      index('userEmail').sortKeys(['transactionType'])
+      index('userEmail').sortKeys(['transactionType']),
+      index('userEmail')
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),

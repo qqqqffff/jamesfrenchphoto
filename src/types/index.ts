@@ -10,6 +10,19 @@ export interface UserStorage {
     profile: UserProfile
 } 
 
+export type Order = {
+    id: string,
+    customerId?: string,
+    amount: number,
+    serviceFee: number,
+    currency: 'USD',
+    status: 'PAYER_ACTION_REQUIRED' | 'COMPLETED' | 'UNKNOWN' | 'VOIDED' | 'APPROVED' | 'SAVED' | 'CREATED',
+    transactionType: 'timeslot',
+    items: OrderItem[],
+    userEmail: string,
+    paymentApprovalUrl?: string,
+}
+
 export type OrderItem = {
     name: string,
     description: string,

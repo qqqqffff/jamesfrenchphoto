@@ -1,7 +1,7 @@
 import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
 import { ModalProps } from ".";
 import { Button, Checkbox, Modal, TextInput } from "flowbite-react";
-import { DAY_OFFSET, formatTime, textInputTheme } from "../../utils";
+import { currentDate, DAY_OFFSET, textInputTheme } from "../../utils";
 import { Segment, Timeslot, UserTag } from "../../types";
 import { InfiniteData, UseInfiniteQueryResult, useMutation } from "@tanstack/react-query";
 import { TimeslotService, CreateTimeslotsMutationParams, DeleteTimeslotsMutationParams, UpdateTimeslotsMutationParams } from "../../services/timeslotService";
@@ -9,12 +9,13 @@ import { TagPicker } from "../common/TagPicker";
 import { DateTime, Duration } from "luxon";
 import { HiOutlineArrowRight, HiOutlineArrowLeft } from 'react-icons/hi'
 import { UseNavigateResult } from "@tanstack/react-router";
-import { TimeSegmentBar } from "../common/TimeSegmentBar";
+import { deriveWindow, TimeSegmentBar } from "../common/TimeSegmentBar";
 import { GetAllUserTagsData } from "../../services/tagService";
 import { convertSegmentListToTimeslots, convertTimeslotListToSegments, timeslotListComparison } from "../../functions/timeslotFunctions";
 import { SlotComponent } from "../timeslot/Slot";
 import { PriceInput } from "../common/PriceInput";
 import { HiExclamationTriangle } from "react-icons/hi2";
+import { TimeslotRegistration } from "../timeslot/TimeslotRegistration";
 
 interface CreateTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,
@@ -30,10 +31,13 @@ interface CreateTimeslotModalProps extends ModalProps {
 //TODO: use timeslot query to show loading
 export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateTimeslotModalProps) => {
   const [segments, setSegments] = useState<Segment[]>([])
+  const [topOffset, setTopOffset] = useState<number>(0)
+
   const [noshowFee, setNoshowFee] = useState<number | undefined>(60)
   const [cancelationFee, setCancelationFee] = useState<{ amount: number, window: Duration } | undefined>({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
   const [description, setDescription] = useState<string>('')
   const [selectedTag, setSelectedTag] = useState<UserTag>()
+
   const [previewTimeslot, setPreviewTimeslot] = useState<Timeslot>()
   const [selectedSegment, setSelectedSegment] = useState<Segment | undefined>()
 
@@ -50,12 +54,17 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
   })
 
   useEffect(() => {
-    setSegments(convertTimeslotListToSegments(props.timeslots))
+    const segments = convertTimeslotListToSegments(props.timeslots)
+    setSegments(segments)
+    setTopOffset(deriveWindow(segments, 8).top)
     setPreviewTimeslot(undefined)
-    setCancelationFee({ amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
-    setDescription('')
-    setNoshowFee(60)
-    setSelectedTag(undefined)
+
+    //setting inputs to default to the stored information of the first segment since it will be selected
+    setSelectedSegment(segments.length > 0 ? segments[0] : undefined)
+    setCancelationFee(segments.length > 0 ? segments[0].options?.cancelationFee : { amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
+    setDescription(segments.length > 0 ? segments[0].options?.description ?? '' : '')
+    setNoshowFee(segments.length > 0 ? segments[0].options?.noshowFee ?? 60 : 60)
+    setSelectedTag(segments.length > 0 ? segments[0].userTag : undefined)
   }, [
     props.open
   ])
@@ -79,9 +88,12 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
 
   const selectedTimeslots = convertSegmentListToTimeslots(
     props.day,
+    topOffset,
     segments, 
     props.timeslots,
   )
+
+  console.log(segments, selectedTimeslots)
 
   async function submitForm(){
     const newIntersectionTimeslots = selectedTimeslots.filter((timeslot) => props.timeslots.some((qTimeslot) => qTimeslot.id === timeslot.id))
@@ -150,6 +162,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
           <TimeSegmentBar 
             segments={segments}
             setSegments={setSegments}
+            setTopOffset={setTopOffset}
             activeTag={selectedTag}
             activeOptions={{
               noshowFee: noshowFee,
@@ -174,6 +187,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                       setSegments(prev => prev.map((segment) => segment.id === selectedSegment.id ? ({
                         ...segment,
                         options: {
+                          ...segment.options,
                           description: event.target.value
                         }
                       }) : segment))
@@ -227,6 +241,7 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
             <button
               className="py-1 px-2 border rounded-lg cursor-pointer enabled:hover:border-gray-400 disabled:opacity-60"
               onClick={() => props.navigate({ to: '.', search: { date: DateTime.fromJSDate(new Date(props.day.getTime() - DAY_OFFSET)).toFormat('MM-dd-yyyy')}}) }
+              disabled={currentDate.getTime() <= props.day.getTime()}
             >
               <HiOutlineArrowLeft size={20} />
             </button>
@@ -244,7 +259,26 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                 className="flex flex-row gap-1 items-center" 
                 onClick={(e) => {
                   e.stopPropagation()
-                  setNoshowFee(noshowFee !== undefined ? undefined : 40)
+                  if(selectedSegment) {
+                    setSegments(prev => prev.map((segment) => segment.id === selectedSegment.id ? ({
+                      ...segment,
+                      options: {
+                        ...segment.options,
+                        noshowFee: segment.options?.noshowFee ? undefined : 40
+                      }
+                    }) : segment))
+                    setSelectedSegment({
+                      ...selectedSegment,
+                      options: {
+                        ...selectedSegment.options,
+                        noshowFee: selectedSegment.options?.noshowFee ? undefined : 40
+                      }
+                    })
+                    setNoshowFee(noshowFee !== undefined ? undefined : 40)
+                  }
+                  else {
+                    setNoshowFee(noshowFee !== undefined ? undefined : 40)
+                  }
                 }}
               >
                 <Checkbox readOnly checked={noshowFee !== undefined}/>
@@ -252,7 +286,28 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
               </button>
               {noshowFee !== undefined && (
                 <PriceInput
-                  updateState={(v) => setNoshowFee(parseFloat(v))}
+                  updateState={(v) => {
+                    if(selectedSegment) {
+                      setSegments(prev => prev.map((segment) => segment.id === selectedSegment.id ? ({
+                        ...segment,
+                        options: {
+                          ...segment.options,
+                          noshowFee: parseFloat(v)
+                        }
+                      }) : segment))
+                      setSelectedSegment({
+                        ...selectedSegment,
+                        options: {
+                          ...selectedSegment.options,
+                          noshowFee: parseFloat(v)
+                        }
+                      })
+                      setNoshowFee(parseFloat(v))
+                    }
+                    else {
+                      setNoshowFee(parseFloat(v))
+                    }
+                  }}
                   value={String(noshowFee)}
                 />
               )}
@@ -262,7 +317,26 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                 className="flex flex-row gap-1 items-center self-end"
                 onClick={(e) => {
                   e.stopPropagation()
-                  setCancelationFee(cancelationFee !== undefined ? undefined : { amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
+                  if(selectedSegment) {
+                    setSegments(prev => prev.map((segment) => segment.id === selectedSegment.id ? ({
+                      ...segment,
+                      options: {
+                        ...segment.options,
+                        cancelationFee: segment.options?.cancelationFee ? undefined : { amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) }
+                      }
+                    }) : segment))
+                    setSelectedSegment({
+                      ...selectedSegment,
+                      options: {
+                        ...selectedSegment.options,
+                        cancelationFee: selectedSegment ? undefined : { amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) }
+                      }
+                    })
+                    setCancelationFee(cancelationFee !== undefined ? undefined : { amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
+                  }
+                  else {
+                    setCancelationFee(cancelationFee !== undefined ? undefined : { amount: 40, window: Duration.fromMillis(DAY_OFFSET * 2) })
+                  }
                 }}
               >
                 <Checkbox readOnly checked={cancelationFee !== undefined} />
@@ -280,10 +354,38 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                         let value = event.target.value.replace(/[^\d]/g, '')
                         value = value === '' ? '0' : value
                         if(!isNaN(parseInt(value))) {
-                          setCancelationFee({
-                            ...cancelationFee,
-                            window: Duration.fromObject({ hours: parseInt(value) })
-                          })
+                          if(selectedSegment) {
+                            setSegments(prev => prev.map((segment) => segment.id === selectedSegment.id ? ({
+                              ...segment,
+                              options: {
+                                ...segment.options,
+                                cancelationFee: segment.options?.cancelationFee ? {
+                                  ...segment.options.cancelationFee,
+                                  window: Duration.fromObject({ hours: parseInt(value) })
+                                } : undefined
+                              }
+                            }) : segment))
+                            setSelectedSegment({
+                              ...selectedSegment,
+                              options: {
+                                ...selectedSegment.options,
+                                cancelationFee: selectedSegment.options?.cancelationFee ? {
+                                  ...selectedSegment.options.cancelationFee,
+                                  window: Duration.fromObject({ hours: parseInt(value) })
+                                } : undefined
+                              }
+                            })
+                            setCancelationFee({
+                              ...cancelationFee,
+                              window: Duration.fromObject({ hours: parseInt(value) })
+                            })
+                          }
+                          else {
+                            setCancelationFee({
+                              ...cancelationFee,
+                              window: Duration.fromObject({ hours: parseInt(value) })
+                            })
+                          }
                         }
                       }}
                       value={cancelationFee.window.as('hours')}
@@ -292,10 +394,40 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
                   <div className="flex flex-col gap-1">
                     <span className="text-sm italic">Fee</span>
                     <PriceInput
-                      updateState={(v) => setCancelationFee({
-                        ...cancelationFee,
-                        amount: parseFloat(v)
-                      })}
+                      updateState={(v) => {
+                        if(selectedSegment) {
+                          setSegments(prev => prev.map((segment) => segment.id === selectedSegment.id ? ({
+                            ...segment,
+                            options: {
+                              ...segment.options,
+                              cancelationFee: segment.options?.cancelationFee ? {
+                                ...segment.options.cancelationFee,
+                                amount: parseFloat(v)
+                              } : undefined
+                            }
+                          }) : segment))
+                          setSelectedSegment({
+                            ...selectedSegment,
+                            options: {
+                              ...selectedSegment.options,
+                              cancelationFee: selectedSegment.options?.cancelationFee ? {
+                                ...selectedSegment.options.cancelationFee,
+                                amount: parseFloat(v)
+                              } : undefined
+                            }
+                          })
+                          setCancelationFee({
+                            ...cancelationFee,
+                            amount: parseFloat(v)
+                          })
+                        }
+                        else {
+                          setCancelationFee({
+                            ...cancelationFee,
+                            amount: parseFloat(v)
+                          })
+                        }
+                      }}
                       value={String(cancelationFee.amount)}
                     />
                   </div>
@@ -339,42 +471,20 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
         {previewTimeslot && (
           <div className="flex flex-col w-full gap-4 items-center">
             <span className="text-xl">Timeslot Confirmation Previews</span>
-            <div className="flex flex-col rounded-lg border px-4 py-2 w-full">
-              <div className="flex flex-row border-b-2">
-                <span className="text-xl font-medium">Confirm Timeslot Selection</span>
-              </div>
-              <div className="text-center flex flex-col">
-                <span><b>Registration for Timeslot: {previewTimeslot.start.toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at {formatTime(previewTimeslot.start, { timeString: true })} - {formatTime(previewTimeslot.end, { timeString: true })}</b></span>
-                <span>Make sure that this is the right timeslot for you, since you only can reserve one timeslot!</span>
-                {previewTimeslot.cancelationFee && (
-                  <span>Booking this timeslot within <b>{previewTimeslot.cancelationFee.window.as('hours')}</b> hours of the selected date will incur an additional short notice booking fee of <b>${previewTimeslot.cancelationFee.amount}</b>.</span>
-                )}
-                {previewTimeslot.noshowFee && (
-                  <span>Please attend your reserved timeslot on time otherwise you will be charged a <b>${previewTimeslot.noshowFee}</b> no show fee.</span>
-                )}
-                <div  className="w-full border my-2"/>
-                {(previewTimeslot.cancelationFee !== undefined || previewTimeslot.noshowFee !== undefined) && (
-                  <>
-                    <span className="italic text-sm text-gray-500 text-start">Payment information will be collected on following screen which will be subject to charges in the following cases:</span>
-                    {previewTimeslot.cancelationFee && (<span className="italic text-sm text-gray-500 text-start">&bull; Short notice booking (immediate) for booking within {previewTimeslot.cancelationFee.window.as('hours')} hours</span>)}
-                    {previewTimeslot.noshowFee && (<span className="italic text-sm text-gray-500 text-start">&bull; No show fee (processed within 7 days of timeslot date).</span>)}
-                  </>
-                )}
-                {(previewTimeslot.noshowFee || previewTimeslot.cancelationFee) && (
-                  <span className="italic text-xs text-gray-500 text-start">Please note that charges are subject to a 2% platform service charge with a maximum charge of $10 to help keep our platform running.</span>
-                )}
-                <span className="italic text-sm text-gray-500 mt-4 border px-2 py-1 rounded-lg">Additional fields will display here to send email notifications to user and additional participants</span>
-              </div>
-            </div>
-            <div className="flex flex-col rounded-lg border px-4 py-2 w-full">
-              <div className="flex flex-row border-b-2">
-                <span className="text-xl font-medium">Confirm Unregistration</span>
-              </div>
-              <div className="text-center flex flex-col pt-2 pb-8">
-                <span><b>Unregistration for Timeslot: {previewTimeslot.start.toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at {formatTime(previewTimeslot.start, { timeString: true })} - {formatTime(previewTimeslot.end, { timeString: true })}</b></span>
-                <span>Are you sure you want to unregister from this timeslot?</span>
-              </div>
-            </div>
+            <TimeslotRegistration 
+              timeslot={previewTimeslot}
+              type="Registration"
+              preview={{
+                preview: true
+              }}
+            />
+            <TimeslotRegistration 
+              timeslot={previewTimeslot}
+              type="Unregistration"
+              preview={{
+                preview: true
+              }}
+            />
           </div>
         )}
       </Modal.Body>

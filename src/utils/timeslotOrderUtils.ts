@@ -22,6 +22,12 @@ export const generateTimeslotInvoiceId = (
 
 export const timeslotIdInvoiceIdCompare = (invoiceId: string, timeslotId: string): boolean | null => {
   const parts = invoiceId.split('-')
-  if(parts[3] === undefined) return null
-  return parts[3] === timeslotId.replace(/[^A-z0-9]*/g, '').toUpperCase()
+  if(parts[2] === undefined) return null
+  return parts[2] === timeslotId.replace(/[^A-z0-9]*/g, '').toUpperCase()
+}
+
+export const retrieveTimeslotOrderTransactionType = (invoiceId: string): 'noshow' | 'cancelation' | null => {
+  const parts = invoiceId.split('-')
+  if(parts[1] === undefined) return null
+  return parts[1] === 'C' ? 'cancelation' : parts[1] === 'N' ? 'noshow' : null
 }
