@@ -4,34 +4,12 @@ import {
   Client,
   Environment,
   LogLevel,
-  VaultApplePayRequest,
-  VaultPaypalWalletRequest,
-  SetupTokenRequestCard,
   VaultController,
 } from '@paypal/paypal-server-sdk'
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { env } from '$amplify/env/save-payment-information'
-
-
-export type SavePaymentInformationResponse = {
-  status: 'Success'
-  tokenResponse: string,
-} | {
-  status: 'Fail',
-  error: string,
-}
-
-export type SavePaymentInformationVaultRequest = {
-  type: 'ApplePay'
-  request: VaultApplePayRequest
-} | {
-  type: 'PaypalWallet'
-  request: VaultPaypalWalletRequest
-} | {
-  type: 'Card',
-  request: SetupTokenRequestCard
-}
+import { SavePaymentInformationAPIResponse, SavePaymentInformationVaultRequest } from "../../../../src/types/backend-types";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 Amplify.configure(resourceConfig, libraryOptions)
@@ -40,7 +18,7 @@ const dynamoClient = generateClient<Schema>()
 
 
 export const handler: Schema['SavePaymentInformation']['functionHandler'] = async (event) => {
-  let response: SavePaymentInformationResponse | undefined
+  let response: SavePaymentInformationAPIResponse | undefined
   if(!event.arguments.userEmail || !event.arguments.userId) {
     response = {
       status: 'Fail',
@@ -48,8 +26,8 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
     }
     return response
   }
-  const paypalClientId = process.env.PAYPAL_CLIENT_ID
-  const paypalSecretKey = process.env.PAYPAL_SECRET_KEY
+  const paypalClientId = (process.env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
+  const paypalSecretKey = (process.env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
 
   if(!paypalClientId || !paypalSecretKey) {
     response = {
@@ -61,6 +39,7 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
 
   let paymentInfoVaultRequest: SavePaymentInformationVaultRequest | undefined
   try {
+    console.log(event.arguments.vaultRequest.toString())
     paymentInfoVaultRequest = JSON.parse(event.arguments.vaultRequest.toString())
     if(!paymentInfoVaultRequest?.type) {
       response = {
@@ -77,20 +56,23 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
     return response
   }
 
+  const branch = process.env.AWS_BRANCH ?? 'sandbox'
+  const isProd = branch === 'main'
+
   const client = new Client({
     clientCredentialsAuthCredentials: {
       oAuthClientId: paypalClientId,
       oAuthClientSecret: paypalSecretKey,
     },
-    timeout: 10,
-    environment: Environment.Sandbox,
+    timeout: 180000,
+    environment: isProd ? Environment.Production : Environment.Sandbox,
     logging: {
-      logLevel: LogLevel.Info,
+      logLevel: isProd ? LogLevel.Warn : LogLevel.Info,
       logRequest: {
-        logBody: true
+        logBody: !isProd
       },
       logResponse: {
-        logHeaders: true
+        logHeaders: !isProd
       }
     }
   })
@@ -126,7 +108,7 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
   
   if(!customerProfileResponse.data && setupTokenResponse.result.customer?.id) {
     const customerProfileResponse = await dynamoClient.models.CustomerProfile.create({
-      userEmail: event.arguments.userEmail,
+      userEmail: event.arguments.userEmail.toLowerCase(),
       userId: event.arguments.userId,
       paypalCustomerId: setupTokenResponse.result.customer.id
     })

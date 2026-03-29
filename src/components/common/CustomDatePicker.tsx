@@ -4,9 +4,11 @@ import { Timeslot, UserTag } from "../../types"
 import { HiOutlineCalendar, HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi2'
 import { useQuery } from "@tanstack/react-query"
 import { TimeslotService } from "../../services/timeslotService"
+import { CgSpinner } from "react-icons/cg"
 
 interface CustomDatePickerProps {
   selectDate: (date: Date | null) => void
+  disabled?: boolean
   selectedDate?: Date
   fetchMonthTimeslots?: TimeslotService
   small?: boolean
@@ -183,8 +185,12 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
   return (
     <div className="relative" ref={windowRef}>
       <button
-        className="w-full border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2"
+        className="
+          w-full border rounded-lg enabled:cursor-pointer disabled:cursor-not-allowed 
+          enabled:hover:border-gray-400 focus:outline-none focus:ring-2 disabled:opacity-60
+        "
         onClick={() => setIsOpen(!isOpen)}
+        disabled={props.disabled}
       >
         {(props.small === undefined || !props.small) ? (
           <div className="flex items-center justify-between px-4 py-2">
@@ -208,7 +214,12 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
             >
               <HiOutlineChevronLeft size={24} className="hover:text-black text-gray-500 transition-colors duration-200"/>
             </button>
-            <h3 className="text-lg font-semibold text-gray-800">{monthNames[activeDate.getMonth()]} {activeDate.getFullYear()}</h3>
+            <div className="flex flex-row gap-1 items-center">
+              <h3 className="text-lg font-semibold text-gray-800">{monthNames[activeDate.getMonth()]} {activeDate.getFullYear()}</h3>
+              {calendarTimeslotQuery?.isFetching && (
+                <CgSpinner className="text-gray-500 animate-spin" size={24} />
+              )}
+            </div>
             <button
               className="p-2"
               onClick={() => navigateMonth(1)}

@@ -7,6 +7,7 @@ interface PriceInputProps {
   value: string,
   discount?: string,
   updateState: (value: string) => void,
+  disabled?: boolean
   className?: string
   displayDiscount?: boolean
   label?: JSX.Element
@@ -67,6 +68,7 @@ export const PriceInput = (props: PriceInputProps) => {
           }
           setInprogressValue(value)
         }}
+        disabled={props.disabled}
         onFocus={handleFocus}
         onBlur={handleBlur}
       />

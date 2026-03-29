@@ -7,8 +7,9 @@ import { GetAllUserTagsData } from "../../services/tagService"
 
 interface TagPickerProps {
   tags: UserTag[],
-  tagQuery?: UseInfiniteQueryResult<InfiniteData<GetAllUserTagsData, unknown>, Error>
   parentPickTag: (tag?: UserTag) => void
+  disabled?: boolean
+  tagQuery?: UseInfiniteQueryResult<InfiniteData<GetAllUserTagsData, unknown>, Error>
   pickedTag?: UserTag[],
   placeholder?: string
   placement?: 'start' | 'end'
@@ -108,8 +109,12 @@ export const TagPicker = (props: TagPickerProps) => {
       {props.small ? (
         <div className="flex justify-center">
           <button
-            className="border rounded-lg cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2"
+            className="
+              border rounded-lg enabled:cursor-pointer enabled:hover:border-gray-400 
+              focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed
+            "
             onClick={() => setFocused(!focused)}
+            disabled={props.disabled}
           >
             <div className="p-1">
               <HiOutlineTag size={24} className={props.pickedTag && props.pickedTag.length === 1 && props.pickedTag[0].color !== undefined ? `text-${props.pickedTag[0].color}` : 'text-gray-900'}/>
@@ -121,12 +126,13 @@ export const TagPicker = (props: TagPickerProps) => {
           placeholder={props.placeholder ?? 'Pick User Tag...'}
           className={`
             text-${!props.pickedTag || props.pickedTag.length === 0 ? 'black' : props.pickedTag[0].color} 
-            hover:cursor-pointer w-full px-4 py-2 border rounded-lg hover:border-gray-400 focus:outline-none focus:ring-2  
-            text-xs
+            enabled:hover:cursor-pointer w-full px-4 py-2 border rounded-lg enabled:hover:border-gray-400 focus:outline-none  
+            text-xs disabled:opacity-60 disabled:hover:cursor-not-allowed focus:ring-2 
           `}
+          disabled={props.disabled}
           value={!props.pickedTag || props.pickedTag.length === 0 || props.hideTag ? '' : 
             props.pickedTag.length === 1 ? props.pickedTag[0].name : 'Multiple Tags'}
-          onFocus={() => setFocused(true)}
+          onFocus={() => { if(!props.disabled) setFocused(true); }}
           readOnly
         />
       )}

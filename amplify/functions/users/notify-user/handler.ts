@@ -275,7 +275,7 @@ export const handler: Schema['NotifyUser']['functionHandler'] = async (event) =>
   const message: sgMail.MailDataRequired = {
     to: [email, ...(additionalRecipients !== undefined && additionalRecipients !== null ? additionalRecipients : [])],
     from: 'no-reply@jamesfrenchphotography.com',
-    subject: 'Notification from James French Photography',
+    subject: event.arguments.subject,
     html: template
       .replace('{{_content_}}', content)
       .replace('{{_structured_name_}}', structuredName)

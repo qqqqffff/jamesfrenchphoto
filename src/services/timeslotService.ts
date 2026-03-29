@@ -400,7 +400,7 @@ export class TimeslotService {
     if (params.options?.logging) console.log(response)
   }
 
-  async updateTimeslotMutation(params: UpdateTimeslotMutationParams) {
+  async updateTimeslotMutation(params: UpdateTimeslotMutationParams): Promise<APIMutationResponse> {
     const start = new Date().getTime()
     if(
       params.timeslot.description !== params.description ||
@@ -435,38 +435,68 @@ export class TimeslotService {
         } : null,
         tagId: params.userTag?.id ?? null,
       })
+      if(!updateResponse.data) { 
+        return {
+          status: 'Fail',
+          error: 'Failed to update timeslot'
+        }
+      }
       if(params.options?.logging) console.log(updateResponse)
 
-      const previousTaggingResponse = new Promise<boolean>(async (resolve) => {
+      const previousTaggingResponse = new Promise<APIMutationResponse>(async (resolve) => {
         if(updateResponse.data && params.timeslot.tag?.id !== undefined && params.timeslot.tag.id !== params.userTag?.id) {
           const timeslotTagResponse = await updateResponse.data.timeslotTag()
           if(params.options?.logging) console.log(timeslotTagResponse)
           if(timeslotTagResponse.data) {
             const deleteTimeslotResponse = await this.client.models.TimeslotTag.delete({ id: timeslotTagResponse.data.id })
             if(params.options?.logging) console.log(deleteTimeslotResponse)
+            if(!deleteTimeslotResponse.data) {
+              resolve({ status: 'Fail', error: 'Failed to delete timeslot tag association' })
+            }
+          }
+          else {
+            resolve({ status: 'Fail', error: 'Failed to retrieve previously associated timeslot tag' })
           }
         }
-        resolve(true)
+        resolve({ status: 'Success' })
       })
 
-      const currentTaggingResponse = new Promise<boolean>(async (resolve) => {
+      const currentTaggingResponse = new Promise<APIMutationResponse>(async (resolve) => {
         if(params.userTag !== undefined && params.timeslot.tag?.id !== params.userTag.id) {
           const timeslotTagResponse = await this.client.models.TimeslotTag.create({
             timeslotId: params.timeslot.id,
             tagId: params.userTag.id
           })
           if(params.options?.logging) console.log(timeslotTagResponse)
+          if(!timeslotTagResponse.data) {
+            resolve({ status: 'Fail', error: 'Failed to create timeslot tag association' })
+          }
         }
-        resolve(true)
+        resolve({ status: 'Success'})
       })
 
+      const responses = await Promise.all([
+        previousTaggingResponse,
+        currentTaggingResponse
+      ])
+
       if(params.options?.metric) {
-        await Promise.all([
-          previousTaggingResponse,
-          currentTaggingResponse
-        ])
         console.log(`UPDATETIMESLOT:${new Date().getTime() - start}ms`)
       }
+      if(responses.some((response) => response.status === 'Fail')) {
+        return responses.find((response) => response.status === 'Fail') ?? {
+          status: 'Fail',
+          error: 'Unexpected error occurred.'
+        }
+      }
+      return {
+        status: 'Success'
+      }
+    }
+
+    return {
+      status: 'Fail',
+      error: 'No changes to update.'
     }
   }
 

@@ -29,6 +29,7 @@ type ParticipantPickerProps = {
   },
   participants: Participant[],
   participantQuery: UseInfiniteQueryResult<InfiniteData<GetAllParticipantsData, unknown>, Error>
+  disabled?: boolean
 }
 
 export const ParticipantPicker = (props: ParticipantPickerProps) => {
@@ -140,8 +141,11 @@ const ParticipantListComponent = (a: { properties: ParticipantPickerProps }): JS
             theme={textInputTheme}
             sizing="sm"
             className="max-w-[250px]"
+            placeholder="Search Participants..."
+            autoComplete='off'
             onChange={(event) => setParticipantSearch(event.target.value)}
             value={participantSearch}
+            disabled={props.disabled}
           />
         </div>
       )}
@@ -327,8 +331,10 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
       <TextInput 
         id='participant'
         theme={textInputTheme}
+        autoComplete="off"
         sizing="sm"
         className="max-w-[250px] w-full"
+        placeholder="Search Participants..."
         onFocus={() => setIsFocused(true)}
         onChange={(event) => setParticipantSearch(event.target.value)}
         value={isFocused ? (
@@ -342,7 +348,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
         )}
       />
       {isFocused && (
-        <div className="absolute z-10 top-1/2 mt-10 bg-white border rounded-sm shadow-lg flex flex-col gap-2">
+        <div className="absolute z-10 top-1/2 mt-8 bg-white border rounded-sm shadow-lg flex flex-col gap-2">
           <div className="flex flex-row p-1 justify-between w-full border-b gap-8">
             <span className="ms-2 whitespace-nowrap">Participants</span>
             <button
@@ -352,7 +358,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
             </button>
           </div>
           {filteredParticipants.length > 0 ? (
-            <ul className="max-h-56 overlfow-y-auto py-1 px-2 min-w-max">
+            <ul className="max-h-56 overlfow-y-auto min-w-max flex flex-col">
             {filteredParticipants.map((item, index) => {
               const selected = props.multiple.multiple === 'true' ? (
                 props.multiple.selectedParticipants.some((participant) => participant.id === item.id)
@@ -370,7 +376,11 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
                 >
                   {/* average h - 42px */}
                   <li 
-                    className="px-4 py-2 hover:bg-gray-100 rounded flex flex-row gap-2"
+                    className={`
+                      hover:bg-gray-100 flex flex-row gap-2
+                      ${index === 0 ? 'border-y' : 'border-b'}
+                      ${selected ? 'bg-gray-200' : ''}
+                    `}
                     ref={el => participantItems.current.set(item.id, el)}
                     id={item.id}
                   >
@@ -395,6 +405,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
                           }
                         }
                       }}
+                      className="w-full text-start px-4 py-2"
                     >
                       {props.multiple.multiple === 'true' && (
                         <Checkbox 
@@ -417,7 +428,7 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
             </ul>
           ) : (
             <div>
-              <span>{props.participantQuery.isFetching ? (
+              <span className="px-4 py-2">{props.participantQuery.isFetching ? (
                 <span className="flex flex-row gap-1 items-center">
                   <span>Loading</span>
                   <Loading />
@@ -426,6 +437,22 @@ const ParticipantSearchComponent = (a: { properties: ParticipantPickerProps }): 
                 'No participants found.'
               )}</span>
             </div>
+          )}
+          {props.multiple.multiple === 'false' && (
+            <button
+              className="
+                self-end rounded-lg border py-1 px-2 enabled:hover:bg-gray-100 
+                disabled:cursor-not-allowed me-2 mb-2 disabled:opacity-60
+              "
+              disabled={props.multiple.selectedParticipant === undefined}
+              onClick={() => {
+                if(props.multiple.multiple === 'false') {
+                  props.multiple.setSelectedParticipant(undefined)
+                }
+              }}
+            >
+              <span>Clear</span>
+            </button>
           )}
         </div>
       )}

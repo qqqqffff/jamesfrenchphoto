@@ -1,29 +1,30 @@
 import { env } from 'node:process'
 import 'dotenv/config'
-import validator from 'validator'
 
-function encodeObjectToBase64(object: any) {
-  const objectString = JSON.stringify(object)
-  return Buffer.from(objectString).toString('base64url')
+function encodeObjectToBase64(object: string) {
+  return Buffer.from(object).toString('base64')
 }
 
-const clientId = env.PAYPAL_SANDBOX_CLIENT_ID
-const merchantId = env.PAYPAL_SANDBOX_MERCHANT_ID
+const envClientId = env.PAYPAL_SANDBOX_CLIENT_ID
+const envMerchantId = env.PAYPAL_SANDBOX_MERCHANT_ID
 
-const header = {
-  alg: 'none'
+export function generatePayPalAuthAssertionHeader(clientId?: string, merchantId?: string) {
+  const authClientId = clientId || envClientId
+  const authMerchantId = merchantId || envMerchantId
+
+  if(!authClientId || !authMerchantId) {
+    throw new Error('Missing client or merchant id for PayPal Auth Assertion Header')
+  }
+
+  const header = `{\r\n  "alg": "none"\r\n}`
+  const encodedHeader = encodeObjectToBase64(header)
+  const payload = `{\r\n  "iss": "${authClientId}",\r\n  "payer_id": "${authMerchantId}"\r\n}`
+  const encodedPayload = encodeObjectToBase64(payload)
+
+  const jwt = `${encodedHeader}.${encodedPayload}.`
+  return jwt
 }
 
-const encodedHeader = encodeObjectToBase64(header)
 
-const payload = {
-  iss: clientId,
-  payer_id: merchantId
-}
-
-const encodedPayload = encodeObjectToBase64(payload)
-
-const jwt = `${encodedHeader}.${encodedPayload}.`
-console.log(`Validation:${validator.isJWT(jwt)}`)
-console.log(`PayPal-Auth-Assertion=${jwt}`)
+console.log(`PayPal-Auth-Assertion=${generatePayPalAuthAssertionHeader()}`)
 

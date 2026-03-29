@@ -1,5 +1,6 @@
 import { AuthSession, AuthUser, FetchUserAttributesOutput } from "aws-amplify/auth";
 import { Duration } from "luxon";
+import { OrderRefID } from "./order-ref-id";
 
 export interface UserStorage {
     user: AuthUser
@@ -8,6 +9,28 @@ export interface UserStorage {
     groups: string
     profile: UserProfile
 } 
+
+export type Order = {
+    id: string,
+    customerId?: string,
+    amount: number,
+    serviceFee: number,
+    currency: 'USD',
+    status: 'PAYER_ACTION_REQUIRED' | 'COMPLETED' | 'UNKNOWN' | 'VOIDED' | 'APPROVED' | 'SAVED' | 'CREATED',
+    transactionType: 'timeslot',
+    items: OrderItem[],
+    userEmail: string,
+    paymentApprovalUrl?: string,
+}
+
+export type OrderItem = {
+    name: string,
+    description: string,
+    amount: number,
+    serviceChargeAmount: number,
+    refrenceId: OrderRefID,
+    invoiceId: string,
+}
 
 export interface UserData {
     email: string;
@@ -20,6 +43,19 @@ export interface UserData {
     updated?: Date;
     enabled?: boolean;
     profile?: UserProfile
+}
+
+export interface SavedPaymentMethod {
+    id: string,
+    customerId: string,
+    vaultId?: string,
+    type: 'PAYPAL' | 'CARD' | 'APPLEPAY'
+    isDefault: boolean,
+    lastDigits?: number,
+    brand?: string,
+    expireMonth?: number,
+    expireYear?: number,
+    userEmail: string,
 }
 
 export interface UserProfile {
