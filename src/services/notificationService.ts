@@ -299,6 +299,7 @@ export interface DeleteNotificationParams {
 
 export interface SendUserEmailNotificationParams {
   email: string,
+  header?: string,
   additionalRecipients: string[]
   content: string,
   options?: {
@@ -514,6 +515,7 @@ export class NotificationService {
     try {
       const response = await this.client.queries.NotifyUser({
         email: params.email,
+        subject: params.header ?? 'JFP Client Notification',
         content: params.content,
         additionalRecipients: params.additionalRecipients
       })

@@ -1,4 +1,5 @@
-import { APIMutationResponse, Timeslot } from "../../../../src/types";
+import { Timeslot } from "../../../../src/types";
+import { CreateShortNoticeCancelationOrderAPIResponse } from "../../../../src/types/backend-types";
 import { Schema } from "../../../data/resource";
 import { env } from '$amplify/env/create-short-notice-cancelation-order'
 import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime";
@@ -24,10 +25,6 @@ const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 Amplify.configure(resourceConfig, libraryOptions)
 
 const dynamoClient = generateClient<Schema>()
-
-export interface CreateShortNoticeCancelationOrderAPIResponse extends APIMutationResponse {
-  orderId?: string
-}
 
 export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
   let response: CreateShortNoticeCancelationOrderAPIResponse | undefined

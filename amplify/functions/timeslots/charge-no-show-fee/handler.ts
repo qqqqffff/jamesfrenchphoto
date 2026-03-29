@@ -12,7 +12,8 @@ import {
   Order,
 } from '@paypal/paypal-server-sdk'
 import { Schema } from '../../../data/resource'
-import { APIMutationResponse, OrderItem, Timeslot, Order as OrderType } from '../../../../src/types'
+import { OrderItem, Timeslot, Order as OrderType } from '../../../../src/types'
+import { ChargeNoShowFeeAPIResponse } from '../../../../src/types/backend-types'
 import { env } from '$amplify/env/charge-no-show-fee'
 import { getAmplifyDataClientConfig } from '@aws-amplify/backend/function/runtime'
 import { Amplify } from 'aws-amplify'
@@ -20,16 +21,12 @@ import { generateClient } from 'aws-amplify/api'
 import { formatTimeslotDates } from '../../../../src/utils'
 import { Duration, DateTime } from 'luxon'
 import { OrderRefID } from '../../../../src/types/order-ref-id'
-import { generateTimeslotInvoiceId, retrieveTimeslotOrderTransactionType, timeslotIdInvoiceIdCompare } from "../../../../src/utils/timeslotOrderUtils";
+import { generateTimeslotInvoiceId, retrieveTimeslotOrderTransactionType } from "../../../../src/utils/timeslotOrderUtils";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 Amplify.configure(resourceConfig, libraryOptions)
 
 const dynamoClient = generateClient<Schema>()
-
-export interface ChargeNoShowFeeAPIResponse extends Omit<APIMutationResponse, 'status'> {
-  status: 'Success' | 'Fail' | 'ActionRequired'
-}
 
 export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (event) => {
   let response: ChargeNoShowFeeAPIResponse | undefined

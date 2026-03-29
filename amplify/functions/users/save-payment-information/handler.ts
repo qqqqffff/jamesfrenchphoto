@@ -4,34 +4,12 @@ import {
   Client,
   Environment,
   LogLevel,
-  VaultApplePayRequest,
-  VaultPaypalWalletRequest,
-  SetupTokenRequestCard,
   VaultController,
 } from '@paypal/paypal-server-sdk'
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { env } from '$amplify/env/save-payment-information'
-
-
-export type SavePaymentInformationAPIResponse = {
-  status: 'Success'
-  tokenResponse: string,
-} | {
-  status: 'Fail',
-  error: string,
-}
-
-export type SavePaymentInformationVaultRequest = {
-  type: 'ApplePay'
-  request: VaultApplePayRequest
-} | {
-  type: 'PaypalWallet'
-  request: VaultPaypalWalletRequest
-} | {
-  type: 'Card',
-  request: SetupTokenRequestCard
-}
+import { SavePaymentInformationAPIResponse, SavePaymentInformationVaultRequest } from "../../../../src/types/backend-types";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 Amplify.configure(resourceConfig, libraryOptions)
@@ -48,8 +26,8 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
     }
     return response
   }
-  const paypalClientId = (env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
-  const paypalSecretKey = (env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
+  const paypalClientId = (process.env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
+  const paypalSecretKey = (process.env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
 
   if(!paypalClientId || !paypalSecretKey) {
     response = {

@@ -6,7 +6,7 @@ import { v4 } from 'uuid'
 import { textInputTheme } from "../../../utils"
 import { AutoExpandTextarea } from "../../common/AutoExpandTextArea"
 import { HiOutlineDownload } from "react-icons/hi"
-import { PackageItemLoader } from "../../modals/PackageItemLoader"
+import { PackageItemLoaderModal } from "../../modals"
 import { InfiniteData, UseInfiniteQueryResult, UseQueryResult } from "@tanstack/react-query"
 import { GetInfinitePackageItemsData } from "../../../services/packageService"
 import { PricedItem } from "./PricedItem"
@@ -45,7 +45,7 @@ export const ItemsPanel = (props: ItemsPanelProps) => {
 
   return (
     <>
-      <PackageItemLoader 
+      <PackageItemLoaderModal 
         allPackageItems={props.allPackageItems}
         allPackageItemsQuery={props.allPackageItemsQuery}
         open={packageItemLoaderVisible}

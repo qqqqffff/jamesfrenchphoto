@@ -1,9 +1,12 @@
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { APIMutationResponse, BaseAPIParams, Order, OrderItem, SavedPaymentMethod } from "../types";
-import { ChargeNoShowFeeAPIResponse } from '../../amplify/functions/timeslots/charge-no-show-fee/handler'
-import { CreateShortNoticeCancelationOrderAPIResponse } from '../../amplify/functions/timeslots/create-short-notice-cancelation-order/handler'
-import { SavePaymentInformationVaultRequest, SavePaymentInformationAPIResponse } from '../../amplify/functions/users/save-payment-information/handler'
+import { 
+  ChargeNoShowFeeAPIResponse, 
+  SavePaymentInformationVaultRequest, 
+  SavePaymentInformationAPIResponse, 
+  CreateShortNoticeCancelationOrderAPIResponse 
+} from '../types/backend-types'
 import { queryOptions } from "@tanstack/react-query";
 
 export interface ChargeNoShowFeeMutationParams extends BaseAPIParams {
