@@ -153,7 +153,6 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
       show={props.open} 
       onClose={() => {
         props.onClose()
-
       }}
       size={previewTimeslot ? 'full' : "7xl"}
     >
