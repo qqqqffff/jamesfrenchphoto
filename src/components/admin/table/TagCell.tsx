@@ -1,8 +1,8 @@
-import { ComponentProps, useEffect, useState } from "react";
-import { Participant, Table, UserData, UserProfile, UserTag } from "../../../types";
+import { ComponentProps, useEffect, useRef, useState } from "react";
+import { Participant, Table, UserProfile, UserTag } from "../../../types";
 import { Checkbox } from "flowbite-react";
 import { HiOutlineXMark } from "react-icons/hi2";
-import { useMutation, UseQueryResult } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { UserService, UpdateParticipantMutationParams } from "../../../services/userService";
 import { formatParticipantName } from "../../../functions/clientFunctions";
 
@@ -11,7 +11,7 @@ interface TagCellProps extends ComponentProps<'td'> {
   UserService: UserService,
   updateValue: (text: string) => void,
   linkedParticipantId?: string
-  tags: UseQueryResult<UserTag[] | undefined, Error>,
+  tags: UserTag[],
   table: Table,
   columnId: string,
   rowIndex: number,
@@ -19,26 +19,26 @@ interface TagCellProps extends ComponentProps<'td'> {
     users: UserProfile[]
     tempUsers: UserProfile[]
   },
-  usersQuery: UseQueryResult<UserData[] | undefined, Error>
-  tempUsersQuery: UseQueryResult<UserProfile[] | undefined, Error>
   updateParticipant: (
     newTags: UserTag[], 
     participantId: string, 
     userEmail: string, 
     tempUser: boolean
   ) => void
+  search: string
 }
 
 //TODO: add horizontal scrolling between all tags that are inside instead of displaying multiple tags
 export const TagCell = (props: TagCellProps) => {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const actionWindowRef = useRef<HTMLDivElement | null>(null)
+  
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [search, setSearch] = useState<string>('')
   const [foundParticipant, setFoundParticipant] = useState<{ user: UserProfile, participant: Participant } | undefined>();
-  const [availableTags, setAvailableTags] = useState<UserTag[]>(props.tags.data ?? [])
-
-  console.log(foundParticipant)
   
+  //TODO: combine use effects
   useEffect(() => {
     if(props.value !== value){
       setValue(props.value)
@@ -81,26 +81,38 @@ export const TagCell = (props: TagCellProps) => {
   ])
 
   useEffect(() => {
-    if(props.tags.data?.some((tag) => !availableTags.some((parentTag) => parentTag.id === tag.id))) {
-      setAvailableTags(props.tags.data ?? [])
+    const handleClickOutside = (event: MouseEvent) => {
+      if(
+        isFocused &&
+        actionWindowRef.current &&
+        inputRef.current &&
+        !actionWindowRef.current.contains(event.target as Node) &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setIsFocused(false)
+      }
     }
-  }, [props.tags])
+
+    if(isFocused) [
+      document.addEventListener('mousedown', handleClickOutside)
+    ]
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isFocused])
 
   const updateParticipant = useMutation({
     mutationFn: (params: UpdateParticipantMutationParams) => props.UserService.updateParticipantMutation(params)
   })
 
   const cellTags = (value.split(',') ?? []).map((tagId) => {
-    const foundTag = availableTags.find((tag) => tag.id === tagId)
+    const foundTag = props.tags.find((tag) => tag.id === tagId)
     return foundTag
   })
   .filter((tag) => tag !== undefined)
 
   const tagValue = (() => {
-    if(
-      props.tags.isLoading 
-    ) return 'Loading...'
-    else if(value === '') return ''
+    if(value === '') return ''
     else if(cellTags.length === 1) {
       return cellTags[0].name
     }
@@ -112,13 +124,17 @@ export const TagCell = (props: TagCellProps) => {
     }
   })()
 
+  const cellColoring = props.rowIndex % 2 ? foundParticipant ? 'bg-yellow-200 bg-opacity-40' : 'bg-gray-200 bg-opacity-40' : foundParticipant ? 'bg-yellow-100 bg-opacity-20' : '';
+  const selectedSearch = props.search !== '' && cellTags.some((tag) => tag.name.toLowerCase().includes(props.search.toLowerCase()))
   return (
     <>
       <td className={`
         text-ellipsis border py-3 px-3 max-w-[150px]
-        ${foundParticipant !== undefined ? 'bg-yellow-50 bg-opacity-40' : ''}
+        ${selectedSearch ? 'outline outline-green-400' : ''}
+        ${cellColoring}
       `}>
         <input
+          ref={inputRef}
           placeholder="Pick Tags..."
           className={`
             font-thin p-0 text-sm border-transparent ring-transparent w-full border-b-gray-400 
@@ -131,7 +147,10 @@ export const TagCell = (props: TagCellProps) => {
           readOnly
         />
         {isFocused && (
-          <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]">
+          <div 
+            ref={actionWindowRef}
+            className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg flex flex-col min-w-[200px]"
+          >
             <div className="italic text-gray-600 w-full whitespace-nowrap border-b py-1 px-2 text-base self-center flex flex-row justify-between">
               {foundParticipant ? (
                 <span>Linked with: {formatParticipantName(foundParticipant.participant)}</span>
@@ -158,7 +177,7 @@ export const TagCell = (props: TagCellProps) => {
               />
             </div>
             
-            {(props.usersQuery.isLoading || props.tempUsersQuery.isLoading) && props.linkedParticipantId !== undefined ? (
+            {props.linkedParticipantId !== undefined ? (
               <div className="max-h-60 overflow-y-auto py-1 min-w-max">
                 <div className="flex flex-row justify-start items-center pe-2">
                   <span className="flex flex-row w-full items-center gap-2 py-2 ps-2 me-2 hover:cursor-wait">
@@ -168,7 +187,7 @@ export const TagCell = (props: TagCellProps) => {
               </div>
             ) : (
               <div className="max-h-60 overflow-y-auto py-1 min-w-max">
-              {availableTags
+              {props.tags
                 .filter((tag) => tag.name.toLowerCase().trim().includes((search ?? '').toLowerCase()))
                 //sorting selected tags to the top
                 .sort((a, b) => {

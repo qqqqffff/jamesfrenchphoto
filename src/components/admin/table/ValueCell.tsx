@@ -8,6 +8,8 @@ interface ValueCellProps extends ComponentProps<'td'> {
   column: TableColumn,
   userFieldLinks?: UserFieldLinks,
   participantFieldLinks: ParticipantFieldLinks[]
+  rowIndex: number
+  selectedSearch: boolean,
 }
 
 export const ValueCell = (props: ValueCellProps) => {
@@ -33,12 +35,32 @@ export const ValueCell = (props: ValueCellProps) => {
       link.preferred?.[0] === props.column.id
     ))
 
+  const userField = specialField && props.column.id === props.userFieldLinks?.email[1];
+
+  const cellColoring = props.rowIndex % 2 ? 
+    specialField && !userField ? 
+      'bg-yellow-200 bg-opacity-40' 
+    : 
+      specialField  && userField ? 
+        'bg-blue-200 bg-opacity-40' 
+      : 
+        'bg-gray-200 bg-opacity-40' 
+  : 
+    specialField && !userField ?
+      'bg-yellow-100 bg-opacity-20'
+    : 
+      specialField && userField ?
+        'bg-blue-100 bg-opacity-20'
+      :
+        '';
+
   //TODO: handle special case for sitting number (accept only numbers)
 
   return (
     <td className={`
-      text-ellipsis border py-3 px-3 max-w-[150px]
-      ${specialField ? 'bg-yellow-50 bg-opacity-40' : ''}
+      text-ellipsis border py-3 px-3 max-w-[150px] 
+      ${props.selectedSearch ? 'outline outline-green-400' : ''}
+      ${cellColoring}
     `}>
       <input
         ref={inputRef}

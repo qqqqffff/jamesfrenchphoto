@@ -60,13 +60,13 @@ function RouteComponent() {
 
   const packageQueries: Record<string, UseQueryResult<PackageItem[] | undefined, Error>> = Object.fromEntries(
     Object.values(advertiseList)
-      .flatMap((pack) => pack)
-      .map((pack) => [
-        pack.id,
-        useQuery(
-          PackageService.getAllPackageItemsQueryOptions(pack.id, { siCollectionItems: true })
-        )
-      ])
+    .flatMap((pack) => pack)
+    .map((pack) => [
+      pack.id,
+      useQuery(
+        PackageService.getAllPackageItemsQueryOptions(pack.id, { siCollectionItems: true })
+      )
+    ])
   )
 
   const collectionList = getUserCollectionList(
@@ -79,7 +79,7 @@ function RouteComponent() {
       <div 
         className={`
           flex flex-col items-center justify-center mb-4 overflow-auto py-4 mt-4 
-          ${width > 800 ? 'border-black border rounded-xl w-[90%] min-w-[48rem] px-12' : 'border-y border-y-black w-full'}
+          ${width > 800 ? 'border-black border rounded-xl w-[90%] min-w-[48rem] px-12' : 'border-y border-y-black w-full px-2'}
         `}
       >
         <span className='text-lg italic font-light mb-2'>Package{(advertiseList[selectedParent ?? ''] ?? []).length > 1 ? 's' : ''} For</span>
@@ -122,8 +122,8 @@ function RouteComponent() {
         </div>
         <div 
           className={`
-              grid ${width <= 1000 ? 'grid-cols-1' : width <= 1500 ? 'grid-cols-2' : 'grid-cols-3'}
-              gap-x-10 gap-y-4
+            grid ${width <= 1000 ? 'grid-cols-1' : width <= 1500 ? 'grid-cols-2' : 'grid-cols-3'}
+            gap-x-10 gap-y-4 w-full
           `}
         >
           {(advertiseList[selectedParent ?? ''] ?? []).map((pack, index) => {

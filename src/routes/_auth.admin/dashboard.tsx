@@ -3,16 +3,15 @@ import { Button } from 'flowbite-react'
 import {
   HiOutlineCalendar,
   HiOutlineChat,
-  // HiOutlineCalendar,
-  // HiOutlineChat,
   HiOutlineClipboardList,
   HiOutlineDocumentText,
   HiOutlineSearchCircle,
   HiOutlineUserCircle,
 } from 'react-icons/hi'
 import { Outlet, useNavigate } from '@tanstack/react-router'
-import { useAuth } from '../../auth'
 import { HiOutlineTag } from 'react-icons/hi2'
+import { DateTime } from 'luxon'
+import { currentDate } from '../../utils'
 
 
 export const Route = createFileRoute('/_auth/admin/dashboard')({
@@ -20,19 +19,8 @@ export const Route = createFileRoute('/_auth/admin/dashboard')({
 })
 
 function RouteComponent() {
-  const auth = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-
-  function structureFullname() {
-    if (auth.user)
-      return (
-        auth.user.attributes.given_name + ' ' + auth.user.attributes.family_name
-      )
-    else {
-      return 'Loading...'
-    }
-  }
 
   function activeConsoleClassName(console: string) {
     if (location.pathname.includes(console)) {
@@ -44,15 +32,12 @@ function RouteComponent() {
   return (
     <>
       <div className="flex flex-col items-center justify-center font-main">
-        <p className="font-semibold text-3xl mb-4">
-          Welcome {structureFullname()}
-        </p>
         <p className="font-medium text-xl mb-1">Management Consoles:</p>
         <Button.Group>
           <Button
             color="gray"
             onClick={() => {
-                navigate({ to: '/admin/dashboard/scheduler' })
+                navigate({ to: '/admin/dashboard/scheduler', search: { date: DateTime.fromJSDate(currentDate).toFormat('MM-dd-yyyy') } })
             }}
             className={activeConsoleClassName('scheduler')}
           >

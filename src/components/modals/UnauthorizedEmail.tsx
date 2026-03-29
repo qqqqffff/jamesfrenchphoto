@@ -20,12 +20,7 @@ export const UnauthorizedEmailModal: FC<UnauthorizedEmailModalProps> = ({ open, 
   const [submitted, setSubmitted] = useState(false)
 
   const userProfile = useQuery({
-    ...UserService.getUserProfileByEmailQueryOptions(email, { 
-      siTags: false,
-      siCollections: false,
-      siSets: false,
-      siTimeslot: false,
-    }),
+    ...UserService.getUserProfileByEmailQueryOptions(email),
     enabled: submitted,
   })
 

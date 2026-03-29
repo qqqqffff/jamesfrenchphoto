@@ -1,6 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { DownloadData, PhotoCollection } from "../../../types"
-import { PhotoSetService } from "../../../services/photoSetService"
 import Loading from "../../common/Loading"
 import { HiOutlineDownload, HiOutlineEye } from "react-icons/hi"
 import { Tooltip } from "flowbite-react"
@@ -10,10 +9,11 @@ import { DownloadFavoritesMutationOptions, PhotoPathService } from "../../../ser
 import { v4 } from 'uuid'
 import { useNavigate } from "@tanstack/react-router"
 import { formatTime } from "../../../utils"
+import { FavoriteService } from "../../../services/favoriteService"
 
 interface FavoritePanelProps {
   PhotoPathService: PhotoPathService,
-  PhotoSetService: PhotoSetService,
+  FavoriteService: FavoriteService,
   collection: PhotoCollection,
 }
 
@@ -22,7 +22,7 @@ export const FavoritePanel = (props: FavoritePanelProps) => {
   const navigate = useNavigate()
 
   const favorites = useQuery(
-    props.PhotoSetService.getFavoritesFromPhotoCollectionQueryOptions(props.collection, { metric: true })
+    props.FavoriteService.getFavoritesFromPhotoCollectionQueryOptions(props.collection.id, { metric: true })
   )
 
   const download = useMutation({
@@ -123,7 +123,7 @@ export const FavoritePanel = (props: FavoritePanelProps) => {
                           className="hover:text-gray-500"
                           disabled={entry[1].length == 0}
                           onClick={() => {
-                            navigate({ to: '/favorites-fullscreen', search: { favorites: entry[1].map((favorite) => favorite.id) }})
+                            navigate({ to: '/favorites-fullscreen', search: { collection: props.collection.id, participantId: entry[0].id }})
                           }}
                         >
                           <HiOutlineEye size={24} />

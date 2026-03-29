@@ -1,12 +1,13 @@
 import { TextInput } from "flowbite-react"
 import { textInputTheme } from "../../utils"
-import { ChangeEvent, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { priceFormatter } from "../../functions/packageFunctions"
 
 interface PriceInputProps {
   value: string,
   discount?: string,
   updateState: (value: string) => void,
+  disabled?: boolean
   className?: string
   displayDiscount?: boolean
   label?: JSX.Element
@@ -16,12 +17,12 @@ interface PriceInputProps {
 export const PriceInput = (props: PriceInputProps) => {
   const [isFocused, setIsFocused] = useState(false)
   const [formattedValue, setFormattedValue] = useState('')
+  const [inprogressValue, setInprogressValue] = useState(props.value)
 
   const formatPrice = (val: string) => {
     if(!val) return ''
 
     const numericValue = parseFloat(val.replace(/[^\d.-]/g, ''))
-
 
     if(isNaN(numericValue)) return ''
 
@@ -37,26 +38,11 @@ export const PriceInput = (props: PriceInputProps) => {
     return priceFormatter.format((price * (1 - (discountFloat / 100))))
   }
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const inputValue = (e.target.value.charAt(0) === '0' ? e.target.value.slice(1) : e.target.value).replace(/[^\d.]/g, '')
-
-    const parts = inputValue.split('.')
-    const sanitized = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('').substring(0,2) : '')
-    
-    const numericValue = parseFloat(sanitized)
-    if(!isNaN(numericValue)) {
-      props.updateState(sanitized)
-    }
-
-    if(inputValue === '') {
-      props.updateState('0')
-    }
-  }
-
   const handleFocus = () => setIsFocused(true)
   const handleBlur = () => {
     setIsFocused(false)
     setFormattedValue(formatPrice(props.value ?? ''))
+    props.updateState(!isNaN(parseFloat(inprogressValue)) ? inprogressValue : props.value)
   }
 
   useEffect(() => {
@@ -73,8 +59,16 @@ export const PriceInput = (props: PriceInputProps) => {
         sizing="sm"
         placeholder="$0.00"
         className={props.className ?? "min-w-[123px] max-w-[123px]"}
-        value={isFocused ? props.value : formattedValue === '$0.00' ? '' : formattedValue}
-        onChange={handleChange}
+        value={isFocused ? inprogressValue : formattedValue === '$0.00' ? '' : formattedValue}
+        onChange={(event) => {
+          let value = event.target.value.replace(/[^\d.]/g, '')
+          const numberParts = value.split('.')
+          if(numberParts.length > 1) {
+            value = numberParts[0] + '.' + numberParts[1].substring(0, 2)
+          }
+          setInprogressValue(value)
+        }}
+        disabled={props.disabled}
         onFocus={handleFocus}
         onBlur={handleBlur}
       />

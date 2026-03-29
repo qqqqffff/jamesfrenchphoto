@@ -1,4 +1,4 @@
-import { CoverType, Participant, PhotoCollection, PhotoSet, PicturePath, UserTag, Watermark } from "../types";
+import { CoverType, Favorite, Participant, PhotoCollection, PhotoSet, PicturePath, UserTag, Watermark } from "../types";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
 import { getAllPaths } from "./photoPathService";
 import { mapParticipant } from "./userService";
+import { getParticipantFavoritesByCollection } from "./favoriteService";
 
 interface MapCollectionOptions {
   siTags?: boolean
@@ -14,9 +15,40 @@ interface MapCollectionOptions {
   unauthenticated?: boolean
   participantId?: string,
 }
-async function mapCollection(collectionResponse: Schema['PhotoCollection']['type'], options?: MapCollectionOptions): Promise<PhotoCollection> {
+async function mapCollection(client: V6Client<Schema>, collectionResponse: Schema['PhotoCollection']['type'], options?: MapCollectionOptions): Promise<PhotoCollection> {
   const mappedSets: PhotoSet[] = []
   const mappedTags: UserTag[] = []
+  const favorites: Favorite[] = []
+
+  if(options?.participantId) {
+    const tempMappedCollection: PhotoCollection = {
+      ...collectionResponse,
+      coverPath: collectionResponse.coverPath ?? undefined,
+      coverType: {
+        textColor: collectionResponse.coverType?.textColor ?? undefined,
+        bgColor: collectionResponse.coverType?.bgColor ?? undefined,
+        placement: collectionResponse.coverType?.placement ?? undefined,
+        textPlacement: collectionResponse.coverType?.textPlacement ?? undefined,
+        date: collectionResponse.coverType?.date ?? undefined
+      },
+      publicCoverPath: collectionResponse.publicCoverPath ?? undefined,
+      downloadable: collectionResponse.downloadable ?? false,
+      watermarkPath: collectionResponse.watermarkPath ?? undefined,
+      tags: mappedTags,
+      sets: mappedSets,
+      items: collectionResponse.items ?? 0,
+      published: collectionResponse.published ?? false,
+    }
+
+    const favoritesResponse = await getParticipantFavoritesByCollection(client, options.participantId, collectionResponse.id, {
+      siCollection: tempMappedCollection,
+    })
+
+    if(favoritesResponse !== null) {
+      favorites.push(...favoritesResponse)
+    }
+  }
+
   if(!options || options.siSets){
     let setsResponse = await collectionResponse.sets({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
     let setData = setsResponse.data
@@ -31,6 +63,7 @@ async function mapCollection(collectionResponse: Schema['PhotoCollection']['type
 
     mappedSets.push(...await Promise.all(setData.map(async (set) => {
       let mappedPaths: PicturePath[] = []
+
       if(options?.siPaths) {
         let pathResponse = await set.paths({
           authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
@@ -47,10 +80,7 @@ async function mapCollection(collectionResponse: Schema['PhotoCollection']['type
 
         mappedPaths.push(...(await Promise.all(
           pathData.map(async (path) => {
-            let favorite: string | undefined
-            if(options?.participantId){
-              favorite = (await path.favorites()).data.find((favorite) => favorite.participantId === options.participantId)?.id
-            }
+            let favorite: string | undefined = favorites.find((favorite) => favorite.pathId === path.id)?.id
             return ({ ...path, favorites: favorite, url: '' })
           })))
         )
@@ -130,7 +160,7 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
     const mappedCollections: PhotoCollection[] = await Promise.all(
       collectionData.map((collection) => {
         if(options?.logging) console.log(collection)
-        return mapCollection(collection, options)
+        return mapCollection(client, collection, options)
       })
     )
     const end = new Date().getTime()
@@ -166,7 +196,7 @@ export async function getAllCollectionsFromUserTagId(client: V6Client<Schema>, t
       if(foundCollection) return foundCollection
       const collectionResponse = (await collection.collection()).data
       if(collectionResponse !== null) {
-        return mapCollection(collectionResponse, options)
+        return mapCollection(client, collectionResponse, options)
       }
     })
   )).filter((collection) => collection !== undefined))
@@ -201,7 +231,7 @@ export async function getAllCollectionsFromUserTagIds(client: V6Client<Schema>, 
               !collectionResponse.data 
             ) return
             
-            const collection = await mapCollection(collectionResponse.data, options)
+            const collection = await mapCollection(client, collectionResponse.data, options)
             tempMemo.push(collection)
 
             return collection
@@ -283,7 +313,7 @@ export async function getCollectionById(client: V6Client<Schema>, collectionId?:
   const collection = await client.models.PhotoCollection.get({ id: collectionId }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
   if(!collection || !collection.data) return null
   
-  return mapCollection(collection.data, options)
+  return mapCollection(client, collection.data, options)
 }
 
 interface GetAllCollectionParticipantsOptions {
@@ -305,12 +335,11 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
         participants.push(...(await Promise.all(participantTagData.map(async (tagResponse) => {
             const participant = await tagResponse.participant()
             if(participant.data) {
-              const newParticipant = await mapParticipant(client, participant.data, {
+              const newParticipant = await mapParticipant(participant.data, {
                   siCollections: false,
                   siNotifications: false,
                   siTags: options?.siTags ? {
                       siChildren: false, 
-                      siCollections: false,
                       siPackages: false,
                       siTimeslots: false
                   } : undefined,
@@ -342,7 +371,7 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
     if(foundCollection !== undefined) return foundCollection
     const collectionResponse = await collectionTag.collection()
     if(collectionResponse.data === null) return
-    const mappedCollection = await mapCollection(collectionResponse.data, options)
+    const mappedCollection = await mapCollection(client, collectionResponse.data, options)
     tempMemo.push(mappedCollection)
     return mappedCollection
   })))
@@ -715,7 +744,7 @@ export class CollectionService {
 
     if(repairPathsResponse.data) {
       try {
-        const returnResponse = JSON.parse(repairPathsResponse.data) as 
+        const returnResponse = JSON.parse(repairPathsResponse.data.toString()) as 
         {
           paths: PicturePath[],
           responses: {

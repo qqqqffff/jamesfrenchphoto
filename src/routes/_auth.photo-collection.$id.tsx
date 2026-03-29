@@ -13,17 +13,19 @@ import { CollectionGrid } from '../components/collection/CollectionGrid'
 import { Schema } from '../../amplify/data/resource'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { PhotoPathService } from '../services/photoPathService'
-import { PhotoSetService } from '../services/photoSetService'
 import { UserService } from '../services/userService'
+import { FavoriteService } from '../services/favoriteService'
 
 interface PhotoCollectionParams {
   set?: string,
+  path?: string,
 }
 
 export const Route = createFileRoute('/_auth/photo-collection/$id')({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): PhotoCollectionParams => ({
     set: (search.set as string) || undefined,
+    path: (search.path as string) || undefined,
   }),
   beforeLoad: ({ search }) => search,
   loader: async ({ context, params }) => {
@@ -48,7 +50,6 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
         !context.auth.admin
       )
     ) throw redirect({ to: destination })
-    console.log('det')
 
     const coverUrl = (await context.queryClient.ensureQueryData(
       collectionService.getPathQueryOptions(collection.coverPath ?? '')
@@ -59,7 +60,7 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     return {
       CollectionService: collectionService,
       PhotoPathService: new PhotoPathService(client),
-      PhotoSetService: new PhotoSetService(client),
+      FavoriteService: new FavoriteService(client),
       UserService: new UserService(client),
       collection: collection,
       auth: context.auth,
@@ -172,10 +173,10 @@ function RouteComponent() {
           collectionRef={collectionRef}
           coverRef={coverPhotoRef}
         />
-        <div className='flex flex-row items-center px-8 sticky gap-2 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
+        <div className='flex flex-row items-center px-6 sticky gap-4 top-0 z-10 bg-white py-1 border-b-gray-300 border-b' ref={collectionRef}>
           {dimensions.width > 800 && (
-            <div className='flex flex-col items-start font-bodoni'>
-              <span className='font-bold text-lg whitespace-nowrap'>James French Photograpahy</span>
+            <div className='flex flex-col items-start font-bodoni border rounded-lg px-2 py-1'>
+              <span className='font-bold whitespace-nowrap'>James French Photograpahy</span>
               <span className='italic text-sm'>{collection.name}</span>
               <span className='text-sm'>{set.name}</span>
             </div>
@@ -235,7 +236,7 @@ function RouteComponent() {
         </div>
         <CollectionGrid 
           PhotoPathService={data.PhotoPathService}
-          PhotoSetService={data.PhotoSetService}
+          FavoriteService={data.FavoriteService}
           set={set}
           CollectionService={data.CollectionService}
           collection={collection}

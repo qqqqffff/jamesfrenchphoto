@@ -1,5 +1,6 @@
 import { AuthSession, AuthUser, FetchUserAttributesOutput } from "aws-amplify/auth";
 import { Duration } from "luxon";
+import { OrderRefID } from "./order-ref-id";
 
 export interface UserStorage {
     user: AuthUser
@@ -8,6 +9,28 @@ export interface UserStorage {
     groups: string
     profile: UserProfile
 } 
+
+export type Order = {
+    id: string,
+    customerId?: string,
+    amount: number,
+    serviceFee: number,
+    currency: 'USD',
+    status: 'PAYER_ACTION_REQUIRED' | 'COMPLETED' | 'UNKNOWN' | 'VOIDED' | 'APPROVED' | 'SAVED' | 'CREATED',
+    transactionType: 'timeslot',
+    items: OrderItem[],
+    userEmail: string,
+    paymentApprovalUrl?: string,
+}
+
+export type OrderItem = {
+    name: string,
+    description: string,
+    amount: number,
+    serviceChargeAmount: number,
+    refrenceId: OrderRefID,
+    invoiceId: string,
+}
 
 export interface UserData {
     email: string;
@@ -22,19 +45,23 @@ export interface UserData {
     profile?: UserProfile
 }
 
+export interface SavedPaymentMethod {
+    id: string,
+    customerId: string,
+    vaultId?: string,
+    type: 'PAYPAL' | 'CARD' | 'APPLEPAY'
+    isDefault: boolean,
+    lastDigits?: number,
+    brand?: string,
+    expireMonth?: number,
+    expireYear?: number,
+    userEmail: string,
+}
+
 export interface UserProfile {
     sittingNumber: number,
     email: string,
-    userTags: string[],
-    preferredName?: string,
-    timeslot?: Timeslot[],
-    participantFirstName?: string,
-    participantLastName?: string,
-    participantMiddleName?: string,
-    participantPreferredName?: string,
     preferredContact: "EMAIL" | "PHONE",
-    participantContact?: boolean,
-    participantEmail?: string,
     participant: Participant[],
     activeParticipant?: Participant,
     firstName?: string,
@@ -164,10 +191,16 @@ export type Timeslot = {
     id: string,
     tag?: UserTag,
     register?: string,
+    noshowFee?: number,
+    cancelationFee?: {
+        amount: number,
+        window: Duration
+    }
     start: Date;
     end: Date;
     participantId?: string,
     description?: string,
+    updatedAt: string,
 }
 
 export type UserTag = {
@@ -241,6 +274,7 @@ export interface Table {
     temporary?: boolean,
     edit?: boolean,
     createdAt: string,
+    order: number
 }
 
 export interface TableColumn {
@@ -272,4 +306,32 @@ export interface TemporaryAccessToken {
     expires?: Date,
     sessionTime?: Duration,
     collectionId: string
+}
+
+export interface Segment {
+  id: string;
+  startMin: number;
+  endMin: number;
+  interval: number;
+  userTag?: UserTag;
+  options?: {
+    noshowFee?: number,
+    description?: string,
+    cancelationFee?: {
+        amount: number,
+        window: Duration
+    }
+  }
+}
+
+export interface APIMutationResponse {
+    status: 'Success' | 'Fail',
+    error?: string
+}
+
+export interface BaseAPIParams {
+    options?: {
+        logging?: boolean,
+        metric?: boolean
+    }
 }

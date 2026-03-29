@@ -1,14 +1,13 @@
-import { Button, Label, Modal, TextInput } from "flowbite-react"
-import { Dispatch, FC, FormEvent, SetStateAction, useEffect, useState } from "react"
+import { Button, Modal, TextInput } from "flowbite-react"
+import { Dispatch, FC, FormEvent, SetStateAction, useEffect, useRef, useState } from "react"
 import { ModalProps } from ".."
 import { PhotoCollection, PhotoSet, PicturePath } from "../../../types";
 import { formatFileSize, parsePathName, textInputTheme } from "../../../utils";
 import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { UploadImagesMutationParams } from "../../../services/photoSetService";
-import Loading from "../../common/Loading";
-import { ImagesRow } from "./ImagesRow";
-import { IssueNotifications, UploadIssue } from "./IssueNotifications";
+import { ImagesRow, ImagesRowProps } from "./ImagesRow";
+import { IssueNotifications, UploadIssue, UploadIssueType } from "./IssueNotifications";
 import { GoTriangleDown, GoTriangleUp } from "react-icons/go";
 import { UploadData } from "./UploadToast";
 import { v4 } from 'uuid'
@@ -20,7 +19,7 @@ interface UploadImagesProps extends ModalProps {
   CollectionService: CollectionService,
   collection: PhotoCollection,
   set: PhotoSet;
-  files: Map<string, { file: File, width: number, height: number }>,
+  files: File[],
   createUpload: (params: UploadImagesMutationParams) => void,
   updateUpload: Dispatch<SetStateAction<UploadData[]>>
   updatePicturePaths: Dispatch<SetStateAction<PicturePath[]>>,
@@ -29,176 +28,101 @@ interface UploadImagesProps extends ModalProps {
   parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
 }
 
-async function validateFiles(
+function validateFiles(
   files: File[],
-  filesUpload: Map<string, { file: File, width: number, height: number }>,
-  startIssues: UploadIssue[],
   set: PhotoSet,
   setFilesPreview: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }> | undefined>>,
   setFilesUpload: Dispatch<SetStateAction<Map<string, { file: File, width: number, height: number }>>>,
-  setUploadIssues: Dispatch<SetStateAction<UploadIssue[]>>,
-  setTotalUpload: Dispatch<SetStateAction<number>>,
-  setLoadingPreviews: Dispatch<SetStateAction<boolean>>,
-  logging: boolean,
-  filesPreviews?: Map<string,  { file: File, width: number, height: number }>,
+  setUploadIssues: Dispatch<SetStateAction<Map<UploadIssueType, UploadIssue[]>>>,
 ) {
-  setLoadingPreviews(true)
-  const start = new Date().getTime()
-  const issues: UploadIssue[] = [...startIssues]
   const filesArray = files.reduce((prev, cur) => {
     if(cur.type.includes('image')){
       prev.push(cur)
     }
     else {
-      const fileTypeIssue = issues.findIndex((issue) => issue.type === 'invalid-file')
-      if(fileTypeIssue === -1){
-        issues.push({
-          type: 'invalid-file',
-          message: 'Invalid files have been automatically removed!',
-          color: 'red',
-          id: [cur.name],
-          visible: true
-        })
-      }
-      else {
-        issues[fileTypeIssue] = {
-          ...issues[fileTypeIssue],
-          id: [
-            ...issues[fileTypeIssue].id,
-            cur.name
-          ]
-        }
-      }
+      setUploadIssues(prev => {
+        const temp = new Map(prev)
+        temp.set(UploadIssueType["invalid-file"], [
+          ...(temp.get(UploadIssueType["invalid-file"]) ?? []).filter((issue) => issue.id !== cur.name), 
+          { id: cur.name, visible: true }
+        ])
+        return temp
+      })
     }
     return prev
   }, [] as File[])
 
-  
-  //TODO: don't await all to load previews or find issues
-  const previewsMap = await Promise.all(filesArray.map(async (file) => {
-    const url = URL.createObjectURL(new Blob([await file.arrayBuffer()], { type: file.type}))
-    const dimensions = await new Promise(
-      (resolve: (item: {width: number, height: number}) => void) => {
-        const image: HTMLImageElement = document.createElement('img')
-        image.src = url
-        image.onload = () => {
-          resolve({
-            width: image.naturalWidth, 
-            height: image.naturalHeight
+  filesArray.forEach(async (file) => {
+    file.arrayBuffer().then((buffer) => {
+      const url = URL.createObjectURL(new Blob([buffer], { type: file.type}))
+
+      new Promise(
+        (resolve: (item: {width: number, height: number}) => void) => {
+          const image: HTMLImageElement = document.createElement('img')
+          image.src = url
+          image.onload = () => {
+            resolve({
+              width: image.naturalWidth, 
+              height: image.naturalHeight
+            })
+          } 
+        }
+      ).then((dimensions) => {
+        if(dimensions.width < 600 || dimensions.height < 400){
+          setUploadIssues(prev => {
+            const temp = new Map(prev)
+            temp.set(UploadIssueType["small-file"], [
+              ...(temp.get(UploadIssueType["small-file"]) ?? []).filter((issue) => issue.id !== file.name), 
+              { id: file.name, visible: true }
+            ])
+            return temp
           })
         }
-      }
-    )
 
-    if(dimensions.width < 600 || dimensions.height < 400){
-      const dimensionIssue = issues.findIndex((issue) => issue.type === 'small-file')
-      if(dimensionIssue === -1){
-        issues.push({
-          type: 'small-file',
-          message: 'Uploaded image(s) may be small and display poorly',
-          color: 'yellow',
-          id: [file.name],
-          visible: true
+        setFilesPreview(prev => {
+          const temp = new Map(prev)
+          temp.set(url, { file: file, width: dimensions.width, height: dimensions.height })
+          return temp
         })
-      }
-      else {
-        issues[dimensionIssue] = {
-          ...issues[dimensionIssue],
-          id: [
-            ...issues[dimensionIssue].id,
-            file.name,
-          ]
-        }
-      }
-    }
-
-    const duplicate = set.paths.findIndex((path) => parsePathName(path.path) === file.name)
-
-    if(duplicate !== -1){
-      const duplicateIssue = issues.findIndex((issue) => issue.type === 'duplicate')
-      if(duplicateIssue === -1){
-        issues.push({
-          type: 'duplicate',
-          message: 'Duplicate files uploaded',
-          color: 'red',
-          id: [file.name],
-          visible: true
+        setFilesUpload(prev => {
+          const temp = new Map(prev)
+          temp.set(file.name, { file: file, width: dimensions.width, height: dimensions.height })
+          return temp
         })
-      }
-      else {
-        issues[duplicateIssue] = {
-          ...issues[duplicateIssue],
-          id: [
-            ...issues[duplicateIssue].id,
-            file.name
-          ]
-        }
-      }
-    }
-
-    return {
-      url: url,
-      file: file,
-      width: dimensions.width,
-      height: dimensions.height
-    }  
-  }))
-
-  const done = new Date(new Date().getTime() - start)
-  if(logging) console.log(`${done.getTime()}ms`)
-
-  if(filesPreviews !== undefined){
-    const previews = new Map<string, { file: File, width: number, height: number }>(filesPreviews)
-    const uploads = new Map<string, { file: File, width: number, height: number }>(filesUpload)
-
-    previewsMap
-      .sort((a, b) => a.file.name.localeCompare(b.file.name))
-      .forEach((preview) => {
-        previews.set(preview.url, { file: preview.file, width: preview.width, height: preview.height })
-        uploads.set(preview.file.name, { file: preview.file, width: preview.width, height: preview.height })
       })
-
-    const total = [...previews.values()].reduce((prev, cur) => prev += cur.file.size, 0)
-
-    setFilesPreview(previews)
-    setFilesUpload(uploads)
-    setUploadIssues(issues)
-    setLoadingPreviews(false)
-    setTotalUpload(total)
-  } else {
-    const previews = new Map<string, { file: File, width: number, height: number }>()
-
-    previewsMap
-    .sort((a, b) => a.file.name.localeCompare(b.file.name))
-    .forEach((preview) => {
-      previews.set(preview.url, { file: preview.file, width: preview.width, height: preview.height })
     })
 
-    const total = [...previews.values()].reduce((prev, cur) => prev += cur.file.size, 0)
+    const duplicate = set.paths.some((path) => {
+      return (
+        parsePathName(path.path) === file.name
+      )
+    })
 
-    setFilesPreview(previews)
-    setUploadIssues(issues)
-    setLoadingPreviews(false)
-    setTotalUpload(total)
-  }  
+    if(duplicate){
+      setUploadIssues(prev => {
+        const temp = new Map(prev)
+        temp.set(UploadIssueType["duplicate"], [
+          ...(temp.get(UploadIssueType["duplicate"]) ?? []).filter((issue) => issue.id !== file.name),
+          { id: file.name, visible: true }
+        ])
+        return temp
+      })
+    }
+  })
 }
 
 export const UploadImagesModal: FC<UploadImagesProps> = ({ 
-  CollectionService,
-  open, onClose, collection, set, files, 
+  CollectionService, open, 
+  onClose, collection, set, files, 
   createUpload, updateUpload, updatePicturePaths,
   parentUpdateSet, parentUpdateCollection,
   parentUpdateCollections
 }) => {
   const { height } = useWindowDimensions()
-  const [filesUpload, setFilesUpload] = useState<Map<string, { file: File, width: number, height: number }>>(files)
+  const [filesUpload, setFilesUpload] = useState<Map<string, { file: File, width: number, height: number }>>(new Map())
   const [filesPreview, setFilesPreview] = useState<Map<string, { file: File, width: number, height: number }>>()
-  const [totalUpload, setTotalUpload] = useState<number>(
-    [...filesUpload.values()].reduce((prev, cur) => prev += cur.file.size, 0)
-  )
-  
-  const [uploadIssues, setUploadIssues] = useState<UploadIssue[]>([])
-  const [loadingPreviews, setLoadingPreviews] = useState(false)
+  const fileUploadRef = useRef<HTMLInputElement | null>(null)
+  const [uploadIssues, setUploadIssues] = useState<Map<UploadIssueType, UploadIssue[]>>(new Map())
 
   const [filterText, setFilterText] = useState<string>('')
   const [sort, setSort] = useState<{
@@ -206,36 +130,29 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
     visible: boolean,
     order?: 'ASC' | 'DSC', 
   }>()
-  const [watermarkPath, setWatermarkPath] = useState<string>()
 
+  const listRef = useRef<FixedSizeList<ImagesRowProps['data']> | null>(null)
+  const [navigateToIndex, setNavigateToIndex] = useState<{ index: number } | null>(null)
+
+  //TODO: import me from parent
   const watermarkQuery = useQuery({
     ...CollectionService.getPathQueryOptions(collection.watermarkPath ?? set.watermarkPath),
-    enabled: collection.watermarkPath !== undefined || set.watermarkPath !== undefined
+    enabled: (collection.watermarkPath !== undefined || set.watermarkPath !== undefined) && open
   })
   
   useEffect(() => {
     if(open){
       validateFiles(
-        [...files.values()].map((file) => file.file),
-        filesUpload,
-        [],
+        files,
         set,
         setFilesPreview,
         setFilesUpload,
         setUploadIssues,
-        setTotalUpload,
-        setLoadingPreviews,
-        true,
-        undefined
       )
     }
   }, [files])
-
-  useEffect(() => {
-    if(watermarkQuery.data) {
-      setWatermarkPath(watermarkQuery.data[1])
-    }
-  }, [watermarkQuery.data])
+  
+  const filesUploadSize = Array.from(filesUpload.values()).reduce((prev, cur) => prev += cur.file.size, 0)
 
   async function handleUploadPhotos(event: FormEvent){
     event.preventDefault()
@@ -251,7 +168,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
         parentUpdateSet: parentUpdateSet,
         parentUpdateCollection: parentUpdateCollection,
         parentUpdateCollections: parentUpdateCollections,
-        totalUpload: totalUpload,
+        totalUpload: filesUploadSize,
         duplicates: Object.fromEntries(set.paths
           .filter((path) => filesUpload.get(parsePathName(path.path)) !== undefined)
           .map((path) => [parsePathName(path.path), path])),
@@ -304,7 +221,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
           if(tempPreviews.has(entry[0])) sortedPreviews.set(entry[0], entry[1])
         })
 
-        setFilesUpload(sortedUploads)
         return sortedPreviews
       }
       else {
@@ -318,7 +234,6 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
           if(tempPreviews.has(entry[0])) sortedPreviews.set(entry[0], entry[1])
         })
 
-        setFilesUpload(sortedUploads)
         return sortedPreviews
       }
     }
@@ -341,13 +256,23 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
           <IssueNotifications 
             issues={uploadIssues}
             setIssues={setUploadIssues}
+            navigateTo={(id) => {
+              const rowIndex = Array.from(filteredPreviews.entries()).map((file) => { return [file[0], file[1].file] as [string, File] })
+              .findIndex((file) => file[0] === id)
+              if(rowIndex !== -1 && listRef.current){
+                listRef.current.scrollToItem(rowIndex, 'start')
+                setNavigateToIndex({ 
+                  index: rowIndex
+                })
+              }
+            }}
           />
         </div>
         <form onSubmit={handleUploadPhotos}>
           <div className="flex flex-col">
-            <div className="flex flex-row w-full mb-1 items-center justify-between">
+            <div className="grid grid-cols-4 w-full mb-1 items-center justify-between gap-4">
               <div 
-                className="flex flex-row items-center justify-start w-[25%]"
+                className="flex flex-row items-center"
                 onMouseEnter={() => setSort((prev) => {
                   if(prev?.type == 'size'){
                     return {
@@ -360,47 +285,36 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 })}
                 onMouseLeave={() => setSort({...sort, type: 'name', visible: false})}
               >
-                <Label className="text-xl" htmlFor="name">
+                <div className="text-lg">
                   <span className="font-semibold mr-1">Files</span>
                   <span>({filesUpload.size})</span>
                   <span>:</span>
-                </Label>
+                </div>
                 <div className="mt-1">
-                  {(sort?.visible && sort.type === 'name') ? (
-                    (sort.order === 'ASC' || sort.order === undefined) ? (
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          setSort({
-                            ...sort,
-                            order: 'DSC'
-                          })
-                        }}
-                      >
+                  {(sort?.visible && sort.type === 'name') && (
+                    <button 
+                      type="button"
+                      className="hover:bg-gray-100 p-1"
+                      onClick={() => {
+                        setSort({
+                          ...sort,
+                          order: (sort.order === 'ASC' || sort.order === undefined) ? 'DSC' : 'ASC'
+                        })
+                      }}
+                    >
+                      {(sort.order === 'ASC' || sort.order === undefined) ? (
                         <GoTriangleDown size={16}/>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSort({
-                            ...sort,
-                            order: 'ASC'
-                          })
-                        }}
-                      >
+                      ) : (
                         <GoTriangleUp size={16}/>
-                      </button>
-                    )
-                  ) : (
-                    <GoTriangleDown size={16} className="text-transparent" />
+                      )}
+                    </button>
                   )}
                 </div>
               </div>
               <TextInput 
                 theme={textInputTheme} 
                 sizing="sm" 
-                className="mt-1 text-opacity-90 max-w-[30%] min-w-max" 
+                className="mt-1 text-opacity-90 w-full col-span-2" 
                 placeholder="Search Files..."
                 onChange={(event) => {
                   setFilterText(event.target.value)
@@ -408,7 +322,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 value={filterText}
               />
               <div 
-                className="flex flex-row gap-1 items-center text-xl justify-end max-w-[35%]"
+                className="flex flex-row gap-1 items-center text-lg"
                 onMouseEnter={() => setSort((prev) => {
                   if(prev?.type == 'name'){
                     return {
@@ -424,36 +338,25 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 {filesUpload && filesUpload.size > 0 && (
                   <>
                     <span className="font-semibold">Total:</span>
-                    <span className="">{formatFileSize(totalUpload, 2)}</span>
+                    <span className="">{formatFileSize(filesUploadSize, 0)}</span>
                     <div className="-ml-1">
-                      {(sort?.visible && sort.type === 'size') ? (
-                        (sort.order === 'ASC' || sort.order === undefined) ? (
+                      {(sort?.visible && sort.type === 'size') && (
                           <button 
                             type="button"
+                            className="hover:bg-gray-100 p-1"
                             onClick={() => {
                               setSort({
                                 ...sort,
-                                order: 'DSC'
+                                order: (sort.order === 'ASC' || sort.order === undefined) ? 'DSC' : 'ASC'
                               })
                             }}
                           >
-                            <GoTriangleDown size={16}/>
+                            {(sort.order === 'ASC' || sort.order === undefined) ? (
+                              <GoTriangleDown size={16}/>
+                            ) : (
+                              <GoTriangleUp size={16}/>
+                            )}
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSort({
-                                ...sort,
-                                order: 'ASC'
-                              })
-                            }}
-                          >
-                            <GoTriangleUp size={16}/>
-                          </button>
-                        )
-                      ) : (
-                        <GoTriangleDown size={16} className="text-transparent" />
                       )}
                     </div>
                   </>
@@ -465,6 +368,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 <AutoSizer className="z-0" style={{ minHeight: `${height - 350}px`}}>
                   {({ height, width }: { height: number; width: number }) => (
                     <FixedSizeList
+                      ref={listRef}
                       height={height}
                       itemCount={filteredPreviews.size}
                       itemSize={35}
@@ -474,37 +378,38 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                         previews: Object.fromEntries(
                           Array.from(filesPreview?.entries() ?? []).map((entry) => [entry[1].file.name, entry[0]])
                         ),
-                        loadingPreviews: loadingPreviews,
-                        onDelete: (fileName) => {
+                        onDelete: (fileName: string) => {
                           const files = new Map<string, { file: File, width: number, height: number }>(
                             Array.from(filesUpload.entries()).filter((entry) => entry[0] !== fileName)
                           )
                           
                           files.delete(fileName)
 
-                          const totalUpload = [...files.values()].reduce((prev, cur) => prev += cur.file.size, 0)
-
                           validateFiles(
                             [...files.values()].map((file) => file.file),
-                            files,
-                            uploadIssues,
                             set,
                             setFilesPreview,
                             setFilesUpload,
                             setUploadIssues,
-                            setTotalUpload,
-                            setLoadingPreviews,
-                            true,
-                            undefined
                           )
 
-                          setTotalUpload(totalUpload)
+                          setUploadIssues(prev => {
+                            const temp = new Map(prev)
+                            for(const key of temp.keys()) {
+                              const issues = temp.get(key)
+                              if(issues){
+                                const filteredIssues = issues.filter((issue) => issue.id !== fileName)
+                                temp.set(key, filteredIssues)
+                              }
+                            }
+                            return temp
+                          })
                           setFilesUpload(files)
                         },
                         issues: uploadIssues,
                         updateIssues: setUploadIssues,
-                        watermarkQuery: watermarkQuery,
-                        watermarkPath: watermarkPath
+                        watermarkQuery: collection.watermarkPath !== undefined || set.watermarkPath !== undefined ? watermarkQuery : undefined,
+                        navigatedIndex: navigateToIndex?.index ?? null
                       }}
                     >
                       {ImagesRow}
@@ -513,18 +418,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                 </AutoSizer>
               </div>
             ) : (
-              loadingPreviews ? (
-                <div className="flex flex-row gap-1">
-                  <span className="italic text-sm ms-6">Loading Previews</span>
-                  <Loading />
-                </div>
-              ) : (
-                <span className=" italic text-sm ms-6">Uploaded files will preview here!</span>
-              )
+              <span className=" italic text-sm ms-6">Uploaded files will preview here!</span>
             )}
           </div>
           <div className="flex flex-row justify-end border-t mt-4 gap-4">
-            { uploadIssues.some((issue) => issue.type === 'duplicate') && 
+            { Array.from(uploadIssues.entries()).some((entry) => entry[0] === 'duplicate' && entry[1].length > 0) && 
               filesPreview !== undefined &&(
               <>
                 <Button 
@@ -532,8 +430,11 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                   className="text-xl mt-4" 
                   color="light"
                   onClick={() => {
-                    const tempIssues = [...uploadIssues].filter((issue) => issue.type !== 'duplicate')
-                    setUploadIssues(tempIssues)
+                    setUploadIssues(prev => {
+                      const temp = new Map(prev)
+                      temp.delete(UploadIssueType["duplicate"])
+                      return temp
+                    })
                   }}
                 >
                   Replace All
@@ -543,7 +444,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                   className="text-xl mt-4" 
                   color='red'
                   onClick={() => {
-                    const foundIssueSet = uploadIssues.find((issue) => issue.type === 'duplicate')?.id
+                    const foundIssueSet = uploadIssues.get(UploadIssueType["duplicate"])
 
                     if(!foundIssueSet) { 
                       //TODO: handle error
@@ -553,7 +454,7 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                     const tempUpload = new Map<string, { file: File, width: number, height: number }>(filesUpload)
                     const previewKeys = [...filesPreview.entries()]
                       .map((entry) => {
-                        if(foundIssueSet.some((id) => id === entry[1].file.name)){
+                        if(foundIssueSet.some((issue) => issue.id === entry[1].file.name)){
                           return entry[0]
                         }
                         return undefined
@@ -562,60 +463,59 @@ export const UploadImagesModal: FC<UploadImagesProps> = ({
                     previewKeys.forEach((preview) => {
                       tempPreview.delete(preview)
                     })
-                    foundIssueSet.forEach((id) => {
-                      tempUpload.delete(id)
+                    foundIssueSet.forEach((issue) => {
+                      tempUpload.delete(issue.id)
                     })
-
-                    let total = Array.from(tempPreview.values()).reduce((prev, cur) => prev += cur.file.size, 0)
-                    
-                    const tempIssues = [...uploadIssues].filter((issue) => issue.type !== 'duplicate')
 
                     setFilesPreview(tempPreview)
                     setFilesUpload(tempUpload)
-                    setUploadIssues(tempIssues)
-                    setTotalUpload(total)
+                    setUploadIssues(prev => {
+                      const temp = new Map(prev)
+                      temp.delete(UploadIssueType["duplicate"])
+                      return temp
+                    })
                   }}
                 >
-                  Delete All
+                  Remove All
                 </Button>
               </>
             )}
             <Button type="button" className="text-xl mt-4" color="light">
-              <label htmlFor="modal-upload-file">
-                Add Files
-                <input 
-                  id='modal-upload-file' 
-                  className="hidden"
-                  multiple
-                  type="file"
-                  accept="image/*"
-                  onChange={async (event) => {
-                    if(event.target.files){
-                      validateFiles(
-                        Array.from(event.target.files),
-                        filesUpload,
-                        uploadIssues,
-                        set,
-                        setFilesPreview,
-                        setFilesUpload,
-                        setUploadIssues,
-                        setTotalUpload,
-                        setLoadingPreviews,
-                        true,
-                        filesPreview,
-                      )
-                      setFilterText('')
-                      setSort(undefined)
-                    }
-                  }}
-                />
-              </label>
+              <label htmlFor="file-upload">Add Files</label>
+              <input 
+                id="file-upload"
+                ref={fileUploadRef}
+                className="hidden"
+                multiple
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  if(event.target.files){
+                    validateFiles(
+                      Array.from(event.target.files),
+                      set,
+                      setFilesPreview,
+                      setFilesUpload,
+                      setUploadIssues,
+                    )
+                    setFilterText('')
+                    setSort(undefined)
+                    setTimeout(() => {
+                      if(fileUploadRef.current){
+                        fileUploadRef.current.value = ''
+                      }
+                    }, 100)
+                  }
+                }}
+              />
             </Button>
             <Button 
               className="text-xl mt-4" 
               type="submit" 
-              disabled={uploadIssues.some((issue) => 
-                issue.type === 'duplicate' || issue.type === 'invalid-file')}
+              disabled={
+                (uploadIssues.get(UploadIssueType["duplicate"]) ?? []).length > 0 || 
+                (uploadIssues.get(UploadIssueType["invalid-file"]) ?? []).length > 0
+              }
             >
               Upload
             </Button>

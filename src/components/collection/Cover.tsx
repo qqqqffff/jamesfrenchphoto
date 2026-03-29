@@ -20,7 +20,7 @@ export const Cover = (props: CoverProps) => {
         flex flex-row${
         props.collection.coverType?.placement === 'left' ? '' :
         props.collection.coverType?.placement === 'right' ? '-reverse' : ' justify-center'
-        } items-center mb-2 relative w-full 
+        } items-center relative w-full 
         ${props.collection.coverType?.bgColor ? `bg-${props.collection.coverType.bgColor} bg-opacity-25` : 
         'bg-gray-200'} ` + props.className}
     >

@@ -3,9 +3,14 @@ import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
 import { PublicStorage } from './custom/public-storage/resource';
-import { addPublicPhoto } from './functions/add-public-photo/resource';
-import { deletePublicPhoto } from './functions/delete-public-photo/resource';
+import { addPublicPhoto } from './functions/collections/add-public-photo/resource';
+import { deletePublicPhoto } from './functions/collections/delete-public-photo/resource';
 import { customMessage } from './auth/custom-message/resource';
+import { chargeNoShowFee } from './functions/timeslots/charge-no-show-fee/resource';
+import { createShortNoticeCancelationOrder } from './functions/timeslots/create-short-notice-cancelation-order/resource';
+import { authorizeShortNoticeCancelationFee } from './functions/timeslots/authorize-short-notice-cancelation-fee/resource';
+import { savePaymentInformation } from './functions/users/save-payment-information/resource';
+import { confirmSavePaymentInformation } from './functions/users/confirm-save-payment-information/resource';
 
 /**
  * @see https://docs.amplify.aws/react/build-a-backend/ to add storage, functions, and more
@@ -16,6 +21,13 @@ const backend = defineBackend({
   storage,
   addPublicPhoto,
   deletePublicPhoto,
+
+  chargeNoShowFee,
+  createShortNoticeCancelationOrder,
+  authorizeShortNoticeCancelationFee,
+  savePaymentInformation,
+  confirmSavePaymentInformation
+  
   // addCreateUserQueue
   // getPaymentIntent,
 });

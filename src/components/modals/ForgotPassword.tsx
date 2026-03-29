@@ -1,4 +1,4 @@
-import { FC, useRef, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { ModalProps } from ".";
 import { Alert, Button, Modal } from "flowbite-react";
 import { confirmResetPassword, resetPassword, type ResetPasswordOutput } from "aws-amplify/auth";
@@ -7,10 +7,12 @@ import { HiOutlineEye, HiOutlineEyeSlash } from "react-icons/hi2"
 
 interface ForgotPasswordModalProps extends ModalProps { 
   successCallback: () => void
+  initialEmailAddress: string
 }
 
+//TODO: implement NotificationCell.tsx  cooldown method
 export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
-  const [cooldown, setCooldown] = useState<NodeJS.Timeout | null>(null)
+  
   const [email, setEmail] = useState('')
   const [invalidEmail, setInvalidEmail] = useState(false)
   const [code, setCode] = useState('')
@@ -21,9 +23,38 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [message, setMessage] = useState<{ type: 'Success' | 'Fail', message: string }>()
   const messageTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  const [cooldownTime, setCooldownTime] = useState<number | null>(null)
+  const cooldownRef = useRef<NodeJS.Timeout>()
   const [forgotPasswordStep, setForgotPasswordStep] = useState<ResetPasswordOutput>()
   const [resetCodeSending, setResetCodeSending] = useState(false)
   const [passwordResetting, setPasswordResetting] = useState(false)
+
+  useEffect(() => {
+    if(props.open) {
+      setEmail(props.initialEmailAddress)
+    }
+  }, [props.open])
+
+  useEffect(() => {
+    if(cooldownTime === null) return
+    cooldownRef.current = setInterval(() => {
+      setCooldownTime(prev => {
+        if(prev !== null && prev <= 1) {
+          clearInterval(cooldownRef.current)
+          return null
+        }
+        if(prev !== null) {
+          return prev - 1
+        }
+        return prev
+      })
+    }, 1000)
+
+    return () => {
+      if(cooldownRef.current) clearInterval(cooldownRef.current)
+    }
+  }, [cooldownTime])
 
   const validatePassword = () => {
     return (
@@ -53,7 +84,6 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
       show={props.open} 
       onClose={() => {
         props.onClose()
-        props.successCallback()
         clearState()
       }}
       size="lg"
@@ -217,7 +247,8 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
         <Button 
           isProcessing={resetCodeSending} 
           size="sm" 
-          disabled={!validator.isEmail(email) || cooldown !== null || resetCodeSending}
+          disabled={!validator.isEmail(email) || cooldownRef !== undefined || resetCodeSending}
+          className="flex flex-row gap-1 items-center"
           onClick={() => {
             resetPassword({
               username: email.toLowerCase()
@@ -228,9 +259,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
               setForgotPasswordStep(output)
               setMessage({ type: 'Success', message: `Sent code to ${email} if an account exists!`})
               setResetCodeSending(false)
-              setCooldown(setTimeout(() => {
-                setCooldown(null)
-              }, 30 * 1000))
+              setCooldownTime(15)
               messageTimeout.current = setTimeout(() => {
                 messageTimeout.current = null
                 setMessage(undefined)
@@ -242,9 +271,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
               }
               setMessage({ type: 'Fail', message: `Failed to send code to ${email}`})
               setResetCodeSending(false)
-              setCooldown(setTimeout(() => {
-                setCooldown(null)
-              }, 5 * 1000))
+              setCooldownTime(15)
               messageTimeout.current = setTimeout(() => {
                 messageTimeout.current = null
                 setMessage(undefined)
@@ -252,7 +279,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
             })
             setResetCodeSending(true)
           }}
-        >{forgotPasswordStep?.nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE' ? 'Res' : 'S'}end Code</Button>
+        >{cooldownRef.current !== undefined && (<p>{cooldownTime}</p>)}{forgotPasswordStep?.nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE' ? 'Res' : 'S'}end Code</Button>
         {forgotPasswordStep?.nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE' && (
           <Button
             isProcessing={passwordResetting}

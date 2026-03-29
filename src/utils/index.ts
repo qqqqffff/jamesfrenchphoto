@@ -17,11 +17,11 @@ export function formatTime(time: Date | string | undefined, params?: {timeString
 export const DAY_OFFSET = 24 * 3600 * 1000;
 
 export const normalizeDate = (date: Date): Date => {
-    return new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate()
-    )
+    return new Date(date.toLocaleDateString('en-us', { timeZone: 'America/Chicago' }))
+}
+
+export const compareDate = (a: Date, b: Date): boolean => {
+    return new Date(normalizeDate(a)).getTime() === new Date(normalizeDate(b)).getTime()
 }
 
 export const formatTimeslotDates = (timeslot: Timeslot) => {
@@ -72,7 +72,7 @@ export function parsePathName(path: string): string {
 }
 
 export const TZ_OFFSET = (day: Date) => (new Date(day.toLocaleString('en-US', { timeZone: 'America/Chicago' })).getTime() - new Date(day.toLocaleString()).getTime())
-export const currentDate = new Date(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime() - TZ_OFFSET(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())))
+export const currentDate = normalizeDate(new Date())
 
 export const getTimes = (day: Date) => [
     new Date(day.getTime() + DAY_OFFSET * (16/48) - TZ_OFFSET(day)),
@@ -150,6 +150,9 @@ export const getColumnTypeColor = (value?: TableColumn['type']) => {
         }
         case 'value': {
             return 'orange-400'
+        }
+        case 'notification': {
+            return 'purple-600'
         }
     }
 }

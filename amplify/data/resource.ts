@@ -1,21 +1,25 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
-import { getPaymentIntent } from '../functions/get-payment-intent/resource';
 import { postConfirmation } from '../auth/post-confirmation/resource';
 import { getAuthUsers } from '../auth/get-auth-users/resource';
 import { addCreateUserQueue } from '../functions/add-create-user-queue/resource';
 import { verifyContactChallenge } from '../functions/verify-contact-challenge/resource';
-import { sendTimeslotConfirmation } from '../functions/send-timeslot-confirmation/resource';
+import { sendTimeslotConfirmation } from '../functions/timeslots/send-timeslot-confirmation/resource';
 import { updateUserAttribute } from '../auth/update-user-attribute/resource';
-import { downloadImages } from '../functions/download-images/resource';
-import { shareCollection } from '../functions/share-collection/resource';
-import { addPublicPhoto } from '../functions/add-public-photo/resource';
-import { deletePublicPhoto } from '../functions/delete-public-photo/resource';
-import { shareUserInvite } from '../functions/share-user-invite/resource';
-import { repairPaths } from '../functions/repair-paths/resource';
-import { registerUser } from '../functions/register-user/resource';
+import { downloadImages } from '../functions/collections/download-images/resource';
+import { shareCollection } from '../functions/collections/share-collection/resource';
+import { addPublicPhoto } from '../functions/collections/add-public-photo/resource';
+import { deletePublicPhoto } from '../functions/collections/delete-public-photo/resource';
+import { shareUserInvite } from '../functions/collections/share-user-invite/resource';
+import { repairPaths } from '../functions/collections/repair-paths/resource';
+import { registerUser } from '../functions/users/register-user/resource';
 import { adminUpdateUserAttributes } from '../auth/admin-update-user-attributes/resource';
-import { registerTimeslot } from '../functions/register-timeslot/resource';
-import { notifyUser } from '../functions/notify-user/resource';
+import { registerTimeslot } from '../functions/timeslots/register-timeslot/resource';
+import { notifyUser } from '../functions/users/notify-user/resource';
+import { chargeNoShowFee } from '../functions/timeslots/charge-no-show-fee/resource';
+import { createShortNoticeCancelationOrder } from '../functions/timeslots/create-short-notice-cancelation-order/resource';
+import { savePaymentInformation } from '../functions/users/save-payment-information/resource';
+import { confirmSavePaymentInformation } from '../functions/users/confirm-save-payment-information/resource';
+import { authorizeShortNoticeCancelationFee } from '../functions/timeslots/authorize-short-notice-cancelation-fee/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -24,6 +28,7 @@ specifies that any unauthenticated user can "create", "read", "update",
 and "delete" any "Todo" records.
 =========================================================================*/
 
+//TODO: break me out into different schemas, and join together to decrease complexity
 const schema = a.schema({
   PhotoCollection: a
     .model({
@@ -65,7 +70,11 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [index('collectionId')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get', 'list'])]),
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.authenticated('userPools').to(['get', 'list']), 
+      allow.guest().to(['get', 'list'])]
+    ),
   Watermark: a
     .model({
       id: a.id().required(),
@@ -88,11 +97,16 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index('setId').sortKeys(['order']),
     ])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['read'])]),
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.authenticated('userPools').to(['get', 'list']), 
+      allow.guest().to(['get', 'list'])
+    ]),
   UserFavorites: a
     .model({
       id: a.id().required(),
       collectionId: a.id().required(),
+      setId: a.id().required(),
       pathId: a.id().required(),
       path: a.belongsTo('PhotoPaths', 'pathId'),
       participantId: a.id().required(),
@@ -100,23 +114,37 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [
+      index('participantId').sortKeys(['setId']),
       index('participantId').sortKeys(['collectionId']),
+      index('collectionId')
     ])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'delete', 'create', 'list']), allow.guest().to(['get', 'delete', 'create', 'list'])]),
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.authenticated('userPools').to(['get', 'delete', 'create', 'list']), 
+      allow.guest().to(['get', 'delete', 'create', 'list'])
+    ]),
   UserTag: a
     .model({
       id: a.id().required(),
       name: a.string().required(),
       color: a.string(),
-      collectionTags: a.hasMany('CollectionTag', 'tagId'), //TODO: improve authorization
+      createdAt: a.datetime().required(),
+      flag: a.string().default('true').required(),
+      collectionTags: a.hasMany('CollectionTag', 'tagId'),
       timeslotTags: a.hasMany('TimeslotTag', 'tagId'),
       packages: a.hasOne('Package', 'tagId'),
       notifications: a.hasMany('NotificationUserTags', 'tagId'),
       participants: a.hasMany('ParticipantUserTag', 'tagId'),
-      childTags: a.hasMany('PackageParentTag', 'tagId')
+      childTags: a.hasMany('PackageParentTag', 'tagId'),
+
     })
     .identifier(['id'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list']), allow.guest().to(['get', 'list'])]),
+    .secondaryIndexes((index) => [index('flag').sortKeys(['createdAt'])])
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.authenticated('userPools').to(['get', 'list']), 
+      allow.guest().to(['get', 'list'])
+    ]),
   CollectionTag: a
     .model({
       id: a.id().required(),
@@ -220,6 +248,7 @@ const schema = a.schema({
       id: a.id().required(),
       name: a.string().required(),
       tableGroupId: a.id().required(),
+      order: a.integer().required(),
       tableGroup: a.belongsTo('TableGroup', 'tableGroupId'),
       tableColumns: a.hasMany('TableColumn', 'tableId')
     })
@@ -253,42 +282,51 @@ const schema = a.schema({
     })
     .secondaryIndexes((index) => [index('columnId')])
     .authorization((allow) => [allow.group('ADMINS')]),
-  //TODO: create a lambda function for timeslot registration to further restrict timeslots
   Timeslot: a
     .model({
       id: a.id().required(),
       description: a.string(),
-      register: a.string().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]),
-      user: a.belongsTo('UserProfile', 'register'),
-      start: a.datetime().required(),
+      register: a.string(),
+      startDate: a.string().required(), //of form 'MM-dd-yyyy'
+      startMonth: a.string().required(), //of form 'MM-yyyy'
+      noshowFee: a.float(),
+      cancelationFee: a.customType({
+        amount: a.float().required(),
+        window: a.string().required() // of form Duration (ISO string) until start
+      }),
+      start: a.datetime().required(), 
       end: a.datetime().required(),
+      tagId: a.string(),
       timeslotTag: a.hasOne('TimeslotTag', 'timeslotId'),
       participant: a.belongsTo('Participant', 'participantId'),
-      participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools')]), 
+      participantId: a.id().authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['read'])]), 
+      orders: a.hasMany('OrderItems', 'itemId')
     })
     .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('participantId'), 
+      index('startDate'), 
+      index('startMonth')
+    ])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated('userPools').to(['get', 'list'])]),
   UserProfile: a
     .model({
       sittingNumber: a.integer(),
-      email: a.string().required().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read', 'update']), allow.guest().to(['create', 'read'])]),
-      userTags: a.string().array().authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['read']), allow.guest().to(['create'])]),
-      timeslot: a.hasMany('Timeslot', 'register'),
-      participantFirstName: a.string(),
-      participantLastName: a.string(),
-      participantMiddleName: a.string(),
-      participantPreferredName: a.string(),
+      email: a.string().required(),
       preferredContact: a.enum(['EMAIL', 'PHONE']),
-      participantContact: a.boolean().default(false),
-      participantEmail: a.string(),
       participant: a.hasMany('Participant', 'userEmail'),
       activeParticipant: a.id(),
       temporaryCreate: a.hasOne('TemporaryCreateUsersTokens', 'userEmail'),
+      customerProfile: a.hasOne('CustomerProfile', 'userEmail'),
       firstName: a.string(),
       lastName: a.string(),
     })
     .identifier(['email'])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'update']), allow.guest().to(['create', 'get'])]),
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.ownerDefinedIn('email').identityClaim('email').to(['read', 'update', 'delete']), 
+      allow.guest().to(['get'])
+    ]),
   Participant: a.
     model({
       id: a.id().required(),
@@ -304,11 +342,20 @@ const schema = a.schema({
       collections: a.hasMany('ParticipantCollections', 'participantId'),
       notifications: a.hasMany('NotificationParticipants', 'participantId'),
       tags: a.hasMany('ParticipantUserTag', 'participantId'),
-      favorites: a.hasMany('UserFavorites', 'participantId')
+      favorites: a.hasMany('UserFavorites', 'participantId'),
+      flag: a.string().default('true'),
+      createdAt: a.datetime().required(),
     })
     .identifier(['id'])
-    .secondaryIndexes((index) => [index('userEmail')])
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['create', 'get', 'update', 'list']), allow.guest().to(['create', 'get', 'list'])]),
+    .secondaryIndexes((index) => [
+      index('userEmail'),
+      index('flag').sortKeys(['createdAt'])
+    ])
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
+      allow.guest().to(['get', 'list'])
+    ]),
   ParticipantUserTag: a.
     model({
       id: a.id().required(),
@@ -331,6 +378,87 @@ const schema = a.schema({
     .identifier(['id'])
     .secondaryIndexes((index) => [index('participantId'), index('collectionId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
+  CustomerProfile: a.
+    model({
+      userEmail: a.string().required(),
+      userId: a.string().required(), //Cognito userid -> used for customer profile id generation
+      paypalCustomerId: a.id().required(),
+      savedPaymentMethods: a.hasMany('SavedPaymentMethod', 'paypalCustomerId'),
+      orders: a.hasMany('Orders', 'paypalCustomerId'),
+      userProfile: a.belongsTo('UserProfile', 'userEmail')
+    })
+    .identifier(['userEmail'])
+    .authorization((allow) => [
+      allow.group('ADMINS'),
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get'])
+    ]),
+  SavedPaymentMethod: a.
+    model({
+      paymentMethodId: a.id().required(),
+      paypalCustomerId: a.id().required(),
+      customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
+      paypalVaultId: a.string().required(),
+      type: a.enum(['PAYPAL', 'CARD', 'APPLEPAY']),
+      isDefault: a.boolean().default(false),
+      lastDigits: a.integer(),
+      brand: a.string(),
+      expireMonth: a.integer(),
+      expireYear: a.integer(),
+      userEmail: a.string().required().authorization((allow) => [
+        allow.group('ADMINS'),
+        allow.ownerDefinedIn('userEmail').identityClaim('email').to(['read', 'delete'])
+      ])
+    })
+    .identifier(['paymentMethodId'])
+    .secondaryIndexes((index) => [
+      index('userEmail')
+    ])
+    .authorization((allow) => [
+      allow.group('ADMINS'),
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list', 'update', 'delete'])
+    ]),
+  OrderItems: a.
+    model({
+      id: a.id().required(),
+      itemId: a.id().required(),
+      timeslot: a.belongsTo('Timeslot', 'itemId'),
+      orderId: a.id().required(),
+      order: a.belongsTo('Orders', 'orderId'),
+      userEmail: a.string().required(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('itemId').sortKeys(['userEmail']),
+      index('itemId')
+    ])
+    .authorization((allow) => [
+      allow.group('ADMINS'),
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
+    ]),
+  Orders: a.
+    model({
+      paypalOrderId: a.string().required(),
+      paypalCustomerId: a.id(), // only used if customer uses a saved payment method
+      customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
+      amount: a.float().required(),
+      serviceFee: a.float().required(),
+      currency: a.string().default('USD').required(),
+      status: a.enum(['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED', 'UNKNOWN']),
+      transactionType: a.enum(['timeslot']),
+      items: a.json().required(), //format -> array of OrderItems,
+      userEmail: a.string().required(),
+      approvalUrl: a.string(),
+      orderItems: a.hasMany('OrderItems', 'orderId'),
+    })
+    .identifier(['paypalOrderId'])
+    .secondaryIndexes((index) => [
+      index('userEmail').sortKeys(['transactionType']),
+      index('userEmail')
+    ])
+    .authorization((allow) => [
+      allow.group('ADMINS'),
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
+    ]),
   Notifications: a.
     model({
       id: a.id().required(),
@@ -371,6 +499,9 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
   GetAuthUsers: a
     .query()
+    .arguments({
+      paginationToken: a.string(),
+    })
     .authorization((allow) => [allow.group('ADMINS')])
     .handler(a.handler.function(getAuthUsers))
     .returns(a.json()),
@@ -447,20 +578,6 @@ const schema = a.schema({
       price: a.integer(),
     })
     .authorization((allow) => [allow.authenticated()]),
-  PaymentIntent: a
-    .customType({
-      objects: a.string().array(),
-      total: a.integer(),
-      currency: a.string(),
-    }),
-  GetPaymentIntent: a
-    .query()
-    .arguments({
-      objects: a.string().array(),
-    })
-    .returns(a.ref('PaymentIntent'))
-    .authorization((allow) => [allow.authenticated()])
-    .handler(a.handler.function(getPaymentIntent)),
   SendTimeslotConfirmation: a
     .query()
     .arguments({
@@ -468,7 +585,7 @@ const schema = a.schema({
       start: a.datetime().required(),
       end: a.datetime().required(),
       participantId: a.string().required(),
-      tagId: a.string().required(),
+      tagId: a.string(),
       additionalRecipients: a.string().array(),
     })
     .handler(a.handler.function(sendTimeslotConfirmation))
@@ -509,7 +626,7 @@ const schema = a.schema({
       link: a.string().required()
     })
     .handler(a.handler.function(shareUserInvite))
-    .authorization((allow) => [allow.authenticated()]) //TODO: maybe change me to admin group
+    .authorization((allow) => [allow.group('ADMINS')])
     .returns(a.json()),
   DownloadImages: a
     .query()
@@ -537,7 +654,7 @@ const schema = a.schema({
     })
     .handler(a.handler.function(repairPaths))
     .authorization((allow) => [allow.group('ADMINS')])
-    .returns(a.string()),
+    .returns(a.json()),
   DeletePublicPhoto: a
     .query()
     .arguments({
@@ -550,10 +667,60 @@ const schema = a.schema({
     .query()
     .arguments({
       email: a.string().required(),
-      content: a.string().required()
+      subject: a.string().required(),
+      content: a.string().required(),
+      additionalRecipients: a.string().required().array(),
     })
     .handler(a.handler.function(notifyUser))
     .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.json()),
+  ChargeNoShowFee: a
+    .mutation()
+    .arguments({
+      timeslotId: a.string().required(),
+      userEmail: a.string().required(),
+    })
+    .handler(a.handler.function(chargeNoShowFee))
+    .authorization((allow) => [allow.group('ADMINS')])
+    .returns(a.json()),
+  CreateShortNoticeCancelationOrder: a
+    .mutation()
+    .arguments({
+      timeslotId: a.string().required(),
+      userEmail: a.string().required(),
+    })
+    .handler(a.handler.function(createShortNoticeCancelationOrder))
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
+    .returns(a.json()),
+  AuthorizeShortNoticeCancelationOrder: a
+    .mutation()
+    .arguments({
+      timeslotId: a.string().required(),
+      userEmail: a.string().required(),
+      userId: a.string().required(),
+    })
+    .handler(a.handler.function(authorizeShortNoticeCancelationFee))
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
+    .returns(a.json()),
+  SavePaymentInformation: a
+    .mutation()
+    .arguments({
+      userEmail: a.string().required(),
+      userId: a.string().required(),
+      vaultRequest: a.json().required()
+    })
+    .handler(a.handler.function(savePaymentInformation))
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
+    .returns(a.json()),
+  ConfirmSavePaymentInformation: a
+    .mutation()
+    .arguments({
+      userEmail: a.string().required(),
+      setupToken: a.string().required(),
+      requestDefault: a.boolean()
+    })
+    .handler(a.handler.function(confirmSavePaymentInformation))
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
     .returns(a.json()),
   TemporaryAccessToken: a
     .model({
@@ -574,7 +741,12 @@ const schema = a.schema({
   allow.resource(registerUser),
   allow.resource(registerTimeslot),
   allow.resource(notifyUser),
-  allow.resource(sendTimeslotConfirmation)
+  allow.resource(sendTimeslotConfirmation),
+  allow.resource(chargeNoShowFee),
+  allow.resource(createShortNoticeCancelationOrder),
+  allow.resource(savePaymentInformation),
+  allow.resource(confirmSavePaymentInformation),
+  allow.resource(authorizeShortNoticeCancelationFee)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

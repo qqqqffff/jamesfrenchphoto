@@ -11,7 +11,7 @@ interface NotificationComponentParams {
   setRecipients: Dispatch<SetStateAction<string[]>>
 }
 
-const component: FC<NotificationComponentParams> = ({ setNotify, notify, email, recipients, setRecipients }) => {
+export const NotificationComponent: FC<NotificationComponentParams> = ({ setNotify, notify, email, recipients, setRecipients }) => {
   const [invalidEmail, setInvalidEmail] = useState(false)
   const [currentEmail, setCurrentEmail] = useState<string>('')
   const [deleteHovering, setDeleteHovering] = useState<string | undefined>()
@@ -114,5 +114,3 @@ const component: FC<NotificationComponentParams> = ({ setNotify, notify, email, 
     </div>
   )
 }
-
-export default component

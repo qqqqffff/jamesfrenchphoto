@@ -21,7 +21,7 @@ export const PackageCard = (props: PackageCardProps) => {
   const [allExpanded, setAllExpanded] = useState(false)
 
   return (
-    <div className={`overflow-y-auto border rounded-lg px-2 py-1 min-w-[500px] max-w-[500px] flex flex-col gap-2`}>
+    <div className={`overflow-y-auto border rounded-lg px-2 py-1 w-full flex flex-col gap-2`}>
       <div className="flex flex-row items-center justify-center">
         <span className="font-bodoni text-xl">{props.package.name}</span>
       </div>

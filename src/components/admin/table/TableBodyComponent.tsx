@@ -3,7 +3,7 @@ import { AggregateCell } from "./AggregateCell"
 import { AdminRegisterTimeslotMutationParams, TimeslotService } from "../../../services/timeslotService"
 import { Dispatch, SetStateAction, useEffect } from "react"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
-import { AppendTableRowParams, CreateChoiceParams, DeleteTableRowParams, ReorderTableRowsParams, TableService, UpdateTableColumnParams } from "../../../services/tableService"
+import { AppendTableRowParams, CreateChoiceParams, DeleteChoiceParams, DeleteTableRowParams, ReorderTableRowsParams, TableService, UpdateChoiceParams, UpdateTableColumnParams } from "../../../services/tableService"
 import { CreateParticipantParams, UpdateParticipantMutationParams, UpdateUserAttributesMutationParams, UpdateUserProfileParams, UserService } from "../../../services/userService"
 import { PhotoPathService } from "../../../services/photoPathService"
 import { HiOutlinePlusCircle } from "react-icons/hi2"
@@ -14,6 +14,7 @@ import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish
 import { isTableRowData } from "./TableRowData"
 import { flushSync } from "react-dom"
 import { NotificationService } from "../../../services/notificationService"
+import { TablePanelNotification } from "./TablePanel"
 
 interface TableBodyComponentProps {
   TimeslotService: TimeslotService,
@@ -21,33 +22,41 @@ interface TableBodyComponentProps {
   TableService: TableService
   PhotoPathService: PhotoPathService,
   NotificationService: NotificationService,
+
   table: Table
   tableRows: [string, TableColumn['type'], string][][],
+  search: string,
+
   users: UserData[],
   tempUsers: UserProfile[],
   notifications: Notification[],
+  timeslots: Timeslot[],
+  tags: UserTag[],
+
   selectedTag: UserTag | undefined,
   selectedDate: Date
   baseLink: string
   refRow: React.MutableRefObject<number>
+
   timeslotsQuery: UseQueryResult<Timeslot[], Error>
   tagTimeslotQuery: UseQueryResult<Timeslot[], Error>
-  tagData: UseQueryResult<UserTag[] | undefined, Error>
-  userData: UseQueryResult<UserData[] | undefined, Error>
-  tempUsersData: UseQueryResult<UserProfile[] | undefined, Error>
-  notificationsData: UseQueryResult<Notification[], Error>
+
   deleteRow: UseMutationResult<void, Error, DeleteTableRowParams, unknown>
   appendRow: UseMutationResult<void, Error, AppendTableRowParams, unknown>
   updateColumn: UseMutationResult<void, Error, UpdateTableColumnParams, unknown>
-  createChoice: UseMutationResult<[string, string] | undefined, Error, CreateChoiceParams, unknown>
+  createChoice: UseMutationResult<void, Error, CreateChoiceParams, unknown>
+  updateChoice: UseMutationResult<void, Error, UpdateChoiceParams, unknown>
+  deleteChoice: UseMutationResult<void, Error, DeleteChoiceParams, unknown>
   reorderTableRows: UseMutationResult<void, Error, ReorderTableRowsParams, unknown>
   updateUserAttribute: UseMutationResult<unknown, Error, UpdateUserAttributesMutationParams, unknown>
   updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
   updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
   createParticipant: UseMutationResult<void, Error, CreateParticipantParams, unknown>
   adminRegisterTimeslot: UseMutationResult<Timeslot | null, Error, AdminRegisterTimeslotMutationParams, unknown>
+
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
+  setTableNotifications: Dispatch<SetStateAction<TablePanelNotification[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
   setSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
@@ -90,6 +99,8 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
         const updatedValues: Map<string, string[]> = new Map()
         const updatedChoices: Map<string, string[]> = new Map()
 
+        props.table.columns.filter((column) => column.type === 'choice').forEach((column) => updatedChoices.set(column.id, column.choices ?? []))
+
         for(let i = 0; i < indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i++) {
           if(i === indexOfSource) continue
           for(let j = 0; j < props.table.columns.length; j++){
@@ -97,10 +108,12 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               props.table.columns[j].id, 
               [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[i]]
             )
-            updatedChoices.set(
-              props.table.columns[j].id, 
-              [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
-            )
+            if(props.table.columns[j].type !== 'choice') {
+              updatedChoices.set(
+                props.table.columns[j].id, 
+                [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
+              )
+            }
           }
         }
         for(let j = 0; j < props.table.columns.length; j++) {
@@ -108,10 +121,12 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
             props.table.columns[j].id,
             [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[indexOfSource]]
           )
-          updatedChoices.set(
-            props.table.columns[j].id,
-            [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[indexOfSource] ?? '']
-          )
+          if(props.table.columns[j].type !== 'choice') {
+            updatedChoices.set(
+              props.table.columns[j].id,
+              [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[indexOfSource] ?? '']
+            )
+          }
         }
         for(let i = indexOfTarget + (closestEdgeOfTarget === 'top' ? 0 : 1); i < props.table.columns[0].values.length; i++) {
           if(i === indexOfSource) continue
@@ -120,10 +135,12 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               props.table.columns[j].id, 
               [...(updatedValues.get(props.table.columns[j].id) ?? []), props.table.columns[j].values[i]]
             )
-            updatedChoices.set(
-              props.table.columns[j].id, 
-              [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
-            )
+            if(props.table.columns[j].type !== 'choice') {
+              updatedChoices.set(
+                props.table.columns[j].id, 
+                [...(updatedChoices.get(props.table.columns[j].id) ?? []), props.table.columns[j].choices?.[i] ?? '']
+              )
+            }
           }
         }
 
@@ -182,24 +199,25 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               PhotoPathService={props.PhotoPathService}
               NotificationService={props.NotificationService}
               row={row}
+              search={props.search}
               i={i}
               table={props.table}
               users={props.users}
               tempUsers={props.tempUsers}
               notifications={props.notifications}
+              timeslots={props.timeslots}
+              tags={props.tags}
               selectedTag={props.selectedTag}
               selectedDate={props.selectedDate}
               baseLink={props.baseLink}
               refRow={props.refRow}
               timeslotsQuery={props.timeslotsQuery}
               tagTimeslotQuery={props.tagTimeslotQuery}
-              tagData={props.tagData}
-              userData={props.userData}
-              tempUsersData={props.tempUsersData}
-              notificationData={props.notificationsData}
               updateColumn={props.updateColumn}
               deleteRow={props.deleteRow}
               createChoice={props.createChoice}
+              updateChoice={props.updateChoice}
+              deleteChoice={props.deleteChoice}
               updateUserAttribute={props.updateUserAttribute}
               updateUserProfile={props.updateUserProfile}
               updateParticipant={props.updateParticipant}
@@ -214,7 +232,8 @@ export const TableBodyComponent = (props: TableBodyComponentProps) => {
               parentUpdateSelectedTableGroups={props.parentUpdateSelectedTableGroups}
               parentUpdateTableGroups={props.parentUpdateTableGroups}
               parentUpdateTable={props.parentUpdateTable}
-              parentUpdateTableColumns={props.parentUpdateTableColumns}
+              parentUpdateTableColumns={props.parentUpdateTableColumns} 
+              setTableNotification={props.setTableNotifications}            
             />
           )
         })

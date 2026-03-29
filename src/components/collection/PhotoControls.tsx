@@ -2,14 +2,14 @@ import { useMutation } from "@tanstack/react-query"
 import { CgArrowsExpandRight } from "react-icons/cg"
 import { HiOutlineHeart, HiOutlineDownload } from "react-icons/hi"
 import { DownloadImageMutationParams, PhotoPathService } from "../../services/photoPathService"
-import { FavoriteImageMutationParams, UnfavoriteImageMutationParams, PhotoSetService } from "../../services/photoSetService"
 import { PhotoCollection, PhotoSet, PicturePath, UserProfile } from "../../types"
 import { Dispatch, SetStateAction } from "react"
 import { useNavigate } from "@tanstack/react-router"
+import { FavoriteService, FavoriteImageMutationParams, UnfavoriteImageMutationParams } from "../../services/favoriteService"
 
 interface PhotoControlsProps {
   PhotoPathService: PhotoPathService,
-  PhotoSetService: PhotoSetService,
+  FavoriteService: FavoriteService,
   picture: PicturePath,
   set: PhotoSet
   collection: PhotoCollection,
@@ -21,7 +21,7 @@ interface PhotoControlsProps {
 export const PhotoControls = (props: PhotoControlsProps) => {
   const navigate = useNavigate()
   const favorite = useMutation({
-    mutationFn: (params: FavoriteImageMutationParams) => props.PhotoSetService.favoriteImageMutation(params),
+    mutationFn: (params: FavoriteImageMutationParams) => props.FavoriteService.favoriteImageMutation(params),
     onSettled: (favorite) => {
       if(favorite) {
         props.parentUpdateSet((set) => ({
@@ -41,7 +41,7 @@ export const PhotoControls = (props: PhotoControlsProps) => {
   })
 
   const unfavorite = useMutation({
-    mutationFn: (params: UnfavoriteImageMutationParams) => props.PhotoSetService.unfavoriteImageMutation(params)
+    mutationFn: (params: UnfavoriteImageMutationParams) => props.FavoriteService.unfavoriteImageMutation(params)
   })
 
   const downloadImage = useMutation({
@@ -74,6 +74,7 @@ export const PhotoControls = (props: PhotoControlsProps) => {
               pathId: props.picture.id,
               collectionId: props.collection.id,
               participantId: props.profile.email,
+              setId: props.set.id,
               options: {
                 logging: true
               }

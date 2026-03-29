@@ -28,7 +28,8 @@ function RouteComponent() {
   const [tags, setTags] = useState<UserTag[]>([])
   const [allPackageItems, setAllPackageItems] = useState<PackageItem[]>([])
 
-  const tagsQuery = useQuery(data.TagService.getAllUserTagsQueryOptions({ 
+  //TODO: implement infinite query
+  const tagsQuery = useInfiniteQuery(data.TagService.getAllUserTagsQueryOptions({ 
     siCollections: true, 
     siNotifications: false, 
     siTimeslots: true,
@@ -56,23 +57,22 @@ function RouteComponent() {
         packageItemsInfiniteQuery.data.pages.length - 1
       ].memo)
     }
-  }, [packageItemsInfiniteQuery.data])
-
-  useEffect(() => {
     if(packagesQuery.data && packagesQuery.data.length > 0) {
       setPackages(packagesQuery.data)
     }
-  }, [packagesQuery.data])
-
-  useEffect(() => {
-    if(tagsQuery.data) {
-      if(!tags.some((tag) => tagsQuery.data.some((pTag) => pTag.id === tag.id)) ||
-        !tagsQuery.data.some((pTag) => tags.some((tag) => tag.id === pTag.id))
-      ) {
-        setTags(tagsQuery.data)
-      }
+    if(
+      tagsQuery.data !== undefined && (
+        !tags.some((tag) => tagsQuery.data.pages[tagsQuery.data.pages.length - 1].tags.some((pTag) => pTag.id === tag.id)) ||
+        !tagsQuery.data.pages[tagsQuery.data.pages.length - 1].tags.some((pTag) => tags.some((tag) => tag.id === pTag.id))
+      )
+    ) {
+      setTags(tagsQuery.data.pages[tagsQuery.data.pages.length - 1].tags)
     }
-  }, [tagsQuery.data])
+  }, [
+    packageItemsInfiniteQuery.data,
+    packagesQuery.data,
+    tagsQuery.data
+  ])
   
   return (
     <>

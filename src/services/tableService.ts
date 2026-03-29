@@ -1,21 +1,42 @@
 import { Schema } from '../../amplify/data/resource'
-import { TableGroup, Table, TableColumn, ColumnColor, UserTag } from '../types'
+import { TableGroup, Table, TableColumn, ColumnColor, UserTag, Notification, Participant, UserProfile, UserData, Timeslot } from '../types'
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { defaultColumnColors } from '../utils'
 import { remove, uploadData } from 'aws-amplify/storage'
 import { v4 } from 'uuid'
+import { processTableColumnLoadLinks } from '../functions/tableFunctions'
+import { UserService } from './userService'
+import { TimeslotService } from './timeslotService'
 
 interface GetAllTableGroupsOptions {
   logging?: boolean,
   metrics?: boolean
 }
 async function getAllTableGroups(client: V6Client<Schema>, options?: GetAllTableGroupsOptions){
-  //TODO: implement nexting/convert me to infinite
-  const mappedGroups: TableGroup[] = await Promise.all((await client.models.TableGroup.list()).data.map(async (group) => {
-    const tables: Table[] = (await group.tables()).data.map((table) => {
+  //TODO: convert me to infinite
+  let tableGroupsResponse = await client.models.TableGroup.list()
+  const tableGroupData = tableGroupsResponse.data
+  while(tableGroupsResponse.nextToken) {
+    tableGroupsResponse = await client.models.TableGroup.list({ nextToken: tableGroupsResponse.nextToken })
+    tableGroupData.push(...tableGroupsResponse.data)
+  }
+
+
+  const mappedGroups: TableGroup[] = await Promise.all(tableGroupData.map(async (group) => {
+    let tablesResponse = await group.tables()
+    const tablesData = tablesResponse.data
+    while(tablesResponse.nextToken) {
+      tablesResponse = await group.tables({ nextToken: tablesResponse.nextToken })
+      tablesData.push(...tablesResponse.data)
+    }
+
+    const tables: Table[] = tablesData
+    .sort((a, b) => a.order - b.order)
+    .map((table, index) => {
       const mappedTable: Table = {
         ...table,
+        order: index,
         columns: [],
       }
       return mappedTable
@@ -38,13 +59,51 @@ interface GetTableOptions {
   logging?: boolean,
   metrics?: boolean
 }
-async function getTable(client: V6Client<Schema>, id?: string, options?: GetTableOptions) {
+async function getTable(client: V6Client<Schema>, id?: string, options?: GetTableOptions): 
+Promise<
+  { 
+    table: Table, 
+    tableData: {
+      userData: UserData[],
+      tempUsers: UserProfile[],
+      notifications: Notification[],
+      tags: UserTag[],
+      timeslots: Timeslot[]
+    }
+  } | null
+> 
+{
   if(!id) return null
   const tableResponse = await client.models.Table.get({ id: id })
   if(!tableResponse || !tableResponse.data) return null
 
-  const mappedColumns: TableColumn[] = await Promise.all((await tableResponse.data.tableColumns()).data.map(async (column) => {
-    const color: ColumnColor[] = (await column.color()).data.map((color) => {
+  let tableColumnResponse = await client.models.TableColumn.listTableColumnByTableId({ tableId: id })
+  const tableColumnData = tableColumnResponse.data
+  while(tableColumnResponse.nextToken) {
+    tableColumnResponse = await client.models.TableColumn.listTableColumnByTableId({ 
+      tableId: id 
+    }, { 
+      nextToken: tableColumnResponse.nextToken
+    })
+    tableColumnData.push(...tableColumnResponse.data)
+  }
+
+  const participantMemo: Participant[] = []
+  const usersMemo: UserProfile[] = []
+
+  const mappedColumns: TableColumn[] = await Promise.all(tableColumnData.map(async (column) => {
+    let colorResponse = await client.models.ColumnColorMapping.listColumnColorMappingByColumnId({ columnId: column.id })
+    const colorData = colorResponse.data
+    while(colorResponse.nextToken) {
+      colorResponse = await client.models.ColumnColorMapping.listColumnColorMappingByColumnId({ 
+        columnId: column.id 
+      }, { 
+        nextToken: colorResponse.nextToken
+      })
+      colorData.push(...colorResponse.data)
+    }
+    
+    const color: ColumnColor[] = colorData.map((color) => {
       const mappedColor: ColumnColor = {
         ...color,
         bgColor: color.bgColor ?? undefined,
@@ -52,6 +111,7 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
       }
       return mappedColor
     })
+
     const mappedColumn: TableColumn = {
       ...column,
       values: column.values ? column.values as string[] : [],
@@ -74,13 +134,54 @@ async function getTable(client: V6Client<Schema>, id?: string, options?: GetTabl
       }))).filter((tag) => tag !== undefined) : [],
       color: color,
     }
-    return mappedColumn
+
+    const processedColumn = await processTableColumnLoadLinks({
+      column: mappedColumn,
+      client: client,
+      UserService: new UserService(client),
+      TimeslotService: new TimeslotService(client),
+      participantsMemo: participantMemo,
+      usersMemo: usersMemo,
+    })
+
+    participantMemo.push(...processedColumn.participantsMemo.filter((participant) => !participantMemo.some((memo) => memo.id === participant.id)))
+    usersMemo.push(...processedColumn.usersMemo.filter((user) => !usersMemo.some((memo) => memo.email === user.email)))
+
+    return processedColumn.column
   }))
   const mappedTable: Table = {
     ...tableResponse.data,
     columns: mappedColumns.sort((a, b) => a.order - b.order),
+  }
+  return {
+    table: mappedTable,
+    tableData: {
+      tempUsers: usersMemo.filter((user) => user.temporary),
+      userData: usersMemo.filter((user) => !user.temporary).map((user) => {
+        return {
+          email: user.email,
+          verified: true,
+          last: user.lastName ?? '',
+          first: user.firstName ?? '',
+          userId: '',
+          status: 'active',
+          profile: user,
+        }
+      }),
+      tags: participantMemo.reduce((prev, cur) => {
+        prev.push(...cur.userTags.filter((tag) => !prev.some((pTag) => pTag.id === tag.id)))
+        return prev
+      }, [] as UserTag[]),
+      notifications: participantMemo.reduce((prev, cur) => {
+        prev.push(...cur.notifications.filter((notification) => !prev.some((pNotification) => pNotification.id === notification.id)))
+        return prev
+      }, [] as Notification[]),
+      timeslots: participantMemo.reduce((prev, cur) => {
+        prev.push(...(cur.timeslot ?? []).filter((timeslot) => !prev.some((pTimeslot) => pTimeslot.id === timeslot.id)))
+        return prev
+      }, [] as Timeslot[]),
     }
-  return mappedTable
+  }
 }
 
 export interface CreateTableGroupParams {
@@ -109,7 +210,7 @@ export interface DeleteTableGroupParams {
 export interface CreateTableParams {
   id: string,
   name: string,
-  tableGroupId: string,
+  tableGroup: TableGroup,
   columns: TableColumn[],
   options?: {
     logging?: boolean
@@ -164,6 +265,28 @@ export interface CreateChoiceParams {
   }
 }
 
+export interface UpdateChoiceParams {
+  column: TableColumn,
+  choice: ColumnColor,
+  color: string,
+  customColor?: [string, string], 
+  value: string
+  tableValues: string[]
+  options?: {
+    logging: boolean
+  }
+}
+
+export interface DeleteChoiceParams {
+  columnId: string,
+  choices: string[]
+  tableValues: string[]
+  choiceId: string,
+  options?: {
+    logging?: boolean
+  }
+}
+
 export interface AppendTableRowParams {
   table: Table,
   length: number,
@@ -198,6 +321,14 @@ export interface UploadColumnFileParams {
   }
 }
 
+export interface ReorderTableGroupParams {
+  tables: Table[],
+  originalTables: Table[],
+  options?: {
+    logging?: boolean
+  }
+}
+
 //TODO: add previous table columns to decrease api calls
 export interface ReorderTableColumnsParams {
   tableColumns: TableColumn[],
@@ -207,6 +338,8 @@ export interface ReorderTableColumnsParams {
 }
 
 export interface ReorderTableRowsParams extends ReorderTableColumnsParams { }
+
+export interface ReorderTableMutationParams extends ReorderTableColumnsParams { }
 
 export class TableService {
   private client: V6Client<Schema>
@@ -250,7 +383,8 @@ export class TableService {
     const response = await this.client.models.Table.create({
       id: params.id,
       name: params.name,
-      tableGroupId: params.tableGroupId,
+      tableGroupId: params.tableGroup.id,
+      order: params.tableGroup.tables.length,
     })
     if(params.options?.logging) console.log(response)
     await Promise.all(params.columns.map(async (column) => {
@@ -345,7 +479,7 @@ export class TableService {
     }
   }
 
-  async createChoiceMutation(params: CreateChoiceParams): Promise<[string, string] | undefined> {
+  async createChoiceMutation(params: CreateChoiceParams) {
     const columnResponse = await this.client.models.TableColumn.update({
       id: params.column.id,
       choices: [...(params.column.choices ?? []), params.choice]
@@ -361,8 +495,37 @@ export class TableService {
     })
 
     if(params.options?.logging) console.log(createColor)
+  }
 
-    return
+  async updateChoiceMutation(params: UpdateChoiceParams) {
+    const columnResponse = await this.client.models.TableColumn.update({
+      id: params.column.id,
+      choices: params.column.choices,
+      values: params.tableValues,
+    })
+    if(params.options?.logging) console.log(columnResponse)
+    
+    const updateColor = await this.client.models.ColumnColorMapping.update({
+      id: params.choice.id,
+      textColor: params.customColor ? params.customColor[0] : defaultColumnColors[params.color].text,
+      bgColor: params.customColor ? params.customColor[1] : defaultColumnColors[params.color].bg,
+      value: params.value
+    })
+    if(params.options?.logging) console.log(updateColor)
+  }
+
+  async deleteChoiceMutation(params: DeleteChoiceParams) {
+    const columnResponse = await this.client.models.TableColumn.update({
+      id: params.columnId,
+      choices: params.choices,
+      values: params.tableValues
+    })
+    if(params.options?.logging) console.log(columnResponse)
+
+    const updateColor = await this.client.models.ColumnColorMapping.delete({
+      id: params.choiceId
+    })
+    if(params.options?.logging) console.log(updateColor)
   }
 
   async appendTableRowMutation(params: AppendTableRowParams){
@@ -485,6 +648,35 @@ export class TableService {
     }
   }
 
+  async reorderTableGroupMutation(params: ReorderTableGroupParams) {
+    const updateTableGroup = await Promise.all(params.tables.map((table) => {
+      const originalTable = params.originalTables.find((oTable) => oTable.id === table.id)
+
+      return originalTable === undefined || (
+        originalTable.order !== table.order ||
+        originalTable.tableGroupId !== table.tableGroupId
+      ) ? this.client.models.Table.update({
+        id: table.id,
+        order: table.order,
+        tableGroupId: table.tableGroupId
+      }) : null
+    }))
+
+    if(params.options?.logging) console.log(updateTableGroup)
+  }
+
+  async reorderTableMutation(params: ReorderTableMutationParams) {
+    const updatedTable = await Promise.all(params.tableColumns.map((column) => {
+      return this.client.models.TableColumn.update({
+        id: column.id,
+        values: column.values,
+        choices: column.choices
+      })
+    }))
+
+    if(params.options?.logging) console.log(updatedTable)
+  }
+
   async reorderTableColumnsMutation(params: ReorderTableColumnsParams) {
     const updatedTableColumns = await Promise.all(params.tableColumns.map((tableColumn) => {
       return this.client.models.TableColumn.update({
@@ -499,7 +691,8 @@ export class TableService {
     const updatedTableColumns = await Promise.all(params.tableColumns.map((tableColumn) => {
       return this.client.models.TableColumn.update({
         id: tableColumn.id,
-        values: tableColumn.values
+        values: tableColumn.values,
+        choices: tableColumn.choices,
       })
     }))
     if(params.options?.logging) console.log(updatedTableColumns)

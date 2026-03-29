@@ -1,4 +1,4 @@
-import { UseMutationResult, useQueries, UseQueryResult } from "@tanstack/react-query";
+import { UseMutationResult, useQueries } from "@tanstack/react-query";
 import { ModalProps } from ".";
 import { TimeslotService } from "../../services/timeslotService";
 import { LinkParticipantMutationParams, UserService } from "../../services/userService";
@@ -14,8 +14,8 @@ interface LinkParticipantModalProps extends ModalProps {
   participant: Participant,
   tableColumns: TableColumn[],
   rowIndex: number,
-  tags: UseQueryResult<UserTag[] | undefined, Error>
-  linkParticipant: UseMutationResult<TableColumn[], Error, LinkParticipantMutationParams, unknown>,
+  tags: UserTag[],
+  linkParticipant: UseMutationResult<{ columns: TableColumn[], participant: Participant }, Error, LinkParticipantMutationParams, unknown>,
   notifications: Notification[]
 }
 
@@ -69,7 +69,8 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
             normalHeader.includes('son') ||
             normalHeader.includes('child') ||
             column.type === 'tag' ||
-            column.type === 'date'
+            column.type === 'date' ||
+            column.type === 'notification'
           ) &&
           linkedParticipants
         ) {
@@ -136,6 +137,15 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
               column.values[props.rowIndex] === '' ? 'override' : 'update'
             ]
           }
+          else if(
+            column.type === 'notification' &&
+            linkedParticipants[0].notifications === null
+          ) {
+            linkedParticipants[0].notifications = [
+              column.id,
+              column.values[props.rowIndex] === '' ? 'override' : 'update'
+            ]
+          }
         }
       }
     }
@@ -156,7 +166,8 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
         (linkedParticipantFields[0].middle === null || linkedParticipantFields[0].middle[0] !== column.id) &&
         (linkedParticipantFields[0].preferred === null || linkedParticipantFields[0].preferred[0] !== column.id) &&
         (linkedParticipantFields[0].tags === null || linkedParticipantFields[0].tags[0] !== column.id) &&
-        (linkedParticipantFields[0].timeslot === null || linkedParticipantFields[0].timeslot[0] !== column.id)
+        (linkedParticipantFields[0].timeslot === null || linkedParticipantFields[0].timeslot[0] !== column.id) &&
+        (linkedParticipantFields[0].notifications === null || linkedParticipantFields[0].notifications[0] !== column.id)
       )
     )
   })
@@ -178,15 +189,15 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
             }}
             showOptions={{
               timeslot: true,
+              notifications: true,
               linkedFields: {
                 participantLinks: linkedParticipantFields[0],
                 rowIndex: props.rowIndex,
-                tags: props.tags.data ?? [],
+                tags: props.tags,
                 timeslotQueries: timeslotQueries,
                 availableOptions: filteredUserFields,
                 allColumns: props.tableColumns,
                 toggleField: setLinkedParticipantFields,
-                noColumnModification: true,
                 notifications: props.notifications
               }
             }}
@@ -217,7 +228,7 @@ export const LinkParticipantModal: FC<LinkParticipantModalProps> = (props) => {
                 rowIndex: props.rowIndex,
                 participantFieldLinks: linkedParticipantFields[0],
                 participant: props.participant,
-                availableTags: props.tags.data ?? [],
+                availableTags: props.tags,
                 options: {
                   logging: true
                 }
