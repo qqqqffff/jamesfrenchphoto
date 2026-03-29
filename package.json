@@ -51,6 +51,8 @@
   },
   "overrides": {
     "@parcel/watcher": "2.1.0",
+    "fast-xml-parser": "5.5.9",
+    "strnum": "^2.2.2",
     "vite": {
       "esbuild": "^0.25.0"
     }
