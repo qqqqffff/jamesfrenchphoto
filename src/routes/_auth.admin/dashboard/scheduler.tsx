@@ -31,20 +31,21 @@ export const Route = createFileRoute('/_auth/admin/dashboard/scheduler')({
   beforeLoad: ({ search }) => search,
   loader: ({ context }) => {
     const client = context.client as V6Client<Schema>
+
     return {
       TimeslotService: new TimeslotService(client),
       UserService: new UserService(client),
       TagService: new TagService(client),
       PaymentService: new PaymentService(client),
-      date: new Date(context.date),
     }
   }
 })
 
 function RouteComponent() {
   const data = Route.useLoaderData()
+  const search = Route.useSearch()
   const navigate = Route.useNavigate()
-  const [activeDate, setActiveDate] = useState<Date>(data.date)
+  const [activeDate, setActiveDate] = useState<Date>(new Date(search.date))
   const [activeTag, setActiveTag] = useState<UserTag>()
   const [timeslots, setTimeslots] = useState<Timeslot[]>([])
   const [tags, setTags] = useState<UserTag[]>([])
@@ -95,14 +96,14 @@ function RouteComponent() {
         return prev
       }, [] as Participant[]))
     }
-    if(!compareDate(activeDate, data.date)) {
-      setActiveDate(data.date)
+    if(!compareDate(activeDate, new Date(search.date))) {
+      setActiveDate(new Date(search.date))
     }
   }, [
     timeslotQuery.data,
     tagsQuery.data,
     participantQuery.data,
-    data.date,
+    search.date,
   ])
 
   function ActionButtonWrapper(props: { children: JSX.Element }) {
@@ -123,6 +124,7 @@ function RouteComponent() {
   }
 
 
+  // console.log(data.date)
   return (
     <>
       <CreateTimeslotModal 

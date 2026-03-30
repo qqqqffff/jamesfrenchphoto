@@ -41,7 +41,7 @@ export const Route = createFileRoute('/register')({
 
 
 
-export function RouteComponent(){
+function RouteComponent(){
   const { UserService, auth, token } = Route.useLoaderData()
 
   const profile = useQuery(

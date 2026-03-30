@@ -152,7 +152,8 @@ function RouteComponent() {
             <div className='px-2 w-full flex flex-col items-center justify-center gap-2'>
               <span className="text-3xl border-b border-b-gray-400 pb-2 px-4 w-fit self-center mb-2">Your Timeslots</span>
               <div className={`
-                flex flex-col justify-center w-full items-center border rounded-lg py-5 gap-4 ${width > 800 ? 'px-10' : 'px-2'}
+                flex flex-col justify-center w-full items-center border rounded-lg py-5 gap-4 
+                ${width > 800 ? 'px-10' : 'px-2'}
               `}>
                 {registrationAvailable.sort((a, b) => {
                   if(a.timeslotAvailable && b.timeslotAvailable) return 0
@@ -215,7 +216,7 @@ function RouteComponent() {
                       </button>
                     </div>
                   ) : (
-                    <div className={`flex flex-row w-full items-center gap-1 justify-center`}>
+                    <div className={`flex flex-row w-full items-center gap-1 justify-center`} key={index}>
                       <span>Registration available for:</span>
                       <button 
                         onClick={() => navigate({ to: '/client/dashboard/scheduler', search: { tagId: registration.tag.id }})}

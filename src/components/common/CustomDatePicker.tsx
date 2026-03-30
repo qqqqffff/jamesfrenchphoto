@@ -20,6 +20,8 @@ export const CustomDatePicker = (props: CustomDatePickerProps) => {
   const windowRef = useRef<HTMLDivElement | null>(null)
   const [timeslots, setTimeslots] = useState<Timeslot[]>([])
 
+  // console.log(props.selectedDate, activeDate)
+
   const calendarTimeslotQuery = props.fetchMonthTimeslots ? 
     useQuery(props.fetchMonthTimeslots.getAllTimeslotsByMonthQueryOptions(activeDate, { siTag: true }))
   : undefined

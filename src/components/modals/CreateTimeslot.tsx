@@ -93,8 +93,6 @@ export const CreateTimeslotModal: FC<CreateTimeslotModalProps> = (props: CreateT
     props.timeslots,
   )
 
-  console.log(segments, selectedTimeslots)
-
   async function submitForm(){
     const newIntersectionTimeslots = selectedTimeslots.filter((timeslot) => props.timeslots.some((qTimeslot) => qTimeslot.id === timeslot.id))
     const oldIntersectionTimeslots = props.timeslots.filter((timeslot) => selectedTimeslots.some((qTimeslot) => qTimeslot.id === timeslot.id))

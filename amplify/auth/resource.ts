@@ -1,4 +1,4 @@
-import { defineAuth, secret } from '@aws-amplify/backend';
+import { defineAuth } from '@aws-amplify/backend';
 import { postConfirmation } from './post-confirmation/resource';
 import { preSignUp } from './pre-sign-up/resource';
 import { getAuthUsers } from './get-auth-users/resource';
@@ -6,10 +6,6 @@ import { customMessage } from './custom-message/resource';
 import { updateUserAttribute } from './update-user-attribute/resource';
 import { adminUpdateUserAttributes } from './admin-update-user-attributes/resource';
 
-/**
- * Define and configure your auth resource
- * @see https://docs.amplify.aws/gen2/build-a-backend/auth
- */
 export const auth = defineAuth({
   loginWith: {
     email: true,
@@ -22,12 +18,6 @@ export const auth = defineAuth({
       required: true,
       mutable: true
     }
-    // familyName: {
-    //   required: true,
-    // },
-    // givenName: {
-    //   required: true,
-    // }
   },
   groups: ["ADMINS", "USERS"],
   triggers: {

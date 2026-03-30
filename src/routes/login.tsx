@@ -329,7 +329,7 @@ function RouteComponent() {
         `}
         >
           <div className="mt-2 w-full relative">
-            <div className="items-center mb-4 absolute top-0 left-0 right-0 mx-20">
+            <div className={`items-center mb-4 absolute top-0 left-0 right-0 ${width > 800 ? 'mx-20' : 'mx-4'}`}>
               {formErrors.filter((item) => item.type === 'submit').map((error, index) => {
                 return (
                   <Alert 
@@ -349,7 +349,9 @@ function RouteComponent() {
             <span className="ms-2 font-semibold text-xl">Email:</span>
             <TextInput 
               sizing='lg' 
-              className="mb-4 w-full" 
+              className={`
+                w-full ${formErrors.some((error) => error.type === 'email') ? '' : 'mb-5'}
+              `}
               placeholder="Your Email" 
               type="email" 
               onChange={(event) => {
@@ -357,21 +359,28 @@ function RouteComponent() {
               }} 
               value={username} 
               onBlur={() => {
-                if(!validator.isEmail(username)) {
-                  setFormErrors([...formErrors, {
+                if(username === '') {
+                  setFormErrors(prev => [...prev, {
                     id: v4(),
-                    message: 'Invalid Email Address',
+                    message: 'Email required.',
+                    type: 'email'
+                  }])
+                }
+                else if(!validator.isEmail(username)){
+                  setFormErrors(prev => [...prev, {
+                    id: v4(),
+                    message: 'Invalid Email.',
                     type: 'email'
                   }])
                 }
               }}
               onFocus={() => {
                 if(formErrors.some((error) => error.type === 'email')) {
-                  setFormErrors(prev => prev.filter((error) => error.type === 'email'))
+                  setFormErrors(formErrors.filter((error) => error.type !== 'email'))
                 }
               }}
               helperText={formErrors.some((error) => error.type === 'email') ? (
-                <p className='text-xs text-red-500'>Invalid Email Address</p>
+                <div className='text-xs text-red-500 -mt-4'>{formErrors.find((error) => error.type === 'email')?.message}</div>
               ) : undefined}
             />
             <span className="ms-2 font-semibold text-xl">Password:</span>

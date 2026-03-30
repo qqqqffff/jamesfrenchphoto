@@ -324,7 +324,7 @@ const schema = a.schema({
     .identifier(['email'])
     .authorization((allow) => [
       allow.group('ADMINS'), 
-      allow.ownerDefinedIn('email').identityClaim('email').to(['read', 'update', 'delete']), 
+      allow.authenticated().to(['get', 'update']), 
       allow.guest().to(['get'])
     ]),
   Participant: a.
@@ -353,7 +353,8 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'), 
-      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
+      // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
+      allow.authenticated().to(['get', 'update', 'list']),
       allow.guest().to(['get', 'list'])
     ]),
   ParticipantUserTag: a.
@@ -390,7 +391,8 @@ const schema = a.schema({
     .identifier(['userEmail'])
     .authorization((allow) => [
       allow.group('ADMINS'),
-      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get'])
+      allow.authenticated().to(['get']),
+      // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get'])
     ]),
   SavedPaymentMethod: a.
     model({
@@ -406,7 +408,8 @@ const schema = a.schema({
       expireYear: a.integer(),
       userEmail: a.string().required().authorization((allow) => [
         allow.group('ADMINS'),
-        allow.ownerDefinedIn('userEmail').identityClaim('email').to(['read', 'delete'])
+        allow.authenticated().to(['read', 'delete']),
+        // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['read', 'delete'])
       ])
     })
     .identifier(['paymentMethodId'])
@@ -415,7 +418,8 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
-      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list', 'update', 'delete'])
+      allow.authenticated().to(['get', 'list', 'update', 'delete']),
+      // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list', 'update', 'delete'])
     ]),
   OrderItems: a.
     model({
@@ -433,7 +437,8 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
-      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
+      allow.authenticated().to(['get', 'list']),
+      // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
     ]),
   Orders: a.
     model({
@@ -457,7 +462,8 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
-      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
+      allow.authenticated().to(['get', 'list']),
+      // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
     ]),
   Notifications: a.
     model({
@@ -746,7 +752,7 @@ const schema = a.schema({
   allow.resource(createShortNoticeCancelationOrder),
   allow.resource(savePaymentInformation),
   allow.resource(confirmSavePaymentInformation),
-  allow.resource(authorizeShortNoticeCancelationFee)
+  allow.resource(authorizeShortNoticeCancelationFee),
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

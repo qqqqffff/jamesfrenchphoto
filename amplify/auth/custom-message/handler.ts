@@ -75,8 +75,6 @@ export const handler: CustomEmailSenderTriggerHandler = async (event: CustomEmai
     console.log('Received event:', JSON.stringify(event, null, 2));
 
     if(event.triggerSource == 'CustomEmailSender_ForgotPassword') {
-        const newEvent = event as CustomEmailSenderForgotPasswordTriggerEvent
-        
         try {
             const { code } = event.request;
             const { email } = event.request.userAttributes;

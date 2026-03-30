@@ -12,7 +12,6 @@ interface ForgotPasswordModalProps extends ModalProps {
 
 //TODO: implement NotificationCell.tsx  cooldown method
 export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
-  
   const [email, setEmail] = useState('')
   const [invalidEmail, setInvalidEmail] = useState(false)
   const [code, setCode] = useState('')
@@ -31,9 +30,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
   const [passwordResetting, setPasswordResetting] = useState(false)
 
   useEffect(() => {
-    if(props.open) {
-      setEmail(props.initialEmailAddress)
-    }
+    setEmail(props.initialEmailAddress)
   }, [props.open])
 
   useEffect(() => {
@@ -42,6 +39,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
       setCooldownTime(prev => {
         if(prev !== null && prev <= 1) {
           clearInterval(cooldownRef.current)
+          cooldownRef.current = undefined
           return null
         }
         if(prev !== null) {
@@ -156,9 +154,9 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
                   onChange={(event) => setCode(event.target.value)}
                 />
               </div>
-              <div className="flex flex-row gap-2 text-nowrap">
-                <span className="">New Password:</span>
-                <div className="flex flex-col justify-start w-full relative">
+              <div className="flex flex-col justify-start w-full relative">
+                <div className="flex flex-row gap-2 text-nowrap">
+                  <span className="">New Password:</span>
                   <input
                     type={passwordVisible ? 'text' : 'password'}
                     className={`
@@ -196,7 +194,8 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
                       <HiOutlineEye size={20} className='fill-white'/>
                     )}
                   </button>
-                  {passwordFocused && (
+                </div>
+                {passwordFocused && (
                     <span className="ms-2 text-sm">
                       <span>Your password must include the following:</span>
                       <span className="grid grid-cols-2">
@@ -209,7 +208,6 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
                       </span>
                     </span>
                   )}
-                </div>
               </div>
               <div className="flex flex-row gap-2 items-center text-nowrap relative">
                 <span className="">Confirm Password:</span>
@@ -247,7 +245,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = (props) => {
         <Button 
           isProcessing={resetCodeSending} 
           size="sm" 
-          disabled={!validator.isEmail(email) || cooldownRef !== undefined || resetCodeSending}
+          disabled={!validator.isEmail(email) || cooldownRef.current !== undefined || resetCodeSending}
           className="flex flex-row gap-1 items-center"
           onClick={() => {
             resetPassword({
