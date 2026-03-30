@@ -30,10 +30,15 @@ export const TimeslotRegistration = (props: TimeslotRegistrationProps) => {
       )
     )
     return (
-      <div className="flex flex-col rounded-lg border px-4 py-2 w-full">
-        <div className="flex flex-row border-b-2">
-          <span className="text-xl font-medium">Confirm Timeslot Selection</span>
-        </div>
+      <div className={`
+        flex flex-col px-4 py-2 w-full
+        ${props.preview.preview ? 'rounded-lg border' : ''}
+      `}>
+        {props.preview.preview && (
+          <div className="flex flex-row border-b-2">
+            <span className="text-xl font-medium">Confirm Timeslot Selection</span>
+          </div>
+        )}
         <div className="text-center flex flex-col">
           <span><b>Registration for Timeslot: {props.timeslot.start.toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at {formatTime(props.timeslot.start, { timeString: true })} - {formatTime(props.timeslot.end, { timeString: true })}</b></span>
           <span>Make sure that this is the right timeslot for you, since you only can reserve one timeslot!</span>

@@ -229,8 +229,8 @@ function RouteComponent() {
             </div>
           )}
           <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Collections</span>
-          <div className='px-2'>
-            <div className='border rounded-lg p-2'>
+          <div className='px-2 pb-4 w-full'>
+            <div className='border rounded-lg p-2 w-full'>
               {collections.filter((collection) => collection.published).length > 0 ? (
                 <div className={`grid grid-cols-${dimensions.width > 900 && collections.length !== 1 ? '2' : '1'} gap-x-10 gap-y-6 mb-4`}>
                   {collections
@@ -258,14 +258,15 @@ function RouteComponent() {
                   )}
                 </div>
               ) : (
-                <div className="text-xl text-gray-400 italic flex flex-col text-center">
+                <div className="text-xl text-gray-400 italic flex flex-col text-center w-full">
                   <span>Sorry, there are no viewable collections for you right now.</span>
                   <span>You will receive a notification when your collection is ready!</span>
                 </div>
               )}
             </div>
           </div>
-          <div className='px-2 pb-2 w-full flex flex-col items-center justify-center gap-4'>
+          {Object.keys(packageList).length > 0 && (
+            <div className='px-2 pb-2 w-full flex flex-col items-center justify-center gap-4'>
             <span className="text-3xl border-b border-b-gray-400 pb-2 px-4">Your Package{Object.keys(packageList).length > 1 ? 's' : ''}</span>
             {Object.keys(packageList).length > 0 && (
               <div className='border rounded-lg p-2 flex flex-col gap-2 w-full justify-center items-center'>
@@ -331,7 +332,8 @@ function RouteComponent() {
                 )}
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </>

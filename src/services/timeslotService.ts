@@ -161,10 +161,10 @@ export async function getAllTimeslotsByUserTag(client: V6Client<Schema>, tagId?:
   return mappedTimeslots
 }
 
-async function getAllTimeslotsByUserTagList(client: V6Client<Schema>, userTagIds: string[]) {
-  const timeslots = (await Promise.all(userTagIds.map(async (tagId) => {
-    const returnedTimeslots = await getAllTimeslotsByUserTag(client, tagId)
-    return returnedTimeslots
+async function getAllTimeslotsByUserTagList(client: V6Client<Schema>, userTags: UserTag[]) {
+  const timeslots = (await Promise.all(userTags.map(async (tag) => {
+    const returnedTimeslots = await getAllTimeslotsByUserTag(client, tag.id)
+    return returnedTimeslots.map((timeslot) => ({ ...timeslot, tag: tag }))
   }))).reduce((prev, cur) => {
     prev.push(...cur)
     return prev
@@ -745,13 +745,13 @@ export class TimeslotService {
     queryFn: () => getAllTimeslotsByUserTag(this.client, tagId)
   })
 
-  getAllTimeslotsByUserTagListQueryOptions = (userTagIds: string[]) => queryOptions({
-    queryKey: ['timeslot', userTagIds],
-    queryFn: () => getAllTimeslotsByUserTagList(this.client, userTagIds)
+  getAllTimeslotsByUserTagListQueryOptions = (userTags: UserTag[]) => queryOptions({
+    queryKey: ['timeslot-by-tag-list', ...userTags.map((tag) => tag.id)],
+    queryFn: () => getAllTimeslotsByUserTagList(this.client, userTags)
   })
 
   getAllUntaggedTimeslotsQueryOptions = (options?: BaseAPIParams) => queryOptions({
-    queryKey: ['untaggedTimeslots', options],
+    queryKey: ['untagged-timeslots', options],
     queryFn: () => getAllUntaggedTimeslots(this.client, options)
   })
 

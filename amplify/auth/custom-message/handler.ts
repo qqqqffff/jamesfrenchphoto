@@ -15,7 +15,7 @@ const cognitoClient = new CognitoIdentityProviderClient();
 
 const { decrypt } = buildClient(CommitmentPolicy.REQUIRE_ENCRYPT_ALLOW_DECRYPT)
 
-sgMail.setApiKey(env.SENDGRID_API_KEY);
+sgMail.setApiKey(env.SENDGRID_API_KEY.replace(/[^A-z-.0-9]+/g, ''));
 
 const FROM_EMAIL = 'no-reply@jamesfrenchphotography.com'; // Change this to your verified SendGrid email
 
@@ -23,7 +23,7 @@ const FROM_EMAIL = 'no-reply@jamesfrenchphotography.com'; // Change this to your
 async function decryptCode(encryptedCode: string): Promise<string> {
     try {
         const keyring = new KmsKeyringNode({ 
-            keyIds: [env.KEY_ARN],
+            keyIds: [env.KEY_ARN.replace(/[^A-z-/:0-9]+/g, '')],
             generatorKeyId: env.KEY_ARN,
         })
 

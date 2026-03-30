@@ -325,6 +325,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.group('ADMINS'), 
       allow.authenticated().to(['get', 'update']), 
+      // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
       allow.guest().to(['get'])
     ]),
   Participant: a.
@@ -353,8 +354,8 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'), 
-      // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
-      allow.authenticated().to(['get', 'update', 'list']),
+      allow.authenticated().to(['get', 'list']),
+      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
       allow.guest().to(['get', 'list'])
     ]),
   ParticipantUserTag: a.
@@ -391,7 +392,6 @@ const schema = a.schema({
     .identifier(['userEmail'])
     .authorization((allow) => [
       allow.group('ADMINS'),
-      allow.authenticated().to(['get']),
       // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get'])
     ]),
   SavedPaymentMethod: a.
@@ -408,7 +408,6 @@ const schema = a.schema({
       expireYear: a.integer(),
       userEmail: a.string().required().authorization((allow) => [
         allow.group('ADMINS'),
-        allow.authenticated().to(['read', 'delete']),
         // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['read', 'delete'])
       ])
     })
@@ -418,7 +417,6 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
-      allow.authenticated().to(['get', 'list', 'update', 'delete']),
       // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list', 'update', 'delete'])
     ]),
   OrderItems: a.
@@ -437,7 +435,6 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
-      allow.authenticated().to(['get', 'list']),
       // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
     ]),
   Orders: a.

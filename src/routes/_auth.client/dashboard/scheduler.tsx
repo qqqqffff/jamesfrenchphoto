@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { TimeslotService, RegisterTimeslotMutationParams } from '../../../services/timeslotService'
 import { useEffect, useState } from 'react'
 import { currentDate, formatTime, formatTimeslotDates, normalizeDate } from '../../../utils'
-import { Timeslot, UserTag } from '../../../types'
+import { APIMutationResponse, Timeslot, UserTag } from '../../../types'
 import { ConfirmationModal } from '../../../components/modals'
 import { NotificationComponent } from '../../../components/timeslot/NotificationComponent'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -20,6 +20,7 @@ interface SchedulerParams {
   tagId?: string
 }
 
+//TODO: rework logic so that even with a current registration can replace that registration with a new timeslot
 export const Route = createFileRoute('/_auth/client/dashboard/scheduler')({
   validateSearch: (search: Record<string, unknown>): SchedulerParams => ({
     tagId: (search.tagId as string) || undefined
@@ -53,7 +54,7 @@ function RouteComponent() {
   const userTags = participant.userTags
   const userEmail = userProfile.email
 
-  const timeslots = useQuery(data.TimeslotService.getAllTimeslotsByUserTagListQueryOptions(userTags.map((tag) => tag.id)))
+  const timeslots = useQuery(data.TimeslotService.getAllTimeslotsByUserTagListQueryOptions(userTags))
 
   //getting the most recently created userTag
   const [activeTag, setActiveTag] = useState<UserTag>(
@@ -66,7 +67,7 @@ function RouteComponent() {
 
   const [activeDate, setActiveDate] = useState<Date>(currentDate)
   const [selectedTimeslot, setSelectedTimeslot] = useState<Timeslot>()
-  const [registrationResponse, setRegistrationResponse] = useState<{ status: 'Fail' | 'Success', error?: string }>()
+  const [registrationResponse, setRegistrationResponse] = useState<APIMutationResponse>()
   
   const [registerConfirmationVisible, setRegisterConfirmationVisible] = useState(false)
   const [unregisterConfirmationVisible, setUnegisterConfirmationVisible] = useState(false)
@@ -75,11 +76,12 @@ function RouteComponent() {
   const [notifyAdditionalRecipients, setNotifyAdditionalRecipients] = useState<string[]>([])
   const { width } = useWindowDimensions()
 
+
   //automatically setting date based on the closest date to present
   useEffect(() => {
     const timeslotsData = (timeslots.data ?? [])
       .filter((timeslot) => timeslot !== undefined)
-      .filter((timeslot) => timeslot.tag?.id === activeTag.id)
+      .filter((timeslot) => timeslot?.tag.id === activeTag.id)
       .sort((a, b) => {
         if(a.start.getTime() < currentDate.getTime()) {
           return -1
@@ -89,7 +91,11 @@ function RouteComponent() {
         }
         return a.start.getTime() - b.start.getTime()
       })
+
     const foundTag = userTags.find((tag) => tag.id === data.tagId)
+
+    console.log(timeslotsData)
+
     if(timeslotsData.length > 0 && timeslotsData[0].start !== undefined) { 
       setActiveDate(timeslotsData[0].start) 
     }
@@ -102,7 +108,7 @@ function RouteComponent() {
       validator.isEmail(participant.email) && 
       !notifyAdditionalRecipients.some((email) => (participant.email ?? '').toLowerCase() === email.toLowerCase())
     ) {
-      setNotifyAdditionalRecipients([...notifyAdditionalRecipients, participant.email])
+      setNotifyAdditionalRecipients([...notifyAdditionalRecipients, participant.email.toLowerCase()])
     }
   }, [
     timeslots.data, 

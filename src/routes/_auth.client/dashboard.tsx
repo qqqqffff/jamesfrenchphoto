@@ -40,9 +40,9 @@ function RouteComponent() {
 
   const activeConsoleClassName = (console: string) => {
     if (location.pathname.substring(location.pathname.lastIndexOf('/') + 1) == console) {
-      return 'border border-black'
+      return 'border rounded-none border-black'
     }
-    return ''
+    return 'border rounded-none'
   }
 
   const schedulerEnabled = timeslots.find((data) => {
@@ -62,7 +62,7 @@ function RouteComponent() {
       <div className={location.href.includes('advertise') ? 'blur-sm' : ''}>
         <div className="flex flex-col items-center justify-center font-main">
           <p className="font-medium text-xl mb-1">Consoles:</p>
-          <Button.Group>
+          <Button.Group className='flex-wrap justify-center px-5'>
               <Button color='gray' onClick={() => navigate({ to : '/client/dashboard' })} className={activeConsoleClassName('dashboard')}>
                 <HiOutlineHome className="mt-1 me-1"/>Home
               </Button>

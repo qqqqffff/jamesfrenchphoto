@@ -5,7 +5,6 @@ import { parseAttribute } from "../utils";
 import { ListUsersCommandOutput } from "@aws-sdk/client-cognito-identity-provider/dist-types/commands/ListUsersCommand";
 import { signUp, updateUserAttributes } from "aws-amplify/auth";
 import { Duration } from "luxon";
-// import { UserType } from "@aws-sdk/client-cognito-identity-provider/dist-types/models/models_0";
 import { RegistrationProfile } from "../components/register/RegisterForm";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
@@ -528,7 +527,12 @@ export class UserService {
     if(!profileResponse || !profileResponse.data) return
     const temporaryToken = options?.siTemporaryToken ? (await profileResponse.data.temporaryCreate({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })).data?.id : undefined
     
-    let participantResponse = await this.client.models.Participant.listParticipantByUserEmail({ userEmail: email }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+    let participantResponse = await this.client.models.Participant.listParticipantByUserEmail(
+      { userEmail: email }, 
+      { 
+        authMode: options?.unauthenticated ? 'identityPool' : 'userPool',
+      }
+    )
     const participantData = participantResponse.data
 
     while(participantResponse.nextToken) {
