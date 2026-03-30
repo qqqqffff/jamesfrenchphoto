@@ -1,17 +1,27 @@
-import { FC, useEffect, useState } from "react";
+import { Dispatch, FC, SetStateAction, useEffect, useState } from "react";
 import { ModalProps } from ".";
-import { Timeslot } from "../../types";
-import { Modal } from "flowbite-react";
-import { TimeslotService } from "../../services/timeslotService";
+import { APIMutationResponse, Participant, Timeslot, UserProfile } from "../../types";
+import { Button, Modal } from "flowbite-react";
+import { RegisterTimeslotMutationParams, TimeslotService } from "../../services/timeslotService";
 import { PaymentService } from "../../services/paymentService";
 import { TimeslotRegistration } from "../timeslot/TimeslotRegistration";
+import { useMutation } from "@tanstack/react-query";
+import { AuthContext } from "../../auth";
+import validator from 'validator'
+import { CollectPaymentScreen } from "./CollectPaymentScreen";
+import { DateTime } from "luxon";
 
 interface ConfirmTimeslotModalProps extends ModalProps {
+  auth: AuthContext
+  user: UserProfile
   TimeslotService: TimeslotService,
   PaymentService: PaymentService
   timeslot: Timeslot,
-  email: string,
-  additionalRecipients: string[]
+  participant: Participant,
+  rebook?: boolean
+  
+  setRegistrationResponse: Dispatch<SetStateAction<APIMutationResponse | undefined>>
+  setTimeslots: Dispatch<SetStateAction<Timeslot[]>>
 }
 
 enum ConfirmTimeslotModalFormStep {
@@ -27,9 +37,18 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
   useEffect(() => {
     setFormStep(ConfirmTimeslotModalFormStep.Confirm),
     setNotify(true),
-    setAdditionalRecipients(props.additionalRecipients)
+    setAdditionalRecipients(props.participant.contact && props.participant.email && validator.isEmail(props.participant.email) ? [props.participant.email] : [])
   }, [props.open])
 
+  const registerTimeslot = useMutation({
+    mutationFn: (params: RegisterTimeslotMutationParams) => props.TimeslotService.registerTimeslotMutation(params)
+  })
+
+  const timeuntilSlot = DateTime.fromJSDate(props.timeslot.start).diffNow().toMillis()
+  const paymentNotRequired = (
+    props.timeslot.cancelationFee === undefined ||
+    timeuntilSlot >= props.timeslot.cancelationFee.window.toMillis()
+  ) || props.timeslot.noshowFee === undefined
 
   return (
     <Modal
@@ -38,21 +57,90 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
     >
       <Modal.Header>Confirm Timeslot Selection</Modal.Header>
       <Modal.Body>
-        <TimeslotRegistration 
-          timeslot={props.timeslot}
-          type="Registration"
-          preview={{
-            preview: false,
-            setNotify: setNotify,
-            email: props.email,
-            notify: notify,
-            recipients: additionalRecipients,
-            setRecipients: setAdditionalRecipients,
-          }}
-        />
+        {formStep === ConfirmTimeslotModalFormStep.Confirm ? (
+          <TimeslotRegistration 
+            timeslot={props.timeslot}
+            type="Registration"
+            preview={{
+              preview: false,
+              setNotify: setNotify,
+              email: props.participant.userEmail,
+              notify: notify,
+              recipients: additionalRecipients,
+              setRecipients: setAdditionalRecipients,
+            }}
+          />
+        ) : (
+          <CollectPaymentScreen 
+            PaymentService={props.PaymentService}
+            auth={props.auth}
+          />
+        )}
       </Modal.Body>
-      <Modal.Footer>
+      <Modal.Footer className="flex flex-row items-center justify-end">
+        {formStep === ConfirmTimeslotModalFormStep.Confirm ? (
+          <Button
+            onClick={() => props.onClose()}
+            color="info"
+          >Cancel</Button>
+        ) : (
+          <Button
+            onClick={() => setFormStep(ConfirmTimeslotModalFormStep.Confirm)}
+          >Back</Button>
+        )}
+        {formStep === ConfirmTimeslotModalFormStep.Payment || paymentNotRequired ? (
+          <Button
+            isProcessing={registerTimeslot.isPending}
+            onClick={() => {
+              const newTimeslot: Timeslot = {
+                ...props.timeslot,
+                register: props.participant.userEmail,
+                participantId: props.participant.id
+              }
 
+              registerTimeslot.mutateAsync({
+                timeslot: newTimeslot,
+                notify: notify,
+                participantId: props.participant.id,
+                userEmail: props.participant.userEmail,
+                unregister: false,
+                additionalRecipients: additionalRecipients,
+              }).then((response) => {
+                if(response.status === 'Success') {
+                  const participantTimeslots = props.participant.timeslot ?? []
+                  participantTimeslots.push(newTimeslot)
+
+                  props.auth.updateProfile({
+                    ...props.user,
+                    participant: props.user.participant.map((participant) => participant.id === props.participant.id ? ({
+                      ...participant,
+                      timeslot: participantTimeslots
+                    }) : participant),
+                    activeParticipant: {
+                      ...props.participant,
+                      timeslot: participantTimeslots
+                    }
+                  })
+                  
+                  props.setRegistrationResponse(response)
+                  props.setTimeslots(prev => prev.map((timeslot) => timeslot.id === newTimeslot.id ? newTimeslot : timeslot))
+                  props.onClose()
+                }
+                else {
+                  props.setRegistrationResponse(response)
+                  props.onClose()
+                }
+              }).catch(() => {
+                props.setRegistrationResponse({ status: 'Fail', error: 'Failed to register for the selected timeslot. Please try again later.'})
+                props.onClose()
+              })
+            }}
+          >Register</Button>
+        ) : (
+          <Button
+            onClick={() => setFormStep(ConfirmTimeslotModalFormStep.Payment)}
+          >Next</Button>
+        )}
       </Modal.Footer>
     </Modal>
   )

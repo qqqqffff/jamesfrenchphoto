@@ -354,7 +354,7 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'), 
-      allow.authenticated().to(['get', 'list']),
+      // allow.authenticated().to(['get', 'list']),
       allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
       allow.guest().to(['get', 'list'])
     ]),

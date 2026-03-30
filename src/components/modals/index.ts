@@ -1,4 +1,5 @@
 import { ConfirmationModal as confirmation } from './Confirmation'
+import { ConfirmTimeslotModal as confirmTimeslot } from './ConfirmTimeslot';
 import { CreateCollectionModal as createCollection } from './CreateCollection';
 import { CreateTimeslotModal as createTimeslot } from './CreateTimeslot';
 import { CreateUserModal as createUser } from './CreateUser';
@@ -10,6 +11,7 @@ import { LoadingModal as loading } from './Loading';
 import { PackageItemLoaderModal as packageItemLoader } from './PackageItemLoader';
 import { TermsAndConditionsModal as termsAndConditions } from './TermsAndConditions';
 import { UnauthorizedEmailModal as unauthorizedEmail } from './UnauthorizedEmail';
+import { UnregisterTimeslotModal as unregisterTimeslot } from './UnregisterTimeslot';
 
 import { UploadImagesModal as uploadImages } from './UploadImages/UploadImages'
 
@@ -19,6 +21,7 @@ export type ModalProps = {
 }
 
 export const ConfirmationModal = confirmation
+export const ConfirmTimeslotModal = confirmTimeslot
 export const CreateCollectionModal = createCollection
 export const CreateTimeslotModal = createTimeslot
 export const CreateUserModal = createUser
@@ -30,5 +33,6 @@ export const LoadingModal = loading
 export const PackageItemLoaderModal = packageItemLoader
 export const TermsAndConditionsModal = termsAndConditions
 export const UnauthorizedEmailModal = unauthorizedEmail
+export const UnregisterTimeslotModal = unregisterTimeslot
 
 export const UploadImagesModal = uploadImages;
