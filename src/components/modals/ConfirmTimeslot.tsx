@@ -34,10 +34,12 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
   const [notify, setNotify] = useState<boolean>(true)
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([])
 
+  const baseRecipients = props.participant.contact && props.participant.email && validator.isEmail(props.participant.email) ? [props.participant.email] : []
+
   useEffect(() => {
     setFormStep(ConfirmTimeslotModalFormStep.Confirm),
     setNotify(true),
-    setAdditionalRecipients(props.participant.contact && props.participant.email && validator.isEmail(props.participant.email) ? [props.participant.email] : [])
+    setAdditionalRecipients(baseRecipients)
   }, [props.open])
 
   const registerTimeslot = useMutation({
@@ -45,15 +47,18 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
   })
 
   const timeuntilSlot = DateTime.fromJSDate(props.timeslot.start).diffNow().toMillis()
-  const paymentNotRequired = (
-    props.timeslot.cancelationFee === undefined ||
-    timeuntilSlot >= props.timeslot.cancelationFee.window.toMillis()
-  ) || props.timeslot.noshowFee === undefined
+  const paymentRequired = (
+    props.timeslot.cancelationFee !== undefined &&
+    timeuntilSlot <= props.timeslot.cancelationFee.window.toMillis()
+  ) || props.timeslot.noshowFee !== undefined
+
+  console.log(paymentRequired)
 
   return (
     <Modal
       show={props.open}
       onClose={() => props.onClose()}
+      size="xl"
     >
       <Modal.Header>Confirm Timeslot Selection</Modal.Header>
       <Modal.Body>
@@ -67,6 +72,7 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
               email: props.participant.userEmail,
               notify: notify,
               recipients: additionalRecipients,
+              baseRecipients: baseRecipients,
               setRecipients: setAdditionalRecipients,
             }}
           />
@@ -74,6 +80,14 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
           <CollectPaymentScreen 
             PaymentService={props.PaymentService}
             auth={props.auth}
+            intent={{
+              type: 'timeslot',
+              captureShortnotice: (
+                props.timeslot.cancelationFee !== undefined &&
+                timeuntilSlot <= props.timeslot.cancelationFee.window.toMillis()
+              ),
+              vaultNoshow: props.timeslot.noshowFee !== undefined
+            }}
           />
         )}
       </Modal.Body>
@@ -88,7 +102,7 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
             onClick={() => setFormStep(ConfirmTimeslotModalFormStep.Confirm)}
           >Back</Button>
         )}
-        {formStep === ConfirmTimeslotModalFormStep.Payment || paymentNotRequired ? (
+        {formStep === ConfirmTimeslotModalFormStep.Payment || !paymentRequired ? (
           <Button
             isProcessing={registerTimeslot.isPending}
             onClick={() => {

@@ -7,11 +7,12 @@ interface NotificationComponentParams {
   setNotify: (not: boolean) => void, 
   email: string, 
   notify: boolean,
-  recipients: string[]
+  recipients: string[],
+  baseRecipients: string[]
   setRecipients: Dispatch<SetStateAction<string[]>>
 }
 
-export const NotificationComponent: FC<NotificationComponentParams> = ({ setNotify, notify, email, recipients, setRecipients }) => {
+export const NotificationComponent: FC<NotificationComponentParams> = ({ setNotify, notify, email, recipients, setRecipients, baseRecipients }) => {
   const [invalidEmail, setInvalidEmail] = useState(false)
   const [currentEmail, setCurrentEmail] = useState<string>('')
   const [deleteHovering, setDeleteHovering] = useState<string | undefined>()
@@ -19,7 +20,20 @@ export const NotificationComponent: FC<NotificationComponentParams> = ({ setNoti
 
   return (
     <div className="flex flex-col justify-start gap-2">
-      <button className="flex flex-row gap-2 text-left items-center mt-4 ms-2" onClick={() => setNotify(!notify)} type="button">
+      <button 
+        className="flex flex-row gap-2 text-left items-center mt-4 ms-2" 
+        onClick={() => {
+          if(!notify) {
+            setNotify(!notify)
+          }
+          else {
+            setRecipients(baseRecipients)
+            setShowAdditionalRecipients(false)
+            setNotify(!notify)
+          }
+        }} 
+        type="button"
+      >
         <Checkbox className="mt-1" checked={notify} readOnly />
         <span>Send a confirmation email to <span className="italic">{email}</span></span>
       </button>

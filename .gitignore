@@ -31,4 +31,5 @@ amplify_outputs*
 amplifyconfiguration*
 
 .env
+.env.development
 secrets

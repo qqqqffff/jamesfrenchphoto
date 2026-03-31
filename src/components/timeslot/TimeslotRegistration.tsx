@@ -15,6 +15,7 @@ interface TimeslotRegistrationProps {
     email: string
     notify: boolean
     recipients: string[]
+    baseRecipients: string[]
     setRecipients: Dispatch<SetStateAction<string[]>>
   }
 }
@@ -24,7 +25,7 @@ export const TimeslotRegistration = (props: TimeslotRegistrationProps) => {
     const displayCancelationFee: boolean = (
       props.timeslot.cancelationFee !== undefined && (
         (
-          DateTime.fromJSDate(props.timeslot.start).diffNow().toMillis() >= props.timeslot.cancelationFee.window.toMillis() &&
+          DateTime.fromJSDate(props.timeslot.start).diffNow().toMillis() <= props.timeslot.cancelationFee.window.toMillis() &&
           !props.preview.preview
         ) || props.preview.preview
       )
@@ -68,6 +69,7 @@ export const TimeslotRegistration = (props: TimeslotRegistrationProps) => {
               email={props.preview.email}
               notify={props.preview.notify}
               recipients={props.preview.recipients}
+              baseRecipients={props.preview.baseRecipients}
               setRecipients={props.preview.setRecipients}
             />
           )}
