@@ -27,3 +27,10 @@ export type SavePaymentInformationVaultRequest = {
   type: 'Card',
   request: SetupTokenRequestCard
 }
+
+export type CapturePaymentRequest = {
+  type: 'Vault',
+  paymentMethodId: string,
+} | {
+  type: 'Card'
+}

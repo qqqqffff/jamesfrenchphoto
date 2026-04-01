@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import bannerIcon from '../assets/headerPhoto.png'
 import useWindowDimensions from '../hooks/windowDimensions';
 import { UserProfileComponent } from '../components/client/UserProfileComponent';
+import { PayPalProvider } from '@paypal/react-paypal-js/sdk-v6'
 
 const LoginComponent = () => (
   <div className='w-full flex flex-row justify-end'>
@@ -62,20 +63,40 @@ const RootComponent = () => {
     }
   }
 
+  const environment = window.location.href.includes('staging') ? 'staging' : window.location.href.includes('localhost') ? 'dev' : 'production'
     
+  console.log(environment)
+
+
   return (
     <> 
       <div className={location.href.includes('advertise') ? ' blur-sm' : ''}>
         <div className='flex flex-row px-8 py-4 font-main border-b-2 border-gray-300 items-center'>
           <div className='flex justify-center items-center'>
             <a href="/">
-                <img className='ml-3 mt-3' src={bannerIcon} alt='James French Photography Banner' width={150} height={100} />
+              <img className='ml-3 mt-3' src={bannerIcon} alt='James French Photography Banner' width={150} height={100} />
             </a>
           </div>
           <UserComponent />
         </div>
       </div>
-      <Outlet />
+      <PayPalProvider
+        clientId={environment === 'staging' || environment === 'dev' ? import.meta.env.VITE_PAYPAL_SANDBOX_CLIENT_ID : import.meta.env.VITE_PAYPAL_CLIENT_ID}
+        components={[
+          "paypal-payments",
+          "venmo-payments",
+          "paypal-guest-payments",
+          "paypal-subscriptions",
+          "card-fields",
+          "paypal-messages",
+        ]}
+        environment={environment === 'dev' || environment === 'staging' ? 'sandbox' : "production"}
+        merchantId={environment === 'dev' || environment === 'staging' ? import.meta.env.VITE_PAYPAL_SANDBOX_MERCHANT_ID : import.meta.env.VITE_PAYPAL_MERCHANT_ID} 
+        pageType='checkout'
+        
+      >
+        <Outlet />
+      </PayPalProvider>
       {/* <TanStackRouterDevtools position='bottom-right' /> */}
     </>
   )

@@ -3,7 +3,7 @@ import { ModalProps } from ".";
 import { APIMutationResponse, Participant, Timeslot, UserProfile } from "../../types";
 import { Button, Modal } from "flowbite-react";
 import { RegisterTimeslotMutationParams, TimeslotService } from "../../services/timeslotService";
-import { PaymentService } from "../../services/paymentService";
+import { CaptureShortNoticeCancelationOrderMutationParams, PaymentService } from "../../services/paymentService";
 import { TimeslotRegistration } from "../timeslot/TimeslotRegistration";
 import { useMutation } from "@tanstack/react-query";
 import { AuthContext } from "../../auth";
@@ -33,6 +33,8 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
   const [formStep, setFormStep] = useState<ConfirmTimeslotModalFormStep>(ConfirmTimeslotModalFormStep.Confirm)
   const [notify, setNotify] = useState<boolean>(true)
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([])
+  const [paymentMethodCaptured, setPaymentMethodCaptured] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const baseRecipients = props.participant.contact && props.participant.email && validator.isEmail(props.participant.email) ? [props.participant.email] : []
 
@@ -46,13 +48,15 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
     mutationFn: (params: RegisterTimeslotMutationParams) => props.TimeslotService.registerTimeslotMutation(params)
   })
 
+  const capturePayment = useMutation({
+    mutationFn: (params: CaptureShortNoticeCancelationOrderMutationParams) => props.PaymentService.captureShortNoticeCancelationOrderMutation(params)
+  })
+
   const timeuntilSlot = DateTime.fromJSDate(props.timeslot.start).diffNow().toMillis()
   const paymentRequired = (
     props.timeslot.cancelationFee !== undefined &&
     timeuntilSlot <= props.timeslot.cancelationFee.window.toMillis()
   ) || props.timeslot.noshowFee !== undefined
-
-  console.log(paymentRequired)
 
   return (
     <Modal
@@ -88,6 +92,10 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
               ),
               vaultNoshow: props.timeslot.noshowFee !== undefined
             }}
+            successPaymentMethodCapture={(vaultId, options) => {
+              setPaymentMethodCaptured(vaultId)
+              //TODO: use options
+            }}
           />
         )}
       </Modal.Body>
@@ -105,7 +113,16 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
         {formStep === ConfirmTimeslotModalFormStep.Payment || !paymentRequired ? (
           <Button
             isProcessing={registerTimeslot.isPending}
+            disabled={(
+              registerTimeslot.isPending || 
+              (
+                paymentRequired &&
+                paymentMethodCaptured === null
+              )
+            )}
             onClick={() => {
+              setSubmitting(true)
+
               const newTimeslot: Timeslot = {
                 ...props.timeslot,
                 register: props.participant.userEmail,
@@ -138,11 +155,9 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
                   
                   props.setRegistrationResponse(response)
                   props.setTimeslots(prev => prev.map((timeslot) => timeslot.id === newTimeslot.id ? newTimeslot : timeslot))
-                  props.onClose()
                 }
                 else {
                   props.setRegistrationResponse(response)
-                  props.onClose()
                 }
               }).catch(() => {
                 props.setRegistrationResponse({ status: 'Fail', error: 'Failed to register for the selected timeslot. Please try again later.'})

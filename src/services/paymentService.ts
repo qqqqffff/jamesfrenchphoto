@@ -16,6 +16,10 @@ export interface ChargeNoShowFeeMutationParams extends BaseAPIParams {
 
 export interface CreateShortNoticeCancelationOrderMutationParams extends ChargeNoShowFeeMutationParams { }
 
+export interface CaptureShortNoticeCancelationOrderMutationParams extends CreateShortNoticeCancelationOrderMutationParams {
+  orderId: string,
+} 
+
 export interface SavePaymentInformationMutationParams extends BaseAPIParams {
   userEmail: string,
   userId: string,
@@ -90,6 +94,12 @@ export class PaymentService {
         status: 'Fail',
         error: 'Unexpected error please try again later'
       }
+    }
+  }
+
+  async captureShortNoticeCancelationOrderMutation(params: CaptureShortNoticeCancelationOrderMutationParams): Promise<APIMutationResponse> {
+    return {
+      status: 'Success'
     }
   }
 

@@ -1,7 +1,7 @@
 import { defineFunction, secret } from "@aws-amplify/backend";
 
-export const authorizeShortNoticeCancelationFee = defineFunction({
-  name: 'authorize-short-notice-cancelation-fee',
+export const captureShortNoticeCancelationOrder = defineFunction({
+  name: 'capture-short-notice-cancelation-order',
   entry: './handler.ts',
   environment: {
     PAYPAL_CLIENT_ID: secret('paypal-client-id'),

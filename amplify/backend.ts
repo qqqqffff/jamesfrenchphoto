@@ -8,7 +8,7 @@ import { deletePublicPhoto } from './functions/collections/delete-public-photo/r
 import { customMessage } from './auth/custom-message/resource';
 import { chargeNoShowFee } from './functions/timeslots/charge-no-show-fee/resource';
 import { createShortNoticeCancelationOrder } from './functions/timeslots/create-short-notice-cancelation-order/resource';
-import { authorizeShortNoticeCancelationFee } from './functions/timeslots/authorize-short-notice-cancelation-fee/resource';
+import { captureShortNoticeCancelationOrder } from './functions/timeslots/capture-short-notice-cancelation-order/resource';
 import { savePaymentInformation } from './functions/users/save-payment-information/resource';
 import { confirmSavePaymentInformation } from './functions/users/confirm-save-payment-information/resource';
 
@@ -24,7 +24,7 @@ const backend = defineBackend({
 
   chargeNoShowFee,
   createShortNoticeCancelationOrder,
-  authorizeShortNoticeCancelationFee,
+  captureShortNoticeCancelationOrder,
   savePaymentInformation,
   confirmSavePaymentInformation
   

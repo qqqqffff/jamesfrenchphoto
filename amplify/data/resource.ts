@@ -19,7 +19,7 @@ import { chargeNoShowFee } from '../functions/timeslots/charge-no-show-fee/resou
 import { createShortNoticeCancelationOrder } from '../functions/timeslots/create-short-notice-cancelation-order/resource';
 import { savePaymentInformation } from '../functions/users/save-payment-information/resource';
 import { confirmSavePaymentInformation } from '../functions/users/confirm-save-payment-information/resource';
-import { authorizeShortNoticeCancelationFee } from '../functions/timeslots/authorize-short-notice-cancelation-fee/resource';
+import { captureShortNoticeCancelationOrder } from '../functions/timeslots/capture-short-notice-cancelation-order/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -354,8 +354,8 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'), 
-      // allow.authenticated().to(['get', 'list']),
-      allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
+      allow.authenticated().to(['get', 'list']),
+      // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'update', 'list']),
       allow.guest().to(['get', 'list'])
     ]),
   ParticipantUserTag: a.
@@ -392,6 +392,7 @@ const schema = a.schema({
     .identifier(['userEmail'])
     .authorization((allow) => [
       allow.group('ADMINS'),
+      allow.authenticated().to(['get'])
       // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get'])
     ]),
   SavedPaymentMethod: a.
@@ -408,6 +409,7 @@ const schema = a.schema({
       expireYear: a.integer(),
       userEmail: a.string().required().authorization((allow) => [
         allow.group('ADMINS'),
+        allow.authenticated().to(['read'])
         // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['read', 'delete'])
       ])
     })
@@ -417,6 +419,7 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
+      allow.authenticated().to(['read'])
       // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list', 'update', 'delete'])
     ]),
   OrderItems: a.
@@ -435,6 +438,7 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
+      allow.authenticated().to(['read'])
       // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
     ]),
   Orders: a.
@@ -459,7 +463,7 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
-      allow.authenticated().to(['get', 'list']),
+      allow.authenticated().to(['read']),
       // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list'])
     ]),
   Notifications: a.
@@ -695,15 +699,19 @@ const schema = a.schema({
     .handler(a.handler.function(createShortNoticeCancelationOrder))
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
     .returns(a.json()),
-  AuthorizeShortNoticeCancelationOrder: a
+  CaptureShortNoticeCancelationOrder: a
     .mutation()
     .arguments({
       timeslotId: a.string().required(),
       userEmail: a.string().required(),
-      userId: a.string().required(),
+      orderId: a.string().required(),
+      paymentRequest: a.json().required()
     })
-    .handler(a.handler.function(authorizeShortNoticeCancelationFee))
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
+    .handler(a.handler.function(captureShortNoticeCancelationOrder))
+    .authorization((allow) => [
+      allow.group('ADMINS'), 
+      allow.authenticated()
+    ])
     .returns(a.json()),
   SavePaymentInformation: a
     .mutation()
@@ -749,7 +757,7 @@ const schema = a.schema({
   allow.resource(createShortNoticeCancelationOrder),
   allow.resource(savePaymentInformation),
   allow.resource(confirmSavePaymentInformation),
-  allow.resource(authorizeShortNoticeCancelationFee),
+  allow.resource(captureShortNoticeCancelationOrder),
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

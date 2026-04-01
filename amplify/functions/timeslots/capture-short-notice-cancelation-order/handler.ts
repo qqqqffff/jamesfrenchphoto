@@ -1,11 +1,10 @@
-import { Timeslot } from "../../../../src/types";
-import { CreateShortNoticeCancelationOrderAPIResponse } from "../../../../src/types/backend-types";
-import { Schema } from "../../../data/resource";
-import { env } from '$amplify/env/create-short-notice-cancelation-order'
+import { env } from "$amplify/env/capture-short-notice-cancelation-order";
 import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
-import { formatTimeslotDates } from '../../../../src/utils'
+import { APIMutationResponse, Timeslot } from "../../../../src/types";
+import { CapturePaymentRequest } from "../../../../src/types/backend-types";
+import { Schema } from "../../../data/resource";
 import { 
   Client, 
   Environment, 
@@ -14,32 +13,42 @@ import {
   CheckoutPaymentIntent, 
   OrdersController,
   PayeeBase,
-  PurchaseUnitRequest
+  PurchaseUnitRequest,
+  PaymentSource
 } from '@paypal/paypal-server-sdk'
-import { DateTime, Duration } from 'luxon'
-import { generatePayPalAuthAssertionHeader } from "../../../../scripts/generate-paypal-auth-assertion-header";
+import { DateTime, Duration } from "luxon";
 import { OrderRefID } from "../../../../src/types/order-ref-id";
-
+import { formatTimeslotDates } from "../../../../src/utils";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 Amplify.configure(resourceConfig, libraryOptions)
 
 const dynamoClient = generateClient<Schema>()
 
-export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
-  let response: CreateShortNoticeCancelationOrderAPIResponse | undefined
-  if(!event.arguments.timeslotId || !event.arguments.userEmail) {
+
+//process creates and captures order with payment request
+export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
+  let response: APIMutationResponse | undefined
+  if(!event.arguments.orderId || !event.arguments.paymentRequest || !event.arguments.timeslotId || !event.arguments.userEmail) {
     response = {
       status: 'Fail',
       error: 'Timeslot Id or User Email Missing.'
     }
     return response
   }
+  const paymentRequest: CapturePaymentRequest = JSON.parse(event.arguments.paymentRequest.toString())
+  if(paymentRequest.type === undefined) {
+    response = {
+      status: 'Fail',
+      error: 'Invalid Payment Request'
+    }
+  }
 
   //cleaning secrets
   const paypalClientId = (process.env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
   const paypalSecretKey = (process.env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
   const paypalMerchantId = (process.env.PAYPAL_MERCHANT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
+
 
   if(!paypalClientId || !paypalSecretKey || !paypalMerchantId) {
     response = {
@@ -116,12 +125,10 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
   }
 
   const orderController = new OrdersController(client)
-
   const payee: PayeeBase = {
     emailAddress: 'aws.jfphoto@gmail.com',
     merchantId: paypalMerchantId
   }
-
   const cancelationFee: PurchaseUnitRequest = {
     referenceId: OrderRefID.CancelationFee,
     amount: {
@@ -150,36 +157,60 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
     description: `Short notice rescheduling fee for ${timeslot.start.toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at ${formatTimeslotDates(timeslot)}`
   }
 
-  const request: OrderRequest = {
-    intent: CheckoutPaymentIntent.Capture,
-    purchaseUnits: [ cancelationFee ],
-  }
+  //three cases
+  // - using saved payment method type = 'vault'
+  // - using carded method type = 'card'
+  // - using pay with paypal = 'paypal'
+  // - using apple pay = 'apple-pay'
 
-  const paypalAuthHeader = generatePayPalAuthAssertionHeader(paypalClientId, paypalMerchantId)
+  let paymentSource: PaymentSource | undefined
 
-  const orderResponse = await orderController.createOrder({
-    body: request,
-    prefer: 'return=minimal',
-    paypalAuthAssertion: paypalAuthHeader,
-  })
-
-  if(
-    !orderResponse.result.status ||
-    orderResponse.result.status !== 'CREATED' ||
-    !orderResponse.result.id
-  ) {
-    return {
-      status: 'Fail',
-      error: 'Failed to create order'
+  switch(paymentRequest.type) {
+    case 'Vault': {
+      const paymentMethodResponse = await dynamoClient.models.SavedPaymentMethod.get({ paymentMethodId: paymentRequest.paymentMethodId })
+      if(
+        !paymentMethodResponse.data || 
+        paymentMethodResponse.data.paypalVaultId === '' || 
+        paymentMethodResponse.data.type === null
+      ) {
+        response = {
+          status: 'Fail',
+          error: 'Recieved invalid saved payment method'
+        }
+        return response
+      }
+      paymentSource = {
+        applePay: paymentMethodResponse.data.type === 'APPLEPAY' ? {
+          vaultId: paymentMethodResponse.data.paypalVaultId
+        } : undefined,
+        paypal: paymentMethodResponse.data.type === 'PAYPAL' ? {
+          vaultId: paymentMethodResponse.data.paypalVaultId
+        } : undefined,
+        card: paymentMethodResponse.data.type === 'CARD' ?  {
+          vaultId: paymentMethodResponse.data.paypalVaultId
+        } : undefined
+      }
     }
   }
 
-  
-  response = {
-    status: "Success",
-    orderId: orderResponse.result.id
+
+  if(!paymentSource) {
+    response = {
+      status: 'Fail',
+      error: 'Failed to capture order'
+    }
+    return response
   }
   
+  const request: OrderRequest = {
+    intent: CheckoutPaymentIntent.Capture,
+    purchaseUnits: [ cancelationFee ],
+    paymentSource: paymentSource
+  }
+
+  response = { 
+    status: 'Success'
+  }
+
   return response
 }
-

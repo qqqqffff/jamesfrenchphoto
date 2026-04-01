@@ -10,7 +10,10 @@ import {
   PayPalCardCvvField,
   usePayPalCardFieldsSavePaymentSession,
   usePayPal,
-  usePayPalCardFields
+  usePayPalCardFields,
+  useEligibleMethods,
+  CardFieldComponent,
+  INSTANCE_LOADING_STATE
 } from '@paypal/react-paypal-js/sdk-v6' 
 import { useEffect, useState } from "react";
 import { HiChevronDown, HiChevronLeft } from 'react-icons/hi'
@@ -23,7 +26,13 @@ interface CollectPaymentScreenProps {
     type: 'timeslot',
     captureShortnotice?: boolean
     vaultNoshow?: boolean
-  }
+  },
+  successPaymentMethodCapture: (
+    vaultId: string,
+    options: {
+      savePaymentSuccess?: boolean
+    }
+  ) => void
 }
 
 type CheckoutType = 
@@ -32,34 +41,41 @@ type CheckoutType =
 | 'save-payment-with-purchase'
 
 export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
-  
-  const location = useLocation()
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'apple-pay' | 'paypal'>()
 
-  const environment = location.href.includes('staging') || location.href.includes('localhost') ? 'sandbox' : 'production'
+  const {
+    error: eligibilityError,
+    eligiblePaymentMethods
+  } = useEligibleMethods()
+  const paypal = usePayPal()
+  console.log(paypal)
+
 
   return (
-    <PayPalProvider
-      pageType="mini-cart"
-      clientId={environment === 'sandbox' ? import.meta.env.VITE_PAYPAL_SANDBOX_CLIENT_ID : import.meta.env.VITE_PAYPAL_CLIENT_ID}
-      components={['applepay-payments', 'card-fields', 'paypal-payments']}
-      environment={environment}
-    >
-      <button 
-        className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
-        onClick={() => setPaymentMethod(prev => prev !== 'card' ? 'card' : undefined)}
-      >
-        <span className="text-lg font-medium">Card</span>
-        {paymentMethod === 'card' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
-      </button>
-      {paymentMethod === 'card' && (
-        <CheckoutForm 
-          intent={props.intent}
-          PaymentService={props.PaymentService}
-          auth={props.auth}
-        />
-      )}
-    </PayPalProvider>
+    (paypal.loadingStatus === INSTANCE_LOADING_STATE.PENDING) ? (
+      <span>Loading PayPal</span>
+    ) : ( 
+    eligiblePaymentMethods === null || eligibilityError !== null ? (
+      <span>Failed to load payment methods, please try again later</span>
+    ) : (
+      <div>
+        <button 
+          className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
+          onClick={() => setPaymentMethod(prev => prev !== 'card' ? 'card' : undefined)}
+        >
+          <span className="text-lg font-medium">Card</span>
+          {paymentMethod === 'card' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
+        </button>
+        
+        {paymentMethod === 'card' && (
+          <CheckoutForm 
+            intent={props.intent}
+            PaymentService={props.PaymentService}
+            auth={props.auth}
+          />
+        )}
+      </div>
+    ))
   )
 }
 
@@ -68,7 +84,7 @@ const CheckoutForm = (props: {
   PaymentService: PaymentService
   auth: AuthContext
 }) => {
-  const paypal = usePayPal()
+  
   const savePaymentMethod = (
     props.intent.type === 'timeslot' && (props.intent.vaultNoshow ?? false)
   )
@@ -77,8 +93,19 @@ const CheckoutForm = (props: {
     props.intent.type === 'timeslot' && (props.intent.captureShortnotice ?? false)
   )
 
-  const checkoutType: CheckoutType | null = savePaymentMethod && !withPurchase ? 'save-payment' : !savePaymentMethod && withPurchase ? 'purchase' : savePaymentMethod && withPurchase ? 'save-payment-with-purchase' : null
-  console.log()
+  const checkoutType: CheckoutType | null = savePaymentMethod && !withPurchase ? (
+    'save-payment'
+  ) : (
+    !savePaymentMethod && withPurchase ? (
+      'purchase'
+    ) : (
+      savePaymentMethod && withPurchase ? (
+        'save-payment-with-purchase'
+      ) : (
+        null
+      )
+    )
+  )
 
   return (
     <PayPalCardFieldsProvider>
@@ -122,7 +149,7 @@ const SavePaymentMethodCardForm = (props: {
 
   useEffect(() => {
     if(cardFieldsError) {
-      console.error('Error loading paypal cardfields', cardFieldsError.message)
+      console.error('Error loading paypal cardfields', cardFieldsError)
     }
     if(submitError) {
       console.error('Error submitting paypal fields save', submitError)
@@ -149,27 +176,44 @@ const SavePaymentMethodCardForm = (props: {
       if(tokenResponse.status === 'Success') {
         submit(tokenResponse.tokenResponse)
       }
-    }
-    
+    } 
   }
-
-  
 
   return (
     <div>
-      <PayPalCardNumberField 
-        placeholder="Card number"
-        containerClassName=""
-      />
-      <PayPalCardExpiryField 
-        placeholder="MM/YY"
-        containerClassName=""
-      />
-      <PayPalCardCvvField 
-        placeholder="CVV"
-        containerClassName=""
-      />
-      <button>Save Payment Method</button>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem",
+        }}
+      >
+        <PayPalCardNumberField
+          containerStyles={{
+            height: "3rem",
+          }}
+          placeholder="Enter card number"
+        />
+        <PayPalCardExpiryField
+          containerStyles={{
+            height: "3rem",
+          }}
+          placeholder="MM/YY"
+        />
+        <PayPalCardCvvField
+          containerStyles={{
+            height: "3rem",
+          }}
+          placeholder="Enter CVV"
+        />
+      </div>
+      {!cardFieldsError && (
+        <button className="card-fields-pay-button" 
+        // onClick={handleSubmit}
+        >
+          Save Payment Method
+        </button>
+      )}
     </div>
   )
 }
