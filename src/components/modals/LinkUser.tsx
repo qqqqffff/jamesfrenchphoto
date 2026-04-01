@@ -1,6 +1,6 @@
 import { UseMutationResult, useQueries } from "@tanstack/react-query";
 import { ModalProps } from ".";
-import { TableColumn, UserProfile, UserTag, Notification } from "../../types";
+import { TableColumn, UserProfile, UserTag, Notification, UserFieldLinks, ParticipantFieldLinks } from "../../types";
 import { FC, useEffect, useState } from "react";
 import { Button, Dropdown, Modal } from "flowbite-react";
 import { ParticipantPanel } from "../common/ParticipantPanel";
@@ -18,25 +18,6 @@ interface LinkUserModalProps extends ModalProps {
   rowIndex: number,
   tags: UserTag[],
   linkUser: UseMutationResult<{ columns: TableColumn[], user: UserProfile }, Error, LinkUserMutationParams, unknown>
-}
-
-export type UserFieldLinks = {
-  email: [string, string],
-  first: [string, 'update' | 'override'] | null,
-  last: [string, 'update' | 'override'] | null,
-  sitting: [string, 'update' | 'override'] | null,
-}
-
-export type ParticipantFieldLinks = {
-  id: string,
-  first: [string, 'update' | 'override'] | null, 
-  last: [string, 'update' | 'override'] | null,
-  middle: [string, 'update' | 'override'] | null,
-  preferred: [string, 'update' | 'override'] | null,
-  email: [string, 'update' | 'override'] | null,
-  tags: [string, 'update' | 'override'] | null,
-  timeslot: [string, 'update' | 'override'] | null,
-  notifications: [string, 'update' | 'override'] | null,
 }
 
 export const LinkUserModal: FC<LinkUserModalProps> = (props) => {

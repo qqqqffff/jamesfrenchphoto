@@ -1,13 +1,149 @@
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
-import { APIMutationResponse, BaseAPIParams, Order, OrderItem, SavedPaymentMethod } from "../types";
+import { APIMutationResponse, BaseAPIParams, Order, OrderItem, CustomerSavedPaymentMethod, CustomerProfile, CustomerBillingAddress } from "../types";
 import { 
   ChargeNoShowFeeAPIResponse, 
-  SavePaymentInformationVaultRequest, 
   SavePaymentInformationAPIResponse, 
   CreateShortNoticeCancelationOrderAPIResponse 
 } from '../types/backend-types'
 import { queryOptions } from "@tanstack/react-query";
+import { stringToOrderRefID } from "../types/order-ref-id";
+import { v4 } from 'uuid'
+
+export async function mapCustomerProfile(customerProfileResponse: Schema['CustomerProfile']['type'], options?: MapCustomerProfileOptions): Promise<CustomerProfile> {
+  const start = new Date().getTime()
+  const savedPaymentMethods = new Promise<CustomerSavedPaymentMethod[]>(async resolve => {
+    if(options?.siPaymentMethods) {
+      let paymentMethodsResponse = await customerProfileResponse.savedPaymentMethods()
+      if(options.options?.logging) console.log(paymentMethodsResponse)
+      const paymentMethodsData = paymentMethodsResponse.data
+
+      while(paymentMethodsResponse.nextToken) {
+        paymentMethodsResponse = await customerProfileResponse.savedPaymentMethods({
+          nextToken: paymentMethodsResponse.nextToken
+        })
+        if(options.options?.logging) console.log(paymentMethodsResponse)
+        paymentMethodsData.push(...paymentMethodsResponse.data)
+      }
+
+      resolve(paymentMethodsData.map((data) => {
+        if(!data.type) return
+        const mappedPaymentMethod: CustomerSavedPaymentMethod = {
+          ...data,
+          id: data.paymentMethodId,
+          customerId: data.paypalCustomerId,
+          type: data.type,
+          isDefault: data.isDefault ?? false
+        }
+        return mappedPaymentMethod
+      }).filter((method) => method !== undefined))
+    }
+    resolve([])
+  })
+  const billingAddresses = new Promise<CustomerBillingAddress[]>(async resolve => {
+    if(options?.siBillingAddresses) {
+      let billingAddressResponse = await customerProfileResponse.billingAddresses()
+      if(options.options?.logging) console.log(billingAddressResponse)
+      const billingAddressData = billingAddressResponse.data
+
+      while(billingAddressResponse.nextToken) {
+        billingAddressResponse = await customerProfileResponse.billingAddresses({
+          nextToken: billingAddressResponse.nextToken
+        })
+        if(options.options?.logging) console.log(billingAddressResponse)
+        billingAddressData.push(...billingAddressResponse.data)
+      }
+
+      resolve(billingAddressData.map((data) => {
+        const mappedBillingAddress: CustomerBillingAddress = {
+          ...data,
+          customerId: data.paypalCustomerId,
+          addressLineTwo: data.addressLineTwo ?? undefined
+        }
+        
+        return mappedBillingAddress
+      }))
+    }
+    resolve([])
+  })
+  const orders = new Promise<Order[]>(async resolve => {
+    if(options?.siOrders) {
+      let ordersResponse = await customerProfileResponse.orders()
+      if(options.options?.logging) console.log(ordersResponse)
+      const ordersData = ordersResponse.data
+
+      while(ordersResponse.nextToken) {
+        ordersResponse = await customerProfileResponse.orders({
+          nextToken: ordersResponse.nextToken
+        })
+        if(options.options?.logging) console.log(ordersResponse)
+        ordersData.push(...ordersResponse.data)
+      }
+
+      resolve((await Promise.all(ordersData.map(async (orderData) => {
+        const orderItems: OrderItem[] = await new Promise(async resolve => {
+          if(options.siOrders?.siOrderItems) {
+            let orderItemsResponse = await orderData.orderItems()
+            if(options.options?.logging) console.log(orderItemsResponse)
+            const orderItemsData = orderItemsResponse.data
+
+            while(orderItemsResponse.nextToken) {
+              orderItemsResponse = await orderData.orderItems({
+                nextToken: orderItemsResponse.nextToken
+              })
+              if(options.options?.logging) console.log(orderItemsResponse)
+              orderItemsData.push(...orderItemsResponse.data)
+            }
+
+            resolve(orderItemsData.map((item) => {
+              const itemRefID = stringToOrderRefID(item.referenceId)
+              if(!itemRefID) return
+              const mappedOrderItem: OrderItem = {
+                ...item,
+                serviceChargeAmount: item.serviceCharge,
+                referenceId: itemRefID
+              }
+
+              return mappedOrderItem
+            }).filter((item) => item !== undefined))
+          }
+          resolve([])
+        })
+
+        const mappedOrder: Order = {
+          ...orderData,
+          items: orderItems,
+          customerId: orderData.paypalCustomerId,
+          currency: 'USD',
+          status: orderData.status ?? 'UNKNOWN'
+        }
+
+        return mappedOrder
+      }))).filter((order) => order !== undefined))
+    }
+    resolve([])
+  })
+
+  const promises = await Promise.all([savedPaymentMethods, billingAddresses, orders])
+  if(options?.options?.metric) console.log(`MAPCUSTOMERPROFILE:${new Date().getTime() - start}`)
+
+  const mappedCustomerProfile: CustomerProfile = {
+    ...customerProfileResponse,
+    savedPaymentMethods: promises[0],
+    billingAddresses: promises[1],
+    orders: promises[2],
+  }
+
+  return mappedCustomerProfile
+}
+
+export interface MapCustomerProfileOptions extends BaseAPIParams {
+  siOrders?: {
+    siOrderItems: boolean
+  }
+  siPaymentMethods?: boolean
+  siBillingAddresses?: boolean,
+}
 
 export interface ChargeNoShowFeeMutationParams extends BaseAPIParams {
   timeslotId: string, 
@@ -23,12 +159,18 @@ export interface CaptureShortNoticeCancelationOrderMutationParams extends Create
 export interface SavePaymentInformationMutationParams extends BaseAPIParams {
   userEmail: string,
   userId: string,
-  vaultRequest: SavePaymentInformationVaultRequest
+  paymentType: CustomerSavedPaymentMethod['type']
+  cancelUrl: string,
+  returnUrl: string,
+  billingAddress: CustomerBillingAddress & { saved: boolean }
 }
 
 export interface ConfirmSavePaymentInformationMutationParams extends BaseAPIParams {
   userEmail: string,
-  setupToken: string,
+  paymentToken: string,
+  customerId: string,
+  paymentType: CustomerSavedPaymentMethod['type']
+  default?: boolean,
 }
 
 export interface GetUserSavedPaymentInformationOptions extends BaseAPIParams {
@@ -109,7 +251,11 @@ export class PaymentService {
       const response = await this.client.mutations.SavePaymentInformation({
         userEmail: params.userEmail,
         userId: params.userId,
-        vaultRequest: params.vaultRequest
+        paymentType: params.paymentType,
+        cancelUrl: params.cancelUrl,
+        returnUrl: params.returnUrl,
+        billingAddressId: params.billingAddress.saved ? params.billingAddress.id : undefined,
+        billingAddressJson: params.billingAddress,
       })
       if(params.options?.logging) console.log(response)
       if(params.options?.metric) console.log(`SAVEPAYMENTINFO: ${new Date().getTime() - start}`)
@@ -133,9 +279,13 @@ export class PaymentService {
   async confirmSavePaymentInformationMutation(params: ConfirmSavePaymentInformationMutationParams): Promise<APIMutationResponse> {
     const start = new Date().getTime()
     try {
-      const response = await this.client.mutations.ConfirmSavePaymentInformation({
+      const response = await this.client.models.CustomerSavedPaymentMethod.create({
+        paymentMethodId: v4(),
         userEmail: params.userEmail,
-        setupToken: params.setupToken,
+        paypalVaultId: params.paymentToken,
+        paypalCustomerId: params.customerId,
+        isDefault: params.default ?? false,
+        type: params.paymentType,
       })
       if(params.options?.logging) console.log(response)
       if(params.options?.metric) console.log(`CONFIRMSAVEPAYMENTINFO: ${new Date().getTime() - start}`)
@@ -156,14 +306,14 @@ export class PaymentService {
     }
   }
 
-  private async getUserSavedPaymentInformation(options: GetUserSavedPaymentInformationOptions): Promise<SavedPaymentMethod[]> {
+  private async getUserSavedPaymentInformation(options: GetUserSavedPaymentInformationOptions): Promise<CustomerSavedPaymentMethod[]> {
     const start = new Date().getTime()
     if(options.options?.logging) console.log('api call')
-    let paymentMethodResponse = await this.client.models.SavedPaymentMethod.listSavedPaymentMethodByUserEmail({ userEmail: options.userEmail })
+    let paymentMethodResponse = await this.client.models.CustomerSavedPaymentMethod.listCustomerSavedPaymentMethodByUserEmail({ userEmail: options.userEmail })
     const paymentMethodData = paymentMethodResponse.data
 
     while(paymentMethodResponse.nextToken) {
-      paymentMethodResponse = await this.client.models.SavedPaymentMethod.listSavedPaymentMethodByUserEmail({
+      paymentMethodResponse = await this.client.models.CustomerSavedPaymentMethod.listCustomerSavedPaymentMethodByUserEmail({
         userEmail: options.userEmail
       }, {
         nextToken: paymentMethodResponse.nextToken
@@ -171,11 +321,11 @@ export class PaymentService {
       paymentMethodData.push(...paymentMethodResponse.data)
     }
 
-    const mappedPaymentMethods: SavedPaymentMethod[] = paymentMethodData.map((data) => {
+    const mappedPaymentMethods: CustomerSavedPaymentMethod[] = paymentMethodData.map((data) => {
       if(!data.type) return
       if(options.role === 'ADMIN') {
         //if admin return minimum information
-        const paymentMethod: SavedPaymentMethod = {
+        const paymentMethod: CustomerSavedPaymentMethod = {
           id: data.paymentMethodId,
           customerId: data.paypalCustomerId,
           type: data.type,
@@ -185,16 +335,12 @@ export class PaymentService {
         return paymentMethod
       }
       else {
-        const paymentMethod: SavedPaymentMethod = {
+        const paymentMethod: CustomerSavedPaymentMethod = {
           id: data.paymentMethodId,
           customerId: data.paypalCustomerId,
           vaultId: data.paypalVaultId,
           type: data.type,
           isDefault: data.isDefault ?? false,
-          lastDigits: data.lastDigits ?? undefined,
-          brand: data.brand ?? undefined,
-          expireMonth: data.expireMonth ?? undefined,
-          expireYear: data.expireYear ?? undefined,
           userEmail: data.userEmail
         }
         return paymentMethod
@@ -214,45 +360,51 @@ export class PaymentService {
     const orderItems = orderItemsResponse.data
 
     while(orderItemsResponse.nextToken) {
-      orderItemsResponse = await this.client.models.OrderItems.listOrderItemsByItemIdAndUserEmail({ 
+      orderItemsResponse = await this.client.models.OrderItems.listOrderItemsByItemId({ 
         itemId: options.timeslotId,
       }, {
         nextToken: orderItemsResponse.nextToken
       })
       orderItems.push(...orderItemsResponse.data)
     }
-    
-    const mappedOrders: Order[] = (await Promise.all(orderItems.map(async (data) => {
+
+    const orders: Order[] = []
+
+    orderItems.forEach(async (data) => {
+      const itemRefID = stringToOrderRefID(data.referenceId)
+      if(!itemRefID) return
+
+      const mappedOrderItem: OrderItem = {
+        ...data,
+        serviceChargeAmount: data.serviceCharge,
+        referenceId: itemRefID
+      }
+      const foundIndex = orders.findIndex((order) => order.id == data.orderId)
+      
+      if(foundIndex !== -1) {
+        orders[foundIndex].items.push(mappedOrderItem)
+        return
+      }
+
       const order = await data.order()
       if(order.data) {
-        try {
-          const items = JSON.parse(order.data.items.toString())
-          if(items as OrderItem[] === undefined || items.length !== 1) {
-            return
-          }
-          const mappedOrder: Order = {
-            id: order.data.paypalOrderId,
-            customerId: order.data.paypalCustomerId ?? undefined,
-            amount: order.data.amount,
-            serviceFee: order.data.serviceFee,
-            currency: 'USD',
-            status: order.data.status ?? 'UNKNOWN',
-            transactionType: 'timeslot',
-            items: items as OrderItem[],
-            userEmail: order.data.userEmail,
-            paymentApprovalUrl: order.data.approvalUrl ?? undefined
-          }
-
-          return mappedOrder
-        } catch {
-          return
+        const mappedOrder: Order = {
+          ...order.data,
+          customerId: order.data.paypalCustomerId ?? undefined,
+          currency: 'USD',
+          status: order.data.status ?? 'UNKNOWN',
+          userEmail: order.data.userEmail,
+          paymentApprovalUrl: order.data.approvalUrl ?? undefined,
+          items: [ mappedOrderItem ]
         }
+
+        orders.push(mappedOrder)
       }
-      return
-    }))).filter(order => order !== undefined)
+    })
+    
     if(options.options?.metric) console.log(`GETUSERTIMESLOTORDERS:${new Date().getTime() - start}`)
 
-    return mappedOrders
+    return orders
   }
 
   getUserSavedPaymentMethodsQueryOptions = (options: GetUserSavedPaymentInformationOptions) => queryOptions({

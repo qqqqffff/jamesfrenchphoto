@@ -99,7 +99,7 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
           />
         )}
       </Modal.Body>
-      <Modal.Footer className="flex flex-row items-center justify-end">
+      <Modal.Footer className="flex flex-row items-center justify-end py-3">
         {formStep === ConfirmTimeslotModalFormStep.Confirm ? (
           <Button
             onClick={() => props.onClose()}

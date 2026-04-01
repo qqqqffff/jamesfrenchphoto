@@ -20,10 +20,16 @@ export const formatParticipantName = (participant: Participant): string => {
 
 export const formatUserName = (user: UserProfile): string => {
   if(
-    user.firstName === undefined || 
-    user.firstName === '' || 
-    user.lastName === undefined || 
-    user.lastName === ''
-  ) return ''
-  return `${user.firstName} ${user.lastName}`
+    user.firstName !== undefined &&
+    user.firstName !== ''
+  ) {
+    if(
+      user.lastName !== undefined &&
+      user.lastName !== ''
+    ) {
+      return `${user.firstName} ${user.lastName}`
+    }
+    return `${user.firstName}`
+  }
+  return ''
 }

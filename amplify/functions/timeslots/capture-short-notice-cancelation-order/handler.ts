@@ -29,10 +29,17 @@ const dynamoClient = generateClient<Schema>()
 //process creates and captures order with payment request
 export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
   let response: APIMutationResponse | undefined
-  if(!event.arguments.orderId || !event.arguments.paymentRequest || !event.arguments.timeslotId || !event.arguments.userEmail) {
+  if(
+    !event.arguments.orderId || 
+    !event.arguments.paymentRequest || 
+    !event.arguments.timeslotId || 
+    !event.arguments.userEmail ||
+    !event.arguments.cancelUrl ||
+    !event.arguments.returnUrl
+  ) {
     response = {
       status: 'Fail',
-      error: 'Timeslot Id or User Email Missing.'
+      error: 'Missing any of the following: orderId, paymentRequest, timeslotId, userEmail, return url, cancel url.'
     }
     return response
   }
@@ -164,10 +171,10 @@ export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHand
   // - using apple pay = 'apple-pay'
 
   let paymentSource: PaymentSource | undefined
-
+  
   switch(paymentRequest.type) {
     case 'Vault': {
-      const paymentMethodResponse = await dynamoClient.models.SavedPaymentMethod.get({ paymentMethodId: paymentRequest.paymentMethodId })
+      const paymentMethodResponse = await dynamoClient.models.CustomerSavedPaymentMethod.get({ paymentMethodId: paymentRequest.paymentMethodId })
       if(
         !paymentMethodResponse.data || 
         paymentMethodResponse.data.paypalVaultId === '' || 
@@ -181,17 +188,31 @@ export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHand
       }
       paymentSource = {
         applePay: paymentMethodResponse.data.type === 'APPLEPAY' ? {
-          vaultId: paymentMethodResponse.data.paypalVaultId
+          vaultId: paymentMethodResponse.data.paypalVaultId,
+          experienceContext: {
+            returnUrl: event.arguments.returnUrl,
+            cancelUrl: event.arguments.cancelUrl
+          }
         } : undefined,
         paypal: paymentMethodResponse.data.type === 'PAYPAL' ? {
-          vaultId: paymentMethodResponse.data.paypalVaultId
+          vaultId: paymentMethodResponse.data.paypalVaultId,
+          experienceContext: {
+            returnUrl: event.arguments.returnUrl,
+            cancelUrl: event.arguments.cancelUrl
+          }
         } : undefined,
         card: paymentMethodResponse.data.type === 'CARD' ?  {
-          vaultId: paymentMethodResponse.data.paypalVaultId
+          vaultId: paymentMethodResponse.data.paypalVaultId,
+          experienceContext: {
+            returnUrl: event.arguments.returnUrl,
+            cancelUrl: event.arguments.cancelUrl
+          }
         } : undefined
       }
     }
   }
+
+  //TODO: continue with implementation
 
 
   if(!paymentSource) {

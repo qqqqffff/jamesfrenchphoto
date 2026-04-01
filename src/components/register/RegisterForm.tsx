@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { UserProfile } from "../../types"
+import { UserProfile, RegistrationProfile, RegistrationFormError, RegistrationFormStep } from "../../types"
 import validator from "validator"
 import { Alert, Button, Label, Modal, TextInput } from "flowbite-react"
 import { useMutation, UseQueryResult } from "@tanstack/react-query"
@@ -13,42 +13,11 @@ import { resendSignUpCode } from "aws-amplify/auth"
 import { textInputTheme } from "../../utils"
 import Loading from "../common/Loading"
 
-export interface RegistrationProfile extends UserProfile { 
-  password: string, 
-  confirm: string,
-  phone?: string
-  terms: boolean
-}
-
 interface RegisterFormProps {
   UserService: UserService,
   profileQuery: UseQueryResult<UserProfile | null, Error>,
   temporaryProfile?: RegistrationProfile,
   logout: () => Promise<'success' | 'fail'>,
-}
-
-export interface FormError {
-    id: | {
-      step: FormStep.User,
-      location: 'first' | 'last' | 'phone' | 'email'
-    } | {
-      step: FormStep.Participant,
-      participantId: string,
-      location: 'first' | 'last' | 'preferred' | 'middle' | 'email'
-    } | {
-      step: FormStep.Confirm,
-      location: 'password' | 'confirm' | 'terms'
-    } | {
-      step: 'global',
-      action?: JSX.Element
-    }
-    message: string
-}
-
-export enum FormStep {
-  'User' = 'User',
-  'Participant' = 'Participant',
-  'Confirm' = 'Confirm'
 }
 
 export const RegisterForm = (props: RegisterFormProps) => {
@@ -61,8 +30,8 @@ export const RegisterForm = (props: RegisterFormProps) => {
     confirm: '',
     terms: false
   }))
-  const [formErrors, setFormErrors] = useState<FormError[]>([])
-  const [formStep, setFormStep] = useState<FormStep>(FormStep.User)
+  const [formErrors, setFormErrors] = useState<RegistrationFormError[]>([])
+  const [formStep, setFormStep] = useState<RegistrationFormStep>(RegistrationFormStep.User)
   const [invalidCode, setInvalidCode] = useState(false)
   const [codeSubmitting, setCodeSubmitting] = useState(false)
   const [verificationCode, setVerificationCode] = useState('')
@@ -88,11 +57,11 @@ export const RegisterForm = (props: RegisterFormProps) => {
   }, [props.temporaryProfile])
 
   useEffect(() => {
-    let errors: FormError[] = []
+    let errors: RegistrationFormError[] = []
     if(!userProfile.firstName || userProfile.firstName.length <= 0){
       errors.push({
         id: {
-          step: FormStep.User,
+          step: RegistrationFormStep.User,
           location: 'first'
         },
         message: 'Your First Name is Required'
@@ -101,7 +70,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(!userProfile.lastName || userProfile.lastName.length <= 0){
       errors.push({
           id: {
-            step: FormStep.User,
+            step: RegistrationFormStep.User,
             location: 'last'
           },
           message: 'Your Last Name is Required'
@@ -110,7 +79,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(userProfile.phone && !validator.isMobilePhone(`+1${userProfile.phone.replace(/\D/g, '')}`, 'en-US')){
       errors.push({
         id: {
-          step: FormStep.User,
+          step: RegistrationFormStep.User,
           location: 'phone'
         },
         message: 'Invalid Phone Number'
@@ -119,7 +88,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(userProfile.email.length <= 0){
       errors.push({
         id: {
-          step: FormStep.User,
+          step: RegistrationFormStep.User,
           location: 'email'
         },
         message: 'Email is Required'
@@ -128,7 +97,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(!validator.isEmail(userProfile.email)){
       errors.push({
         id: {
-          step: FormStep.User,
+          step: RegistrationFormStep.User,
           location: 'email'
         },
         message: 'Invalid Email Address'
@@ -138,7 +107,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
       if(!participant.firstName || participant.firstName.length <= 0) {
         errors.push({
           id: {
-            step: FormStep.Participant,
+            step: RegistrationFormStep.Participant,
             participantId: participant.id,
             location: 'first'
           },
@@ -148,7 +117,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
       if(!participant.lastName || participant.lastName.length <= 0) {
         errors.push({
           id: {
-            step: FormStep.Participant,
+            step: RegistrationFormStep.Participant,
             participantId: participant.id,
             location: 'last'
           },
@@ -158,7 +127,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
       if(participant.email && !validator.isEmail(userProfile.email)) {
         errors.push({
           id: {
-            step: FormStep.Participant,
+            step: RegistrationFormStep.Participant,
             participantId: participant.id,
             location: 'email'
           },
@@ -169,7 +138,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(userProfile.password.length <= 8) {
       errors.push({
         id: {
-          step: FormStep.Confirm,
+          step: RegistrationFormStep.Confirm,
           location: 'password'
         },
         message: 'Password must be at least 8 characters'
@@ -178,7 +147,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(!/^[!@#$%^&*(),.?":{}|<>]+$/g.test(userProfile.password)) {
       errors.push({
         id: {
-          step: FormStep.Confirm,
+          step: RegistrationFormStep.Confirm,
           location: 'password'
         },
         message: 'Password must contain a special character'
@@ -187,7 +156,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(!/^\d+$/g.test(userProfile.password)) {
       errors.push({
         id: {
-          step: FormStep.Confirm,
+          step: RegistrationFormStep.Confirm,
           location: 'password'
         },
         message: 'Password must contain a number'
@@ -196,7 +165,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(!/^[A-Z]+$/g.test(userProfile.password)) {
       errors.push({
         id: {
-          step: FormStep.Confirm,
+          step: RegistrationFormStep.Confirm,
           location: 'password'
         },
         message: 'Password must contain an upper case character'
@@ -205,7 +174,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(!/^[a-z]+$/g.test(userProfile.password)) {
       errors.push({
         id: {
-          step: FormStep.Confirm,
+          step: RegistrationFormStep.Confirm,
           location: 'password'
         },
         message: 'Password must contain a lower case character'
@@ -214,7 +183,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(userProfile.password !== userProfile.confirm) {
       errors.push({
         id: {
-          step: FormStep.Confirm,
+          step: RegistrationFormStep.Confirm,
           location: 'confirm'
         },
         message: 'Participant First Name is Required'
@@ -223,7 +192,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
     if(!userProfile.terms) {
       errors.push({
         id: {
-          step: FormStep.Confirm,
+          step: RegistrationFormStep.Confirm,
           location: 'terms'
         },
         message: 'Terms and conditions must be accepted'
@@ -238,7 +207,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
           step: 'global',
           action: (
             <button onClick={() => {
-              const newFormError: FormError = {
+              const newFormError: RegistrationFormError = {
                 id: {
                   step: 'global',
                   action: (
@@ -289,25 +258,25 @@ export const RegisterForm = (props: RegisterFormProps) => {
 
   const handlePrevious = () => {
     switch(formStep) {
-      case FormStep.User:
-        setFormStep(FormStep.Confirm)
+      case RegistrationFormStep.User:
+        setFormStep(RegistrationFormStep.Confirm)
         return
-      case FormStep.Participant:
-        setFormStep(FormStep.User)
+      case RegistrationFormStep.Participant:
+        setFormStep(RegistrationFormStep.User)
         return
-      case FormStep.Confirm:
-        setFormStep(FormStep.Participant)
+      case RegistrationFormStep.Confirm:
+        setFormStep(RegistrationFormStep.Participant)
         return
     }
   }
 
-  const currentStepIndex = (step: FormStep) => {
+  const currentStepIndex = (step: RegistrationFormStep) => {
     switch(step) {
-      case FormStep.User:
+      case RegistrationFormStep.User:
         return 0
-      case FormStep.Participant:
+      case RegistrationFormStep.Participant:
         return 1
-      case FormStep.Confirm:
+      case RegistrationFormStep.Confirm:
         return 2
     }
   }
@@ -354,16 +323,16 @@ export const RegisterForm = (props: RegisterFormProps) => {
     !userProfile.terms
   )
 
-  const evaluateAllowedNext = (step: FormStep) => {
+  const evaluateAllowedNext = (step: RegistrationFormStep) => {
     switch(step) {
-      case FormStep.User:
+      case RegistrationFormStep.User:
         return userStepCriteria
-      case FormStep.Participant:
+      case RegistrationFormStep.Participant:
         return (
           userStepCriteria ||
           participantStepCriteria
         )
-      case FormStep.Confirm:
+      case RegistrationFormStep.Confirm:
         return (
           userStepCriteria ||
           participantStepCriteria ||
@@ -398,14 +367,14 @@ export const RegisterForm = (props: RegisterFormProps) => {
 
   const handleNext = () => {
     switch(formStep) {
-      case FormStep.User:
-        setFormStep(FormStep.Participant)
+      case RegistrationFormStep.User:
+        setFormStep(RegistrationFormStep.Participant)
         return
-      case FormStep.Participant:
-        setFormStep(FormStep.Confirm)
+      case RegistrationFormStep.Participant:
+        setFormStep(RegistrationFormStep.Confirm)
         return
-      case FormStep.Confirm:
-        setFormStep(FormStep.User)
+      case RegistrationFormStep.Confirm:
+        setFormStep(RegistrationFormStep.User)
         return
     }
   }
@@ -493,9 +462,9 @@ export const RegisterForm = (props: RegisterFormProps) => {
           <div className="p-6 flex flex-row items-center w-full justify-center">
             <div className="mb-4 ms-[17.5%] w-[80%]">
               <div className="flex items-center justify-between">
-                {Object.keys(FormStep).map((step, index, array) => {
+                {Object.keys(RegistrationFormStep).map((step, index, array) => {
                   const stepIndex = currentStepIndex(formStep)
-                  const evaluateNext = index > 0 ? evaluateAllowedNext(array[index - 1] as FormStep) : false
+                  const evaluateNext = index > 0 ? evaluateAllowedNext(array[index - 1] as RegistrationFormStep) : false
                   return (
                     <div key={index} className="relative flex-1">
                       <div className="flex items-center">
@@ -506,8 +475,8 @@ export const RegisterForm = (props: RegisterFormProps) => {
                                 index < stepIndex ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-gray-300'
                             } enabled:hover:cursor-pointer disabled:hover:cursor-not-allowed
                           `}
-                          onClick={() => setFormStep(step as FormStep)}
-                          disabled={evaluateNext && (step as FormStep) !== formStep}
+                          onClick={() => setFormStep(step as RegistrationFormStep)}
+                          disabled={evaluateNext && (step as RegistrationFormStep) !== formStep}
                         >
                           {index < stepIndex ? (
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -539,7 +508,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
             </div>
           </div>
           <div className="flex flex-col gap-1 w-[80%] max-w-[40rem]">
-            {formStep === FormStep.User ? (
+            {formStep === RegistrationFormStep.User && (
               <UserPanel 
                 userProfile={userProfile}
                 parentUpdateUserProfile={setUserProfile}
@@ -547,8 +516,8 @@ export const RegisterForm = (props: RegisterFormProps) => {
                 errors={formErrors}
                 setErrors={setFormErrors}
               />
-            ) : (
-            formStep === FormStep.Participant ? (
+            )}
+            {formStep === RegistrationFormStep.Participant && (
               <ParticipantPanel 
                 userProfile={userProfile}
                 parentUpdateUserProfile={setUserProfile}
@@ -557,19 +526,20 @@ export const RegisterForm = (props: RegisterFormProps) => {
                 setErrors={setFormErrors}
                 token={props.temporaryProfile !== undefined}
               />
-            ) : (
+            )}
+            {formStep === RegistrationFormStep.Confirm && (
               <ConfirmPanel 
                 userProfile={userProfile} 
                 parentUpdateUserProfile={setUserProfile}
                 width={width}
               />
-            ))}
+            )}
           </div>
           <div className={`
             flex items-center w-full mt-2 pe-4
-            ${formStep === FormStep.User ? 'justify-between' : 'justify-end'}
+            ${formStep === RegistrationFormStep.User ? 'justify-between' : 'justify-end'}
           `}>
-            {formStep === FormStep.User && (
+            {formStep === RegistrationFormStep.User && (
               <Link 
                 to="/login" 
                 className="text-blue-500 hover:underline text-sm ms-[10%]"
@@ -578,7 +548,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
               </Link>
             )}
             <div className="flex flex-row gap-4">
-              {formStep !== FormStep.User && (
+              {formStep !== RegistrationFormStep.User && (
                 <Button 
                   color="light"
                   className="text-xl max-w-[8rem]"
@@ -589,7 +559,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
                 className="text-xl max-w-[8rem]" 
                 disabled={evaluateAllowedNext(formStep) || registerUser.isPending} 
                 onClick={() => {
-                  if(formStep === FormStep.Confirm) {
+                  if(formStep === RegistrationFormStep.Confirm) {
                     registerUser.mutate({
                       token: userProfile.temporary,
                       userProfile: userProfile,
@@ -600,7 +570,7 @@ export const RegisterForm = (props: RegisterFormProps) => {
                   }
                 }}
                 isProcessing={registerUser.isPending}
-              >{formStep === FormStep.Confirm ? 
+              >{formStep === RegistrationFormStep.Confirm ? 
                 props.temporaryProfile ? (
                   'Confirm'
                 ) : (

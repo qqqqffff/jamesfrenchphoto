@@ -12,12 +12,12 @@ export interface UserStorage {
 
 export type Order = {
     id: string,
-    customerId?: string,
+    customerId: string,
+    invoiceId: string,
     amount: number,
     serviceFee: number,
     currency: 'USD',
     status: 'PAYER_ACTION_REQUIRED' | 'COMPLETED' | 'UNKNOWN' | 'VOIDED' | 'APPROVED' | 'SAVED' | 'CREATED',
-    transactionType: 'timeslot',
     items: OrderItem[],
     userEmail: string,
     paymentApprovalUrl?: string,
@@ -28,8 +28,8 @@ export type OrderItem = {
     description: string,
     amount: number,
     serviceChargeAmount: number,
-    refrenceId: OrderRefID,
-    invoiceId: string,
+    referenceId: OrderRefID,
+    
 }
 
 export interface UserData {
@@ -45,17 +45,35 @@ export interface UserData {
     profile?: UserProfile
 }
 
-export interface SavedPaymentMethod {
+export interface CustomerProfile {
+    userEmail: string,
+    userId: string,
+    paypalCustomerId: string,
+    savedPaymentMethods: CustomerSavedPaymentMethod[],
+    orders: Order[],
+    billingAddresses: CustomerBillingAddress[]
+}
+
+export interface CustomerSavedPaymentMethod {
     id: string,
     customerId: string,
-    vaultId?: string,
+    vaultId?: string, //not returned for admins
     type: 'PAYPAL' | 'CARD' | 'APPLEPAY'
     isDefault: boolean,
-    lastDigits?: number,
-    brand?: string,
-    expireMonth?: number,
-    expireYear?: number,
     userEmail: string,
+}
+
+export interface CustomerBillingAddress {
+    id: string
+    userEmail: string
+    customerId: string
+    default: boolean
+    addressLineOne: string
+    addressLineTwo?: string,
+    adminAreaTwo: string,
+    adminAreaOne: string,
+    postalCode: string,
+    countryCode: string,
 }
 
 export interface UserProfile {
@@ -67,6 +85,7 @@ export interface UserProfile {
     firstName?: string,
     lastName?: string,
     temporary?: string
+    customerProfile?: CustomerProfile
 }
 
 export interface Participant {
@@ -334,4 +353,61 @@ export interface BaseAPIParams {
         logging?: boolean,
         metric?: boolean
     }
+}
+
+export type CollectPaymentIntent = {
+    type: 'timeslot',
+    timeslotId: string,
+    captureShortnotice?: boolean
+    vaultNoshow?: boolean
+}
+
+export type UserFieldLinks = {
+  email: [string, string],
+  first: [string, 'update' | 'override'] | null,
+  last: [string, 'update' | 'override'] | null,
+  sitting: [string, 'update' | 'override'] | null,
+}
+
+export type ParticipantFieldLinks = {
+  id: string,
+  first: [string, 'update' | 'override'] | null, 
+  last: [string, 'update' | 'override'] | null,
+  middle: [string, 'update' | 'override'] | null,
+  preferred: [string, 'update' | 'override'] | null,
+  email: [string, 'update' | 'override'] | null,
+  tags: [string, 'update' | 'override'] | null,
+  timeslot: [string, 'update' | 'override'] | null,
+  notifications: [string, 'update' | 'override'] | null,
+}
+
+export interface RegistrationProfile extends UserProfile { 
+  password: string, 
+  confirm: string,
+  phone?: string
+  terms: boolean
+}
+
+export interface RegistrationFormError {
+  id: | {
+    step: RegistrationFormStep.User,
+    location: 'first' | 'last' | 'phone' | 'email'
+  } | {
+    step: RegistrationFormStep.Participant,
+    participantId: string,
+    location: 'first' | 'last' | 'preferred' | 'middle' | 'email'
+  } | {
+    step: RegistrationFormStep.Confirm,
+    location: 'password' | 'confirm' | 'terms'
+  } | {
+    step: 'global',
+    action?: JSX.Element
+  }
+  message: string
+}
+
+export enum RegistrationFormStep {
+  'User' = 'User',
+  'Participant' = 'Participant',
+  'Confirm' = 'Confirm'
 }

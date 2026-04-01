@@ -2,11 +2,11 @@ import { queryOptions } from "@tanstack/react-query";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { APIMutationResponse, BaseAPIParams, Timeslot, UserTag } from "../types";
-import { DateTime } from "luxon";
+import { DateTime, Duration } from "luxon";
 import { TagService } from "./tagService";
-import { Duration } from "luxon";
 
-interface MapTimeslotOptions {
+//TODO: implement base api params
+interface MapTimeslotOptions extends BaseAPIParams {
   siTag?: {
     TagService: TagService,
     memo: UserTag[]

@@ -32,7 +32,7 @@ export const TimeslotRegistration = (props: TimeslotRegistrationProps) => {
     )
     return (
       <div className={`
-        flex flex-col px-4 py-2 w-full
+        flex flex-col px-2 w-full
         ${props.preview.preview ? 'rounded-lg border' : ''}
       `}>
         {props.preview.preview && (
@@ -50,6 +50,20 @@ export const TimeslotRegistration = (props: TimeslotRegistrationProps) => {
             <span>Please attend your reserved timeslot on time otherwise you will be charged a <b>${props.timeslot.noshowFee}</b> no show fee.</span>
           )}
           <div  className="w-full border my-2"/>
+          {props.preview.preview ? (
+            <span className="italic text-sm text-gray-500 mt-4 border px-2 py-1 rounded-lg">Additional fields will display here to send email notifications to user and additional participants</span>
+          ) : (
+            <div className="w-full border-b-2 mb-2 pb-2">
+              <NotificationComponent 
+                setNotify={props.preview.setNotify}
+                email={props.preview.email}
+                notify={props.preview.notify}
+                recipients={props.preview.recipients}
+                baseRecipients={props.preview.baseRecipients}
+                setRecipients={props.preview.setRecipients}
+              />
+            </div>
+          )}
           {(props.timeslot.cancelationFee !== undefined || props.timeslot.noshowFee !== undefined) && (
             <>
               <span className="italic text-sm text-gray-500 text-start">Payment information will be collected on following screen which will be subject to charges in the following cases:</span>
@@ -60,18 +74,6 @@ export const TimeslotRegistration = (props: TimeslotRegistrationProps) => {
           )}
           {(props.timeslot.noshowFee || props.timeslot.cancelationFee) && (
             <span className="italic text-xs text-gray-500 text-start">Please note that charges are subject to a 2% platform service charge with a maximum charge of $10 to help keep our platform running.</span>
-          )}
-          {props.preview.preview ? (
-            <span className="italic text-sm text-gray-500 mt-4 border px-2 py-1 rounded-lg">Additional fields will display here to send email notifications to user and additional participants</span>
-          ) : (
-            <NotificationComponent 
-              setNotify={props.preview.setNotify}
-              email={props.preview.email}
-              notify={props.preview.notify}
-              recipients={props.preview.recipients}
-              baseRecipients={props.preview.baseRecipients}
-              setRecipients={props.preview.setRecipients}
-            />
           )}
         </div>
       </div>

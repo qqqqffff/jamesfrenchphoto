@@ -22,7 +22,8 @@ import { HiOutlineExclamationTriangle, HiOutlineInformationCircle } from "react-
 import { TablePanelNotification } from "../admin/table/TablePanel";
 import { v4 } from 'uuid'
 import { TimeslotRegistration } from "../timeslot/TimeslotRegistration";
-import { retrieveTimeslotOrderTransactionType, timeslotIdInvoiceIdCompare } from "../../utils/timeslotOrderUtils";
+import { retrieveTimeslotOrderTransactionType, timeslotIdInvoiceIdCompare } from "../../functions/paymentFunctions";
+import validator from 'validator'
 
 interface EditTimeslotModalProps extends ModalProps {
   TimeslotService: TimeslotService,
@@ -60,7 +61,9 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
 
   const userProfile = useQuery({
     ...props.UserService.getUserProfileByEmailQueryOptions(participant?.userEmail ?? '', {
-      siTimeslot: true,
+      siParticipants: {
+        siTimeslot: true
+      },
     }),
     enabled: participant !== undefined
   })
@@ -176,12 +179,10 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
 
   const foundPayment: ('noshow' | 'cancelation')[] = (userTimeslotOrders.data ?? []).reduce((prev, cur) => {
     if(
-      cur.items.length === 1 &&
-      cur.items[0] !== undefined &&
-      timeslotIdInvoiceIdCompare(cur.items[0].invoiceId, props.timeslot.id) &&
-      retrieveTimeslotOrderTransactionType(cur.items[0].invoiceId) !== null
+      timeslotIdInvoiceIdCompare(cur.invoiceId, props.timeslot.id) &&
+      retrieveTimeslotOrderTransactionType(cur.invoiceId) !== null
     ) {
-      prev.push(retrieveTimeslotOrderTransactionType(cur.items[0].invoiceId)!)
+      prev.push(retrieveTimeslotOrderTransactionType(cur.invoiceId)!)
     }
     return prev
   }, [] as ('noshow' | 'cancelation')[])
@@ -481,6 +482,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
               email={participant.userEmail}
               notify={notify}
               recipients={additionalRecipients}
+              baseRecipients={participant.contact && participant.email && validator.isEmail(participant.email) ? [participant.email] : []}
               setRecipients={setAdditionalRecipients}
             />
           )}

@@ -1,12 +1,13 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query"
 import { Schema } from "../../amplify/data/resource"
 import { V6Client } from '@aws-amplify/api-graphql'
-import { PhotoCollection, Participant, UserTag, Timeslot, Package, Notification } from "../types"
+import { PhotoCollection, Participant, UserTag, Timeslot, Package, Notification, BaseAPIParams } from "../types"
 import { mapNotification } from "./notificationService"
 import { mapParticipant, MapParticipantOptions } from "./userService"
 import { mapTimeslot } from "./timeslotService"
 
-interface MapUserTagOptions {
+//TODO: implement base api params
+export interface MapUserTagOptions extends BaseAPIParams {
   unauthenticated?: boolean
   siCollections?: boolean,
   siChildren?: boolean,

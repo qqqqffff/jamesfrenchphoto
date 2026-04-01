@@ -1,6 +1,5 @@
-import { useLocation } from "@tanstack/react-router";
 import { AuthContext } from "../../auth";
-import { PaymentService, SavePaymentInformationMutationParams } from "../../services/paymentService";
+import { ConfirmSavePaymentInformationMutationParams, PaymentService, SavePaymentInformationMutationParams } from "../../services/paymentService";
 import { 
   PayPalProvider, 
   PayPalSavePaymentButton, 
@@ -18,15 +17,13 @@ import {
 import { useEffect, useState } from "react";
 import { HiChevronDown, HiChevronLeft } from 'react-icons/hi'
 import { useMutation } from "@tanstack/react-query";
+import { CollectPaymentIntent, CustomerBillingAddress } from "../../types";
+import { generateCancelURL, generateReturnURL } from "../../functions/paymentFunctions";
 
 interface CollectPaymentScreenProps {
   PaymentService: PaymentService,
   auth: AuthContext,
-  intent: {
-    type: 'timeslot',
-    captureShortnotice?: boolean
-    vaultNoshow?: boolean
-  },
+  intent: CollectPaymentIntent,
   successPaymentMethodCapture: (
     vaultId: string,
     options: {
@@ -42,22 +39,13 @@ type CheckoutType =
 
 export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'apple-pay' | 'paypal'>()
-
-  const {
-    error: eligibilityError,
-    eligiblePaymentMethods
-  } = useEligibleMethods()
+  const [saveBillingAddress, setSaveBillingAddress] = useState(true)
   const paypal = usePayPal()
-  console.log(paypal)
-
 
   return (
     (paypal.loadingStatus === INSTANCE_LOADING_STATE.PENDING) ? (
       <span>Loading PayPal</span>
     ) : ( 
-    eligiblePaymentMethods === null || eligibilityError !== null ? (
-      <span>Failed to load payment methods, please try again later</span>
-    ) : (
       <div>
         <button 
           className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
@@ -75,12 +63,13 @@ export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
           />
         )}
       </div>
-    ))
+    )
+  // )
   )
 }
 
 const CheckoutForm = (props: {
-  intent: CollectPaymentScreenProps['intent']
+  intent: CollectPaymentIntent
   PaymentService: PaymentService
   auth: AuthContext
 }) => {
@@ -108,10 +97,15 @@ const CheckoutForm = (props: {
   )
 
   return (
-    <PayPalCardFieldsProvider>
+    <PayPalCardFieldsProvider
+      change={(event) => console.log(event)}
+    >
       <SavePaymentMethodCardForm 
         PaymentService={props.PaymentService}
         auth={props.auth}
+        intent={props.intent}
+        // TODO: implement me
+        billingInformation={undefined}
       />
     </PayPalCardFieldsProvider>
   )
@@ -119,14 +113,20 @@ const CheckoutForm = (props: {
 
 const SavePaymentMethodCardForm = (props: {
   PaymentService: PaymentService,
-  auth: AuthContext
+  auth: AuthContext,
+  intent: CollectPaymentIntent,
+  billingInformation?: CustomerBillingAddress & { saved: boolean }
 }) => {
-  const { error: cardFieldsError } = usePayPalCardFields()
+  const {
+    error: cardFieldsError
+  } = usePayPalCardFields()
   const { 
     error: submitError,
     submit,
     submitResponse
   } = usePayPalCardFieldsSavePaymentSession()
+  const [customerId, setCustomerId] = useState<string>()
+  const [isDefault, setIsDefault] = useState(false)
 
   useEffect(() => {
     if(!submitResponse) return
@@ -136,7 +136,19 @@ const SavePaymentMethodCardForm = (props: {
     switch (submitResponse.state) {
       case 'succeeded': {
         // TODO: display success
-        console.log(`successfully vaulted paymentMethod: ${vaultSetupToken}`)
+        console.log(`successfully vaulted paymentMethod: ${vaultSetupToken}, message: ${message}`)
+        if(confirmSavePaymentMethod.isIdle && props.auth.user && customerId) {
+          confirmSavePaymentMethod.mutateAsync({
+            userEmail: props.auth.user.profile.email,
+            customerId: customerId,
+            paymentToken: vaultSetupToken,
+            default: isDefault,
+            paymentType: 'CARD',
+            options: {
+              logging: true
+            }
+          })
+        }
         break
       }
       case 'failed': {
@@ -147,34 +159,28 @@ const SavePaymentMethodCardForm = (props: {
     }
   }, [submitResponse])
 
-  useEffect(() => {
-    if(cardFieldsError) {
-      console.error('Error loading paypal cardfields', cardFieldsError)
-    }
-    if(submitError) {
-      console.error('Error submitting paypal fields save', submitError)
-    }
-  }, [cardFieldsError, submitError])
-
   const savePaymentMethodSetup = useMutation({
     mutationFn: (params: SavePaymentInformationMutationParams) => props.PaymentService.savePaymentInformationMutation(params)
   })
 
+  const confirmSavePaymentMethod = useMutation({
+    mutationFn: (params: ConfirmSavePaymentInformationMutationParams) => props.PaymentService.confirmSavePaymentInformationMutation(params)
+  })
+
   const handleSubmit = async () => {
-    if(props.auth.user) {
+    if(props.auth.user && props.billingInformation) {
       const tokenResponse = await savePaymentMethodSetup.mutateAsync({
         userEmail: props.auth.user.profile.email,
         userId: props.auth.user.user.username,
-        vaultRequest: {
-          type: "Card",
-          request: {
-
-          }
-        }
+        paymentType: 'CARD',
+        cancelUrl: generateCancelURL(props.intent),
+        returnUrl: generateReturnURL(props.intent),
+        billingAddress: props.billingInformation
       })
+      console.log(tokenResponse)
 
       if(tokenResponse.status === 'Success') {
-        submit(tokenResponse.tokenResponse)
+        submit(tokenResponse.setupTokenResponse)
       }
     } 
   }
@@ -182,30 +188,30 @@ const SavePaymentMethodCardForm = (props: {
   return (
     <div>
       <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "1rem",
-        }}
+        className="flex flex-col gap-2 py-2 px-2 border rounded-lg mt-2"
       >
         <PayPalCardNumberField
           containerStyles={{
-            height: "3rem",
+            height: "2.5rem",
           }}
           placeholder="Enter card number"
         />
-        <PayPalCardExpiryField
-          containerStyles={{
-            height: "3rem",
-          }}
-          placeholder="MM/YY"
-        />
-        <PayPalCardCvvField
-          containerStyles={{
-            height: "3rem",
-          }}
-          placeholder="Enter CVV"
-        />
+        <div className="flex flex-row gap-4">
+          <PayPalCardExpiryField
+            containerStyles={{
+              height: "2.5rem",
+              width: '10rem',
+            }}
+            placeholder="MM/YY"
+          />
+          <PayPalCardCvvField
+            containerStyles={{
+              height: "2.5rem",
+              width: '10rem',
+            }}
+            placeholder="Enter CVV"
+          />
+        </div>
       </div>
       {!cardFieldsError && (
         <button className="card-fields-pay-button" 

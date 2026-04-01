@@ -1,6 +1,21 @@
 import { UseMutationResult } from "@tanstack/react-query";
-import { ParticipantFieldLinks, UserFieldLinks } from "../components/modals/LinkUser";
-import { ColumnColor, Notification, Participant, ParticipantFields, Table, TableColumn, TableGroup, Timeslot, UserData, UserFields, UserProfile, UserTag } from "../types";
+import {  } from "../components/modals/LinkUser";
+import { 
+  ColumnColor,
+  Notification, 
+  Participant, 
+  ParticipantFields, 
+  Table, 
+  TableColumn, 
+  TableGroup, 
+  Timeslot, 
+  UserData, 
+  UserFields, 
+  UserProfile, 
+  UserTag, 
+  ParticipantFieldLinks, 
+  UserFieldLinks 
+} from "../types";
 import { defaultColumnColors, parsePathName } from "../utils";
 import { UpdateParticipantMutationParams, UpdateUserProfileParams, UserService } from "../services/userService";
 import { Dispatch, SetStateAction } from "react";

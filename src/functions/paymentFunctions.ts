@@ -1,4 +1,4 @@
-import { Timeslot } from "../types"
+import { CollectPaymentIntent, Timeslot } from "../types"
 
 export const generateTimeslotInvoiceId = (
   timeslot: Timeslot, 
@@ -30,4 +30,26 @@ export const retrieveTimeslotOrderTransactionType = (invoiceId: string): 'noshow
   const parts = invoiceId.split('-')
   if(parts[1] === undefined) return null
   return parts[1] === 'C' ? 'cancelation' : parts[1] === 'N' ? 'noshow' : null
+}
+
+export const generateCancelURL = (intent: CollectPaymentIntent) => {
+  switch(intent.type) {
+    case 'timeslot': {
+      return window.location.hostname + `/client/dashboard/scheduler?id=${intent.timeslotId}&status=cancel`
+    }
+    default: {
+      return window.location.hostname + '/client/dashboard?paymentStatus=cancel'
+    }
+  }
+}
+
+export const generateReturnURL = (intent: CollectPaymentIntent) => {
+  switch(intent.type) {
+    case 'timeslot': {
+      return window.location.hostname + `/client/dashboard/scheduler?id=${intent.timeslotId}&status=success`
+    }
+    default: {
+      return window.location.hostname + '/client/dashboard?paymentStatus=success'
+    }
+  }
 }

@@ -1,12 +1,13 @@
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
-import { Notification, Participant, UserTag } from "../types";
+import { BaseAPIParams, Notification, Participant, UserTag } from "../types";
 import { queryOptions } from "@tanstack/react-query";
 import sgMail from '@sendgrid/mail'
 import { mapParticipant } from "./userService";
 import { mapUserTag } from "./tagService";
 
-interface MapNotificationOptions {
+//TODO: implement base api params
+interface MapNotificationOptions extends BaseAPIParams {
   siParticipants?: {
     memo: Participant[]
   }

@@ -385,8 +385,9 @@ const schema = a.schema({
       userEmail: a.string().required(),
       userId: a.string().required(), //Cognito userid -> used for customer profile id generation
       paypalCustomerId: a.id().required(),
-      savedPaymentMethods: a.hasMany('SavedPaymentMethod', 'paypalCustomerId'),
+      savedPaymentMethods: a.hasMany('CustomerSavedPaymentMethod', 'paypalCustomerId'),
       orders: a.hasMany('Orders', 'paypalCustomerId'),
+      billingAddresses: a.hasMany('CustomerBillingAddresses', 'paypalCustomerId'),
       userProfile: a.belongsTo('UserProfile', 'userEmail')
     })
     .identifier(['userEmail'])
@@ -395,18 +396,36 @@ const schema = a.schema({
       allow.authenticated().to(['get'])
       // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get'])
     ]),
-  SavedPaymentMethod: a.
+  CustomerBillingAddresses: a.
+    model({
+      id: a.id().required(),
+      userEmail: a.string().required(),
+      paypalCustomerId: a.string().required(),
+      customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
+      default: a.boolean().default(false).required(),
+      addressLineOne: a.string().required(),
+      addressLineTwo: a.string(),
+      adminAreaTwo: a.string().required(),
+      adminAreaOne: a.string().required(),
+      postalCode: a.string().required(),
+      countryCode: a.string().required(),
+      createdAt: a.datetime().required()
+    })
+    .identifier(['id'])
+    .secondaryIndexes(index => [index('userEmail').sortKeys(['createdAt'])])
+    .authorization((allow) => [
+      allow.group('ADMINS'),
+      allow.authenticated().to(['get', 'create', 'update']),
+      // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'create', 'update'])
+    ]),
+  CustomerSavedPaymentMethod: a.
     model({
       paymentMethodId: a.id().required(),
       paypalCustomerId: a.id().required(),
       customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
       paypalVaultId: a.string().required(),
       type: a.enum(['PAYPAL', 'CARD', 'APPLEPAY']),
-      isDefault: a.boolean().default(false),
-      lastDigits: a.integer(),
-      brand: a.string(),
-      expireMonth: a.integer(),
-      expireYear: a.integer(),
+      isDefault: a.boolean().default(false).required(),
       userEmail: a.string().required().authorization((allow) => [
         allow.group('ADMINS'),
         allow.authenticated().to(['read'])
@@ -426,9 +445,15 @@ const schema = a.schema({
     model({
       id: a.id().required(),
       itemId: a.id().required(),
+      //si definitions
       timeslot: a.belongsTo('Timeslot', 'itemId'),
       orderId: a.id().required(),
       order: a.belongsTo('Orders', 'orderId'),
+      name: a.string().required(),
+      description: a.string().required(),
+      amount: a.float().required(),
+      serviceCharge: a.float().required(),
+      referenceId: a.string().required(),
       userEmail: a.string().required(),
     })
     .identifier(['id'])
@@ -443,22 +468,20 @@ const schema = a.schema({
     ]),
   Orders: a.
     model({
-      paypalOrderId: a.string().required(),
-      paypalCustomerId: a.id(), // only used if customer uses a saved payment method
+      id: a.string().required(),
+      invoiceId: a.string().required(),
+      paypalCustomerId: a.id().required(),
       customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
       amount: a.float().required(),
       serviceFee: a.float().required(),
       currency: a.string().default('USD').required(),
       status: a.enum(['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED', 'UNKNOWN']),
-      transactionType: a.enum(['timeslot']),
-      items: a.json().required(), //format -> array of OrderItems,
       userEmail: a.string().required(),
       approvalUrl: a.string(),
       orderItems: a.hasMany('OrderItems', 'orderId'),
     })
-    .identifier(['paypalOrderId'])
+    .identifier(['id'])
     .secondaryIndexes((index) => [
-      index('userEmail').sortKeys(['transactionType']),
       index('userEmail')
     ])
     .authorization((allow) => [
@@ -705,7 +728,9 @@ const schema = a.schema({
       timeslotId: a.string().required(),
       userEmail: a.string().required(),
       orderId: a.string().required(),
-      paymentRequest: a.json().required()
+      paymentRequest: a.json().required(),
+      cancelUrl: a.string().required(),
+      returnUrl: a.string().required(),
     })
     .handler(a.handler.function(captureShortNoticeCancelationOrder))
     .authorization((allow) => [
@@ -718,7 +743,11 @@ const schema = a.schema({
     .arguments({
       userEmail: a.string().required(),
       userId: a.string().required(),
-      vaultRequest: a.json().required()
+      paymentType: a.string().required(),
+      cancelUrl: a.string().required(),
+      returnUrl: a.string().required(),
+      billingAddressId: a.string(),
+      billingAddressJson: a.json(),
     })
     .handler(a.handler.function(savePaymentInformation))
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])

@@ -20,8 +20,8 @@ import { Amplify } from 'aws-amplify'
 import { generateClient } from 'aws-amplify/api'
 import { formatTimeslotDates } from '../../../../src/utils'
 import { Duration, DateTime } from 'luxon'
-import { OrderRefID } from '../../../../src/types/order-ref-id'
-import { generateTimeslotInvoiceId, retrieveTimeslotOrderTransactionType } from "../../../../src/utils/timeslotOrderUtils";
+import { OrderRefID, stringToOrderRefID } from '../../../../src/types/order-ref-id'
+import { generateReturnURL, generateTimeslotInvoiceId, retrieveTimeslotOrderTransactionType } from "../../../../src/functions/paymentFunctions";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 Amplify.configure(resourceConfig, libraryOptions)
@@ -155,13 +155,13 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
     return response
   }
 
-  let savedPaymentMethodsResponse = await dynamoClient.models.SavedPaymentMethod.listSavedPaymentMethodByUserEmail({ 
+  let savedPaymentMethodsResponse = await dynamoClient.models.CustomerSavedPaymentMethod.listCustomerSavedPaymentMethodByUserEmail({ 
     userEmail: registeredEmail
   })
   const savedPaymentMethodsData = savedPaymentMethodsResponse.data
 
   while(savedPaymentMethodsResponse.nextToken) {
-    savedPaymentMethodsResponse = await dynamoClient.models.SavedPaymentMethod.listSavedPaymentMethodByUserEmail({
+    savedPaymentMethodsResponse = await dynamoClient.models.CustomerSavedPaymentMethod.listCustomerSavedPaymentMethodByUserEmail({
       userEmail: registeredEmail,
     }, {
       nextToken: savedPaymentMethodsResponse.nextToken
@@ -269,8 +269,7 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
       description: description,
       amount: timeslotData.data.noshowFee,
       serviceChargeAmount: serviceFee,
-      refrenceId: OrderRefID.NoShowFee,
-      invoiceId: noshowInvoiceId,
+      referenceId: OrderRefID.NoShowFee,
     }
   ]
 
@@ -296,27 +295,42 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
     timeslotOrdersData.push(...timeslotIdOrders.data)
   }
 
+  const orders: OrderType[] = []
+
   const customerOrders = (await Promise.all(timeslotOrdersData.map(async (data) => {
+    const itemRefID = stringToOrderRefID(data.referenceId)
+    if(!itemRefID) return
+    const mappedOrderItem: OrderItem = {
+      ...data,
+      serviceChargeAmount: data.serviceCharge,
+      referenceId: itemRefID
+    }
+    const foundIndex = orders.findIndex((order) => order.id === data.orderId)
+    if(foundIndex !== -1) {
+      orders[foundIndex].items.push(mappedOrderItem)
+      return
+    }
     const orderResponse = await data.order()
     if(orderResponse.data) {
       const mappedOrder: OrderType = {
         ...orderResponse.data,
-        id: orderResponse.data.paypalOrderId,
+        id: orderResponse.data.id,
         currency: 'USD',
         status: orderResponse.data.status ?? 'UNKNOWN',
-        transactionType: orderResponse.data.transactionType ?? 'timeslot',
-        items: JSON.parse(orderResponse.data.items.toString())
+        customerId: orderResponse.data.paypalCustomerId,
+        items: [ mappedOrderItem ]
       }
-      return mappedOrder
+      orders.push(mappedOrder)
+      return
     }
-  }))).filter((item) => item !== undefined)
+  })))
 
   let orderResponse: ApiResponse<Order> | undefined
 
-  if(customerOrders.some((order) => (
+  if(orders.some((order) => (
     order.status === 'COMPLETED' && 
     order.items.length === 1 &&
-    retrieveTimeslotOrderTransactionType(order.items[0].invoiceId) === 'noshow'
+    retrieveTimeslotOrderTransactionType(order.invoiceId) === 'noshow'
   ))) {
     response = {
       status: 'Fail',
@@ -325,10 +339,10 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
     return response
   }
   else if(customerOrders.length > 0) {
-    const foundOrder = customerOrders.find((order) => (
+    const foundOrder = orders.find((order) => (
       order.status !== OrderStatus.Completed && 
       order.items.length === 1 &&
-      retrieveTimeslotOrderTransactionType(order.items[0].invoiceId) === 'noshow'
+      retrieveTimeslotOrderTransactionType(order.invoiceId) === 'noshow'
     ))
     if(foundOrder) {
       orderResponse = await orderController.captureOrder({
@@ -340,7 +354,7 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
       const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'payer-action')?.href
 
       await dynamoClient.models.Orders.update({
-        paypalOrderId: foundOrder.id,
+        id: foundOrder.id,
         status: orderResponse.result.status,
         approvalUrl: approvalUrl,
       })
@@ -403,20 +417,25 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
         const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'payer-action')?.href
         const logResponse = await dynamoClient.models.Orders.create({
           paypalCustomerId: customerProfile.data.paypalCustomerId,
-          paypalOrderId: id,
+          id: id,
           amount: timeslotData.data.noshowFee,
           serviceFee: serviceFee,
           currency: 'USD',
           status: captureResponse.result.status,
-          transactionType: 'timeslot',
-          items: orderItems,
           userEmail: registeredEmail.toLowerCase(),
-          approvalUrl: approvalUrl
+          approvalUrl: approvalUrl,
+          invoiceId: noshowInvoiceId
         })
+
 
         const logOrderItem = await dynamoClient.models.OrderItems.create({
           itemId: timeslot.id,
           orderId: id,
+          name: softDescriptor,
+          description: description,
+          amount: timeslotData.data.noshowFee,
+          serviceCharge: serviceFee,
+          referenceId:  OrderRefID.NoShowFee,
           userEmail: registeredEmail.toLowerCase()
         })
 
@@ -458,20 +477,24 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
   const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'payer-action')?.href
   let orderLogResponse = await dynamoClient.models.Orders.create({
     paypalCustomerId: customerProfile.data.paypalCustomerId,
-    paypalOrderId: id,
+    id: id,
     amount: timeslotData.data.noshowFee,
     serviceFee: serviceFee,
     currency: 'USD',
     status: finalOrderStatus,
-    transactionType: 'timeslot',
-    items: orderItems,
     userEmail: registeredEmail.toLowerCase(),
     approvalUrl: approvalUrl,
+    invoiceId: noshowInvoiceId
   })
   
   let orderItemsLogResponse = await dynamoClient.models.OrderItems.create({
     itemId: timeslot.id,
     orderId: id,
+    name: softDescriptor,
+    description: description,
+    amount: timeslotData.data.noshowFee,
+    serviceCharge: serviceFee,
+    referenceId: OrderRefID.NoShowFee,
     userEmail: registeredEmail.toLowerCase()
   })
 

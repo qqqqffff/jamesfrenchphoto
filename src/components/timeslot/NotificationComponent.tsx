@@ -21,7 +21,7 @@ export const NotificationComponent: FC<NotificationComponentParams> = ({ setNoti
   return (
     <div className="flex flex-col justify-start gap-2">
       <button 
-        className="flex flex-row gap-2 text-left items-center mt-4 ms-2" 
+        className="flex flex-row gap-2 text-left items-center" 
         onClick={() => {
           if(!notify) {
             setNotify(!notify)

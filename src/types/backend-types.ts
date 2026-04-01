@@ -11,21 +11,11 @@ export interface CreateShortNoticeCancelationOrderAPIResponse extends APIMutatio
 
 export type SavePaymentInformationAPIResponse = {
   status: 'Success'
-  tokenResponse: string,
+  setupTokenResponse: string,
+  customerId: string,
 } | {
   status: 'Fail',
   error: string,
-}
-
-export type SavePaymentInformationVaultRequest = {
-  type: 'ApplePay'
-  request: VaultApplePayRequest
-} | {
-  type: 'PaypalWallet'
-  request: VaultPaypalWalletRequest
-} | {
-  type: 'Card',
-  request: SetupTokenRequestCard
 }
 
 export type CapturePaymentRequest = {

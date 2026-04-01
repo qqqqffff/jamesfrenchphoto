@@ -63,10 +63,7 @@ const RootComponent = () => {
     }
   }
 
-  const environment = window.location.href.includes('staging') ? 'staging' : window.location.href.includes('localhost') ? 'dev' : 'production'
-    
-  console.log(environment)
-
+  const environment = window.location.href.includes('staging') ? 'staging' : import.meta.env.DEV ? 'dev' : 'production'
 
   return (
     <> 
@@ -93,7 +90,6 @@ const RootComponent = () => {
         environment={environment === 'dev' || environment === 'staging' ? 'sandbox' : "production"}
         merchantId={environment === 'dev' || environment === 'staging' ? import.meta.env.VITE_PAYPAL_SANDBOX_MERCHANT_ID : import.meta.env.VITE_PAYPAL_MERCHANT_ID} 
         pageType='checkout'
-        
       >
         <Outlet />
       </PayPalProvider>
