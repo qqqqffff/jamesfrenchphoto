@@ -1,5 +1,4 @@
-import { VaultApplePayRequest, VaultPaypalWalletRequest, SetupTokenRequestCard } from "@paypal/paypal-server-sdk";
-import { APIMutationResponse } from ".";
+import { APIMutationResponse, CustomerBillingAddress } from ".";
 
 export interface ChargeNoShowFeeAPIResponse extends Omit<APIMutationResponse, 'status'> {
   status: 'Success' | 'Fail' | 'ActionRequired'
@@ -8,6 +7,17 @@ export interface ChargeNoShowFeeAPIResponse extends Omit<APIMutationResponse, 's
 export interface CreateShortNoticeCancelationOrderAPIResponse extends APIMutationResponse {
   orderId?: string
 }
+
+export type AutoCompleteAddressResponse = Partial<Omit<CustomerBillingAddress, 'customerId' | 'default' | 'id' | 'userEmail'>> & { fullText: string }
+
+export type AutoCompleteAddressAPIResponse = {
+  status: 'Success'
+  response: AutoCompleteAddressResponse[]
+} | {
+  status: 'Fail',
+  error: string
+}
+
 
 export type SavePaymentInformationAPIResponse = {
   status: 'Success'

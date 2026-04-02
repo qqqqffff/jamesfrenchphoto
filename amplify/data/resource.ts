@@ -18,8 +18,8 @@ import { notifyUser } from '../functions/users/notify-user/resource';
 import { chargeNoShowFee } from '../functions/timeslots/charge-no-show-fee/resource';
 import { createShortNoticeCancelationOrder } from '../functions/timeslots/create-short-notice-cancelation-order/resource';
 import { savePaymentInformation } from '../functions/users/save-payment-information/resource';
-import { confirmSavePaymentInformation } from '../functions/users/confirm-save-payment-information/resource';
 import { captureShortNoticeCancelationOrder } from '../functions/timeslots/capture-short-notice-cancelation-order/resource';
+import { autoCompleteAddress } from '../functions/utils/auto-complete-address/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -412,7 +412,7 @@ const schema = a.schema({
       createdAt: a.datetime().required()
     })
     .identifier(['id'])
-    .secondaryIndexes(index => [index('userEmail').sortKeys(['createdAt'])])
+    .secondaryIndexes(index => [index('userEmail')])
     .authorization((allow) => [
       allow.group('ADMINS'),
       allow.authenticated().to(['get', 'create', 'update']),
@@ -527,6 +527,17 @@ const schema = a.schema({
     .identifier(['id'])
     .secondaryIndexes((index) => [index('participantId'), index('notificationId')])
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated().to(['get', 'list'])]),
+  AutoCompleteAddressRequests: a
+    .model({
+      id: a.id().required(),
+      locationInput: a.string().required(),
+      userEmail: a.string().required(),
+      result: a.json().required(), // type: AutoCompleteAddressResponse[]
+      createdAt: a.datetime().required(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [index('userEmail').sortKeys(['createdAt']), index('locationInput')])
+    .authorization((allow) => [allow.group('ADMINS')]),
   GetAuthUsers: a
     .query()
     .arguments({
@@ -752,15 +763,14 @@ const schema = a.schema({
     .handler(a.handler.function(savePaymentInformation))
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
     .returns(a.json()),
-  ConfirmSavePaymentInformation: a
-    .mutation()
+  AutoCompleteAddress: a
+    .query()
     .arguments({
+      locationLineOne: a.string().required(),
       userEmail: a.string().required(),
-      setupToken: a.string().required(),
-      requestDefault: a.boolean()
     })
-    .handler(a.handler.function(confirmSavePaymentInformation))
-    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
+    .handler(a.handler.function(autoCompleteAddress))
+    .authorization((allow) => [allow.authenticated()])
     .returns(a.json()),
   TemporaryAccessToken: a
     .model({
@@ -785,8 +795,8 @@ const schema = a.schema({
   allow.resource(chargeNoShowFee),
   allow.resource(createShortNoticeCancelationOrder),
   allow.resource(savePaymentInformation),
-  allow.resource(confirmSavePaymentInformation),
   allow.resource(captureShortNoticeCancelationOrder),
+  allow.resource(autoCompleteAddress)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;

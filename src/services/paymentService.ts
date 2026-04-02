@@ -4,7 +4,8 @@ import { APIMutationResponse, BaseAPIParams, Order, OrderItem, CustomerSavedPaym
 import { 
   ChargeNoShowFeeAPIResponse, 
   SavePaymentInformationAPIResponse, 
-  CreateShortNoticeCancelationOrderAPIResponse 
+  CreateShortNoticeCancelationOrderAPIResponse, 
+  AutoCompleteAddressAPIResponse
 } from '../types/backend-types'
 import { queryOptions } from "@tanstack/react-query";
 import { stringToOrderRefID } from "../types/order-ref-id";
@@ -173,13 +174,22 @@ export interface ConfirmSavePaymentInformationMutationParams extends BaseAPIPara
   default?: boolean,
 }
 
+export interface AutoCompleteAddressMutationParams extends BaseAPIParams {
+  userEmail: string,
+  locationInput: string,
+}
+
 export interface GetUserSavedPaymentInformationOptions extends BaseAPIParams {
-  userEmail: string
+  userEmail?: string
   role: 'OWNER' | 'ADMIN'
 }
 
 export interface GetTimeslotOrdersOptions extends BaseAPIParams {
   timeslotId: string,
+}
+
+interface GetUserBillingAddressesOptions extends BaseAPIParams {
+  userEmail?: string,
 }
 
 export class PaymentService {
@@ -240,6 +250,7 @@ export class PaymentService {
   }
 
   async captureShortNoticeCancelationOrderMutation(params: CaptureShortNoticeCancelationOrderMutationParams): Promise<APIMutationResponse> {
+    console.log(params)
     return {
       status: 'Success'
     }
@@ -306,11 +317,49 @@ export class PaymentService {
     }
   }
 
-  private async getUserSavedPaymentInformation(options: GetUserSavedPaymentInformationOptions): Promise<CustomerSavedPaymentMethod[]> {
+  async autoCompleteAddressMutation(params: AutoCompleteAddressMutationParams): Promise<AutoCompleteAddressAPIResponse> {
     const start = new Date().getTime()
-    if(options.options?.logging) console.log('api call')
+    const response = await this.client.queries.AutoCompleteAddress({
+      userEmail: params.userEmail,
+      locationLineOne: params.locationInput
+    })
+    if(params.options?.logging) console.log(response)
+
+    if(!response.data) {
+      return {
+        status: 'Fail',
+        error: 'Recieved invalid response from server'
+      }
+    }
+
+    try {
+      const apiResponse = JSON.parse(response.data.toString()) as AutoCompleteAddressAPIResponse
+      if(!apiResponse.status) {
+        return {
+          status: 'Fail',
+          error: 'Recieved invalid response from server'
+        }
+      }
+      if(params.options?.metric) console.log(`AUTOCOMPLETE:${new Date().getTime() - start}ms`)
+      return apiResponse
+    } catch (error) {
+      console.error(error)
+      return {
+        status: 'Fail',
+        error: 'Unexpected error'
+      }
+    }
+  }
+
+  // ---------------- get requests ----------------
+
+  private async getUserSavedPaymentInformation(options: GetUserSavedPaymentInformationOptions): Promise<CustomerSavedPaymentMethod[]> {
+    if(!options.userEmail) return []
+    const start = new Date().getTime()
+    
     let paymentMethodResponse = await this.client.models.CustomerSavedPaymentMethod.listCustomerSavedPaymentMethodByUserEmail({ userEmail: options.userEmail })
     const paymentMethodData = paymentMethodResponse.data
+    if(options.options?.logging) console.log(paymentMethodResponse)
 
     while(paymentMethodResponse.nextToken) {
       paymentMethodResponse = await this.client.models.CustomerSavedPaymentMethod.listCustomerSavedPaymentMethodByUserEmail({
@@ -318,6 +367,7 @@ export class PaymentService {
       }, {
         nextToken: paymentMethodResponse.nextToken
       })
+      if(options.options?.logging) console.log(paymentMethodResponse)
       paymentMethodData.push(...paymentMethodResponse.data)
     }
 
@@ -353,10 +403,10 @@ export class PaymentService {
 
   private async getTimeslotOrders(options: GetTimeslotOrdersOptions): Promise<Order[]> {
     const start = new Date().getTime()
-    if(options.options?.logging) console.log('API call')
     let orderItemsResponse = await this.client.models.OrderItems.listOrderItemsByItemId({ 
       itemId: options.timeslotId,
     })
+    if(options.options?.logging) console.log(orderItemsResponse)
     const orderItems = orderItemsResponse.data
 
     while(orderItemsResponse.nextToken) {
@@ -365,6 +415,7 @@ export class PaymentService {
       }, {
         nextToken: orderItemsResponse.nextToken
       })
+      if(options.options?.logging) console.log(orderItemsResponse)
       orderItems.push(...orderItemsResponse.data)
     }
 
@@ -387,6 +438,7 @@ export class PaymentService {
       }
 
       const order = await data.order()
+      if(options.options?.logging) console.log(order)
       if(order.data) {
         const mappedOrder: Order = {
           ...order.data,
@@ -407,6 +459,39 @@ export class PaymentService {
     return orders
   }
 
+  private async getUserBillingAddresses(options: GetUserBillingAddressesOptions): Promise<CustomerBillingAddress[]> {
+    if(!options.userEmail) return []
+    const start = new Date().getTime()
+
+    let billingAddressesResponse = await this.client.models.CustomerBillingAddresses.listCustomerBillingAddressesByUserEmail({
+      userEmail: options.userEmail,
+    })
+    if(options.options?.logging) console.log(billingAddressesResponse)
+    const billingAddressesData = billingAddressesResponse.data
+
+    while(billingAddressesResponse.nextToken) {
+      billingAddressesResponse = await this.client.models.CustomerBillingAddresses.listCustomerBillingAddressesByUserEmail({
+        userEmail: options.userEmail
+      }, {
+        nextToken: billingAddressesResponse.nextToken
+      })
+      if(options.options?.logging) console.log(billingAddressesResponse)
+      billingAddressesData.push(...billingAddressesResponse.data)
+    }
+
+    const mappedBillingAddresses = billingAddressesData.map((data) => {
+      const mappedAddress: CustomerBillingAddress = {
+        ...data,
+        customerId: data.paypalCustomerId,
+        addressLineTwo: data.addressLineTwo ?? undefined
+      }
+      return mappedAddress
+    })
+    if(options.options?.metric) console.log(`USERBILLINGADDRESSES:${new Date().getTime() - start}ms`)
+
+    return mappedBillingAddresses
+  }
+
   getUserSavedPaymentMethodsQueryOptions = (options: GetUserSavedPaymentInformationOptions) => queryOptions({
     queryKey: ['saved-payment-methods', options.userEmail, options.role],
     queryFn: () => this.getUserSavedPaymentInformation(options)
@@ -415,5 +500,10 @@ export class PaymentService {
   getTimeslotOrdersQueryOptions = (options: GetTimeslotOrdersOptions) => queryOptions({
     queryKey: ['timeslot-orders', options],
     queryFn: () => this.getTimeslotOrders(options)
+  })
+
+  getUserBillingAddressesQueryOptions = (options: GetUserBillingAddressesOptions) => queryOptions({
+    queryKey: ['user-billing-addresses', options],
+    queryFn: () => this.getUserBillingAddresses(options)
   })
 }

@@ -10,7 +10,8 @@ import { chargeNoShowFee } from './functions/timeslots/charge-no-show-fee/resour
 import { createShortNoticeCancelationOrder } from './functions/timeslots/create-short-notice-cancelation-order/resource';
 import { captureShortNoticeCancelationOrder } from './functions/timeslots/capture-short-notice-cancelation-order/resource';
 import { savePaymentInformation } from './functions/users/save-payment-information/resource';
-import { confirmSavePaymentInformation } from './functions/users/confirm-save-payment-information/resource';
+// import { autoCompleteAddress } from './functions/utils/auto-complete-address/resource';
+// import { FunctionUrlAuthType } from 'aws-cdk-lib/aws-lambda';
 
 /**
  * @see https://docs.amplify.aws/react/build-a-backend/ to add storage, functions, and more
@@ -26,7 +27,7 @@ const backend = defineBackend({
   createShortNoticeCancelationOrder,
   captureShortNoticeCancelationOrder,
   savePaymentInformation,
-  confirmSavePaymentInformation
+  // autoCompleteAddress
   
   // addCreateUserQueue
   // getPaymentIntent,
@@ -41,6 +42,18 @@ const publicStorageInstance = new PublicStorage(
     deletePublicPhoto: backend.deletePublicPhoto.resources.lambda
   }
 )
+
+// const lambdaUrl = backend.autoCompleteAddress.resources.lambda.addFunctionUrl({
+//   authType: FunctionUrlAuthType.AWS_IAM
+// })
+
+// const autoCompleteInstance = new AutoComplete(
+//   backend.createStack('AutoComplete'),
+//   'AutoComplete',
+//   {
+//     autoCompleteAddress: backend.autoCompleteAddress.resources.lambda
+//   }
+// )
 
 // const eventsStack = new Events( 
 //   backend.createStack('jamesfrenchphoto-events'),

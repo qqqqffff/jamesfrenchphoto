@@ -19,3 +19,9 @@ S3BUCKET='insertnamehere'
 
 executing migration scripts:
 user$ AWS_PROFILE={profile} npx tsx {script}
+
+logging into gcp:
+gcloud auth application-default login
+
+logging into aws
+aws sso login

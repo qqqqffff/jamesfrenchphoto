@@ -16,8 +16,8 @@ import {
 } from '@paypal/react-paypal-js/sdk-v6' 
 import { useEffect, useState } from "react";
 import { HiChevronDown, HiChevronLeft } from 'react-icons/hi'
-import { useMutation } from "@tanstack/react-query";
-import { CollectPaymentIntent, CustomerBillingAddress } from "../../types";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { CollectPaymentIntent, CustomerBillingAddress, CustomerSavedPaymentMethod } from "../../types";
 import { generateCancelURL, generateReturnURL } from "../../functions/paymentFunctions";
 
 interface CollectPaymentScreenProps {
@@ -38,33 +38,45 @@ type CheckoutType =
 | 'save-payment-with-purchase'
 
 export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'apple-pay' | 'paypal'>()
+  const [paymentMethod, setPaymentMethod] = useState<CustomerSavedPaymentMethod['type']>()
+  const [formStep, setFormStep] = useState<'billing' | 'payment' | 'review'>('billing')
   const [saveBillingAddress, setSaveBillingAddress] = useState(true)
   const paypal = usePayPal()
 
+  const userBillingAddressesQueries = useQuery(props.PaymentService.getUserBillingAddressesQueryOptions({
+    userEmail: props.auth.user?.profile.email
+  }))
+
+  const getUserSavedPaymentMethodsQueries = useQuery(props.PaymentService.getUserSavedPaymentMethodsQueryOptions({
+    userEmail: props.auth.user?.profile.email,
+    role: 'OWNER'
+  }))
+
   return (
-    (paypal.loadingStatus === INSTANCE_LOADING_STATE.PENDING) ? (
-      <span>Loading PayPal</span>
-    ) : ( 
-      <div>
-        <button 
-          className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
-          onClick={() => setPaymentMethod(prev => prev !== 'card' ? 'card' : undefined)}
-        >
-          <span className="text-lg font-medium">Card</span>
-          {paymentMethod === 'card' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
-        </button>
-        
-        {paymentMethod === 'card' && (
-          <CheckoutForm 
-            intent={props.intent}
-            PaymentService={props.PaymentService}
-            auth={props.auth}
-          />
-        )}
-      </div>
-    )
-  // )
+    <div className="flex flex-col gap-2">
+      <div></div>
+      {}
+      {(paypal.loadingStatus === INSTANCE_LOADING_STATE.PENDING) ? (
+        <span>Loading PayPal</span>
+      ) : ( 
+        <div>
+          <button 
+            className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
+            onClick={() => setPaymentMethod(prev => prev !== 'CARD' ? 'CARD' : undefined)}
+          >
+            <span className="text-lg font-medium">Card</span>
+            {paymentMethod === 'CARD' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
+          </button>
+          {paymentMethod === 'CARD' && (
+            <CheckoutForm 
+              intent={props.intent}
+              PaymentService={props.PaymentService}
+              auth={props.auth}
+            />
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 

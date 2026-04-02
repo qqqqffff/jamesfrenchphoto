@@ -86,6 +86,7 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
             auth={props.auth}
             intent={{
               type: 'timeslot',
+              timeslotId: props.timeslot.id,
               captureShortnotice: (
                 props.timeslot.cancelationFee !== undefined &&
                 timeuntilSlot <= props.timeslot.cancelationFee.window.toMillis()

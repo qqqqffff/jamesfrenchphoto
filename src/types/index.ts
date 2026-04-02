@@ -74,6 +74,7 @@ export interface CustomerBillingAddress {
     adminAreaOne: string,
     postalCode: string,
     countryCode: string,
+    createdAt: string,
 }
 
 export interface UserProfile {
