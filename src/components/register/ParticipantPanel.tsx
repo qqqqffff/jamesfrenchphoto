@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react"
-import { RegistrationProfile, FormError, FormStep } from "./RegisterForm"
+import { RegistrationProfile, RegistrationFormError, RegistrationFormStep } from "../../types"
 import { Participant } from "../../types"
 import { v4 } from 'uuid'
 import { badgeColorThemeMap, badgeColorThemeMap_hoverable, textInputTheme } from "../../utils"
@@ -16,8 +16,8 @@ interface ParticipantPanelProps {
   userProfile: RegistrationProfile,
   parentUpdateUserProfile: Dispatch<SetStateAction<RegistrationProfile>>
   width: number,
-  errors: FormError[],
-  setErrors: Dispatch<SetStateAction<FormError[]>>
+  errors: RegistrationFormError[],
+  setErrors: Dispatch<SetStateAction<RegistrationFormError[]>>
   token: boolean
 }
 
@@ -143,20 +143,20 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   value={activeParticipant.firstName ?? ''}
                   color={
                     props.errors.some((error) => (
-                      error.id.step === FormStep.Participant && 
+                      error.id.step === RegistrationFormStep.Participant && 
                       error.id.location === 'first' &&
                       error.id.participantId === activeParticipant.id
                     )) && firstUnfocused ? 'failure' : undefined
                   }
                   helperText={(
                     props.errors.some((error) => (
-                      error.id.step === FormStep.Participant && 
+                      error.id.step === RegistrationFormStep.Participant && 
                       error.id.location === 'first' &&
                       error.id.participantId === activeParticipant.id
                     )) && firstUnfocused &&(
                       <span color="text-red-600" className="absolute -mt-2">
                         {props.errors.find((error) => (
-                          error.id.step === FormStep.Participant && 
+                          error.id.step === RegistrationFormStep.Participant && 
                           error.id.location === 'first' &&
                           error.id.participantId === activeParticipant.id
                         ))?.message}
@@ -206,20 +206,20 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
                   value={activeParticipant.lastName ?? ''}
                   color={
                     props.errors.some((error) => (
-                      error.id.step === FormStep.Participant && 
+                      error.id.step === RegistrationFormStep.Participant && 
                       error.id.location === 'last' &&
                       error.id.participantId === activeParticipant.id
                     )) && lastUnfocused ? 'failure' : undefined
                   }
                   helperText={(
                     props.errors.some((error) => (
-                      error.id.step === FormStep.Participant && 
+                      error.id.step === RegistrationFormStep.Participant && 
                       error.id.location === 'last' &&
                       error.id.participantId === activeParticipant.id
                     )) && lastUnfocused &&(
                       <span color="text-red-600" className="absolute -mt-2">
                         {props.errors.find((error) => (
-                          error.id.step === FormStep.Participant && 
+                          error.id.step === RegistrationFormStep.Participant && 
                           error.id.location === 'last' &&
                           error.id.participantId === activeParticipant.id
                         ))?.message}
@@ -317,20 +317,20 @@ export const ParticipantPanel = (props: ParticipantPanelProps) => {
               onBlur={() => setEmailUnfocused(true)}
               color={
                 props.errors.some((error) => (
-                  error.id.step === FormStep.Participant && 
+                  error.id.step === RegistrationFormStep.Participant && 
                   error.id.location === 'email' &&
                   error.id.participantId === activeParticipant.id
                 )) && emailUnfocused ? 'failure' : undefined
               }
               helperText={(
                 props.errors.some((error) => (
-                  error.id.step === FormStep.Participant && 
+                  error.id.step === RegistrationFormStep.Participant && 
                   error.id.location === 'email' &&
                   error.id.participantId === activeParticipant.id
                 )) && emailUnfocused &&(
                   <span color="text-red-600" className="absolute -mt-2">
                     {props.errors.find((error) => (
-                      error.id.step === FormStep.Participant && 
+                      error.id.step === RegistrationFormStep.Participant && 
                       error.id.location === 'email' &&
                       error.id.participantId === activeParticipant.id
                     ))?.message}

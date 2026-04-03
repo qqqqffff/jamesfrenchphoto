@@ -1,8 +1,6 @@
 import { AuthContext } from "../../auth";
 import { ConfirmSavePaymentInformationMutationParams, PaymentService, SavePaymentInformationMutationParams } from "../../services/paymentService";
 import { 
-  PayPalProvider, 
-  PayPalSavePaymentButton, 
   PayPalCardFieldsProvider,
   PayPalCardNumberField,
   PayPalCardExpiryField,
@@ -10,20 +8,21 @@ import {
   usePayPalCardFieldsSavePaymentSession,
   usePayPal,
   usePayPalCardFields,
-  useEligibleMethods,
-  CardFieldComponent,
   INSTANCE_LOADING_STATE
 } from '@paypal/react-paypal-js/sdk-v6' 
 import { useEffect, useState } from "react";
 import { HiChevronDown, HiChevronLeft } from 'react-icons/hi'
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CollectPaymentIntent, CustomerBillingAddress, CustomerSavedPaymentMethod } from "../../types";
+import { CollectPaymentFormStep, CollectPaymentIntent, CustomerBillingAddress, CustomerSavedPaymentMethod } from "../../types";
 import { generateCancelURL, generateReturnURL } from "../../functions/paymentFunctions";
+import { AddressForm } from "../payment/AddressForm";
+import { AutoCompleteAddressResponse } from "../../types/backend-types";
 
 interface CollectPaymentScreenProps {
   PaymentService: PaymentService,
   auth: AuthContext,
   intent: CollectPaymentIntent,
+  terms: JSX.Element,
   successPaymentMethodCapture: (
     vaultId: string,
     options: {
@@ -37,10 +36,16 @@ type CheckoutType =
 | 'save-payment'
 | 'save-payment-with-purchase'
 
+
+
 export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
-  const [paymentMethod, setPaymentMethod] = useState<CustomerSavedPaymentMethod['type']>()
-  const [formStep, setFormStep] = useState<'billing' | 'payment' | 'review'>('billing')
-  const [saveBillingAddress, setSaveBillingAddress] = useState(true)
+  const [paymentMethod, setPaymentMethod] = useState<{ 
+    type: CustomerSavedPaymentMethod['type'],
+    status: 'pending' | 'partial' | 'collected'
+  }>()
+  const [formStep, setFormStep] = useState<CollectPaymentFormStep>('payment')
+  const [billingAddress, setBillingAddress] = useState<Omit<AutoCompleteAddressResponse, 'fullText'>>()
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const paypal = usePayPal()
 
   const userBillingAddressesQueries = useQuery(props.PaymentService.getUserBillingAddressesQueryOptions({
@@ -52,30 +57,72 @@ export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
     role: 'OWNER'
   }))
 
+  const validateFormStep = {
+    billing: billingAddress !== undefined,
+    payment: paymentMethod?.status === 'pending',
+    review: acceptedTerms,
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      <div></div>
-      {}
-      {(paypal.loadingStatus === INSTANCE_LOADING_STATE.PENDING) ? (
-        <span>Loading PayPal</span>
-      ) : ( 
-        <div>
-          <button 
+      <div className="flex flex-col gap-2">
+        <button
+          className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
+          onClick={() => setFormStep('payment')}
+        >
+          <span className="text-lg font-medium ps-2">Payment Details</span>
+          <div className="flex flex-row gap-2 items-center">
+            {formStep === 'payment' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
+          </div>
+        </button>
+        {formStep === 'payment' && (
+          (paypal.loadingStatus === INSTANCE_LOADING_STATE.PENDING) ? (
+            <span>Loading PayPal</span>
+          ) : ( 
+            <div>
+              <button 
+                className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
+                onClick={() => setPaymentMethod(prev => prev?.type !== 'CARD' ? {
+                  type: 'CARD',
+                  status: 'partial'
+                } : undefined)}
+              >
+                <span className="text-lg font-medium ps-2">Card</span>
+                {paymentMethod?.type === 'CARD' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
+              </button>
+              {paymentMethod?.type === 'CARD' && (
+                <CheckoutForm 
+                  intent={props.intent}
+                  PaymentService={props.PaymentService}
+                  auth={props.auth}
+                />
+              )}
+            </div>
+          )
+        )}
+      </div>
+      <div>
+        {paymentMethod?.type === 'CARD' && (
+          <button
             className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
-            onClick={() => setPaymentMethod(prev => prev !== 'CARD' ? 'CARD' : undefined)}
+            onClick={() => setFormStep('billing')}
           >
-            <span className="text-lg font-medium">Card</span>
-            {paymentMethod === 'CARD' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
+            <span className="text-lg font-medium ps-2">Billing Info</span>
+            <div className="flex flex-row gap-2 items-center">
+              {formStep === 'billing' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
+            </div>
           </button>
-          {paymentMethod === 'CARD' && (
-            <CheckoutForm 
-              intent={props.intent}
-              PaymentService={props.PaymentService}
+        )}
+        {formStep === 'billing' && (
+            <AddressForm 
               auth={props.auth}
+              PaymentService={props.PaymentService}
+              submit={(billingAddress) => {
+
+              }}
             />
           )}
-        </div>
-      )}
+      </div>
     </div>
   )
 }

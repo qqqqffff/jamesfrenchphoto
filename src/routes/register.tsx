@@ -22,17 +22,8 @@ export const Route = createFileRoute('/register')({
     const client = context.client as V6Client<Schema>
     const userService = new UserService(client)
 
-    const profile = await context.queryClient.ensureQueryData(
-      userService.getTemporaryUserQueryOptions(context.token, { logging: true })
-    )
-
-    if(profile !== null) {
-      profile.temporary = context.token
-    }
-
     return {
       UserService: userService,
-      profile: profile,
       auth: context.auth,
       token: context.token,
     }
@@ -45,7 +36,7 @@ function RouteComponent(){
   const { UserService, auth, token } = Route.useLoaderData()
 
   const profile = useQuery(
-    UserService.getTemporaryUserQueryOptions(token, { logging: true })
+    UserService.getTemporaryUserQueryOptions(token, { options: { logging: true } })
   )
 
   return (

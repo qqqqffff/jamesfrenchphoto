@@ -2,7 +2,7 @@ import { Label, TextInput, Checkbox, Tooltip } from "flowbite-react"
 import { TermsAndConditionsModal } from "../modals"
 import { Dispatch, SetStateAction, useState } from "react"
 import { textInputTheme } from "../../utils"
-import { RegistrationProfile } from "./RegisterForm"
+import { RegistrationProfile } from "../../types"
 import { ParticipantPanel } from "../common/ParticipantPanel"
 import { HiOutlineEye, HiOutlineEyeSlash } from "react-icons/hi2"
 

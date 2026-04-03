@@ -412,3 +412,5 @@ export enum RegistrationFormStep {
   'Participant' = 'Participant',
   'Confirm' = 'Confirm'
 }
+
+export type CollectPaymentFormStep = 'billing' | 'payment' | 'review'

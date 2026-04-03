@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useState } from "react";
-import { FormError, FormStep, RegistrationProfile } from "./RegisterForm";
+import { RegistrationFormStep, RegistrationFormError, RegistrationProfile } from '../../types'
 import { Checkbox, Label, TextInput, Tooltip } from "flowbite-react";
 import { textInputTheme } from "../../utils";
 
@@ -7,8 +7,8 @@ interface UserPanelProps {
   userProfile: RegistrationProfile,
   parentUpdateUserProfile: Dispatch<SetStateAction<RegistrationProfile>>
   width: number,
-  errors: FormError[],
-  setErrors: Dispatch<SetStateAction<FormError[]>>
+  errors: RegistrationFormError[],
+  setErrors: Dispatch<SetStateAction<RegistrationFormError[]>>
 }
 
 export const UserPanel = (props: UserPanelProps) => {
@@ -47,12 +47,12 @@ export const UserPanel = (props: UserPanelProps) => {
                   })
                   props.setErrors((prev) => {
                     if(prev.some((error) => (
-                        error.id.step === FormStep.User && 
+                        error.id.step === RegistrationFormStep.User && 
                         error.id.location === 'first'
                       ))) 
                     {
                       return prev.filter((error) => {
-                        if(error.id.step === FormStep.User && error.id.location === 'first') {
+                        if(error.id.step === RegistrationFormStep.User && error.id.location === 'first') {
                           return false
                         }
                         return true
@@ -63,7 +63,7 @@ export const UserPanel = (props: UserPanelProps) => {
                 }}
                 color={
                   props.errors.some((error) => (
-                    error.id.step === FormStep.User && 
+                    error.id.step === RegistrationFormStep.User && 
                     error.id.location === 'first'
                   )) && firstUnfocused ? 'failure' : undefined
                 }
@@ -71,12 +71,12 @@ export const UserPanel = (props: UserPanelProps) => {
                 onBlur={() => setFirstUnfocused(true)}
                 helperText={(
                   props.errors.some((error) => (
-                    error.id.step === FormStep.User && 
+                    error.id.step === RegistrationFormStep.User && 
                     error.id.location === 'first'
                   )) && firstUnfocused &&(
                     <span color="text-red-600" className="absolute -mt-2">
                       {props.errors.find((error) => (
-                        error.id.step === FormStep.User && 
+                        error.id.step === RegistrationFormStep.User && 
                         error.id.location === 'first'
                       ))?.message}
                     </span>
@@ -110,12 +110,12 @@ export const UserPanel = (props: UserPanelProps) => {
                   })
                   props.setErrors((prev) => {
                     if(prev.some((error) => (
-                        error.id.step === FormStep.User && 
+                        error.id.step === RegistrationFormStep.User && 
                         error.id.location === 'last'
                       ))) 
                     {
                       return prev.filter((error) => {
-                        if(error.id.step === FormStep.User && error.id.location === 'last') {
+                        if(error.id.step === RegistrationFormStep.User && error.id.location === 'last') {
                           return false
                         }
                         return true
@@ -126,7 +126,7 @@ export const UserPanel = (props: UserPanelProps) => {
                 }}
                 color={
                   props.errors.some((error) => (
-                    error.id.step === FormStep.User && 
+                    error.id.step === RegistrationFormStep.User && 
                     error.id.location === 'last'
                   )) && lastUnfocused ? 'failure' : undefined
                 }
@@ -134,12 +134,12 @@ export const UserPanel = (props: UserPanelProps) => {
                 onBlur={() => setLastUnfocused(true)}
                 helperText={(
                   props.errors.some((error) => (
-                    error.id.step === FormStep.User && 
+                    error.id.step === RegistrationFormStep.User && 
                     error.id.location === 'last'
                   )) && lastUnfocused && (
                     <span color="text-red-600" className="absolute -mt-2">
                       {props.errors.find((error) => (
-                        error.id.step === FormStep.User && 
+                        error.id.step === RegistrationFormStep.User && 
                         error.id.location === 'last'
                       ))?.message}
                     </span>
@@ -180,12 +180,12 @@ export const UserPanel = (props: UserPanelProps) => {
             })
             props.setErrors((prev) => {
               if(prev.some((error) => (
-                  error.id.step === FormStep.User && 
+                  error.id.step === RegistrationFormStep.User && 
                   error.id.location === 'phone'
                 ))) 
               {
                 return prev.filter((error) => {
-                  if(error.id.step === FormStep.User && error.id.location === 'phone') {
+                  if(error.id.step === RegistrationFormStep.User && error.id.location === 'phone') {
                     return false
                   }
                   return true
@@ -196,7 +196,7 @@ export const UserPanel = (props: UserPanelProps) => {
           }}
           color={
             props.errors.some((error) => (
-              error.id.step === FormStep.User && 
+              error.id.step === RegistrationFormStep.User && 
               error.id.location === 'phone'
             )) && phoneUnfocused ? 'failure' : undefined
           }
@@ -204,12 +204,12 @@ export const UserPanel = (props: UserPanelProps) => {
           onBlur={() => setPhoneUnfocused(true)}
           helperText={(
             props.errors.some((error) => (
-              error.id.step === FormStep.User && 
+              error.id.step === RegistrationFormStep.User && 
               error.id.location === 'phone'
             )) && phoneUnfocused && (
               <span color="text-red-600" className="absolute -mt-6">
                 {props.errors.find((error) => (
-                  error.id.step === FormStep.User && 
+                  error.id.step === RegistrationFormStep.User && 
                   error.id.location === 'phone'
                 ))?.message}
               </span>
@@ -242,12 +242,12 @@ export const UserPanel = (props: UserPanelProps) => {
             })
             props.setErrors((prev) => {
               if(prev.some((error) => (
-                  error.id.step === FormStep.User && 
+                  error.id.step === RegistrationFormStep.User && 
                   error.id.location === 'email'
                 ))) 
               {
                 return prev.filter((error) => {
-                  if(error.id.step === FormStep.User && error.id.location === 'email') {
+                  if(error.id.step === RegistrationFormStep.User && error.id.location === 'email') {
                     return false
                   }
                   return true
@@ -258,7 +258,7 @@ export const UserPanel = (props: UserPanelProps) => {
           }}
           color={
             props.errors.some((error) => (
-              error.id.step === FormStep.User && 
+              error.id.step === RegistrationFormStep.User && 
               error.id.location === 'email'
             )) && emailUnfocused ? 'failure' : undefined
           }
@@ -266,12 +266,12 @@ export const UserPanel = (props: UserPanelProps) => {
           onBlur={() => setEmailUnfocused(true)}
           helperText={(
             props.errors.some((error) => (
-              error.id.step === FormStep.User && 
+              error.id.step === RegistrationFormStep.User && 
               error.id.location === 'email'
             )) && emailUnfocused && (
               <span color="text-red-600" className="absolute -mt-6">
                 {props.errors.find((error) => (
-                  error.id.step === FormStep.User && 
+                  error.id.step === RegistrationFormStep.User && 
                   error.id.location === 'email'
                 ))?.message}
               </span>

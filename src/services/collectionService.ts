@@ -7,6 +7,7 @@ import { parsePathName } from "../utils";
 import { getAllPaths } from "./photoPathService";
 import { mapParticipant } from "./userService";
 import { getParticipantFavoritesByCollection } from "./favoriteService";
+import { MapUserTagOptions } from "./tagService";
 
 interface MapCollectionOptions {
   siTags?: boolean
@@ -317,7 +318,7 @@ export async function getCollectionById(client: V6Client<Schema>, collectionId?:
 }
 
 interface GetAllCollectionParticipantsOptions {
-    siTags?: boolean
+    siTags?: MapUserTagOptions
 }
 async function getAllCollectionParticipants(client: V6Client<Schema>, collectionId: string, options?: GetAllCollectionParticipantsOptions): Promise<Participant[]> {
     const collectionResponse = await client.models.PhotoCollection.get({ id: collectionId })
@@ -338,11 +339,7 @@ async function getAllCollectionParticipants(client: V6Client<Schema>, collection
               const newParticipant = await mapParticipant(participant.data, {
                   siCollections: false,
                   siNotifications: false,
-                  siTags: options?.siTags ? {
-                      siChildren: false, 
-                      siPackages: false,
-                      siTimeslots: false
-                  } : undefined,
+                  siTags: options?.siTags,
                   siTimeslot: false,
               })
               return newParticipant
