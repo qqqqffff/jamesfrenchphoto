@@ -34,7 +34,7 @@ export async function mapCustomerProfile(customerProfileResponse: Schema['Custom
           id: data.paymentMethodId,
           customerId: data.paypalCustomerId,
           type: data.type,
-          isDefault: data.isDefault ?? false
+          isDefault: data.isDefault === 'true'
         }
         return mappedPaymentMethod
       }).filter((method) => method !== undefined))
@@ -295,7 +295,7 @@ export class PaymentService {
         userEmail: params.userEmail,
         paypalVaultId: params.paymentToken,
         paypalCustomerId: params.customerId,
-        isDefault: params.default ?? false,
+        isDefault: params.default ? 'true' : 'false',
         type: params.paymentType,
       })
       if(params.options?.logging) console.log(response)
@@ -379,7 +379,7 @@ export class PaymentService {
           id: data.paymentMethodId,
           customerId: data.paypalCustomerId,
           type: data.type,
-          isDefault: data.isDefault ?? false,
+          isDefault: data.isDefault === 'true',
           userEmail: data.userEmail
         }
         return paymentMethod
@@ -390,7 +390,7 @@ export class PaymentService {
           customerId: data.paypalCustomerId,
           vaultId: data.paypalVaultId,
           type: data.type,
-          isDefault: data.isDefault ?? false,
+          isDefault: data.isDefault === 'true',
           userEmail: data.userEmail
         }
         return paymentMethod

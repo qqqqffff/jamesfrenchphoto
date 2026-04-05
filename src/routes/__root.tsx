@@ -77,6 +77,7 @@ const RootComponent = () => {
           <UserComponent />
         </div>
       </div>
+      {/* TODO: move paypal provider */}
       <PayPalProvider
         clientId={environment === 'staging' || environment === 'dev' ? import.meta.env.VITE_PAYPAL_SANDBOX_CLIENT_ID : import.meta.env.VITE_PAYPAL_CLIENT_ID}
         components={[

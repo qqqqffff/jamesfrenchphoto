@@ -425,7 +425,7 @@ const schema = a.schema({
       customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
       paypalVaultId: a.string().required(),
       type: a.enum(['PAYPAL', 'CARD', 'APPLEPAY']),
-      isDefault: a.boolean().default(false).required(),
+      isDefault: a.string().default('false').required(),
       userEmail: a.string().required().authorization((allow) => [
         allow.group('ADMINS'),
         allow.authenticated().to(['read'])
@@ -434,7 +434,8 @@ const schema = a.schema({
     })
     .identifier(['paymentMethodId'])
     .secondaryIndexes((index) => [
-      index('userEmail')
+      index('userEmail'),
+      index('userEmail').sortKeys(['isDefault'])
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),

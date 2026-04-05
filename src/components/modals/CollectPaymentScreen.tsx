@@ -8,7 +8,8 @@ import {
   usePayPalCardFieldsSavePaymentSession,
   usePayPal,
   usePayPalCardFields,
-  INSTANCE_LOADING_STATE
+  INSTANCE_LOADING_STATE,
+  ApplePayMerchantSession
 } from '@paypal/react-paypal-js/sdk-v6' 
 import { useEffect, useState } from "react";
 import { HiChevronDown, HiChevronLeft } from 'react-icons/hi'
@@ -17,6 +18,7 @@ import { CollectPaymentFormStep, CollectPaymentIntent, CustomerBillingAddress, C
 import { generateCancelURL, generateReturnURL } from "../../functions/paymentFunctions";
 import { AddressForm } from "../payment/AddressForm";
 import { AutoCompleteAddressResponse } from "../../types/backend-types";
+import { Checkbox } from "flowbite-react";
 
 interface CollectPaymentScreenProps {
   PaymentService: PaymentService,
@@ -48,11 +50,15 @@ export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const paypal = usePayPal()
 
-  const userBillingAddressesQueries = useQuery(props.PaymentService.getUserBillingAddressesQueryOptions({
+  paypal.sdkInstance?.findEligibleMethods().then((response) => {
+    console.log(response.getDetails('card'))
+  })
+
+  const userBillingAddressesQuery = useQuery(props.PaymentService.getUserBillingAddressesQueryOptions({
     userEmail: props.auth.user?.profile.email
   }))
 
-  const getUserSavedPaymentMethodsQueries = useQuery(props.PaymentService.getUserSavedPaymentMethodsQueryOptions({
+  const userSavedPaymentMethodsQuery = useQuery(props.PaymentService.getUserSavedPaymentMethodsQueryOptions({
     userEmail: props.auth.user?.profile.email,
     role: 'OWNER'
   }))
@@ -95,6 +101,7 @@ export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
                   intent={props.intent}
                   PaymentService={props.PaymentService}
                   auth={props.auth}
+                  customerSavedPaymentMethods={userSavedPaymentMethodsQuery.data ?? []}
                 />
               )}
             </div>
@@ -130,7 +137,8 @@ export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
 const CheckoutForm = (props: {
   intent: CollectPaymentIntent
   PaymentService: PaymentService
-  auth: AuthContext
+  auth: AuthContext,
+  customerSavedPaymentMethods: CustomerSavedPaymentMethod[]
 }) => {
   
   const savePaymentMethod = (
@@ -165,6 +173,7 @@ const CheckoutForm = (props: {
         intent={props.intent}
         // TODO: implement me
         billingInformation={undefined}
+        customerSavedPaymentMethods={props.customerSavedPaymentMethods}
       />
     </PayPalCardFieldsProvider>
   )
@@ -174,7 +183,8 @@ const SavePaymentMethodCardForm = (props: {
   PaymentService: PaymentService,
   auth: AuthContext,
   intent: CollectPaymentIntent,
-  billingInformation?: CustomerBillingAddress & { saved: boolean }
+  billingInformation?: CustomerBillingAddress & { saved: boolean },
+  customerSavedPaymentMethods: CustomerSavedPaymentMethod[]
 }) => {
   const {
     error: cardFieldsError
@@ -217,6 +227,12 @@ const SavePaymentMethodCardForm = (props: {
       }
     }
   }, [submitResponse])
+
+  useEffect(() => {
+    if(props.customerSavedPaymentMethods.length === 0) {
+      setIsDefault(true)
+    }
+  }, [props.customerSavedPaymentMethods])
 
   const savePaymentMethodSetup = useMutation({
     mutationFn: (params: SavePaymentInformationMutationParams) => props.PaymentService.savePaymentInformationMutation(params)
@@ -270,14 +286,25 @@ const SavePaymentMethodCardForm = (props: {
             }}
             placeholder="Enter CVV"
           />
+          <button
+            className="flex flex-row gap-1 items-center disabled:opacity-60"
+            onClick={() => setIsDefault(!isDefault)}
+            disabled={props.customerSavedPaymentMethods.length === 0}
+          >
+            <Checkbox checked={isDefault} readOnly />
+            <span>Set Default</span>
+          </button>
         </div>
       </div>
       {!cardFieldsError && (
-        <button className="card-fields-pay-button" 
-        // onClick={handleSubmit}
-        >
-          Save Payment Method
-        </button>
+        <div className="flex flex-row w-full py-2 justify-end">
+          <button 
+            className="px-2 py-1 rounded-lg enabled:hover:gray-100 disabled:opacity-60 border"
+          // onClick={handleSubmit}
+          >
+            Save Payment Method
+          </button>
+        </div>
       )}
     </div>
   )

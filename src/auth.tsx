@@ -63,14 +63,19 @@ export function AuthProvider({ children, client } : { children: ReactNode, clien
     const profile = await userService.getUserProfileByEmail(
       username, 
       {
-        siTags: {
-          siChildren: true,
-          siPackages: true,
-          siTimeslots: true,
+        siParticipants: {
+          siTags: {
+            siChildren: true,
+            siPackages: { },
+            siTimeslots: true,
+          },
+          siTimeslot: true,
+          siCollections: true,
+          siNotifications: true,
         },
-        siTimeslot: true,
-        siCollections: true,
-        siNotifications: true,
+        options: {
+          logging: true
+        }
       }
     )
     if(!profile) throw new Error('Failed to query profile')
