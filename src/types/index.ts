@@ -360,7 +360,8 @@ export type CollectPaymentIntent = {
     type: 'timeslot',
     timeslotId: string,
     captureShortnotice?: boolean
-    vaultNoshow?: boolean
+    vaultNoshow?: boolean,
+    amount: number
 }
 
 export type UserFieldLinks = {
@@ -414,3 +415,13 @@ export enum RegistrationFormStep {
 }
 
 export type CollectPaymentFormStep = 'billing' | 'payment' | 'review'
+
+export type PaymentType = 
+| 'purchase'
+| 'save-payment'
+| 'save-payment-with-purchase'
+
+export type CollectionPaymentStatus = { 
+  type: CustomerSavedPaymentMethod['type'],
+  status: 'pending' | 'partial' | 'collected'
+}

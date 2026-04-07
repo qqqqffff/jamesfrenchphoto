@@ -53,3 +53,23 @@ export const generateReturnURL = (intent: CollectPaymentIntent) => {
     }
   }
 }
+
+export const generateApplePaymentLabel = (intent: CollectPaymentIntent) => {
+  switch(intent.type) {
+    case 'timeslot': {
+      if(intent.captureShortnotice && !intent.vaultNoshow) {
+        return 'JFP Short Notice Rescheduling Fee'
+      }
+      else if(!intent.captureShortnotice && intent.vaultNoshow) {
+        return 'JFP No Show Hold'
+      }
+      else if(intent.captureShortnotice && intent.vaultNoshow) {
+        return 'JFP Short Notice Rescheduling Fee and No Show Hold'
+      }
+      return 'Unkown Request'
+    }
+    default: {
+      return 'Unknown Request'
+    }
+  }
+}

@@ -20,6 +20,8 @@ interface SchedulerParams {
 }
 
 //TODO: rework logic so that even with a current registration can replace that registration with a new timeslot
+//TODO: implement cancelation / successful purchase logic for a route containing a timeslot id
+//TODO: implement loading logic based on the query handlers
 export const Route = createFileRoute('/_auth/client/dashboard/scheduler')({
   validateSearch: (search: Record<string, unknown>): SchedulerParams => ({
     tagId: (search.tagId as string) || undefined
