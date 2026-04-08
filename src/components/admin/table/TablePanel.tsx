@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react"
-import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag, Notification, Timeslot } from "../../../types"
+import { Table, TableColumn, TableGroup, UserData, UserProfile, UserTag, Notification, Timeslot, ComponentNotification } from "../../../types"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { DeleteTableParams, TableService, UpdateTableParams } from "../../../services/tableService"
 import { EditableTextField } from "../../common/EditableTextField"
@@ -28,21 +28,13 @@ interface TablePanelProps {
   parentUpdateSelectedTable: Dispatch<SetStateAction<Table | undefined>>
 }
 
-export interface TablePanelNotification { 
-  id: string, 
-  message: string,
-  status: 'Success' | 'Error'
-  createdAt: Date,
-  autoClose: NodeJS.Timeout | null
-}
-
 //TODO: fix row deletion - validate works
 //TODO: add implementation of the table participants/users
 //TODO: lazily load rest of data with inf queries
 export const TablePanel = (props: TablePanelProps) => {
   const [searchText, setSearchText] = useState('')
   const [tableColumns, setTableColumns] = useState<TableColumn[]>([])
-  const [tableNotifications, setTableNotifications] = useState<TablePanelNotification[]>([])
+  const [tableNotifications, setTableNotifications] = useState<ComponentNotification[]>([])
 
   const [tempUsers, setTempUsers] = useState<UserProfile[]>([])
   const [users, setUsers] = useState<UserData[]>([])

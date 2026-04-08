@@ -1,33 +1,36 @@
 import { Dispatch, SetStateAction, useState } from "react"
 import { AuthContext } from "../../auth"
 import { PaymentService } from "../../services/paymentService"
-import { CollectionPaymentStatus, CollectPaymentIntent, CustomerBillingAddress, CustomerSavedPaymentMethod, PaymentType } from "../../types"
-import { INSTANCE_LOADING_STATE, useEligibleMethods, usePayPal } from "@paypal/react-paypal-js/sdk-v6"
+import { CollectionPaymentStatus, CollectPaymentIntent, ComponentNotification, CustomerBillingAddress, CustomerSavedPaymentMethod, PaymentType } from "../../types"
+import { INSTANCE_LOADING_STATE, PayPalCardFieldsProvider, useEligibleMethods, usePayPal } from "@paypal/react-paypal-js/sdk-v6"
 import Loading from "../common/Loading"
 import { HiChevronDown, HiChevronLeft } from "react-icons/hi"
 import { UseQueryResult } from "@tanstack/react-query"
-import { SaveCardForm } from "./SaveCardForm"
+import { CardForm } from "./CardForm"
 import { ApplePayCheckoutForm } from "./ApplePayCheckoutForm"
+import { v4 } from 'uuid'
+import { AddressForm } from "./AddressForm"
 
 interface PaymentFormProps {
   intent: CollectPaymentIntent,
   PaymentService: PaymentService,
   auth: AuthContext,
   customerSavedPaymentMethods: CustomerSavedPaymentMethod[]
-  billingInformation?: CustomerBillingAddress & { saved: boolean }
+  billingAddresses: CustomerBillingAddress[]
   savedPaymentMethodsQuery: UseQueryResult<CustomerSavedPaymentMethod[], Error>
+  billingAddressQuery: UseQueryResult<CustomerBillingAddress[], Error>
   collectionPaymentStatus?: CollectionPaymentStatus
   setCollectionPaymentStatus: Dispatch<SetStateAction<CollectionPaymentStatus | undefined>>
+  setOrderProcessing: Dispatch<SetStateAction<boolean>>
+  setPaymentNotifications: Dispatch<SetStateAction<ComponentNotification[]>>
 }
 
 export const PaymentForm = (props: PaymentFormProps) => {
   const paypal = usePayPal()
   const eligibleMethods = useEligibleMethods()
   console.log(eligibleMethods)
-  const [paymentMethod, setPaymentMethod] = useState<{ 
-    type: CustomerSavedPaymentMethod['type'],
-    status: 'pending' | 'partial' | 'collected'
-  }>()
+  const [cardInput, setCardInput] = useState<'address' | 'card'>()
+  const [billingInformation, setBillingInformation] = useState<CustomerBillingAddress & { saved: boolean }>()
 
   const savePaymentMethod = (
     props.intent.type === 'timeslot' && (props.intent.vaultNoshow ?? false)
@@ -51,83 +54,6 @@ export const PaymentForm = (props: PaymentFormProps) => {
     )
   )
 
-  function RenderPaymentFormToUse(): JSX.Element | undefined {
-    switch (paymentMethod?.type) {
-      case 'APPLEPAY': {
-        if(checkoutType === 'purchase') {
-          return (
-            <ApplePayCheckoutForm 
-              formtype={checkoutType}
-              intent={props.intent}
-              onSubmit={(status) => {
-                //TODO: handle status
-              }}
-            />
-          )
-        }
-        else if(checkoutType === 'save-payment') {
-          return (
-            <></>
-          )
-        }
-        else if(checkoutType === 'save-payment-with-purchase') {
-          return (
-            <></>
-          )
-        }
-        return undefined
-      }
-      case 'CARD': {
-        if(checkoutType === 'purchase') {
-          return (
-            <></>
-          )
-        }
-        else if(checkoutType === 'save-payment') {
-          return (
-            <SaveCardForm 
-              PaymentService={props.PaymentService}
-              auth={props.auth}
-              intent={props.intent}
-              billingInformation={props.billingInformation}
-              customerSavedPaymentMethods={props.customerSavedPaymentMethods}
-              onSubmit={(status) => {
-                //TODO: implement status and billing info collection
-              }}
-            />
-          )
-        }
-        else if(checkoutType === 'save-payment-with-purchase') {
-          return (
-            <></>
-          )
-        }
-        return undefined
-      }
-      case 'PAYPAL': {
-        if(checkoutType === 'purchase') {
-          return (
-            <></>
-          )
-        }
-        else if(checkoutType === 'save-payment') {
-          return (
-            <></>
-          )
-        }
-        else if(checkoutType === 'save-payment-with-purchase') {
-          return (
-            <></>
-          )
-        }
-        return undefined
-      }
-      default: {
-        return undefined
-      }
-    }
-  }
-
   return (
     paypal.loadingStatus === INSTANCE_LOADING_STATE.PENDING ? (
       <span>
@@ -138,16 +64,77 @@ export const PaymentForm = (props: PaymentFormProps) => {
       <div className="flex flex-col gap-2">
         <button 
           className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
-          onClick={() => setPaymentMethod(prev => prev?.type !== 'CARD' ? {
-            type: 'CARD',
-            status: 'partial'
-          } : undefined)}
+          onClick={() => setCardInput(prev => (prev === 'card' || prev === 'address') ? undefined : 'address')}
         >
           <span className="text-lg font-medium ps-2">Card</span>
-          {paymentMethod?.type === 'CARD' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
+          {cardInput !== undefined ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
         </button>
 
-        <RenderPaymentFormToUse />
+        {cardInput !== undefined && (
+          <div>
+            <div>
+              <AddressForm 
+                PaymentService={props.PaymentService}
+                auth={props.auth}
+                submit={(response) => {
+                  //TODO: deprecate me
+                }}
+                billingAddresses={props.billingAddresses}
+                billingAddressesQuery={props.billingAddressQuery}
+                formOpen={cardInput === 'address'}
+              />
+            </div>
+            <div className={`${cardInput === 'card' ? '' : 'hidden'}`}>
+              <PayPalCardFieldsProvider>
+                <CardForm 
+                  PaymentService={props.PaymentService}
+                  auth={props.auth}
+                  intent={props.intent}
+                  billingInformation={billingInformation}
+                  customerSavedPaymentMethods={props.customerSavedPaymentMethods}
+                  onSubmit={(response) => {
+                    if(response.status === 'Fail') {
+                      props.setPaymentNotifications(prev => [
+                        ...prev,
+                        {
+                          id: v4(),
+                          message: response.error ?? 'Unexpected error collection payment',
+                          status: 'Error',
+                          createdAt: new Date(),
+                          autoClose: null
+                        }
+                      ])
+                    }
+                  }}
+                />
+              </PayPalCardFieldsProvider>
+            </div>
+          </div>
+        )}
+        {checkoutType && (
+          <ApplePayCheckoutForm 
+            PaymentService={props.PaymentService}
+            auth={props.auth}
+            formtype={checkoutType}
+            intent={props.intent}
+            existingDefault={props.customerSavedPaymentMethods.some((method) => method.isDefault)}
+            onSubmit={(response) => {
+              if(response.status === 'Fail') {
+                props.setPaymentNotifications(prev => [
+                  ...prev,
+                  {
+                    id: v4(),
+                    message: response.error ?? 'Unexpected error collection payment',
+                    status: 'Error',
+                    createdAt: new Date(),
+                    autoClose: null
+                  }
+                ])
+              }
+            }}
+            setOrderProcessing={props.setOrderProcessing}
+          />
+        )}
       </div>
     )
   )

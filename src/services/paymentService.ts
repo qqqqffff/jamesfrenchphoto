@@ -9,7 +9,6 @@ import {
 } from '../types/backend-types'
 import { queryOptions } from "@tanstack/react-query";
 import { stringToOrderRefID } from "../types/order-ref-id";
-import { v4 } from 'uuid'
 
 export async function mapCustomerProfile(customerProfileResponse: Schema['CustomerProfile']['type'], options?: MapCustomerProfileOptions): Promise<CustomerProfile> {
   const start = new Date().getTime()
@@ -146,12 +145,20 @@ export interface MapCustomerProfileOptions extends BaseAPIParams {
   siBillingAddresses?: boolean,
 }
 
+export interface GetUserCustomerProfileOptions extends MapCustomerProfileOptions {
+  userEmail?: string
+}
+
 export interface ChargeNoShowFeeMutationParams extends BaseAPIParams {
   timeslotId: string, 
   userEmail: string
 }
 
-export interface CreateShortNoticeCancelationOrderMutationParams extends ChargeNoShowFeeMutationParams { }
+export interface CreateShortNoticeCancelationOrderMutationParams extends ChargeNoShowFeeMutationParams { 
+  vaulting?: {
+    paymentType: CustomerSavedPaymentMethod['type']
+  }
+}
 
 export interface CaptureShortNoticeCancelationOrderMutationParams extends CreateShortNoticeCancelationOrderMutationParams {
   orderId: string,
@@ -161,9 +168,10 @@ export interface SavePaymentInformationMutationParams extends BaseAPIParams {
   userEmail: string,
   userId: string,
   paymentType: CustomerSavedPaymentMethod['type']
-  cancelUrl: string,
-  returnUrl: string,
-  billingAddress: CustomerBillingAddress & { saved: boolean }
+  cancelUrl?: string,
+  returnUrl?: string,
+  billingAddress?: CustomerBillingAddress & { saved: boolean }
+  applePaymentToken?: string
 }
 
 export interface ConfirmSavePaymentInformationMutationParams extends BaseAPIParams {
@@ -229,7 +237,11 @@ export class PaymentService {
     try {
       const response = await this.client.mutations.CreateShortNoticeCancelationOrder({
         timeslotId: params.timeslotId,
-        userEmail: params.userEmail
+        userEmail: params.userEmail,
+        vaulting: params.vaulting ? {
+          vault: true,
+          paymentSource: params.vaulting.paymentType
+        } : undefined
       })
       if(params.options?.logging) console.log(response)
       if(params.options?.metric) console.log(`CHARGENOSHOWFEE: ${new Date().getTime() - start}`)
@@ -265,8 +277,9 @@ export class PaymentService {
         paymentType: params.paymentType,
         cancelUrl: params.cancelUrl,
         returnUrl: params.returnUrl,
-        billingAddressId: params.billingAddress.saved ? params.billingAddress.id : undefined,
-        billingAddressJson: params.billingAddress,
+        billingAddressId: params.billingAddress?.saved ? params.billingAddress.id : undefined,
+        billingAddressJson: !params.billingAddress?.saved ? params.billingAddress : undefined,
+        applePayToken: params.applePaymentToken
       })
       if(params.options?.logging) console.log(response)
       if(params.options?.metric) console.log(`SAVEPAYMENTINFO: ${new Date().getTime() - start}`)
@@ -290,17 +303,46 @@ export class PaymentService {
   async confirmSavePaymentInformationMutation(params: ConfirmSavePaymentInformationMutationParams): Promise<APIMutationResponse> {
     const start = new Date().getTime()
     try {
-      const response = await this.client.models.CustomerSavedPaymentMethod.create({
-        paymentMethodId: v4(),
+      let currPaymentMethods = await this.client.models.CustomerSavedPaymentMethod.listCustomerSavedPaymentMethodByUserEmail({
+        userEmail: params.userEmail
+      })
+      if(params.options?.logging) console.log(currPaymentMethods)
+      const currData = currPaymentMethods.data
+
+      if(currData.length >= 5) {
+        if(params.options?.metric) console.log(`CONFIRMSAVEPAYMENTINFO: ${new Date().getTime() - start}`)
+        return {
+          status: 'Fail',
+          error: 'Customer has too many saved payment methods'
+        }
+      }
+
+      while(currPaymentMethods.nextToken) {
+        currPaymentMethods = await this.client.models.CustomerSavedPaymentMethod.listCustomerSavedPaymentMethodByUserEmail({
+          userEmail: params.userEmail
+        }, {
+          nextToken: currPaymentMethods.nextToken
+        })
+        if(params.options?.logging) console.log(currPaymentMethods)
+        currData.push(...currPaymentMethods.data)
+
+        if(currData.length >= 5) {
+          if(params.options?.metric) console.log(`CONFIRMSAVEPAYMENTINFO: ${new Date().getTime() - start}`)
+          return {
+            status: 'Fail',
+            error: 'Customer has too many saved payment methods'
+          }
+        }
+      }
+
+      const response = await this.client.mutations.CompleteVault({
+        paymentType: params.paymentType,
         userEmail: params.userEmail,
-        paypalVaultId: params.paymentToken,
-        paypalCustomerId: params.customerId,
-        isDefault: params.default ? 'true' : 'false',
-        type: params.paymentType,
+        isDefault: params.default,
+        setupToken: params.paymentToken
       })
       if(params.options?.logging) console.log(response)
       if(params.options?.metric) console.log(`CONFIRMSAVEPAYMENTINFO: ${new Date().getTime() - start}`)
-
       if(!response.data || JSON.parse(response.data.toString()) as APIMutationResponse === undefined) {
         return {
           status: 'Fail',
@@ -492,6 +534,24 @@ export class PaymentService {
     return mappedBillingAddresses
   }
 
+  private async getUserCustomerProfile(options: GetUserCustomerProfileOptions): Promise<CustomerProfile | null> {
+    if(!options.userEmail) {
+      return null
+    }
+    const start = new Date().getTime()
+    const customerProfileResponse = await this.client.models.CustomerProfile.get({ userEmail: options.userEmail })
+    if(!customerProfileResponse.data) {
+      //attempt to create a user profile
+      return null
+    }
+
+    const mappedCustomerProfile = await mapCustomerProfile(customerProfileResponse.data, options)
+    if(options.options?.metric) console.log(`GETUSERCUSTOMERPROFILE:${new Date().getTime() - start}ms`)
+
+    
+    return mappedCustomerProfile
+  }
+
   getUserSavedPaymentMethodsQueryOptions = (options: GetUserSavedPaymentInformationOptions) => queryOptions({
     queryKey: ['saved-payment-methods', options.userEmail, options.role],
     queryFn: () => this.getUserSavedPaymentInformation(options)
@@ -505,5 +565,10 @@ export class PaymentService {
   getUserBillingAddressesQueryOptions = (options: GetUserBillingAddressesOptions) => queryOptions({
     queryKey: ['user-billing-addresses', options],
     queryFn: () => this.getUserBillingAddresses(options)
+  })
+
+  getUserCustomerProfileQueryOptions = (options: GetUserCustomerProfileOptions) => queryOptions({
+    queryKey: ['customer-profile', options],
+    queryFn: () => this.getUserCustomerProfile(options)
   })
 }

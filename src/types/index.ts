@@ -68,12 +68,12 @@ export interface CustomerBillingAddress {
     userEmail: string
     customerId: string
     default: boolean
-    addressLineOne: string
-    addressLineTwo?: string,
-    adminAreaTwo: string,
-    adminAreaOne: string,
-    postalCode: string,
-    countryCode: string,
+    addressLineOne: string //primary street eg: 123 Main St
+    addressLineTwo?: string, //secondary info eg: Unit 1
+    adminAreaTwo: string, //City
+    adminAreaOne: string, //State
+    postalCode: string, //zip code
+    countryCode: string, //us
     createdAt: string,
 }
 
@@ -424,4 +424,12 @@ export type PaymentType =
 export type CollectionPaymentStatus = { 
   type: CustomerSavedPaymentMethod['type'],
   status: 'pending' | 'partial' | 'collected'
+}
+
+export interface ComponentNotification { 
+  id: string, 
+  message: string,
+  status: 'Success' | 'Error'
+  createdAt: Date,
+  autoClose: NodeJS.Timeout | null
 }

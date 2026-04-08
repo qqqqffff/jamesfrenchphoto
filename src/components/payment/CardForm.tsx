@@ -5,18 +5,18 @@ import { useState, useEffect } from "react"
 import { AuthContext } from "../../auth"
 import { generateCancelURL, generateReturnURL } from "../../functions/paymentFunctions"
 import { PaymentService, SavePaymentInformationMutationParams, ConfirmSavePaymentInformationMutationParams } from "../../services/paymentService"
-import { CollectPaymentIntent, CustomerBillingAddress, CustomerSavedPaymentMethod } from "../../types"
+import { APIMutationResponse, CollectPaymentIntent, CustomerBillingAddress, CustomerSavedPaymentMethod } from "../../types"
 
-interface SaveCardFormProps {
+interface CardFormProps {
   PaymentService: PaymentService,
   auth: AuthContext,
   intent: CollectPaymentIntent,
   billingInformation?: CustomerBillingAddress & { saved: boolean },
   customerSavedPaymentMethods: CustomerSavedPaymentMethod[]
-  onSubmit: (status: 'success' | 'fail') => void
+  onSubmit: (response: APIMutationResponse) => void
 }
 
-export const SaveCardForm = (props: SaveCardFormProps) => {
+export const CardForm = (props: CardFormProps) => {
   const {
     error: cardFieldsError
   } = usePayPalCardFields()
@@ -30,6 +30,10 @@ export const SaveCardForm = (props: SaveCardFormProps) => {
 
   useEffect(() => {
     if(!submitResponse) return
+    if(submitError) {
+      console.error(submitError)
+      return
+    }
 
     const { vaultSetupToken, message } = submitResponse.data
 
@@ -87,6 +91,7 @@ export const SaveCardForm = (props: SaveCardFormProps) => {
 
       if(tokenResponse.status === 'Success') {
         submit(tokenResponse.setupTokenResponse)
+        setCustomerId(tokenResponse.customerId)
       }
     } 
   }
@@ -131,7 +136,7 @@ export const SaveCardForm = (props: SaveCardFormProps) => {
         <div className="flex flex-row w-full py-2 justify-end">
           <button 
             className="px-2 py-1 rounded-lg enabled:hover:gray-100 disabled:opacity-60 border"
-          // onClick={handleSubmit}
+            onClick={handleSubmit}
           >
             Save Payment Method
           </button>

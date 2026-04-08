@@ -6,7 +6,7 @@ import {
 import { useState } from "react";
 import { HiChevronDown, HiChevronLeft } from 'react-icons/hi'
 import { useQuery } from "@tanstack/react-query";
-import { CollectionPaymentStatus, CollectPaymentFormStep, CollectPaymentIntent } from "../../types";
+import { CollectionPaymentStatus, CollectPaymentFormStep, CollectPaymentIntent, ComponentNotification } from "../../types";
 import { AddressForm } from "../payment/AddressForm";
 import { AutoCompleteAddressResponse } from "../../types/backend-types";
 import { PaymentForm } from "../payment/PaymentForm";
@@ -25,12 +25,13 @@ interface CollectPaymentScreenProps {
 }
 
 
-
 export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
   const [paymentMethod, setPaymentMethod] = useState<CollectionPaymentStatus>()
   const [formStep, setFormStep] = useState<CollectPaymentFormStep>('payment')
   const [billingAddress, setBillingAddress] = useState<Omit<AutoCompleteAddressResponse, 'fullText'>>()
   const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [orderProcessing, setOrderProcessing] = useState(false)
+  const [paymentNotifications, setPaymentNotifications] = useState<ComponentNotification[]>([])
   const paypal = usePayPal()
 
   const userBillingAddressesQuery = useQuery(props.PaymentService.getUserBillingAddressesQueryOptions({
@@ -65,21 +66,14 @@ export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
             intent={props.intent}
             PaymentService={props.PaymentService}
             auth={props.auth}
-            customerSavedPaymentMethods={userSavedPaymentMethodsQuery?.data ?? []}
+            customerSavedPaymentMethods={userSavedPaymentMethodsQuery.data ?? []}
+            billingAddresses={userBillingAddressesQuery.data ?? []}
             savedPaymentMethodsQuery={userSavedPaymentMethodsQuery}
+            billingAddressQuery={userBillingAddressesQuery}
             collectionPaymentStatus={paymentMethod}
             setCollectionPaymentStatus={setPaymentMethod}
-          />
-        )}
-      </div>
-      <div>
-        {formStep === 'billing' && (
-          <AddressForm 
-            auth={props.auth}
-            PaymentService={props.PaymentService}
-            submit={(billingAddress) => {
-
-            }}
+            setOrderProcessing={setOrderProcessing}
+            setPaymentNotifications={setPaymentNotifications}
           />
         )}
       </div>

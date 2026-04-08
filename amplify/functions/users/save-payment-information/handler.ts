@@ -21,69 +21,45 @@ Amplify.configure(resourceConfig, libraryOptions)
 const dynamoClient = generateClient<Schema>()
 
 export const handler: Schema['SavePaymentInformation']['functionHandler'] = async (event) => {
-  let response: SavePaymentInformationAPIResponse | undefined
+  let response: SavePaymentInformationAPIResponse = {
+    status: 'Fail',
+    error: 'Unkown error occurred'
+  }
   if(
     !event.arguments.userEmail || 
     !event.arguments.userId || 
-    !event.arguments.paymentType ||
-    !event.arguments.cancelUrl ||
-    !event.arguments.returnUrl
+    !event.arguments.paymentType || (
+      !event.arguments.billingAddressId &&
+      !event.arguments.billingAddressJson
+    )
   ) {
-    response = {
-      status: 'Fail',
-      error: 'Missing any of the following: userEmail, userId, paymentType, cancelUrl, returnUrl'
-    }
+    response.error = 'Missing any of the following: userEmail, userId, paymentType, billing address'
     return response
   }
   if(
-    !event.arguments.billingAddressId &&
-    !event.arguments.billingAddressJson
+    (
+      !event.arguments.cancelUrl ||
+      !event.arguments.returnUrl
+    ) &&
+    event.arguments.paymentType === 'CARD'
   ) {
-    response = {
-      status: 'Fail',
-      error: 'Billing address required to save payment method'
-    }
+    response.error = 'Cancel url, and return url are required to save card payment method'
     return response
   }
+  else if(
+    !event.arguments.applePayToken &&
+    event.arguments.paymentType === 'APPLEPAY'
+  ) {
+    response.error = 'Apple Pay Token is required to save apple payment method'
+    return response
+  }
+
+
   const paypalClientId = (env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
   const paypalSecretKey = (env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
 
   if(!paypalClientId || !paypalSecretKey) {
-    response = {
-      status: 'Fail',
-      error: 'Missing client or secret keys'
-    }
-    return response
-  }
-
-  let vaultType: 'APPLEPAY' | 'PAYPAL' | 'CARD' | undefined
-  switch(event.arguments.paymentType) {
-    case 'APPLEPAY': {
-      vaultType = 'APPLEPAY'
-      break;
-    }
-    case 'PAYPAL': {
-      vaultType = 'PAYPAL'
-      break;
-    }
-    case 'CARD': {
-      vaultType = 'CARD'
-      break
-    }
-    default: {
-      response = {
-        status: "Fail",
-        error: 'Recieved invalid vault request'
-      }
-      return response
-    }
-  }
-
-  if(!vaultType) {
-    response = {
-      status: "Fail",
-      error: 'Recieved empty vault request'
-    }
+    response.error = 'Missing client or secret keys'
     return response
   }
 
@@ -112,47 +88,35 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
 
   const userProfile = await dynamoClient.models.UserProfile.get({ email: event.arguments.userEmail })
   if(!userProfile.data) {
-    response = {
-      status: 'Fail',
-      error: 'Failed to retrieve user profile'
-    }
+    response.error = 'Failed to retrieve user profile'
     return response
   }
   const mappedUserProfile = await mapUserProfile(userProfile.data, {
-    siCustomerProfile: { },
+    siCustomerProfile: { 
+      //only need billing addresses if payment type is card
+      siBillingAddresses: event.arguments.paymentType === 'CARD' && !event.arguments.billingAddressJson
+    },
   })
 
-  let billingAddressToUse: CustomerBillingAddress | undefined
-  if(event.arguments.billingAddressId) {
-    const billingAddressResponse = await dynamoClient.models.CustomerBillingAddresses.get({ id: event.arguments.billingAddressId })
-    if(!billingAddressResponse.data) {
-      response = {
-        status: 'Fail',
-        error: 'Failed to retrieve saved billing address'
-      }
-      return response
-    }
+  let billingAddressToUse: Omit<CustomerBillingAddress, "default" | "id" | "userEmail" | "customerId" | 'createdAt'> | undefined = 
+  (mappedUserProfile.customerProfile?.billingAddresses ?? []).find((address) => address.id === event.arguments.billingAddressId)
 
-    billingAddressToUse = {
-      ...billingAddressResponse.data,
-      customerId: billingAddressResponse.data.paypalCustomerId,
-      addressLineTwo: billingAddressResponse.data.addressLineTwo ?? undefined
-    }
+  if(
+    event.arguments.paymentType === 'CARD' && 
+    !event.arguments.billingAddressJson ||
+    !billingAddressToUse
+  ) {
+    response.error = 'Customer has no matching saved billing address'
+    return response
   }
   else if(event.arguments.billingAddressJson) {
     billingAddressToUse = {
-      id: v4(),
-      customerId: '',
-      default: false,
       ...JSON.parse(event.arguments.billingAddressJson.toString()),
     }
   }
 
-  if(!billingAddressToUse) {
-    response = {
-      status: 'Fail',
-      error: 'Failed to process billing address'
-    }
+  if(billingAddressToUse === undefined) {
+    response.error = 'Failed to process billing address'
     return response
   }
 
@@ -163,7 +127,7 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
         id: mappedUserProfile.customerProfile.paypalCustomerId
       } : undefined,
       paymentSource: {
-        card: vaultType === 'CARD' ? {
+        card: event.arguments.paymentType === 'CARD' ? {
           billingAddress: billingAddressToUse ? {
             addressLine1: billingAddressToUse.addressLineOne,
             addressLine2: billingAddressToUse.addressLineTwo,
@@ -173,7 +137,24 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
             countryCode: billingAddressToUse.countryCode,
           } : undefined,
           name: formatUserName(mappedUserProfile),
+          experienceContext: {
+            returnUrl: event.arguments.returnUrl!,
+            cancelUrl: event.arguments.cancelUrl!
+          }
         } : undefined,
+        applePay: event.arguments.paymentType === 'APPLEPAY' ? {
+          token: event.arguments.applePayToken!,
+          card: {
+            billingAddress: billingAddressToUse ? {
+              addressLine1: billingAddressToUse.addressLineOne,
+              addressLine2: billingAddressToUse.addressLineTwo,
+              adminArea1: billingAddressToUse.adminAreaOne,
+              adminArea2: billingAddressToUse.adminAreaTwo,
+              postalCode: billingAddressToUse.postalCode,
+              countryCode: billingAddressToUse.countryCode,
+            } : undefined,
+          }
+        } : undefined
         //TODO: implement other vaultTypes
       }
     }

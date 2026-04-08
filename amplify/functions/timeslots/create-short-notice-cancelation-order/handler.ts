@@ -14,7 +14,10 @@ import {
   CheckoutPaymentIntent, 
   OrdersController,
   PayeeBase,
-  PurchaseUnitRequest
+  PurchaseUnitRequest,
+  PaymentInitiator,
+  StoredPaymentSourcePaymentType,
+  StoreInVaultInstruction
 } from '@paypal/paypal-server-sdk'
 import { DateTime, Duration } from 'luxon'
 import { generatePayPalAuthAssertionHeader } from "../../../../scripts/generate-paypal-auth-assertion-header";
@@ -28,7 +31,7 @@ const dynamoClient = generateClient<Schema>()
 
 export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
   let response: CreateShortNoticeCancelationOrderAPIResponse | undefined
-  if(!event.arguments.timeslotId || !event.arguments.userEmail) {
+  if(!event.arguments.timeslotId || !event.arguments.userEmail || !event.arguments.vaulting) {
     response = {
       status: 'Fail',
       error: 'Timeslot Id or User Email Missing.'
@@ -153,6 +156,20 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
   const request: OrderRequest = {
     intent: CheckoutPaymentIntent.Capture,
     purchaseUnits: [ cancelationFee ],
+    paymentSource: event.arguments.vaulting.vault && event.arguments.vaulting.paymentSource ? ({
+      applePay: event.arguments.vaulting.paymentSource === 'APPLEPAY' ? ({
+        storedCredential: {
+          paymentInitiator: PaymentInitiator.Customer,
+          paymentType: StoredPaymentSourcePaymentType.OneTime
+        },
+        attributes: {
+          vault: {
+            storeInVault: StoreInVaultInstruction.OnSuccess
+          }
+        }
+      }): undefined
+      //TODO: implement other payment vaulting options
+    }) : undefined
   }
 
   const paypalAuthHeader = generatePayPalAuthAssertionHeader(paypalClientId, paypalMerchantId)

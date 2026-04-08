@@ -20,6 +20,7 @@ import { createShortNoticeCancelationOrder } from '../functions/timeslots/create
 import { savePaymentInformation } from '../functions/users/save-payment-information/resource';
 import { captureShortNoticeCancelationOrder } from '../functions/timeslots/capture-short-notice-cancelation-order/resource';
 import { autoCompleteAddress } from '../functions/utils/auto-complete-address/resource';
+import { completeVault } from '../functions/utils/complete-vault/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -409,7 +410,8 @@ const schema = a.schema({
       adminAreaOne: a.string().required(),
       postalCode: a.string().required(),
       countryCode: a.string().required(),
-      createdAt: a.datetime().required()
+      createdAt: a.datetime().required(),
+      paymentMethod: a.hasMany('CustomerSavedPaymentMethod', 'paymentMethodId')
     })
     .identifier(['id'])
     .secondaryIndexes(index => [index('userEmail')])
@@ -425,10 +427,14 @@ const schema = a.schema({
       customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
       paypalVaultId: a.string().required(),
       type: a.enum(['PAYPAL', 'CARD', 'APPLEPAY']),
-      isDefault: a.string().default('false').required(),
+      isDefault: a.string().default('false').required().authorization((allow) => [
+        allow.group('ADMINS'),
+        allow.authenticated().to(['read', 'update', 'create'])
+      ]),
+      associatedBillingAddress: a.belongsTo('CustomerBillingAddress', 'paymentMethodId'),
       userEmail: a.string().required().authorization((allow) => [
         allow.group('ADMINS'),
-        allow.authenticated().to(['read'])
+        allow.authenticated().to(['read', 'create'])
         // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['read', 'delete'])
       ])
     })
@@ -439,7 +445,7 @@ const schema = a.schema({
     ])
     .authorization((allow) => [
       allow.group('ADMINS'),
-      allow.authenticated().to(['read'])
+      allow.authenticated().to(['read', 'create', 'update'])
       // allow.ownerDefinedIn('userEmail').identityClaim('email').to(['get', 'list', 'update', 'delete'])
     ]),
   OrderItems: a.
@@ -730,6 +736,10 @@ const schema = a.schema({
     .arguments({
       timeslotId: a.string().required(),
       userEmail: a.string().required(),
+      vaulting: a.customType({
+        vault: a.boolean(),
+        paymentSource: a.enum(['PAYPAL', 'CARD', 'APPLEPAY'])
+      })
     })
     .handler(a.handler.function(createShortNoticeCancelationOrder))
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
@@ -755,13 +765,25 @@ const schema = a.schema({
     .arguments({
       userEmail: a.string().required(),
       userId: a.string().required(),
-      paymentType: a.string().required(),
-      cancelUrl: a.string().required(),
-      returnUrl: a.string().required(),
+      paymentType: a.enum(['APPLEPAY', 'CARD', 'PAYPAL']),
+      cancelUrl: a.string(),
+      returnUrl: a.string(),
       billingAddressId: a.string(),
       billingAddressJson: a.json(),
+      applePayToken: a.string(),
     })
     .handler(a.handler.function(savePaymentInformation))
+    .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
+    .returns(a.json()),
+  CompleteVault: a
+    .mutation()
+    .arguments({
+      paymentType: a.enum(['APPLEPAY', 'CARD', 'PAYPAL']),
+      userEmail: a.string().required(),
+      setupToken: a.string().required(),
+      isDefault: a.boolean()
+    })
+    .handler(a.handler.function(completeVault))
     .authorization((allow) => [allow.group('ADMINS'), allow.authenticated()])
     .returns(a.json()),
   AutoCompleteAddress: a
@@ -797,7 +819,8 @@ const schema = a.schema({
   allow.resource(createShortNoticeCancelationOrder),
   allow.resource(savePaymentInformation),
   allow.resource(captureShortNoticeCancelationOrder),
-  allow.resource(autoCompleteAddress)
+  allow.resource(autoCompleteAddress),
+  allow.resource(completeVault)
 ]);
 
 export type Schema = ClientSchema<typeof schema>;
