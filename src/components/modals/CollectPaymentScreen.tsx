@@ -1,15 +1,10 @@
 import { AuthContext } from "../../auth";
 import { PaymentService } from "../../services/paymentService";
-import { 
-  usePayPal,
-} from '@paypal/react-paypal-js/sdk-v6' 
 import { useState } from "react";
-import { HiChevronDown, HiChevronLeft } from 'react-icons/hi'
 import { useQuery } from "@tanstack/react-query";
-import { CollectionPaymentStatus, CollectPaymentFormStep, CollectPaymentIntent, ComponentNotification } from "../../types";
-import { AddressForm } from "../payment/AddressForm";
-import { AutoCompleteAddressResponse } from "../../types/backend-types";
+import { CollectionPaymentStatus, CollectPaymentIntent, ComponentNotification } from "../../types";
 import { PaymentForm } from "../payment/PaymentForm";
+import { Alert } from "flowbite-react";
 
 interface CollectPaymentScreenProps {
   PaymentService: PaymentService,
@@ -27,12 +22,8 @@ interface CollectPaymentScreenProps {
 
 export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
   const [paymentMethod, setPaymentMethod] = useState<CollectionPaymentStatus>()
-  const [formStep, setFormStep] = useState<CollectPaymentFormStep>('payment')
-  const [billingAddress, setBillingAddress] = useState<Omit<AutoCompleteAddressResponse, 'fullText'>>()
-  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [orderProcessing, setOrderProcessing] = useState(false)
   const [paymentNotifications, setPaymentNotifications] = useState<ComponentNotification[]>([])
-  const paypal = usePayPal()
 
   const userBillingAddressesQuery = useQuery(props.PaymentService.getUserBillingAddressesQueryOptions({
     userEmail: props.auth.user?.profile.email
@@ -43,40 +34,47 @@ export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
     role: 'OWNER'
   }))
 
-  const validateFormStep = {
-    billing: billingAddress !== undefined,
-    payment: paymentMethod?.status === 'pending',
-    review: acceptedTerms,
-  }
-
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-2">
-        <button
-          className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
-          onClick={() => setFormStep('payment')}
-        >
-          <span className="text-lg font-medium ps-2">Payment Details</span>
-          <div className="flex flex-row gap-2 items-center">
-            {formStep === 'payment' ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
-          </div>
-        </button>
-        {formStep === 'payment' && (
-          <PaymentForm 
-            intent={props.intent}
-            PaymentService={props.PaymentService}
-            auth={props.auth}
-            customerSavedPaymentMethods={userSavedPaymentMethodsQuery.data ?? []}
-            billingAddresses={userBillingAddressesQuery.data ?? []}
-            savedPaymentMethodsQuery={userSavedPaymentMethodsQuery}
-            billingAddressQuery={userBillingAddressesQuery}
-            collectionPaymentStatus={paymentMethod}
-            setCollectionPaymentStatus={setPaymentMethod}
-            setOrderProcessing={setOrderProcessing}
-            setPaymentNotifications={setPaymentNotifications}
-          />
-        )}
+      <div className="relative flex justify-center -top-4 z-20">
+        {paymentNotifications
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .filter((_, index) => index < 3)
+        .reverse()
+        .map((notification, index) => {
+          return (
+            <Alert
+              key={notification.id}
+              color={notification.status === 'Error' ? 'red' : 'green'}
+              onDismiss={() => {
+                if(notification.autoClose !== null) {
+                  clearTimeout(notification.autoClose)
+                }
+                setPaymentNotifications(prev => prev.filter((noti) => noti.id !== notification.id))
+              }}
+              className={`absolute w-[70%] opacity-80 border transition-opacity ${index > 0 ? '-mt-12' : ''}`}
+            >
+              {notification.message}
+            </Alert>
+          )
+        })}
       </div>
+      <div className={`${orderProcessing ? 'hidden' : ''}`}>
+        <PaymentForm 
+          intent={props.intent}
+          PaymentService={props.PaymentService}
+          auth={props.auth}
+          customerSavedPaymentMethods={userSavedPaymentMethodsQuery.data ?? []}
+          billingAddresses={userBillingAddressesQuery.data ?? []}
+          savedPaymentMethodsQuery={userSavedPaymentMethodsQuery}
+          billingAddressQuery={userBillingAddressesQuery}
+          collectionPaymentStatus={paymentMethod}
+          setCollectionPaymentStatus={setPaymentMethod}
+          setOrderProcessing={setOrderProcessing}
+          setPaymentNotifications={setPaymentNotifications}
+        />
+      </div>
+      {/* TODO: display order processing spinner and completion before redirecting */}
     </div>
   )
 }

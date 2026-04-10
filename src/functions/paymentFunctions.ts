@@ -1,4 +1,5 @@
 import { CollectPaymentIntent, Timeslot } from "../types"
+import { AutoCompleteAddressResponse } from "../types/backend-types"
 
 export const generateTimeslotInvoiceId = (
   timeslot: Timeslot, 
@@ -72,4 +73,18 @@ export const generateApplePaymentLabel = (intent: CollectPaymentIntent) => {
       return 'Unknown Request'
     }
   }
+}
+
+export const formatAutoCompleteResponse = (response: AutoCompleteAddressResponse) => {
+  if(
+    !response.addressLineOne ||
+    !response.adminAreaOne ||
+    !response.adminAreaTwo ||
+    !response.countryCode ||
+    !response.postalCode
+  ) {
+    return null
+  }
+
+  return `${response.addressLineOne}, ${response.adminAreaTwo} ${response.adminAreaOne} ${response.postalCode}`
 }

@@ -5,7 +5,7 @@ import {
   ChargeNoShowFeeAPIResponse, 
   SavePaymentInformationAPIResponse, 
   CreateShortNoticeCancelationOrderAPIResponse, 
-  AutoCompleteAddressAPIResponse
+  AutoCompleteAddressAPIResponse,
 } from '../types/backend-types'
 import { queryOptions } from "@tanstack/react-query";
 import { stringToOrderRefID } from "../types/order-ref-id";
@@ -147,6 +147,11 @@ export interface MapCustomerProfileOptions extends BaseAPIParams {
 
 export interface GetUserCustomerProfileOptions extends MapCustomerProfileOptions {
   userEmail?: string
+}
+
+export interface AutoCompleteAddressOptions extends BaseAPIParams {
+  addressPart: string
+  userEmail: string
 }
 
 export interface ChargeNoShowFeeMutationParams extends BaseAPIParams {
@@ -359,40 +364,6 @@ export class PaymentService {
     }
   }
 
-  async autoCompleteAddressMutation(params: AutoCompleteAddressMutationParams): Promise<AutoCompleteAddressAPIResponse> {
-    const start = new Date().getTime()
-    const response = await this.client.queries.AutoCompleteAddress({
-      userEmail: params.userEmail,
-      locationLineOne: params.locationInput
-    })
-    if(params.options?.logging) console.log(response)
-
-    if(!response.data) {
-      return {
-        status: 'Fail',
-        error: 'Recieved invalid response from server'
-      }
-    }
-
-    try {
-      const apiResponse = JSON.parse(response.data.toString()) as AutoCompleteAddressAPIResponse
-      if(!apiResponse.status) {
-        return {
-          status: 'Fail',
-          error: 'Recieved invalid response from server'
-        }
-      }
-      if(params.options?.metric) console.log(`AUTOCOMPLETE:${new Date().getTime() - start}ms`)
-      return apiResponse
-    } catch (error) {
-      console.error(error)
-      return {
-        status: 'Fail',
-        error: 'Unexpected error'
-      }
-    }
-  }
-
   // ---------------- get requests ----------------
 
   private async getUserSavedPaymentInformation(options: GetUserSavedPaymentInformationOptions): Promise<CustomerSavedPaymentMethod[]> {
@@ -552,6 +523,39 @@ export class PaymentService {
     return mappedCustomerProfile
   }
 
+  private async autoCompleteAddress(options: AutoCompleteAddressOptions): Promise<AutoCompleteAddressAPIResponse | null> {
+    if(options.addressPart.length < 3 || !options.userEmail) return null
+    const start = new Date().getTime()
+
+    const response = await this.client.queries.AutoCompleteAddress({
+      locationLineOne: options.addressPart,
+      userEmail: options.userEmail
+    })
+    if(options.options?.logging) console.log(response)
+
+    if(response.data) {
+      try {
+        const parsedResponse = JSON.parse(response.data.toString()) as AutoCompleteAddressAPIResponse
+        if(parsedResponse === undefined || parsedResponse.status === undefined ) {
+          return {
+            status: 'Fail',
+            error: 'Recieved invalid response from server'
+          }
+        }
+        if(options.options?.metric) console.log(`AUTOCOMPLETEADDRESS:${new Date().getTime() - start}ms`)
+        return parsedResponse
+      } catch (err) {
+        console.error(err)
+        return {
+          status: 'Fail',
+          error: 'Recieved invalid response from server'
+        }
+      }
+    }
+
+    return null
+  }
+
   getUserSavedPaymentMethodsQueryOptions = (options: GetUserSavedPaymentInformationOptions) => queryOptions({
     queryKey: ['saved-payment-methods', options.userEmail, options.role],
     queryFn: () => this.getUserSavedPaymentInformation(options)
@@ -570,5 +574,10 @@ export class PaymentService {
   getUserCustomerProfileQueryOptions = (options: GetUserCustomerProfileOptions) => queryOptions({
     queryKey: ['customer-profile', options],
     queryFn: () => this.getUserCustomerProfile(options)
+  })
+
+  autoCompleteAddressQueryOptions = (options: AutoCompleteAddressOptions) => queryOptions({
+    queryKey: ['auto-complete-address', options],
+    queryFn: () => this.autoCompleteAddress(options)
   })
 }
