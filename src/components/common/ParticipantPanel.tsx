@@ -3,7 +3,7 @@ import { Participant, TableColumn, Timeslot, UserTag } from "../../types"
 import { formatTime, formatTimeslotDates } from "../../utils"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
 import { Dropdown } from "flowbite-react";
-import { ParticipantFieldLinks } from "../modals/LinkUser";
+import { ParticipantFieldLinks } from "../../types";
 import { DefinedUseQueryResult, QueryObserverLoadingErrorResult, QueryObserverLoadingResult, QueryObserverPendingResult, QueryObserverPlaceholderResult } from "@tanstack/react-query";
 import { Notification } from "../../types";
 
@@ -30,6 +30,7 @@ interface ParticipantPanelProps {
   }
 }
 
+//TODO: rework panel to seperate out field links
 export const ParticipantPanel = (props: ParticipantPanelProps) => {
   const timeslots = props.showOptions?.linkedFields?.allColumns.find((column) => column.id === props.showOptions?.linkedFields?.participantLinks.timeslot?.[0])
     ?.values[props.showOptions?.linkedFields?.rowIndex ?? 0].split(',')

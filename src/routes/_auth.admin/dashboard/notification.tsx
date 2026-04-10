@@ -44,11 +44,7 @@ function RouteComponent() {
   //TODO: implement infinite query
   const participantsQuery = useInfiniteQuery(data.UserService.getAllParticipantsQueryOptions({ 
     siNotifications: true, 
-    siTags: { 
-      siChildren: false,
-      siPackages: false,
-      siTimeslots: false
-    } 
+    siTags: { } 
   }))
   
   //TODO: implement infinite query

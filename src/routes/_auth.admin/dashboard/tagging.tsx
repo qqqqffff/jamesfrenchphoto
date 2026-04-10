@@ -29,22 +29,12 @@ function RouteComponent() {
 
   //si will be performed on the selected tag
   const tagsQuery = useInfiniteQuery(data.TagService.getAllUserTagsQueryOptions({
-    siCollections: false,
-    siNotifications: false,
-    siPackages: {
-      siCollections: false,
-      siItems: false
-    },
-    siParticipants: false,
-    siTimeslots: false,
+    siPackages: { },
     metric: true
   }))
   
   const collectionsQuery = useQuery(
     data.CollectionService.getAllPhotoCollectionsQueryOptions({
-      siPaths: false,
-      siSets: false,
-      siTags: false,
       metric: true
     })
   )
@@ -54,14 +44,7 @@ function RouteComponent() {
   )
 
   const participantQuery = useInfiniteQuery(data.UserService.getAllParticipantsQueryOptions({
-    siCollections: false,
-    siNotifications: false,
-    siTags: { 
-      siChildren: false,
-      siPackages: false,
-      siTimeslots: false
-    },
-    siTimeslot: false
+    siTags: { },
   }))
 
   useEffect(() => {

@@ -1,12 +1,11 @@
 import { ComponentProps, Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { CreateNotificationParams, NotificationService, SendUserEmailNotificationParams, UpdateNotificationParams } from "../../../services/notificationService";
-import { Notification, Participant, UserProfile } from "../../../types";
+import { Notification, Participant, UserProfile, ComponentNotification } from "../../../types";
 import { useMutation } from "@tanstack/react-query";
 import { v4 } from "uuid";
 import { formatParticipantName } from "../../../functions/clientFunctions";
 import { HiOutlineMinus, HiOutlinePlus, HiOutlineXMark } from "react-icons/hi2";
 import { Alert, ToggleSwitch } from "flowbite-react";
-import { TablePanelNotification } from "./TablePanel";
 import validator from 'validator'
 
 interface NotificationCellProps extends ComponentProps<'td'> {
@@ -15,7 +14,7 @@ interface NotificationCellProps extends ComponentProps<'td'> {
   NotificationService: NotificationService,
   notifications: Notification[]
   setNotifications: Dispatch<SetStateAction<Notification[]>>
-  setTableNotification: Dispatch<SetStateAction<TablePanelNotification[]>>
+  setTableNotification: Dispatch<SetStateAction<ComponentNotification[]>>
   updateValue: (text: string) => void
   linkedParticipantId?: string
   userData: {

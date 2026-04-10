@@ -10,6 +10,8 @@ import { chargeNoShowFee } from './functions/timeslots/charge-no-show-fee/resour
 import { createShortNoticeCancelationOrder } from './functions/timeslots/create-short-notice-cancelation-order/resource';
 import { captureShortNoticeCancelationOrder } from './functions/timeslots/capture-short-notice-cancelation-order/resource';
 import { savePaymentInformation } from './functions/users/save-payment-information/resource';
+import { autoCompleteAddress } from './functions/utils/auto-complete-address/resource';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 // import { autoCompleteAddress } from './functions/utils/auto-complete-address/resource';
 // import { FunctionUrlAuthType } from 'aws-cdk-lib/aws-lambda';
 
@@ -27,6 +29,8 @@ const backend = defineBackend({
   createShortNoticeCancelationOrder,
   captureShortNoticeCancelationOrder,
   savePaymentInformation,
+
+  autoCompleteAddress
   // autoCompleteAddress
   
   // addCreateUserQueue
@@ -43,17 +47,14 @@ const publicStorageInstance = new PublicStorage(
   }
 )
 
-// const lambdaUrl = backend.autoCompleteAddress.resources.lambda.addFunctionUrl({
-//   authType: FunctionUrlAuthType.AWS_IAM
-// })
+// backend.autoCompleteAddress.resources.lambda.
+const geoPlacesAutoComplete = new PolicyStatement({
+  sid: 'AllowAutoCompleteAddress',
+  actions: ['geo-places:Autocomplete'],
+  resources: ['*']
+})
 
-// const autoCompleteInstance = new AutoComplete(
-//   backend.createStack('AutoComplete'),
-//   'AutoComplete',
-//   {
-//     autoCompleteAddress: backend.autoCompleteAddress.resources.lambda
-//   }
-// )
+backend.autoCompleteAddress.resources.lambda.addToRolePolicy(geoPlacesAutoComplete)
 
 // const eventsStack = new Events( 
 //   backend.createStack('jamesfrenchphoto-events'),

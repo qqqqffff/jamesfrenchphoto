@@ -10,7 +10,6 @@ interface CollectPaymentScreenProps {
   PaymentService: PaymentService,
   auth: AuthContext,
   intent: CollectPaymentIntent,
-  terms: JSX.Element,
   successPaymentMethodCapture: (
     vaultId: string,
     options: {

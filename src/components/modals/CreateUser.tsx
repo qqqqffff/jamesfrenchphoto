@@ -8,7 +8,7 @@ import validator from 'validator'
 import { useMutation } from "@tanstack/react-query";
 import { HiOutlinePlusCircle } from "react-icons/hi2";
 import { TagPicker } from "../common/TagPicker";
-import { ParticipantFieldLinks, UserFieldLinks } from "./LinkUser";
+import { ParticipantFieldLinks, UserFieldLinks } from "../../types";
 import { LinkUserMutationParams, UserService } from "../../services/userService";
 
 interface CreateUserModalProps extends ModalProps {

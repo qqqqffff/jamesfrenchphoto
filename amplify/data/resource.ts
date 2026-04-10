@@ -431,7 +431,7 @@ const schema = a.schema({
         allow.group('ADMINS'),
         allow.authenticated().to(['read', 'update', 'create'])
       ]),
-      associatedBillingAddress: a.belongsTo('CustomerBillingAddress', 'paymentMethodId'),
+      associatedBillingAddress: a.belongsTo('CustomerBillingAddresses', 'paymentMethodId'),
       userEmail: a.string().required().authorization((allow) => [
         allow.group('ADMINS'),
         allow.authenticated().to(['read', 'create'])
@@ -540,6 +540,8 @@ const schema = a.schema({
       locationInput: a.string().required(),
       userEmail: a.string().required(),
       result: a.json().required(), // type: AutoCompleteAddressResponse[]
+      userLat: a.float(),
+      userLong: a.float(),
       createdAt: a.datetime().required(),
     })
     .identifier(['id'])

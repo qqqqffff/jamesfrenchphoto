@@ -37,6 +37,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
           if(paypal.sdkInstance) {
             const session = paypal.sdkInstance.createApplePayOneTimePaymentSession()
 
+            // @ts-ignore
             const paymentRequest: ApplePayJS.ApplePayPaymentRequest = {
               ...session.formatConfigForPaymentRequest(applePayConfig),
               countryCode: 'US',
@@ -48,8 +49,10 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
               }
             }
 
+            // @ts-ignore
             const appleSdkSession = new ApplePaySession(14, paymentRequest)
 
+            // @ts-ignore
             appleSdkSession.onvalidatemerchant = async (event) => {
               const payload = await session.validateMerchant({
                 validationUrl: event.validationURL,
@@ -59,9 +62,11 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
               appleSdkSession.completeMerchantValidation(payload.merchantSession)
             }
 
+            // @ts-ignore
             appleSdkSession.onpaymentauthorized = async (event) => {
               if(!props.auth.user) {
                 appleSdkSession.completePayment({
+                  // @ts-ignore
                   status: ApplePaySession.STATUS_FAILURE
                 })
                 props.onSubmit({
@@ -87,6 +92,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                       console.log(response)
                       //TODO: handle different response types
                       appleSdkSession.completePayment({
+                        // @ts-ignore
                         status: ApplePaySession.STATUS_SUCCESS
                       })
                       props.onSubmit({
@@ -101,6 +107,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                       })
                       props.setOrderProcessing(false)
                       appleSdkSession.completePayment({
+                        // @ts-ignore
                         status: ApplePaySession.STATUS_FAILURE
                       })
                     })
@@ -113,6 +120,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                   })
                   props.setOrderProcessing(false)
                   appleSdkSession.completePayment({
+                    // @ts-ignore
                     status: ApplePaySession.STATUS_FAILURE
                   })
                 })
@@ -155,6 +163,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                       props.onSubmit(response)
                       props.setOrderProcessing(false)
                       appleSdkSession.completePayment({
+                        // @ts-ignore
                         status: response.status === 'Success' ? ApplePaySession.STATUS_SUCCESS : ApplePaySession.STATUS_FAILURE
                       })
                     }).catch((err) => {
@@ -165,6 +174,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                       })
                       props.setOrderProcessing(false)
                       appleSdkSession.completePayment({
+                        // @ts-ignore
                         status: ApplePaySession.STATUS_FAILURE
                       })
                     })
@@ -173,6 +183,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                     props.onSubmit(response)
                     props.setOrderProcessing(false)
                     appleSdkSession.completePayment({
+                      // @ts-ignore
                       status: ApplePaySession.STATUS_FAILURE
                     })
                   }
@@ -184,6 +195,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                   })
                   props.setOrderProcessing(false)
                   appleSdkSession.completePayment({
+                    // @ts-ignore
                     status: ApplePaySession.STATUS_FAILURE
                   })
                 })
@@ -208,6 +220,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                       console.log(response)
                       //TODO: handle different response types
                       appleSdkSession.completePayment({
+                        // @ts-ignore
                         status: ApplePaySession.STATUS_SUCCESS
                       })
                       props.onSubmit({
@@ -217,6 +230,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                     }).catch((err) => {
                       console.error(err)
                       appleSdkSession.completePayment({
+                        // @ts-ignore
                         status: ApplePaySession.STATUS_FAILURE
                       })
                       props.onSubmit({
@@ -230,6 +244,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                     props.onSubmit(response)
                     props.setOrderProcessing(false)
                     appleSdkSession.completePayment({
+                      // @ts-ignore
                       status: ApplePaySession.STATUS_FAILURE
                     })
                   }
@@ -241,6 +256,7 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                   })
                   props.setOrderProcessing(false)
                   appleSdkSession.completePayment({
+                    // @ts-ignore
                     status: ApplePaySession.STATUS_FAILURE
                   })
                 })

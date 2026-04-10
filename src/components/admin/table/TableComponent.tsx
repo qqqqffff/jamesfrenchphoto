@@ -7,7 +7,8 @@ import {
   UserProfile, 
   UserTag,
   Notification,
-  Timeslot
+  Timeslot,
+  ComponentNotification
 } from "../../../types"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { 
@@ -31,7 +32,6 @@ import { PhotoPathService } from "../../../services/photoPathService"
 import { TableHeaderComponent } from "./TableHeaderComponent"
 import { TableBodyComponent } from "./TableBodyComponent"
 import { NotificationService } from "../../../services/notificationService"
-import { TablePanelNotification } from "./TablePanel"
 
 interface TableComponentProps {
   TableService: TableService,
@@ -50,7 +50,7 @@ interface TableComponentProps {
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
-  setTableNotifications: Dispatch<SetStateAction<TablePanelNotification[]>>
+  setTableNotifications: Dispatch<SetStateAction<ComponentNotification[]>>
   parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
   parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>

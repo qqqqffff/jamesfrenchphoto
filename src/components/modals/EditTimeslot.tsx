@@ -19,7 +19,7 @@ import { ParticipantPicker } from "../common/ParticipantPicker";
 import { ChargeNoShowFeeMutationParams, PaymentService } from "../../services/paymentService";
 import Loading from '../common/Loading'
 import { HiOutlineExclamationTriangle, HiOutlineInformationCircle } from "react-icons/hi2";
-import { TablePanelNotification } from "../admin/table/TablePanel";
+import { ComponentNotification } from "../../types";
 import { v4 } from 'uuid'
 import { TimeslotRegistration } from "../timeslot/TimeslotRegistration";
 import { retrieveTimeslotOrderTransactionType, timeslotIdInvoiceIdCompare } from "../../functions/paymentFunctions";
@@ -57,7 +57,7 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
   
   const [previewTimeslot, setPreviewTimeslot] = useState(false)
 
-  const [modalNotifications, setModalNotifications] = useState<TablePanelNotification[]>([])
+  const [modalNotifications, setModalNotifications] = useState<ComponentNotification[]>([])
 
   const userProfile = useQuery({
     ...props.UserService.getUserProfileByEmailQueryOptions(participant?.userEmail ?? '', {

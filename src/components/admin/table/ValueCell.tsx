@@ -1,6 +1,6 @@
 import { ComponentProps, useEffect, useRef, useState } from "react"
 import { TableColumn } from "../../../types"
-import { ParticipantFieldLinks, UserFieldLinks } from "../../modals/LinkUser"
+import { ParticipantFieldLinks, UserFieldLinks } from "../../../types"
 
 interface ValueCellProps extends ComponentProps<'td'> {
   value: string,

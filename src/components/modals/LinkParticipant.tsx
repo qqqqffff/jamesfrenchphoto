@@ -4,7 +4,7 @@ import { TimeslotService } from "../../services/timeslotService";
 import { LinkParticipantMutationParams, UserService } from "../../services/userService";
 import { Participant, TableColumn, UserTag, Notification } from "../../types";
 import { FC, useEffect, useState } from "react";
-import { ParticipantFieldLinks } from "./LinkUser";
+import { ParticipantFieldLinks } from "../../types";
 import { Button, Modal } from "flowbite-react";
 import { ParticipantPanel } from "../common/ParticipantPanel";
 

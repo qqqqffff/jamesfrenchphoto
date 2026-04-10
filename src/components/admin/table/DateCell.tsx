@@ -268,7 +268,8 @@ export const DateCell = (props: DateCellProps) => {
               email={foundParticipant.user.email} 
               notify={notify} 
               recipients={additionalRecipients} 
-              setRecipients={setAdditionalRecipients} 
+              setRecipients={setAdditionalRecipients}
+              baseRecipients={foundParticipant.participant.contact && foundParticipant.participant.email && validator.isEmail(foundParticipant.participant.email) ? [foundParticipant.participant.email] : []}
             />
           )}
           title="Confirm Timeslot Selection" 

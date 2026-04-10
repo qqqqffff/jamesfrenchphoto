@@ -167,7 +167,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
     siCollections: true
   }))
 
-  const collectionParticipants = useQuery(CollectionService.getAllCollectionParticipantsQueryOptions(collection.id, { siTags: true }))
+  const collectionParticipants = useQuery(CollectionService.getAllCollectionParticipantsQueryOptions(collection.id, { siTags: { } }))
 
   const uploadCover = useMutation({
     mutationFn: (params: UploadCoverParams) => CollectionService.uploadCoverMutation(params),

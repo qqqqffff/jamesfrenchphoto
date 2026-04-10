@@ -1,4 +1,14 @@
-import { Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag, Notification } from "../../../types"
+import { 
+  Table, 
+  TableColumn, 
+  TableGroup, 
+  Timeslot, 
+  UserData, 
+  UserProfile, 
+  UserTag, 
+  Notification, 
+  ComponentNotification 
+} from "../../../types"
 import { AggregateCell } from "./AggregateCell"
 import { AdminRegisterTimeslotMutationParams, TimeslotService } from "../../../services/timeslotService"
 import { Dispatch, SetStateAction, useEffect } from "react"
@@ -14,7 +24,6 @@ import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish
 import { isTableRowData } from "./TableRowData"
 import { flushSync } from "react-dom"
 import { NotificationService } from "../../../services/notificationService"
-import { TablePanelNotification } from "./TablePanel"
 
 interface TableBodyComponentProps {
   TimeslotService: TimeslotService,
@@ -56,7 +65,7 @@ interface TableBodyComponentProps {
 
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
-  setTableNotifications: Dispatch<SetStateAction<TablePanelNotification[]>>
+  setTableNotifications: Dispatch<SetStateAction<ComponentNotification[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setSelectedDate: Dispatch<SetStateAction<Date>>
   setSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>

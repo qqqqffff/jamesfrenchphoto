@@ -14,13 +14,13 @@ import {
   UserProfile, 
   UserTag, 
   ParticipantFieldLinks, 
-  UserFieldLinks 
+  UserFieldLinks, 
+  ComponentNotification
 } from "../types";
 import { defaultColumnColors, parsePathName } from "../utils";
 import { UpdateParticipantMutationParams, UpdateUserProfileParams, UserService } from "../services/userService";
 import { Dispatch, SetStateAction } from "react";
 import { v4 } from 'uuid'
-import { TablePanelNotification } from "../components/admin/table/TablePanel";
 import { formatParticipantName, formatUserName } from "./clientFunctions";
 import validator from 'validator'
 import { isTableGroupData, isTableListData, TableGroupData, TableListData } from "../components/admin/table/TableListData";
@@ -210,7 +210,7 @@ export const processTableColumnUpdateLinks = (
   mutations: {
     updateUserProfile: UseMutationResult<void, Error, UpdateUserProfileParams, unknown>
     updateParticipant: UseMutationResult<void, Error, UpdateParticipantMutationParams, unknown>
-    setTableNotifications: Dispatch<SetStateAction<TablePanelNotification[]>>
+    setTableNotifications: Dispatch<SetStateAction<ComponentNotification[]>>
     setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
     setUsers: Dispatch<SetStateAction<UserData[]>>
   }
@@ -1704,7 +1704,7 @@ export const updateChoices = (props: {
     createChoice: UseMutationResult<void, Error, CreateChoiceParams, unknown>
     updateChoice: UseMutationResult<void, Error, UpdateChoiceParams, unknown>
     deleteChoice: UseMutationResult<void, Error, DeleteChoiceParams, unknown>
-    setTableNotification: Dispatch<SetStateAction<TablePanelNotification[]>>
+    setTableNotification: Dispatch<SetStateAction<ComponentNotification[]>>
     parentUpdateSelectedTableGroups: Dispatch<SetStateAction<TableGroup[]>>
     parentUpdateTableGroups: Dispatch<SetStateAction<TableGroup[]>>
     parentUpdateTable: Dispatch<SetStateAction<Table | undefined>>
@@ -1959,15 +1959,16 @@ export const processTableColumnLoadLinks = async (props: {
     if(!profile) {
       profile = await props.UserService.getUserProfileByEmail(
         id, {
-          siNotifications: true,
-          siTags: { },
-          siTimeslot: true,
+          siParticipants: {
+            siNotifications: true,
+            siTags: { },
+            siTimeslot: true,memos: {
+              notificationsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.notifications),
+              tagsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.userTags),
+              collectionsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.collections)
+            }
+          },
           siTemporaryToken: true,
-          memos: {
-            notificationsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.notifications),
-            tagsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.userTags),
-            collectionsMemo: Array.from(usersMemo.values()).flatMap((profile) => profile.participant).flatMap((participant) => participant.collections)
-          }
         }
       )
       if(profile) {

@@ -3,7 +3,7 @@ import { ModalProps } from ".";
 import { APIMutationResponse, Participant, Timeslot, UserProfile } from "../../types";
 import { Button, Modal } from "flowbite-react";
 import { RegisterTimeslotMutationParams, TimeslotService } from "../../services/timeslotService";
-import { CaptureShortNoticeCancelationOrderMutationParams, PaymentService } from "../../services/paymentService";
+import { PaymentService } from "../../services/paymentService";
 import { TimeslotRegistration } from "../timeslot/TimeslotRegistration";
 import { useMutation } from "@tanstack/react-query";
 import { AuthContext } from "../../auth";
@@ -48,10 +48,6 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
     mutationFn: (params: RegisterTimeslotMutationParams) => props.TimeslotService.registerTimeslotMutation(params)
   })
 
-  const capturePayment = useMutation({
-    mutationFn: (params: CaptureShortNoticeCancelationOrderMutationParams) => props.PaymentService.captureShortNoticeCancelationOrderMutation(params)
-  })
-
   const timeuntilSlot = DateTime.fromJSDate(props.timeslot.start).diffNow().toMillis()
   const paymentRequired = (
     props.timeslot.cancelationFee !== undefined &&
@@ -91,9 +87,10 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
                 props.timeslot.cancelationFee !== undefined &&
                 timeuntilSlot <= props.timeslot.cancelationFee.window.toMillis()
               ),
-              vaultNoshow: props.timeslot.noshowFee !== undefined
+              vaultNoshow: props.timeslot.noshowFee !== undefined,
+              amount: (props.timeslot.cancelationFee !== undefined && timeuntilSlot <= props.timeslot.cancelationFee.window.toMillis()) ? props.timeslot.cancelationFee.amount : 0
             }}
-            successPaymentMethodCapture={(vaultId, options) => {
+            successPaymentMethodCapture={(vaultId, _) => {
               setPaymentMethodCaptured(vaultId)
               //TODO: use options
             }}
@@ -113,7 +110,7 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
         )}
         {formStep === ConfirmTimeslotModalFormStep.Payment || !paymentRequired ? (
           <Button
-            isProcessing={registerTimeslot.isPending}
+            isProcessing={submitting}
             disabled={(
               registerTimeslot.isPending || 
               (

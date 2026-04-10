@@ -58,21 +58,13 @@ function RouteComponent() {
   
   const tagsQuery = useInfiniteQuery(data.TagService.getAllUserTagsQueryOptions(
     { 
-      siCollections: false,
-      siNotifications: false,
-      siPackages: undefined,
-      siParticipants: false,
       siTimeslots: true
     }
   ))
 
   const participantQuery = useInfiniteQuery(data.UserService.getAllParticipantsQueryOptions(
     {
-      siCollections: false,
-      siNotifications: false,
       siTags: {
-        siChildren: false,
-        siPackages: false,
         siTimeslots: true
       },
       siTimeslot: true,

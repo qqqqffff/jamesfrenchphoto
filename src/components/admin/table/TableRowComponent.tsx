@@ -1,6 +1,19 @@
 import { Button, Dropdown, Tooltip } from "flowbite-react"
 import { HiOutlineDotsHorizontal } from "react-icons/hi"
-import { Notification, Participant, Table, TableColumn, TableGroup, Timeslot, UserData, UserProfile, UserTag } from "../../../types"
+import { 
+  Notification, 
+  Participant, 
+  Table,
+  TableColumn, 
+  TableGroup, 
+  Timeslot, 
+  UserData, 
+  UserProfile, 
+  UserTag, 
+  ParticipantFieldLinks,
+  UserFieldLinks, 
+  ComponentNotification 
+} from "../../../types"
 import { ChoiceCell } from "./ChoiceCell"
 import { DateCell } from "./DateCell"
 import { FileCell } from "./FileCell"
@@ -38,14 +51,13 @@ import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import invariant from 'tiny-invariant';
 import { getTableRowData, isTableRowData } from "./TableRowData"
 import { createPortal } from "react-dom"
-import { LinkUserModal, ParticipantFieldLinks, UserFieldLinks } from "../../modals/LinkUser"
+import { LinkUserModal } from "../../modals/LinkUser"
 import { LinkParticipantModal } from "../../modals/LinkParticipant"
 import { HiOutlineLockClosed, HiOutlineLockOpen } from "react-icons/hi2";
 import { NotificationCell } from "./NotificationCell"
 import { NotificationService } from "../../../services/notificationService"
 import { generateTableLinks, possibleLinkDetection, processTableColumnUpdateLinks, rowLinkParticipantAvailable, rowUnlinkAvailable, tableParticipantDetection, tableUserDetection, updateChoices } from "../../../functions/tableFunctions"
 import { CgSpinner } from "react-icons/cg"
-import { TablePanelNotification } from "./TablePanel"
 import { formatParticipantName } from "../../../functions/clientFunctions"
 import { UserPanel } from "../../common/UserPanel"
 
@@ -89,7 +101,7 @@ interface TableRowComponentProps {
   setTempUsers: Dispatch<SetStateAction<UserProfile[]>>
   setUsers: Dispatch<SetStateAction<UserData[]>>
   setNotifications: Dispatch<SetStateAction<Notification[]>>
-  setTableNotification: Dispatch<SetStateAction<TablePanelNotification[]>>
+  setTableNotification: Dispatch<SetStateAction<ComponentNotification[]>>
 
   setSelectedDate: Dispatch<SetStateAction<Date>>
   setSelectedTag: Dispatch<SetStateAction<UserTag | undefined>>
