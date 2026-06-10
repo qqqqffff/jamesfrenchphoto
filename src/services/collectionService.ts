@@ -892,12 +892,13 @@ export class CollectionService {
 
     const signed = await signer.sign({
       method: 'POST',
+      protocol: 'https:',
       hostname: parsedUrl.hostname,
       path: parsedUrl.pathname,
       headers: {
         host: parsedUrl.hostname,
         'content-type': 'application/json',
-        'content-length': String(Buffer.byteLength(body)),
+        'content-length': String(new TextEncoder().encode(body).length),
       },
       body,
     })
