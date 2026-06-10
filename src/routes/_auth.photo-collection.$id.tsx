@@ -78,7 +78,30 @@ function RouteComponent() {
   const dimensions = useWindowDimensions()
   const [tempUser, setTempUser] = useState<UserProfile>()
   
+  const [streamedSets, setStreamedSets] = useState<Map<string, PhotoSet>>(new Map())
   const [set, setSet] = useState<PhotoSet>(collection.sets.find((set) => set.id === data.setId) ?? collection.sets[0])
+  const streamCancelRef = useRef<{ cancelled: boolean }>({ cancelled: false })
+
+  useEffect(() => {
+    const cancel = { cancelled: false }
+    streamCancelRef.current = cancel
+
+    async function runStream() {
+      try {
+        for await (const streamedSet of data.CollectionService.retrieveCollectionStream(collection.id, false)) {
+          if (cancel.cancelled) break
+          setStreamedSets((prev) => new Map(prev).set(streamedSet.id, streamedSet))
+          setSet((prev) => prev.id === streamedSet.id ? { ...prev, ...streamedSet } : prev)
+        }
+      } catch {
+        // stream errors are non-fatal — the viewer continues with lazy-loaded paths
+      }
+    }
+
+    runStream()
+
+    return () => { cancel.cancelled = true }
+  }, [collection.id])
 
   const watermarkQuery = useQuery(
     data.CollectionService.getPathQueryOptions(set.watermarkPath ?? collection.watermarkPath, collection.id)
@@ -234,10 +257,10 @@ function RouteComponent() {
             </button>
           </div>
         </div>
-        <CollectionGrid 
+        <CollectionGrid
           PhotoPathService={data.PhotoPathService}
           FavoriteService={data.FavoriteService}
-          set={set}
+          set={streamedSets.get(set.id) ?? set}
           CollectionService={data.CollectionService}
           collection={collection}
           tempUser={tempUser}

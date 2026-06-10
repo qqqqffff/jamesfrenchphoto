@@ -3,6 +3,7 @@ import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
 import { PublicStorage } from './custom/public-storage/resource';
+import { RetrieveCollection } from './custom/retrieve-collection/resource';
 import { addPublicPhoto } from './functions/collections/add-public-photo/resource';
 import { deletePublicPhoto } from './functions/collections/delete-public-photo/resource';
 import { customMessage } from './auth/custom-message/resource';
@@ -12,6 +13,7 @@ import { captureShortNoticeCancelationOrder } from './functions/timeslots/captur
 import { savePaymentInformation } from './functions/users/save-payment-information/resource';
 import { autoCompleteAddress } from './functions/utils/auto-complete-address/resource';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Stack } from 'aws-cdk-lib';
 // import { autoCompleteAddress } from './functions/utils/auto-complete-address/resource';
 // import { FunctionUrlAuthType } from 'aws-cdk-lib/aws-lambda';
 
@@ -47,6 +49,25 @@ const publicStorageInstance = new PublicStorage(
   }
 )
 
+const userPool = backend.auth.resources.userPool
+const region = Stack.of(userPool).region
+const userPoolId = userPool.userPoolId
+
+const retrieveCollection = new RetrieveCollection(
+  backend.createStack('RetrieveCollection'),
+  'RetrieveCollection',
+  {
+    bucket: backend.storage.resources.bucket,
+    photoSetTable: backend.data.resources.tables['PhotoSet'],
+    photoPathsTable: backend.data.resources.tables['PhotoPaths'],
+    cognitoJwksUrl: `https://cognito-idp.${region}.amazonaws.com/${userPoolId}/.well-known/jwks.json`,
+  }
+)
+
+// Grant the Cognito authenticated identity pool role permission to invoke the function URL
+const authenticatedRole = backend.auth.resources.authenticatedUserIamRole
+retrieveCollection.fn.grantInvokeUrl(authenticatedRole)
+
 // backend.autoCompleteAddress.resources.lambda.
 const geoPlacesAutoComplete = new PolicyStatement({
   sid: 'AllowAutoCompleteAddress',
@@ -71,6 +92,7 @@ backend.addOutput({
   custom: {
     publicBucket: publicStorageInstance.publicBucket.bucketArn,
     cloudfrontDistributionName: publicStorageInstance.distribution.distributionDomainName,
+    retrieveCollectionUrl: retrieveCollection.url,
   }
 })
 

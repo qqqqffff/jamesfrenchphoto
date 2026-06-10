@@ -90,8 +90,45 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   const [uploadCoverPhotoVisible, setUploadCoverPhotoVisible] = useState(false)
   const [expandTitle, setExpandTitle] = useState(false)
   const [imagePreviewSRC, setImagePreviewSRC] = useState<string>()
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [streamProgress, setStreamProgress] = useState(0)
+  const streamCancelRef = useRef<{ cancelled: boolean }>({ cancelled: false })
 
   const [activeConsole, setActiveConsole] = useState<'sets' | 'favorites' | 'watermarks' | 'share' | 'users' | 'cover'>(parentActiveConsole)
+
+  useEffect(() => {
+    const cancel = { cancelled: false }
+    streamCancelRef.current = cancel
+    setStreamProgress(0)
+    setIsStreaming(true)
+
+    async function runStream() {
+      try {
+        for await (const streamedSet of CollectionService.retrieveCollectionStream(collection.id, auth.admin)) {
+          if (cancel.cancelled) break
+          updateParentCollection((prev) => {
+            if (!prev) return prev
+            return {
+              ...prev,
+              sets: prev.sets.map((s) => s.id === streamedSet.id ? { ...s, ...streamedSet } : s),
+            }
+          })
+          setStreamProgress((p) => p + 1)
+        }
+      } catch {
+        // stream errors are non-fatal — the collection still renders with initial data
+      } finally {
+        if (!cancel.cancelled) setIsStreaming(false)
+      }
+    }
+
+    runStream()
+
+    return () => {
+      cancel.cancelled = true
+      setIsStreaming(false)
+    }
+  }, [collection.id])
 
   useEffect(() => {
     if(fileUpload.current !== null) {
@@ -608,7 +645,15 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
           { activeConsole === 'sets' ? (
             <>
               <div className="flex flex-row items-center justify-between w-full">
-                <Label className="text-lg ms-2">Photo Sets</Label>
+                <div className="flex flex-row items-center gap-2 ms-2">
+                  <Label className="text-lg">Photo Sets</Label>
+                  {isStreaming && (
+                    <span className="flex flex-row items-center gap-1 text-sm text-gray-500 font-light">
+                      <CgSpinner size={14} className="animate-spin" />
+                      {streamProgress} / {collection.sets.filter(s => !s.creating).length}
+                    </span>
+                  )}
+                </div>
                 <button
                   className="flex flex-row gap-2 border border-gray-300 items-center justify-between hover:bg-gray-100 rounded-xl py-1 px-2 me-2"
                   onClick={() => {

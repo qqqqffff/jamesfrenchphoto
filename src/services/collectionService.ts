@@ -8,6 +8,10 @@ import { getAllPaths } from "./photoPathService";
 import { mapParticipant } from "./userService";
 import { getParticipantFavoritesByCollection } from "./favoriteService";
 import { MapUserTagOptions } from "./tagService";
+import { fetchAuthSession } from "aws-amplify/auth";
+import { SignatureV4 } from "@smithy/signature-v4";
+import { Sha256 } from "@aws-crypto/sha256-browser";
+import outputs from "../../amplify_outputs.json";
 
 interface MapCollectionOptions {
   siTags?: boolean
@@ -861,4 +865,79 @@ export class CollectionService {
     queryKey: ['participantCollections', participantId, options],
     queryFn: () => getParticipantCollections(this.client, participantId, options)
   })
+
+  async *retrieveCollectionStream(collectionId: string, validate: boolean): AsyncGenerator<PhotoSet> {
+    const session = await fetchAuthSession()
+    const credentials = session.credentials
+    const token = session.tokens?.accessToken?.toString() ?? ''
+
+    if (!credentials) throw new Error('No credentials available')
+
+    const functionUrl: string = (outputs as Record<string, unknown> & { custom?: Record<string, string> }).custom?.retrieveCollectionUrl ?? ''
+    if (!functionUrl) throw new Error('retrieveCollectionUrl not found in outputs')
+
+    const parsedUrl = new URL(functionUrl)
+    const body = JSON.stringify({ collectionId, validate, token })
+
+    const signer = new SignatureV4({
+      credentials: {
+        accessKeyId: credentials.accessKeyId,
+        secretAccessKey: credentials.secretAccessKey,
+        sessionToken: credentials.sessionToken,
+      },
+      region: parsedUrl.hostname.split('.')[2] ?? 'us-east-1',
+      service: 'lambda',
+      sha256: Sha256,
+    })
+
+    const signed = await signer.sign({
+      method: 'POST',
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.pathname,
+      headers: {
+        host: parsedUrl.hostname,
+        'content-type': 'application/json',
+        'content-length': String(Buffer.byteLength(body)),
+      },
+      body,
+    })
+
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: signed.headers as Record<string, string>,
+      body,
+    })
+
+    if (!response.ok || !response.body) throw new Error(`Stream request failed: ${response.status}`)
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const set = JSON.parse(line) as PhotoSet
+          yield set
+        } catch {
+          // skip malformed chunks
+        }
+      }
+    }
+
+    // flush any remaining buffer content
+    if (buffer.trim()) {
+      try {
+        yield JSON.parse(buffer) as PhotoSet
+      } catch {
+        // ignore
+      }
+    }
+  }
 }
