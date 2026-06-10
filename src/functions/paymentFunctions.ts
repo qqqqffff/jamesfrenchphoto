@@ -36,7 +36,10 @@ export const retrieveTimeslotOrderTransactionType = (invoiceId: string): 'noshow
 export const generateCancelURL = (intent: CollectPaymentIntent) => {
   switch(intent.type) {
     case 'timeslot': {
-      return window.location.hostname + `/client/dashboard/scheduler?id=${intent.timeslotId}&status=cancel`
+      if(intent.captureShortnotice) {
+        return window.location.hostname + `/client/dashboard/scheduler?id=${intent.timeslotId}&status=cancel`
+      }
+      return window.location.hostname + `/orders?type=no-show&status=cancel`
     }
     default: {
       return window.location.hostname + '/client/dashboard?paymentStatus=cancel'
@@ -47,7 +50,12 @@ export const generateCancelURL = (intent: CollectPaymentIntent) => {
 export const generateReturnURL = (intent: CollectPaymentIntent) => {
   switch(intent.type) {
     case 'timeslot': {
-      return window.location.hostname + `/client/dashboard/scheduler?id=${intent.timeslotId}&status=success`
+      if(intent.captureShortnotice) {
+        //short notice capture will always redirect to scheduler since the flow is from that screen
+        return window.location.hostname + `/client/dashboard/scheduler?id=${intent.timeslotId}&status=success`
+      }
+      //no show should redirect to a plain screen
+      return window.location.hostname + `/orders?type=no-show&status=success`
     }
     default: {
       return window.location.hostname + '/client/dashboard?paymentStatus=success'

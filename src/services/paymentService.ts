@@ -1,6 +1,6 @@
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
-import { APIMutationResponse, BaseAPIParams, Order, OrderItem, CustomerSavedPaymentMethod, CustomerProfile, CustomerBillingAddress } from "../types";
+import { APIMutationResponse, BaseAPIParams, Order, OrderItem, CustomerSavedPaymentMethod, CustomerProfile, CustomerBillingAddress, CollectPaymentIntent } from "../types";
 import { 
   ChargeNoShowFeeAPIResponse, 
   SavePaymentInformationAPIResponse, 
@@ -9,6 +9,7 @@ import {
 } from '../types/backend-types'
 import { queryOptions } from "@tanstack/react-query";
 import { stringToOrderRefID } from "../types/order-ref-id";
+import { generateCancelURL, generateReturnURL } from "../functions/paymentFunctions";
 
 export async function mapCustomerProfile(customerProfileResponse: Schema['CustomerProfile']['type'], options?: MapCustomerProfileOptions): Promise<CustomerProfile> {
   const start = new Date().getTime()
@@ -33,7 +34,8 @@ export async function mapCustomerProfile(customerProfileResponse: Schema['Custom
           id: data.paymentMethodId,
           customerId: data.paypalCustomerId,
           type: data.type,
-          isDefault: data.isDefault === 'true'
+          isDefault: data.isDefault === 'true',
+          billingAddressId: data.billingAddressId ?? undefined
         }
         return mappedPaymentMethod
       }).filter((method) => method !== undefined))
@@ -57,7 +59,6 @@ export async function mapCustomerProfile(customerProfileResponse: Schema['Custom
       resolve(billingAddressData.map((data) => {
         const mappedBillingAddress: CustomerBillingAddress = {
           ...data,
-          customerId: data.paypalCustomerId,
           addressLineTwo: data.addressLineTwo ?? undefined
         }
         
@@ -113,7 +114,6 @@ export async function mapCustomerProfile(customerProfileResponse: Schema['Custom
         const mappedOrder: Order = {
           ...orderData,
           items: orderItems,
-          customerId: orderData.paypalCustomerId,
           currency: 'USD',
           status: orderData.status ?? 'UNKNOWN'
         }
@@ -129,6 +129,7 @@ export async function mapCustomerProfile(customerProfileResponse: Schema['Custom
 
   const mappedCustomerProfile: CustomerProfile = {
     ...customerProfileResponse,
+    paypalCustomerId: customerProfileResponse.paypalCustomerId ?? undefined,
     savedPaymentMethods: promises[0],
     billingAddresses: promises[1],
     orders: promises[2],
@@ -156,12 +157,18 @@ export interface AutoCompleteAddressOptions extends BaseAPIParams {
 
 export interface ChargeNoShowFeeMutationParams extends BaseAPIParams {
   timeslotId: string, 
-  userEmail: string
+  userEmail: string,
+  userId: string,
+  intent: CollectPaymentIntent
 }
 
 export interface CreateShortNoticeCancelationOrderMutationParams extends ChargeNoShowFeeMutationParams { 
+  intent: CollectPaymentIntent
   vaulting?: {
-    paymentType: CustomerSavedPaymentMethod['type']
+    paymentType: 'CARD',
+    billingAddress: CustomerBillingAddress & { saved: boolean }
+  } | {
+    paymentType: 'APPLEPAY' | 'PAYPAL',
   }
 }
 
@@ -185,6 +192,17 @@ export interface ConfirmSavePaymentInformationMutationParams extends BaseAPIPara
   customerId: string,
   paymentType: CustomerSavedPaymentMethod['type']
   default?: boolean,
+}
+
+export interface SaveCustomerBillingAddressMutationParams extends BaseAPIParams {
+  userEmail: string,
+  isDefault: boolean,
+  addressLineOne: string,
+  addressLineTwo?: string,
+  adminAreaTwo: string,
+  adminAreaOne: string,
+  postalCode: string,
+  countryCode: string
 }
 
 export interface AutoCompleteAddressMutationParams extends BaseAPIParams {
@@ -216,7 +234,9 @@ export class PaymentService {
     try {
       const response = await this.client.mutations.ChargeNoShowFee({
         timeslotId: params.timeslotId,
-        userEmail: params.userEmail
+        userEmail: params.userEmail,
+        returnUrl: generateReturnURL(params.intent),
+        cancelUrl: generateCancelURL(params.intent)
       })
       if(params.options?.logging) console.log(response)
 
@@ -243,9 +263,14 @@ export class PaymentService {
       const response = await this.client.mutations.CreateShortNoticeCancelationOrder({
         timeslotId: params.timeslotId,
         userEmail: params.userEmail,
+        userId: params.userId,
+        returnUrl: generateReturnURL(params.intent),
+        cancelUrl: generateCancelURL(params.intent),
         vaulting: params.vaulting ? {
           vault: true,
-          paymentSource: params.vaulting.paymentType
+          paymentSource: params.vaulting.paymentType,
+          billingAddressId: params.vaulting.paymentType === 'CARD' && params.vaulting.billingAddress.saved ? params.vaulting.billingAddress.id : undefined,
+          billingAddressInfo: params.vaulting.paymentType === 'CARD' && !params.vaulting.billingAddress.saved ? params.vaulting.billingAddress : undefined,
         } : undefined
       })
       if(params.options?.logging) console.log(response)
@@ -364,6 +389,40 @@ export class PaymentService {
     }
   }
 
+  async saveCustomerBillingAddressMutation(params: SaveCustomerBillingAddressMutationParams): Promise<APIMutationResponse> {
+    const start = new Date().getTime()
+    try {
+      const response = await this.client.models.CustomerBillingAddresses.create({
+        default: params.isDefault,
+        createdAt: new Date().toISOString(),
+        addressLineOne: params.addressLineOne,
+        addressLineTwo: params.addressLineTwo,
+        adminAreaOne: params.adminAreaOne,
+        adminAreaTwo: params.adminAreaTwo,
+        countryCode: params.countryCode,
+        userEmail: params.userEmail,
+        postalCode: params.postalCode
+      })
+      if(params.options?.logging) console.log(response)
+
+      if(response.data) {
+        if(params.options?.metric) console.log(`CREATECUSTOMERBILLING:${new Date().getTime() - start}ms`)
+        return {
+          status: 'Success'
+        }
+      }
+      return {
+        status: 'Fail',
+        error: 'Received invalid response from server'
+      }
+    } catch(err) {
+      return {
+        status: 'Fail',
+        error: 'Unexpected error occurred'
+      } 
+    }
+  }
+
   // ---------------- get requests ----------------
 
   private async getUserSavedPaymentInformation(options: GetUserSavedPaymentInformationOptions): Promise<CustomerSavedPaymentMethod[]> {
@@ -455,7 +514,6 @@ export class PaymentService {
       if(order.data) {
         const mappedOrder: Order = {
           ...order.data,
-          customerId: order.data.paypalCustomerId ?? undefined,
           currency: 'USD',
           status: order.data.status ?? 'UNKNOWN',
           userEmail: order.data.userEmail,
@@ -495,7 +553,6 @@ export class PaymentService {
     const mappedBillingAddresses = billingAddressesData.map((data) => {
       const mappedAddress: CustomerBillingAddress = {
         ...data,
-        customerId: data.paypalCustomerId,
         addressLineTwo: data.addressLineTwo ?? undefined
       }
       return mappedAddress

@@ -8,7 +8,7 @@ import { TimeslotRegistration } from "../timeslot/TimeslotRegistration";
 import { useMutation } from "@tanstack/react-query";
 import { AuthContext } from "../../auth";
 import validator from 'validator'
-import { CollectPaymentScreen } from "./CollectPaymentScreen";
+import { CollectPaymentScreen } from "../payment/CollectPaymentScreen";
 import { DateTime } from "luxon";
 
 interface ConfirmTimeslotModalProps extends ModalProps {
@@ -27,13 +27,14 @@ interface ConfirmTimeslotModalProps extends ModalProps {
 enum ConfirmTimeslotModalFormStep {
   "Confirm" = "Confirm",
   "Payment" = "Payment",
+  "Done" = "Done"
 }
 
+//TODO: handle payment rerouting on call back urls
 export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: ConfirmTimeslotModalProps) => {
   const [formStep, setFormStep] = useState<ConfirmTimeslotModalFormStep>(ConfirmTimeslotModalFormStep.Confirm)
   const [notify, setNotify] = useState<boolean>(true)
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([])
-  const [paymentMethodCaptured, setPaymentMethodCaptured] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const baseRecipients = props.participant.contact && props.participant.email && validator.isEmail(props.participant.email) ? [props.participant.email] : []
@@ -62,7 +63,7 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
     >
       <Modal.Header>Confirm Timeslot Selection</Modal.Header>
       <Modal.Body>
-        {formStep === ConfirmTimeslotModalFormStep.Confirm ? (
+        {formStep === ConfirmTimeslotModalFormStep.Confirm && (
           <TimeslotRegistration 
             timeslot={props.timeslot}
             type="Registration"
@@ -76,7 +77,8 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
               setRecipients: setAdditionalRecipients,
             }}
           />
-        ) : (
+        )} 
+        {formStep === ConfirmTimeslotModalFormStep.Payment && (
           <CollectPaymentScreen 
             PaymentService={props.PaymentService}
             auth={props.auth}
@@ -90,11 +92,16 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
               vaultNoshow: props.timeslot.noshowFee !== undefined,
               amount: (props.timeslot.cancelationFee !== undefined && timeuntilSlot <= props.timeslot.cancelationFee.window.toMillis()) ? props.timeslot.cancelationFee.amount : 0
             }}
-            successPaymentMethodCapture={(vaultId, _) => {
-              setPaymentMethodCaptured(vaultId)
-              //TODO: use options
+            successPaymentCapture={() => {
+              setFormStep(ConfirmTimeslotModalFormStep.Done)
             }}
           />
+        )}
+        {formStep === ConfirmTimeslotModalFormStep.Done && (
+          // TODO: style me
+          <div>
+            <span>Order Complete</span>
+          </div>
         )}
       </Modal.Body>
       <Modal.Footer className="flex flex-row items-center justify-end py-3">
@@ -106,6 +113,7 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
         ) : (
           <Button
             onClick={() => setFormStep(ConfirmTimeslotModalFormStep.Confirm)}
+            disabled={formStep === ConfirmTimeslotModalFormStep.Done}
           >Back</Button>
         )}
         {formStep === ConfirmTimeslotModalFormStep.Payment || !paymentRequired ? (
@@ -115,7 +123,7 @@ export const ConfirmTimeslotModal: FC<ConfirmTimeslotModalProps> = (props: Confi
               registerTimeslot.isPending || 
               (
                 paymentRequired &&
-                paymentMethodCaptured === null
+                formStep === ConfirmTimeslotModalFormStep.Done
               )
             )}
             onClick={() => {

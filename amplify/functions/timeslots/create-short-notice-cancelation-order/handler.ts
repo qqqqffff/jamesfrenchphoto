@@ -1,4 +1,4 @@
-import { Timeslot } from "../../../../src/types";
+import { CustomerBillingAddress, CustomerProfile, Timeslot } from "../../../../src/types";
 import { CreateShortNoticeCancelationOrderAPIResponse } from "../../../../src/types/backend-types";
 import { Schema } from "../../../data/resource";
 import { env } from '$amplify/env/create-short-notice-cancelation-order'
@@ -17,11 +17,15 @@ import {
   PurchaseUnitRequest,
   PaymentInitiator,
   StoredPaymentSourcePaymentType,
-  StoreInVaultInstruction
+  StoreInVaultInstruction,
+  StoredPaymentSourceUsageType
 } from '@paypal/paypal-server-sdk'
 import { DateTime, Duration } from 'luxon'
 import { generatePayPalAuthAssertionHeader } from "../../../../scripts/generate-paypal-auth-assertion-header";
 import { OrderRefID } from "../../../../src/types/order-ref-id";
+import { mapUserProfile } from "../../../../src/services/userService";
+import { formatUserName } from "../../../../src/functions/clientFunctions";
+import { generateTimeslotInvoiceId } from "../../../../src/functions/paymentFunctions";
 
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
@@ -29,13 +33,37 @@ Amplify.configure(resourceConfig, libraryOptions)
 
 const dynamoClient = generateClient<Schema>()
 
+//Create order flow
+// 1) init clients
+// 2) validate timeslot
+// 3) create/fetch customer profile
+// 4) check if there are inprogress orders
+// 4a) return auth links if so
+// 5) create order
+// 6) log to db
+
 export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
-  let response: CreateShortNoticeCancelationOrderAPIResponse | undefined
-  if(!event.arguments.timeslotId || !event.arguments.userEmail || !event.arguments.vaulting) {
-    response = {
-      status: 'Fail',
-      error: 'Timeslot Id or User Email Missing.'
-    }
+  
+  let response: CreateShortNoticeCancelationOrderAPIResponse = {
+    status: 'Fail',
+    error: 'Unexpected error'
+  }
+  if(
+    !event.arguments.timeslotId || 
+    !event.arguments.userEmail ||
+    !event.arguments.userId
+  ) {
+    response.error = 'Timeslot Id or User Email Missing.'
+    return response
+  }
+  if(
+    event.arguments.vaulting && 
+    event.arguments.vaulting.vault &&
+    event.arguments.vaulting.paymentSource === 'CARD' &&
+    !event.arguments.vaulting.billingAddressId &&
+    !event.arguments.vaulting.billingAddressInfo
+  ) {
+    response.error = 'Invalid vaulting configuration.'
     return response
   }
 
@@ -45,10 +73,7 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
   const paypalMerchantId = (process.env.PAYPAL_MERCHANT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
 
   if(!paypalClientId || !paypalSecretKey || !paypalMerchantId) {
-    response = {
-      status: 'Fail',
-      error: 'Missing client, secret keys, or merchant ID'
-    }
+    response.error = 'Missing client, secret keys, or merchant ID'
     return response
   }
 
@@ -74,12 +99,45 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
   })
 
   const timeslotData = await dynamoClient.models.Timeslot.get({ id: event.arguments.timeslotId })
+  const user = await dynamoClient.models.UserProfile.get({ email: event.arguments.userEmail.toLowerCase() })
+  if(!user.data) {
+    response.error = 'No valid user found'
+    return response
+  }
+  const userProfile = await mapUserProfile(user.data, {
+    siCustomerProfile: { }
+  })
+
+  let customerProfile: CustomerProfile | undefined = userProfile.customerProfile
+
+  if(!customerProfile) {
+    const customerProfileResponse = await dynamoClient.models.CustomerProfile.create({
+      userEmail: event.arguments.userEmail.toLowerCase(),
+      userId: event.arguments.userId,
+    })
+
+    if(!customerProfileResponse.data) {
+      response.error = 'Failed to create customer profile'
+      return response
+    }
+
+    customerProfile = {
+      userEmail: event.arguments.userEmail.toLowerCase(),
+      userId: event.arguments.userId,
+      orders: [],
+      billingAddresses: [],
+      savedPaymentMethods: []
+    }
+  }
+
+  if(!customerProfile) {
+    response.error = 'Failed to create customer profile'
+    return response
+  }
 
   if(!timeslotData.data) {
-    return {
-      status: 'Fail',
-      error: 'Recieved no timeslot data'
-    }
+    response.error = 'Recieved no timeslot data'
+    return response
   } 
   const timeslot: Timeslot = {
     ...timeslotData.data,
@@ -97,24 +155,48 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
   const timeuntilSlot = DateTime.fromJSDate(timeslot.start).diffNow().toMillis()
 
   if(!timeslot.cancelationFee) {
-    return {
-      status: 'Fail',
-      error: 'Timeslot does not have a cancelation fee'
-    }
-  } else if(!timeslot.participantId && !timeslot.register) {
-    return {
-      status: 'Fail',
-      error: 'Timeslot is not registered'
-    }
+    response.error = 'Timeslot does not have a cancelation fee'
+    return response
   } else if(timeuntilSlot < 0) {
-    return {
-      status: 'Fail',
-      error: 'Cannot register for a slot that already past'
-    }
+    response.error = 'Cannot register for a slot that already past'
+    return response
   } else if(timeuntilSlot >= timeslot.cancelationFee.window.toMillis()) {
-    return {
-      status: 'Fail',
-      error: 'Timeslot registration not in cancelation window'
+    response.error = 'Timeslot registration not in cancelation window'
+    return response
+  }
+
+  let billingAddress: CustomerBillingAddress | undefined
+  if(event.arguments.vaulting?.vault && event.arguments.vaulting.paymentSource === 'CARD') {
+    if(event.arguments.vaulting.billingAddressId) {
+      const billingAddressResponse = await dynamoClient.models.CustomerBillingAddresses.get({ id: event.arguments.vaulting.billingAddressId })
+      if(billingAddressResponse.data) {
+        billingAddress = {
+          ...billingAddressResponse.data,
+          addressLineTwo: billingAddressResponse.data.addressLineTwo ?? undefined,
+        }
+      }
+    }
+    else if(event.arguments.vaulting.billingAddressInfo) {
+      try {
+        billingAddress = JSON.parse(event.arguments.vaulting.billingAddressInfo.toString())
+        if(
+          !billingAddress?.addressLineOne ||
+          !billingAddress.adminAreaOne ||
+          !billingAddress.adminAreaTwo ||
+          !billingAddress.postalCode ||
+          !billingAddress.countryCode
+        ) {
+          response.error = 'Invalid billing address'
+          return response
+        }
+      } catch (err) { 
+        console.error(err)
+      }
+    }
+
+    if(!billingAddress) {
+      response.error = 'Invalid billing address'
+      return response
     }
   }
 
@@ -125,15 +207,22 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
     merchantId: paypalMerchantId
   }
 
+  const serviceCharge = Math.min(timeslot.cancelationFee.amount * 0.02, 10)
+  const total = timeslot.cancelationFee.amount
+  const invoiceId = generateTimeslotInvoiceId(timeslot, event.arguments.userId, 'cancelation')
+  const orderItemName = 'JFP Rescheduling fee'
+  const orderItemDescription = `Short notice rescheduling fee for ${timeslot.start.toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at ${formatTimeslotDates(timeslot)}`
+
   const cancelationFee: PurchaseUnitRequest = {
     referenceId: OrderRefID.CancelationFee,
+    invoiceId: invoiceId,
     amount: {
       currencyCode: 'USD',
-      value: timeslot.cancelationFee.amount.toFixed(2),
+      value: total.toFixed(2),
       breakdown: {
         itemTotal: {
           currencyCode: 'USD',
-          value: timeslot.cancelationFee.amount.toFixed(2)
+          value: total.toFixed(2)
         },
       }
     },
@@ -142,33 +231,62 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
         {
           amount: {
             currencyCode: 'USD',
-            value: (timeslot.cancelationFee.amount * 0.02).toFixed(2)
+            value: serviceCharge.toFixed(2)
           },
           payee: payee
         }
       ]
     },
     payee: payee,
-    softDescriptor: 'JFP Rescheduling fee',
-    description: `Short notice rescheduling fee for ${timeslot.start.toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at ${formatTimeslotDates(timeslot)}`
+    softDescriptor: orderItemName,
+    description: orderItemDescription
   }
 
   const request: OrderRequest = {
     intent: CheckoutPaymentIntent.Capture,
     purchaseUnits: [ cancelationFee ],
-    paymentSource: event.arguments.vaulting.vault && event.arguments.vaulting.paymentSource ? ({
+    paymentSource: event.arguments.vaulting?.vault && event.arguments.vaulting.paymentSource ? ({
       applePay: event.arguments.vaulting.paymentSource === 'APPLEPAY' ? ({
         storedCredential: {
           paymentInitiator: PaymentInitiator.Customer,
-          paymentType: StoredPaymentSourcePaymentType.OneTime
+          paymentType: timeslot.noshowFee !== undefined ? StoredPaymentSourcePaymentType.Recurring : StoredPaymentSourcePaymentType.OneTime,
+          usage: StoredPaymentSourceUsageType.Subsequent
         },
         attributes: {
+          customer: timeslot.noshowFee !== undefined && customerProfile.paypalCustomerId ? {
+            id: customerProfile.paypalCustomerId
+          } : undefined,
+          vault: timeslot.noshowFee !== undefined ? {
+            storeInVault:  StoreInVaultInstruction.OnSuccess
+          } : undefined
+        }
+      }): undefined,
+      card: event.arguments.vaulting.vault && event.arguments.vaulting.paymentSource === 'CARD' && billingAddress ? ({
+        billingAddress: {
+          addressLine1: billingAddress.addressLineOne,
+          addressLine2: billingAddress.addressLineTwo,
+          adminArea1: billingAddress.adminAreaOne,
+          adminArea2: billingAddress.adminAreaTwo,
+          countryCode: billingAddress.countryCode,
+          postalCode: billingAddress.postalCode
+        },
+        name: formatUserName(userProfile),
+        storedCredential: {
+          paymentInitiator: PaymentInitiator.Customer,
+          //recurring payment type for a no show fee
+          //for the usage case that the person does not show up and they will be charged since onetime payments cannot be reused
+          paymentType: timeslot.noshowFee !== undefined ? StoredPaymentSourcePaymentType.Recurring : StoredPaymentSourcePaymentType.OneTime,
+        },
+        attributes: {
+          customer: timeslot.noshowFee !== undefined && customerProfile.paypalCustomerId ? {
+            id: customerProfile.paypalCustomerId
+          } : undefined,
           vault: {
-            storeInVault: StoreInVaultInstruction.OnSuccess
+            storeInVault: timeslot.noshowFee !== undefined ? StoreInVaultInstruction.OnSuccess : undefined,
           }
         }
-      }): undefined
-      //TODO: implement other payment vaulting options
+      }) : undefined
+      //TODO: implement paypal payment vaulting
     }) : undefined
   }
 
@@ -191,6 +309,36 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
     }
   }
 
+  const dbOrder = await dynamoClient.models.Orders.create({
+    id: orderResponse.result.id,
+    amount: total,
+    invoiceId: invoiceId,
+    serviceFee: serviceCharge,
+    currency: 'USD',
+    status: 'CREATED',
+    userEmail: event.arguments.userEmail.toLowerCase(),
+  })
+
+  if(!dbOrder.data) {
+    response.error = 'Failed to log order'
+    return response
+  }
+
+  const dbOrderItem = await dynamoClient.models.OrderItems.create({
+    itemId: timeslot.id,
+    orderId: orderResponse.result.id,
+    name: orderItemName,
+    description: orderItemDescription,
+    amount: total,
+    serviceCharge: serviceCharge,
+    referenceId: OrderRefID.CancelationFee,
+    userEmail: event.arguments.userEmail.toLowerCase()
+  })
+
+  if(!dbOrderItem.data) {
+    response.error = 'Failed to log order'
+    return response
+  }
   
   response = {
     status: "Success",

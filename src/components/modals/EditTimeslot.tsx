@@ -344,7 +344,13 @@ export const EditTimeslotModal: FC<EditTimeslotModalProps> = (props: EditTimeslo
                         if(userProfile.data) {
                           chargeNoShowFee.mutateAsync({
                             timeslotId: props.timeslot.id,
-                            userEmail: userProfile.data.email
+                            userEmail: userProfile.data.email,
+                            userId: '', //TODO: implement userid discovery
+                            intent: {
+                              type: 'timeslot',
+                              timeslotId: props.timeslot.id,
+                              amount: noshowFee ?? 0,
+                            }
                           }).then((response) => {
                             if(response.status === 'Success') {
                               const notificationId = v4()

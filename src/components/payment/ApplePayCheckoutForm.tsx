@@ -81,7 +81,9 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                   mutationFn: (params: CreateShortNoticeCancelationOrderMutationParams) => props.PaymentService.createShortNoticeCancelationOrderMutation(params)
                 }).mutateAsync({
                   timeslotId: props.intent.timeslotId,
-                  userEmail: props.auth.user.profile.email
+                  userEmail: props.auth.user.profile.email,
+                  userId: props.auth.user.user.userId,
+                  intent: props.intent,
                 }).then((response) => {
                   if(response.status === 'Success' && response.orderId !== undefined) {
                     session.confirmOrder({
@@ -137,7 +139,6 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                   applePaymentToken: Buffer.from(JSON.stringify(event.payment.token)).toString('base64'),
                   billingAddress: {
                     id: '',
-                    customerId: '',
                     userEmail: '',
                     saved: false,
                     default: !props.existingDefault,
@@ -207,8 +208,10 @@ export const ApplePayCheckoutForm = (props: ApplePayCheckoutFormProps) => {
                 }).mutateAsync({
                   timeslotId: props.intent.timeslotId,
                   userEmail: props.auth.user.profile.email,
+                  userId: props.auth.user.user.userId,
+                  intent: props.intent,
                   vaulting: {
-                    paymentType: 'APPLEPAY'
+                    paymentType: 'APPLEPAY',
                   }
                 }).then((response) => {
                   if(response.status === 'Success' && response.orderId) {

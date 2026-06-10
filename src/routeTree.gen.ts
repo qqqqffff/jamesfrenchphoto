@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -34,6 +35,11 @@ import { Route as AuthAdminDashboardCollectionRouteImport } from './routes/_auth
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -148,6 +154,7 @@ const AuthAdminDashboardCollectionRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/orders': typeof OrdersRoute
   '/register': typeof RegisterRoute
   '/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
   '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/orders': typeof OrdersRoute
   '/register': typeof RegisterRoute
   '/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
   '/photo-fullscreen': typeof AuthPhotoFullscreenRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
+  '/orders': typeof OrdersRoute
   '/register': typeof RegisterRoute
   '/_auth/favorites-fullscreen': typeof AuthFavoritesFullscreenRoute
   '/_auth/photo-fullscreen': typeof AuthPhotoFullscreenRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/orders'
     | '/register'
     | '/favorites-fullscreen'
     | '/photo-fullscreen'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/orders'
     | '/register'
     | '/favorites-fullscreen'
     | '/photo-fullscreen'
@@ -259,6 +270,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_auth'
     | '/login'
+    | '/orders'
     | '/register'
     | '/_auth/favorites-fullscreen'
     | '/_auth/photo-fullscreen'
@@ -283,6 +295,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRouteWithChildren
   LoginRoute: typeof LoginRoute
+  OrdersRoute: typeof OrdersRoute
   RegisterRoute: typeof RegisterRoute
 }
 
@@ -293,6 +306,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -502,6 +522,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
   LoginRoute: LoginRoute,
+  OrdersRoute: OrdersRoute,
   RegisterRoute: RegisterRoute,
 }
 export const routeTree = rootRouteImport

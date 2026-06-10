@@ -12,7 +12,6 @@ export interface UserStorage {
 
 export type Order = {
     id: string,
-    customerId: string,
     invoiceId: string,
     amount: number,
     serviceFee: number,
@@ -48,7 +47,7 @@ export interface UserData {
 export interface CustomerProfile {
     userEmail: string,
     userId: string,
-    paypalCustomerId: string,
+    paypalCustomerId?: string,
     savedPaymentMethods: CustomerSavedPaymentMethod[],
     orders: Order[],
     billingAddresses: CustomerBillingAddress[]
@@ -61,12 +60,12 @@ export interface CustomerSavedPaymentMethod {
     type: 'PAYPAL' | 'CARD' | 'APPLEPAY'
     isDefault: boolean,
     userEmail: string,
+    billingAddressId?: string,
 }
 
 export interface CustomerBillingAddress {
     id: string
     userEmail: string
-    customerId: string
     default: boolean
     addressLineOne: string //primary street eg: 123 Main St
     addressLineTwo?: string, //secondary info eg: Unit 1

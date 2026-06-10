@@ -283,5 +283,5 @@ export const handler: Schema['NotifyUser']['functionHandler'] = async (event) =>
 
   const response = await sgMail.send(message)
 
-  return JSON.stringify(response)
+  return response
 }

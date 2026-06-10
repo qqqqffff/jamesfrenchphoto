@@ -2,6 +2,7 @@ import { APIMutationResponse, CustomerBillingAddress } from ".";
 
 export interface ChargeNoShowFeeAPIResponse extends Omit<APIMutationResponse, 'status'> {
   status: 'Success' | 'Fail' | 'ActionRequired'
+  approvalUrl?: string
 }
 
 export interface CreateShortNoticeCancelationOrderAPIResponse extends APIMutationResponse {

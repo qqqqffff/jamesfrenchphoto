@@ -385,10 +385,10 @@ const schema = a.schema({
     model({
       userEmail: a.string().required(),
       userId: a.string().required(), //Cognito userid -> used for customer profile id generation
-      paypalCustomerId: a.id().required(),
-      savedPaymentMethods: a.hasMany('CustomerSavedPaymentMethod', 'paypalCustomerId'),
-      orders: a.hasMany('Orders', 'paypalCustomerId'),
-      billingAddresses: a.hasMany('CustomerBillingAddresses', 'paypalCustomerId'),
+      paypalCustomerId: a.id(), //not required if not vaulting
+      savedPaymentMethods: a.hasMany('CustomerSavedPaymentMethod', 'userEmail'),
+      orders: a.hasMany('Orders', 'userEmail'),
+      billingAddresses: a.hasMany('CustomerBillingAddresses', 'userEmail'),
       userProfile: a.belongsTo('UserProfile', 'userEmail')
     })
     .identifier(['userEmail'])
@@ -401,8 +401,6 @@ const schema = a.schema({
     model({
       id: a.id().required(),
       userEmail: a.string().required(),
-      paypalCustomerId: a.string().required(),
-      customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
       default: a.boolean().default(false).required(),
       addressLineOne: a.string().required(),
       addressLineTwo: a.string(),
@@ -411,7 +409,8 @@ const schema = a.schema({
       postalCode: a.string().required(),
       countryCode: a.string().required(),
       createdAt: a.datetime().required(),
-      paymentMethod: a.hasMany('CustomerSavedPaymentMethod', 'paymentMethodId')
+      paymentMethod: a.hasMany('CustomerSavedPaymentMethod', 'paymentMethodId'),
+      customerProfile: a.belongsTo('CustomerProfile', 'userEmail')
     })
     .identifier(['id'])
     .secondaryIndexes(index => [index('userEmail')])
@@ -423,14 +422,15 @@ const schema = a.schema({
   CustomerSavedPaymentMethod: a.
     model({
       paymentMethodId: a.id().required(),
-      paypalCustomerId: a.id().required(),
-      customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
+      paypalCustomerId: a.id().required(), // required during vaulting
+      customerProfile: a.belongsTo('CustomerProfile', 'userEmail'),
       paypalVaultId: a.string().required(),
       type: a.enum(['PAYPAL', 'CARD', 'APPLEPAY']),
       isDefault: a.string().default('false').required().authorization((allow) => [
         allow.group('ADMINS'),
         allow.authenticated().to(['read', 'update', 'create'])
       ]),
+      billingAddressId: a.id(),
       associatedBillingAddress: a.belongsTo('CustomerBillingAddresses', 'paymentMethodId'),
       userEmail: a.string().required().authorization((allow) => [
         allow.group('ADMINS'),
@@ -476,10 +476,9 @@ const schema = a.schema({
   Orders: a.
     model({
       id: a.string().required(),
-      invoiceId: a.string().required(),
-      paypalCustomerId: a.id().required(),
-      customerProfile: a.belongsTo('CustomerProfile', 'paypalCustomerId'),
-      amount: a.float().required(),
+      invoiceId: a.string().required(), //id generated based on the order item
+      customerProfile: a.belongsTo('CustomerProfile', 'userEmail'),
+      amount: a.float().required(), //not including service fee
       serviceFee: a.float().required(),
       currency: a.string().default('USD').required(),
       status: a.enum(['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED', 'UNKNOWN']),
@@ -729,6 +728,8 @@ const schema = a.schema({
     .arguments({
       timeslotId: a.string().required(),
       userEmail: a.string().required(),
+      returnUrl: a.string().required(),
+      cancelUrl: a.string().required(),
     })
     .handler(a.handler.function(chargeNoShowFee))
     .authorization((allow) => [allow.group('ADMINS')])
@@ -738,9 +739,14 @@ const schema = a.schema({
     .arguments({
       timeslotId: a.string().required(),
       userEmail: a.string().required(),
+      userId: a.string().required(),
+      cancelUrl: a.string().required(),
+      returnUrl: a.string().required(),
       vaulting: a.customType({
         vault: a.boolean(),
-        paymentSource: a.enum(['PAYPAL', 'CARD', 'APPLEPAY'])
+        paymentSource: a.enum(['PAYPAL', 'CARD', 'APPLEPAY']),
+        billingAddressId: a.string(),
+        billingAddressInfo: a.json(),
       })
     })
     .handler(a.handler.function(createShortNoticeCancelationOrder))
@@ -751,10 +757,9 @@ const schema = a.schema({
     .arguments({
       timeslotId: a.string().required(),
       userEmail: a.string().required(),
+      userId: a.string().required(),
+      paymentType: a.enum(['APPLEPAY', 'CARD', 'PAYPAL']),
       orderId: a.string().required(),
-      paymentRequest: a.json().required(),
-      cancelUrl: a.string().required(),
-      returnUrl: a.string().required(),
     })
     .handler(a.handler.function(captureShortNoticeCancelationOrder))
     .authorization((allow) => [

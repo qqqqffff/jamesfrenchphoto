@@ -18,7 +18,7 @@ export const Route = createFileRoute('/register')({
   beforeLoad: ({ search }) => {
     return search
   },
-  loader: async ({ context }) => {
+  loader: ({ context }) => {
     const client = context.client as V6Client<Schema>
     const userService = new UserService(client)
 

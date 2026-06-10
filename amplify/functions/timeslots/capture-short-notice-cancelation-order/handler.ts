@@ -2,23 +2,16 @@ import { env } from "$amplify/env/capture-short-notice-cancelation-order";
 import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
-import { APIMutationResponse, Timeslot } from "../../../../src/types";
-import { CapturePaymentRequest } from "../../../../src/types/backend-types";
+import { APIMutationResponse, OrderItem, Order, Timeslot } from "../../../../src/types";
 import { Schema } from "../../../data/resource";
 import { 
   Client, 
   Environment, 
   LogLevel, 
-  OrderRequest, 
-  CheckoutPaymentIntent, 
   OrdersController,
-  PayeeBase,
-  PurchaseUnitRequest,
-  PaymentSource
 } from '@paypal/paypal-server-sdk'
 import { DateTime, Duration } from "luxon";
-import { OrderRefID } from "../../../../src/types/order-ref-id";
-import { formatTimeslotDates } from "../../../../src/utils";
+import { generatePayPalAuthAssertionHeader } from "../../../../scripts/generate-paypal-auth-assertion-header";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 Amplify.configure(resourceConfig, libraryOptions)
@@ -28,27 +21,19 @@ const dynamoClient = generateClient<Schema>()
 
 //process creates and captures order with payment request
 export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHandler'] = async (event) => {
-  let response: APIMutationResponse | undefined
+  let response: APIMutationResponse = {
+    status: 'Fail',
+    error: 'Unknown error occurred'
+  }
   if(
     !event.arguments.orderId || 
-    !event.arguments.paymentRequest || 
+    !event.arguments.paymentType || 
+    !event.arguments.userId ||
     !event.arguments.timeslotId || 
-    !event.arguments.userEmail ||
-    !event.arguments.cancelUrl ||
-    !event.arguments.returnUrl
+    !event.arguments.userEmail
   ) {
-    response = {
-      status: 'Fail',
-      error: 'Missing any of the following: orderId, paymentRequest, timeslotId, userEmail, return url, cancel url.'
-    }
+    response.error = 'Missing any of the following: orderId, paymentType, timeslotId, userEmail, userId, return url, cancel url.'
     return response
-  }
-  const paymentRequest: CapturePaymentRequest = JSON.parse(event.arguments.paymentRequest.toString())
-  if(paymentRequest.type === undefined) {
-    response = {
-      status: 'Fail',
-      error: 'Invalid Payment Request'
-    }
   }
 
   //cleaning secrets
@@ -58,10 +43,7 @@ export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHand
 
 
   if(!paypalClientId || !paypalSecretKey || !paypalMerchantId) {
-    response = {
-      status: 'Fail',
-      error: 'Missing client, secret keys, or merchant ID'
-    }
+    response.error = 'Missing client, secret keys, or merchant ID'
     return response
   }
 
@@ -87,13 +69,25 @@ export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHand
   })
 
   const timeslotData = await dynamoClient.models.Timeslot.get({ id: event.arguments.timeslotId })
+  const orderData = await dynamoClient.models.Orders.get({ id: event.arguments.orderId })
 
   if(!timeslotData.data) {
-    return {
-      status: 'Fail',
-      error: 'Recieved no timeslot data'
-    }
+    response.error = 'Recieved no timeslot data'
+    return response
   } 
+  if(!orderData.data) {
+    response.error = 'Invalid orderId'
+    return response
+  }
+
+  const order: Order = {
+    ...orderData.data,
+    customerId: orderData.data.paypalCustomerId,
+    items: [] as OrderItem[], //si not necessary for this
+    currency: 'USD',
+    status: orderData.data.status ?? 'UNKNOWN'
+  }
+
   const timeslot: Timeslot = {
     ...timeslotData.data,
     description: timeslotData.data.description ?? undefined,
@@ -110,124 +104,44 @@ export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHand
   const timeuntilSlot = DateTime.fromJSDate(timeslot.start).diffNow().toMillis()
 
   if(!timeslot.cancelationFee) {
-    return {
-      status: 'Fail',
-      error: 'Timeslot does not have a cancelation fee'
-    }
+    response.error = 'Timeslot does not have a cancelation fee'
+    return response
   } else if(!timeslot.participantId && !timeslot.register) {
-    return {
-      status: 'Fail',
-      error: 'Timeslot is not registered'
-    }
+    response.error = 'Timeslot is not registered'
+    return response
   } else if(timeuntilSlot < 0) {
-    return {
-      status: 'Fail',
-      error: 'Cannot register for a slot that already past'
-    }
+    response.error = 'Cannot register for a slot that already past'
+    return response
   } else if(timeuntilSlot >= timeslot.cancelationFee.window.toMillis()) {
-    return {
-      status: 'Fail',
-      error: 'Timeslot registration not in cancelation window'
-    }
+    response.error = 'Timeslot registration not in cancelation window'
+    return response
+  } else if(order.status !== 'CREATED') {
+    response.error = order.status
   }
 
   const orderController = new OrdersController(client)
-  const payee: PayeeBase = {
-    emailAddress: 'aws.jfphoto@gmail.com',
-    merchantId: paypalMerchantId
-  }
-  const cancelationFee: PurchaseUnitRequest = {
-    referenceId: OrderRefID.CancelationFee,
-    amount: {
-      currencyCode: 'USD',
-      value: timeslot.cancelationFee.amount.toFixed(2),
-      breakdown: {
-        itemTotal: {
-          currencyCode: 'USD',
-          value: timeslot.cancelationFee.amount.toFixed(2)
-        },
-      }
-    },
-    paymentInstruction: {
-      platformFees: [
-        {
-          amount: {
-            currencyCode: 'USD',
-            value: (timeslot.cancelationFee.amount * 0.02).toFixed(2)
-          },
-          payee: payee
-        }
-      ]
-    },
-    payee: payee,
-    softDescriptor: 'JFP Rescheduling fee',
-    description: `Short notice rescheduling fee for ${timeslot.start.toLocaleDateString('en-us', { timeZone: 'America/Chicago' })} at ${formatTimeslotDates(timeslot)}`
-  }
 
-  //three cases
-  // - using saved payment method type = 'vault'
-  // - using carded method type = 'card'
-  // - using pay with paypal = 'paypal'
-  // - using apple pay = 'apple-pay'
-
-  let paymentSource: PaymentSource | undefined
+  const paypalAuthHeader = generatePayPalAuthAssertionHeader(paypalClientId, paypalMerchantId)
   
-  switch(paymentRequest.type) {
-    case 'Vault': {
-      const paymentMethodResponse = await dynamoClient.models.CustomerSavedPaymentMethod.get({ paymentMethodId: paymentRequest.paymentMethodId })
-      if(
-        !paymentMethodResponse.data || 
-        paymentMethodResponse.data.paypalVaultId === '' || 
-        paymentMethodResponse.data.type === null
-      ) {
-        response = {
-          status: 'Fail',
-          error: 'Recieved invalid saved payment method'
-        }
-        return response
-      }
-      paymentSource = {
-        applePay: paymentMethodResponse.data.type === 'APPLEPAY' ? {
-          vaultId: paymentMethodResponse.data.paypalVaultId,
-          experienceContext: {
-            returnUrl: event.arguments.returnUrl,
-            cancelUrl: event.arguments.cancelUrl
-          }
-        } : undefined,
-        paypal: paymentMethodResponse.data.type === 'PAYPAL' ? {
-          vaultId: paymentMethodResponse.data.paypalVaultId,
-          experienceContext: {
-            returnUrl: event.arguments.returnUrl,
-            cancelUrl: event.arguments.cancelUrl
-          }
-        } : undefined,
-        card: paymentMethodResponse.data.type === 'CARD' ?  {
-          vaultId: paymentMethodResponse.data.paypalVaultId,
-          experienceContext: {
-            returnUrl: event.arguments.returnUrl,
-            cancelUrl: event.arguments.cancelUrl
-          }
-        } : undefined
-      }
-    }
-  }
+  const orderResponse = await orderController.captureOrder({
+    id: event.arguments.orderId,
+    prefer: 'return=minimal',
+    paypalAuthAssertion: paypalAuthHeader
+  })
 
-  //TODO: continue with implementation
-
-
-  if(!paymentSource) {
-    response = {
-      status: 'Fail',
-      error: 'Failed to capture order'
-    }
+  if(
+    !orderResponse.result.status ||
+    orderResponse.result.status !== 'COMPLETED' ||
+    !orderResponse.result.id
+  ) {
+    response.error = 'Invalid order status recieved'
+    console.error(orderResponse)
     return response
   }
-  
-  const request: OrderRequest = {
-    intent: CheckoutPaymentIntent.Capture,
-    purchaseUnits: [ cancelationFee ],
-    paymentSource: paymentSource
-  }
+
+  //TODO: log order in db
+
+
 
   response = { 
     status: 'Success'

@@ -102,7 +102,6 @@ export const AddressForm = (props: AddressFormProps) => {
             props.setFormOpen('card')
             props.onSubmit({
               id: v4(),
-              customerId: '',
               userEmail: '',
               saved: false,
               addressLineOne: addressLineOne,
@@ -132,7 +131,6 @@ export const AddressForm = (props: AddressFormProps) => {
               props.setFormOpen('card')
               props.onSubmit({
                 id: v4(),
-                customerId: '',
                 userEmail: '',
                 saved: false,
                 addressLineOne: addressLineOne,

@@ -1,188 +1,166 @@
-import { Dispatch, SetStateAction, useEffect, useState } from "react"
+import { PayPalCardCvvField, PayPalCardExpiryField, PayPalCardNumberField, usePayPalCardFields, usePayPalCardFieldsOneTimePaymentSession } from "@paypal/react-paypal-js/sdk-v6"
 import { AuthContext } from "../../auth"
-import { PaymentService } from "../../services/paymentService"
-import { CollectionPaymentStatus, CollectPaymentIntent, ComponentNotification, CustomerBillingAddress, CustomerSavedPaymentMethod, PaymentType } from "../../types"
-import { INSTANCE_LOADING_STATE, PayPalCardFieldsProvider, useEligibleMethods, usePayPal } from "@paypal/react-paypal-js/sdk-v6"
-import Loading from "../common/Loading"
-import { HiChevronDown, HiChevronLeft } from "react-icons/hi"
-import { UseQueryResult } from "@tanstack/react-query"
-import { CardForm } from "./CardForm"
-import { ApplePayCheckoutForm } from "./ApplePayCheckoutForm"
-import { v4 } from 'uuid'
-import { AddressForm } from "./AddressForm"
-import { Checkbox, Tooltip } from "flowbite-react"
+import { CaptureShortNoticeCancelationOrderMutationParams, CreateShortNoticeCancelationOrderMutationParams, PaymentService } from "../../services/paymentService"
+import { CollectPaymentIntent, CustomerBillingAddress, CustomerSavedPaymentMethod, APIMutationResponse, PaymentType } from "../../types"
+import { useEffect, useState } from "react"
+import { Checkbox } from "flowbite-react"
+import { useMutation } from "@tanstack/react-query"
+import { formatUserName } from "../../functions/clientFunctions"
 
 interface PaymentFormProps {
-  intent: CollectPaymentIntent,
-  PaymentService: PaymentService,
   auth: AuthContext,
-  customerSavedPaymentMethods: CustomerSavedPaymentMethod[]
-  billingAddresses: CustomerBillingAddress[]
-  savedPaymentMethodsQuery: UseQueryResult<CustomerSavedPaymentMethod[], Error>
-  billingAddressQuery: UseQueryResult<CustomerBillingAddress[], Error>
-  collectionPaymentStatus?: CollectionPaymentStatus
-  setCollectionPaymentStatus: Dispatch<SetStateAction<CollectionPaymentStatus | undefined>>
-  setOrderProcessing: Dispatch<SetStateAction<boolean>>
-  setPaymentNotifications: Dispatch<SetStateAction<ComponentNotification[]>>
+  PaymentService: PaymentService,
+  intent: CollectPaymentIntent
+  billingInformation?: CustomerBillingAddress & { saved: boolean }
+  customerSavedPaymentMethods: CustomerSavedPaymentMethod[],
+  onSubmit: (response: APIMutationResponse) => void
+  formOpen: boolean
+  paymentType: PaymentType
 }
 
 export const PaymentForm = (props: PaymentFormProps) => {
-  const paypal = usePayPal()
-  const eligibleMethods = useEligibleMethods()
-  console.log(eligibleMethods)
-  const [cardInput, setCardInput] = useState<'address' | 'card' | 'none'>()
-  const [billingInformation, setBillingInformation] = useState<CustomerBillingAddress & { saved: boolean }>()
-  const [termsAccepted, setTermsAccepted] = useState(false)
-
+  const {
+    error: cardFieldsError
+  } = usePayPalCardFields()
+  const {
+    error: submitError,
+    submit,
+    submitResponse
+  } = usePayPalCardFieldsOneTimePaymentSession()
+  const [isDefault, setIsDefault] = useState(false)
+  
   useEffect(() => {
-    if(props.customerSavedPaymentMethods.length === 0) {
-      setCardInput('address')
+    if(!submitResponse) return
+    if(submitError) {
+      //TODO: do something with the error
+      console.error(submitError)
+      return
     }
-  }, [props.customerSavedPaymentMethods])
-  const savePaymentMethod = (
-    props.intent.type === 'timeslot' && (props.intent.vaultNoshow ?? false)
-  )
 
-  const withPurchase = (
-    props.intent.type === 'timeslot' && (props.intent.captureShortnotice ?? false)
-  )
+    const response = submitResponse.data
 
-  const checkoutType: PaymentType | null = savePaymentMethod && !withPurchase ? (
-    'save-payment'
-  ) : (
-    !savePaymentMethod && withPurchase ? (
-      'purchase'
-    ) : (
-      savePaymentMethod && withPurchase ? (
-        'save-payment-with-purchase'
-      ) : (
-        null
-      )
-    )
-  )
+    switch(submitResponse.state) {
+      case 'succeeded': {
+        console.log(`successfully completed order: ${response.orderId}${response.message ? `, message: ${response.message}` : ''}${response.liabilityShift ? `, liability shift: ${response.liabilityShift}` : ''}`)
+        //TODO: add handler
+        switch(props.intent.type) {
+          case 'timeslot': {
+
+            break
+          }
+          default: {
+            console.error('invalid intent, aborting payment')
+            break
+          }
+        }
+
+      }
+    }
+  }, [submitResponse])
+
+  const createShortNoticeCancelationOrder = useMutation({
+    mutationFn: (params: CreateShortNoticeCancelationOrderMutationParams) => props.PaymentService.createShortNoticeCancelationOrderMutation(params)
+  })
+
+  const captureShortNoticeCancelationOrder = useMutation({
+    mutationFn: (params: CaptureShortNoticeCancelationOrderMutationParams) => props.PaymentService.captureShortNoticeCancelationOrderMutation(params)
+  })
+
+  const handleSubmit = async () => {
+    if(props.auth.user && props.billingInformation)
+    switch(props.intent.type) {
+      case 'timeslot': {
+        createShortNoticeCancelationOrder.mutateAsync({
+          timeslotId: props.intent.timeslotId,
+          userEmail: props.auth.user.profile.email,
+          userId: props.auth.user.user.userId,
+          vaulting: props.paymentType === 'save-payment-with-purchase' ? {
+            paymentType: 'CARD',
+            billingAddress: props.billingInformation
+          } : undefined,
+          intent: props.intent
+        }).then((response) => {
+          if(response.status === 'Success' && response.orderId) {
+            submit(response.orderId, {
+              name: formatUserName(props.auth.user?.profile),
+              billingAddress: props.billingInformation
+            }).then(() => {
+              if(response.orderId) {
+                captureShortNoticeCancelationOrder.mutateAsync({
+                  orderId: response.orderId,
+                  intent: props.intent,
+                  timeslotId: props.intent.timeslotId,
+                  userEmail: props.auth.user!.profile.email,
+                  userId: props.auth.user!.user.userId,
+                })
+              }
+            }).catch(() => {
+              //TODO: do something with error
+            })
+          }
+          else if(response.status === 'Fail' || !response.orderId) {
+            //TODO: display error
+          }
+        }).catch(() => {
+          //TODO: do something with error
+        })
+        break;
+      }
+      default: {
+        console.error('invalid intent, aborting order creation')
+        break;
+      }
+    }
+  }
+
 
   return (
-    paypal.loadingStatus === INSTANCE_LOADING_STATE.PENDING ? (
-      <span>
-        <span>Loading Payment Form</span>
-        <Loading />
-      </span>
-    ) : (
-      <div className="flex flex-col gap-2">
-        <button 
-          className="w-full border rounded-lg px-2 py-1 flex flex-row items-center justify-between hover:bg-gray-100"
-          onClick={() => setCardInput(prev => (prev === 'card' || prev === 'address') ? undefined : 'address')}
-        > 
-          <span className="text-lg font-medium ps-2">Card Payment</span>
-          {cardInput !== undefined ? (<HiChevronDown size={24} />) : (<HiChevronLeft size={24} />)}
-        </button>
-        <div className={`${cardInput !== undefined ? '' : 'hidden'}`}>
-          <div>
-            <AddressForm 
-              auth={props.auth}
-              PaymentService={props.PaymentService}
-              billingAddresses={props.billingAddresses}
-              billingAddressesQuery={props.billingAddressQuery}
-              formOpen={cardInput === 'address'}
-              setFormOpen={setCardInput}
-              onSubmit={(billingInfo) => {
-                setBillingInformation(billingInfo)
-                setCardInput('card')
-              }}
-            />
-          </div>
-          <div>
-            <PayPalCardFieldsProvider>
-              <CardForm 
-                PaymentService={props.PaymentService}
-                auth={props.auth}
-                intent={props.intent}
-                billingInformation={billingInformation}
-                customerSavedPaymentMethods={props.customerSavedPaymentMethods}
-                formOpen={cardInput === 'card'}
-                allowedExpand={billingInformation !== undefined}
-                setFormOpen={setCardInput}
-                onSubmit={(response) => {
-                  if(response.status === 'Fail') {
-                    props.setPaymentNotifications(prev => [
-                      ...prev,
-                      {
-                        id: v4(),
-                        message: response.error ?? 'Unexpected error collection payment',
-                        status: 'Error',
-                        createdAt: new Date(),
-                        autoClose: null
-                      }
-                    ])
-                  }
-                }}
-              />
-            </PayPalCardFieldsProvider>
-          </div>
-        </div>
-        {checkoutType && (
-          <ApplePayCheckoutForm 
-            PaymentService={props.PaymentService}
-            auth={props.auth}
-            formtype={checkoutType}
-            intent={props.intent}
-            existingDefault={props.customerSavedPaymentMethods.some((method) => method.isDefault)}
-            onSubmit={(response) => {
-              if(response.status === 'Fail') {
-                props.setPaymentNotifications(prev => [
-                  ...prev,
-                  {
-                    id: v4(),
-                    message: response.error ?? 'Unexpected error collection payment',
-                    status: 'Error',
-                    createdAt: new Date(),
-                    autoClose: null
-                  }
-                ])
-              }
+    <div className={`flex flex-col gap-3 ${props.formOpen ? 'pt-4 pb-2 px-2' : 'hidden'}`}>
+      <PayPalCardNumberField 
+        containerStyles={{
+          height: '2rem',
+          width: 'full'
+        }}
+        placeholder="Enter card number"
+      />
+      <div className="flex flex-row w-full items-center justify-between">
+        <div className="flex flex-row items-center gap-4">
+          <PayPalCardExpiryField 
+            containerStyles={{
+              height: '2rem',
+              width: '8rem',
             }}
-            setOrderProcessing={props.setOrderProcessing}
+            placeholder="MM/YY"
           />
-        )}
-        {cardInput && (
-          <div className="flex w-full justify-end">
-            <button
-              className="flex flex-row gap-1 rounded-lg px-2 py-1 border border-transparent hover:border-gray-300 items-center text-sm disabled:opacity-60"
-              onClick={() => setTermsAccepted(!termsAccepted)}
-              disabled={cardInput !== 'card' || billingInformation == undefined}
-            >
-              <Checkbox 
-                className="focus:ring-0 focus:outline-none" 
-                readOnly 
-                checked={termsAccepted} 
-                disabled={cardInput !== 'card' || billingInformation == undefined} 
-                onClick={() => setTermsAccepted(!termsAccepted)}
-              />
-              <span className="flex flex-row items-center gap-1">
-                <span>Accept the following</span>
-                <Tooltip
-                  style="light"
-                  arrow={false}
-                  trigger="click"
-                  content={(
-                    <div className="text-xs flex flex-col text-start">
-                      <span className="font-medium text-base text-nowrap">Terms and Conditions for Payments and Card Holds</span>
-                      <span className="text-nowrap">&bull; All payments are processed by PayPal.</span>
-                      <span className="text-nowrap">&bull; Any payment related disputes will be handled by PayPal.</span>
-                      <span className="text-nowrap">&bull; Storage and usage of payment information is managed by PayPal.</span>
-                      <span className="text-nowrap">&bull; User payment information is never accessed, revealed, or interacted with by anyone at James French Photography.</span>
-                      <span className="text-nowrap">&bull; Any card holds will be released 7 days after charge date.</span>
-                      <span className="text-nowrap">&bull; Any further payment related questions or concerns about our payment processing can be sent to PayPal</span>
-                    </div>
-                  )}
-                >
-                  <span className="text-blue-400 hover:underline">Terms and Conditions</span>
-                </Tooltip>
-              </span>
-            </button>
-          </div>
+          <PayPalCardCvvField 
+            containerStyles={{
+              height: '2rem',
+              width: '8rem',
+            }}
+            placeholder="CVV"
+          />
+        </div>
+        {props.paymentType === 'save-payment-with-purchase' && (
+          <button
+            className="flex flex-row gap-1 items-center disabled:opacity-60"
+            onClick={() => setIsDefault(!isDefault)}
+            disabled={props.customerSavedPaymentMethods.length === 0}
+          >
+            <Checkbox checked={isDefault} readOnly />
+            <span>Set Default</span>
+          </button>
         )}
       </div>
-    )
+      {!cardFieldsError && (
+        <div className="flex flex-row w-full py-2 justify-end">
+          <button
+            className="px-2 py-1 rounded-lg enabled:hover:gray-100 disabled:opacity-60 border"
+            onClick={handleSubmit}
+          >
+            {props.paymentType === 'save-payment-with-purchase' ? "Save Payment Method" : "Pay Now"}
+          </button>
+        </div>
+      )}
+    </div>
   )
 }

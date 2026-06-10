@@ -18,7 +18,8 @@ export const formatParticipantName = (participant: Participant): string => {
     participant.preferredName : participant.firstName}, ${participant.lastName}`
 }
 
-export const formatUserName = (user: UserProfile): string => {
+export const formatUserName = (user?: UserProfile): string => {
+  if(!user) return ''
   if(
     user.firstName !== undefined &&
     user.firstName !== ''

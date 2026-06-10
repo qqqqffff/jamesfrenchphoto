@@ -3,19 +3,14 @@ import { PaymentService } from "../../services/paymentService";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CollectionPaymentStatus, CollectPaymentIntent, ComponentNotification } from "../../types";
-import { PaymentForm } from "../payment/PaymentForm";
+import { PaymentFormContainer } from "./PaymentFormContainer";
 import { Alert } from "flowbite-react";
 
 interface CollectPaymentScreenProps {
   PaymentService: PaymentService,
   auth: AuthContext,
   intent: CollectPaymentIntent,
-  successPaymentMethodCapture: (
-    vaultId: string,
-    options: {
-      savePaymentSuccess?: boolean
-    }
-  ) => void
+  successPaymentCapture: () => void
 }
 
 
@@ -59,7 +54,7 @@ export const CollectPaymentScreen = (props: CollectPaymentScreenProps) => {
         })}
       </div>
       <div className={`${orderProcessing ? 'hidden' : ''}`}>
-        <PaymentForm 
+        <PaymentFormContainer 
           intent={props.intent}
           PaymentService={props.PaymentService}
           auth={props.auth}
