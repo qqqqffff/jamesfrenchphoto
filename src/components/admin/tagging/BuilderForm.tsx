@@ -102,7 +102,6 @@ export const BuilderForm = (props: BuilderFormProps) => {
   //only need to know that the tag has these collections to start
   const tagCollectionsQuery = useQuery({
     ...props.CollectionService.getAllCollectionsFromUserTagIdQueryOptions(props.selectedTag.id, { 
-      siPaths: false, 
       siSets: false, 
       siTags: false
     }),

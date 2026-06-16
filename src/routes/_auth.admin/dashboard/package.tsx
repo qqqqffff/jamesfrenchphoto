@@ -42,7 +42,6 @@ function RouteComponent() {
 
   //TODO: focus query based on selected tags and available user's collections
   const collectionQuery = useQuery(data.CollectionService.getAllPhotoCollectionsQueryOptions({
-    siPaths: false,
     siSets: false,
     siTags: false
   }))

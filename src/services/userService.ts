@@ -195,7 +195,8 @@ export async function mapParticipant(participantResponse: Schema['Participant'][
             published: collectionResponse.data.published ?? false,
             //unnecessary or shallow depth only
             tags: [],
-            sets: []
+            sets: [],
+            collectionParticipantIds: []
           }
           return mappedCollection
         }

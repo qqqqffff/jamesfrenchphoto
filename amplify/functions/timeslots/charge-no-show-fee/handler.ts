@@ -301,7 +301,6 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
         id: orderResponse.data.id,
         currency: 'USD',
         status: orderResponse.data.status ?? 'UNKNOWN',
-        customerId: orderResponse.data.paypalCustomerId,
         items: [ mappedOrderItem ]
       }
       orders.push(mappedOrder)
@@ -352,7 +351,6 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
         response.status = 'ActionRequired'
         response.error = 'Additional action required by payer'
         response.approvalUrl = approvalUrl 
-        //TODO: rewire approval link into a possible email that can be sent
         dynamoClient.queries.NotifyUser({
           email: registeredEmail,
           subject: softDescriptor,
@@ -400,7 +398,6 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
       if(captureResponse.result.status !== 'COMPLETED') {
         const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'approve')?.href
         const logResponse = await dynamoClient.models.Orders.create({
-          paypalCustomerId: customerProfile.data.paypalCustomerId,
           id: id,
           amount: timeslotData.data.noshowFee,
           serviceFee: serviceFee,
@@ -450,7 +447,6 @@ export const handler: Schema['ChargeNoShowFee']['functionHandler'] = async (even
 
   const approvalUrl = orderResponse.result.links?.find((l) => l.rel === 'approve')?.href
   let orderLogResponse = await dynamoClient.models.Orders.create({
-    paypalCustomerId: customerProfile.data.paypalCustomerId,
     id: id,
     amount: timeslotData.data.noshowFee,
     serviceFee: serviceFee,

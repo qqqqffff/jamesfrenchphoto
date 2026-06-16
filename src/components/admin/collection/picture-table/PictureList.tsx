@@ -8,8 +8,8 @@ import { Picture } from "./Picture";
 import { PhotoCollection, PhotoSet, PicturePath } from '../../../../types';
 import { DynamicStringEnumKeysOf } from '../../../../utils';
 import { FlowbiteColors } from 'flowbite-react';
-import { useMutation, UseMutationResult, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
-import { CollectionService, RepairItemCountsParams } from '../../../../services/collectionService';
+import { useMutation, useQueries, useQuery, UseQueryResult } from '@tanstack/react-query';
+import { CollectionService } from '../../../../services/collectionService';
 import { PhotoSetService, ReorderPathsParams } from '../../../../services/photoSetService';
 import { UploadImagePlaceholder } from '../UploadImagePlaceholder';
 import { PhotoPathService } from '../../../../services/photoPathService';
@@ -41,7 +41,6 @@ interface PictureListProps extends ComponentProps<'div'> {
 
   participantId?: string,
   pathsQuery: UseQueryResult<PhotoSet | null, Error>
-  repairItemCounts: UseMutationResult<PhotoCollection | undefined, Error, RepairItemCountsParams, unknown>
 }
 
 export const PictureList = (props: PictureListProps) => {

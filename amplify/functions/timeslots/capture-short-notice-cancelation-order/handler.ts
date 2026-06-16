@@ -82,7 +82,6 @@ export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHand
 
   const order: Order = {
     ...orderData.data,
-    customerId: orderData.data.paypalCustomerId,
     items: [] as OrderItem[], //si not necessary for this
     currency: 'USD',
     status: orderData.data.status ?? 'UNKNOWN'
@@ -139,13 +138,18 @@ export const handler: Schema['CaptureShortNoticeCancelationOrder']['functionHand
     return response
   }
 
-  //TODO: log order in db
+  const updatedOrderResponse = await dynamoClient.models.Orders.update({
+    id: event.arguments.orderId,
+    status: orderResponse.result.status
+  })
 
-
-
-  response = { 
-    status: 'Success'
+  if(!updatedOrderResponse.data) {
+    response.error = 'Failed to update order status'
+    return response
   }
 
+
+  response.status = 'Success'
+  response.error = undefined
   return response
 }

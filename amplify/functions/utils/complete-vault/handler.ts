@@ -1,15 +1,15 @@
-// import { env } from "$amplify/env/admin-update-user-attributes"
 import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime"
 import { Amplify } from "aws-amplify"
+import { env } from '$amplify/env/complete-vault'
 import { generateClient } from "aws-amplify/api"
 import { Schema } from "../../../data/resource"
 import { Client, Environment, LogLevel, VaultController, VaultTokenRequestType } from "@paypal/paypal-server-sdk"
-import { mapUserProfile } from "../../../../src/services/userService"
 import { v4 } from 'uuid'
-import { APIMutationResponse } from "../../../../src/types"
+import { APIMutationResponse, CustomerProfile } from "../../../../src/types"
+import { mapCustomerProfile } from "../../../../src/services/paymentService"
 
-// const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
-// Amplify.configure(resourceConfig, libraryOptions)
+const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
+Amplify.configure(resourceConfig, libraryOptions)
 
 const dynamoClient = generateClient<Schema>()
 
@@ -28,10 +28,8 @@ export const handler: Schema['CompleteVault']['functionHandler'] = async (event)
     return response
   }
 
-  const paypalClientId = ''
-  // (env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
-  const paypalSecretKey = ''
-  // (env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
+  const paypalClientId = (env.PAYPAL_CLIENT_ID ?? '').replace(/[^A-z-0-9]+/g, '')
+  const paypalSecretKey = (env.PAYPAL_SECRET_KEY ?? '').replace(/[^A-z-0-9]+/g, '')
 
   if(!paypalClientId || !paypalSecretKey) {
     response.error = 'Missing client or secret keys'
@@ -66,19 +64,22 @@ export const handler: Schema['CompleteVault']['functionHandler'] = async (event)
     response.error = 'Failed to retrieve user profile'
     return response
   }
-  const mappedUserProfile = await mapUserProfile(userProfile.data, {
-    siCustomerProfile: { }
-  })
-  if(!mappedUserProfile.customerProfile) {
-    response.error = 'Failed to retrieve user customer profile'
+  const customerProfile = await userProfile.data.customerProfile()
+  let mappedCustomerProfile: CustomerProfile | undefined = customerProfile.data ? (
+    await mapCustomerProfile(customerProfile.data)
+  ) : undefined
+
+  //customerProfile should exist atp
+  if(!mappedCustomerProfile) {
+    response.error = 'Failed to retrieve or create user customer profile'
     return response
   }
 
   const paymentTokenResponse = await vaultController.createPaymentToken({
     body: {
       customer: {
-        merchantCustomerId: mappedUserProfile.customerProfile.paypalCustomerId,
-        id: mappedUserProfile.customerProfile.userId
+        merchantCustomerId: mappedCustomerProfile.paypalCustomerId,
+        id: mappedCustomerProfile.userId
       },
       paymentSource: {
         token: {
@@ -89,10 +90,12 @@ export const handler: Schema['CompleteVault']['functionHandler'] = async (event)
     }
   })
 
-  if(paymentTokenResponse.result.id) {
+  const customerId = mappedCustomerProfile.paypalCustomerId ?? paymentTokenResponse.result.customer?.merchantCustomerId
+
+  if(paymentTokenResponse.result.id && customerId) {
     const savePaymentToken = await dynamoClient.models.CustomerSavedPaymentMethod.create({
       paymentMethodId: v4(),
-      paypalCustomerId: mappedUserProfile.customerProfile.paypalCustomerId,
+      paypalCustomerId: customerId,
       paypalVaultId: paymentTokenResponse.result.id,
       type: event.arguments.paymentType,
       isDefault: String(event.arguments.isDefault ?? false),

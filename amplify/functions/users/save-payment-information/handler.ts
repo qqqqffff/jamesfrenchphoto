@@ -4,7 +4,10 @@ import {
   Client,
   Environment,
   LogLevel,
+  UsagePattern,
+  VaultUserAction,
   VaultController,
+  PaypalPaymentTokenUsageType,
 } from '@paypal/paypal-server-sdk'
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
@@ -13,7 +16,7 @@ import { SavePaymentInformationAPIResponse } from "../../../../src/types/backend
 import { CustomerBillingAddress } from "../../../../src/types";
 import { mapUserProfile } from "../../../../src/services/userService";
 import { formatUserName } from '../../../../src/functions/clientFunctions'
-import { v4 } from 'uuid'
+import { mapCustomerProfile } from "../../../../src/services/paymentService";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env)
 Amplify.configure(resourceConfig, libraryOptions)
@@ -41,9 +44,12 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
       !event.arguments.cancelUrl ||
       !event.arguments.returnUrl
     ) &&
-    event.arguments.paymentType === 'CARD'
+    (
+      event.arguments.paymentType === 'CARD' || 
+      event.arguments.paymentType === 'PAYPAL'
+    )
   ) {
-    response.error = 'Cancel url, and return url are required to save card payment method'
+    response.error = 'Cancel url, and return url are required to save card or paypal payment method'
     return response
   }
   else if(
@@ -86,33 +92,83 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
 
   const vaultController = new VaultController(client)
 
-  const userProfile = await dynamoClient.models.UserProfile.get({ email: event.arguments.userEmail })
+  const userProfile = await dynamoClient.models.UserProfile.get({ email: event.arguments.userEmail.toLowerCase() })
   if(!userProfile.data) {
     response.error = 'Failed to retrieve user profile'
     return response
   }
-  const mappedUserProfile = await mapUserProfile(userProfile.data, {
-    siCustomerProfile: { 
-      //only need billing addresses if payment type is card
-      siBillingAddresses: event.arguments.paymentType === 'CARD' && !event.arguments.billingAddressJson
-    },
-  })
+  
+  const mappedUserProfile = await mapUserProfile(userProfile.data)
+  const customerProfile = await userProfile.data.customerProfile()
+  let mappedCustomerProfile = customerProfile.data ? await mapCustomerProfile(customerProfile.data) : undefined
 
-  let billingAddressToUse: Omit<CustomerBillingAddress, "default" | "id" | "userEmail" | "customerId" | 'createdAt'> | undefined = 
-  (mappedUserProfile.customerProfile?.billingAddresses ?? []).find((address) => address.id === event.arguments.billingAddressId)
+  //if id is passed of billing address to use then only query that billing address
+  //else aquire information of the JSON that is passed
 
-  if(
-    event.arguments.paymentType === 'CARD' && 
-    !event.arguments.billingAddressJson ||
-    !billingAddressToUse
-  ) {
-    response.error = 'Customer has no matching saved billing address'
-    return response
-  }
-  else if(event.arguments.billingAddressJson) {
-    billingAddressToUse = {
-      ...JSON.parse(event.arguments.billingAddressJson.toString()),
+  let billingAddressToUse: CustomerBillingAddress | undefined = event.arguments.billingAddressId ? (
+    await dynamoClient.models.CustomerBillingAddresses.get({ id: event.arguments.billingAddressId })
+    .then((value) => {
+      if(value.data) {
+        const mappedBillingAddress: CustomerBillingAddress = {
+          ...value.data,
+          addressLineTwo: value.data.addressLineTwo ?? undefined,
+        }
+
+        return mappedBillingAddress
+      }
+      return undefined
+    })
+  ) : undefined
+
+  if(!mappedCustomerProfile && event.arguments.billingAddressJson) {
+    const createCustomerResponse = await dynamoClient.models.CustomerProfile.create({
+      userEmail: event.arguments.userEmail.toLowerCase(),
+      userId: event.arguments.userId,
+    })
+
+    if(!createCustomerResponse.data) {
+      response.error = 'Failed to create customer profile'
+      return response
     }
+    //when saving payment info, saving payment associated billing address is required
+
+    const parsedBillingAddress = JSON.parse(event.arguments.billingAddressJson.toString()) as CustomerBillingAddress
+    const createBillingAddress = await dynamoClient.models.CustomerBillingAddresses.create({
+      userEmail: event.arguments.userEmail.toLowerCase(),
+      default: true,
+      addressLineOne: parsedBillingAddress.addressLineOne,
+      addressLineTwo: parsedBillingAddress.addressLineTwo,
+      adminAreaOne: parsedBillingAddress.adminAreaOne,
+      adminAreaTwo: parsedBillingAddress.adminAreaTwo,
+      postalCode: parsedBillingAddress.postalCode,
+      countryCode: 'US',
+      createdAt: new Date().toISOString(),
+    })
+
+    if(!createBillingAddress.data?.id) {
+      response.error = 'Failed to save customer billing address'
+      return response
+    }
+
+    billingAddressToUse = {
+      ...parsedBillingAddress,
+      id: createBillingAddress.data.id,
+      userEmail: event.arguments.userEmail.toLowerCase(),
+      default: true,
+    }
+
+    mappedCustomerProfile = {
+      userEmail: event.arguments.userEmail.toLowerCase(),
+      userId: event.arguments.userId,
+      savedPaymentMethods: [],
+      orders: [],
+      billingAddresses: [billingAddressToUse]
+    }
+  }
+
+  if(mappedCustomerProfile === undefined) {
+    response.error = 'Failed to retrieve customer profile'
+    return response
   }
 
   if(billingAddressToUse === undefined) {
@@ -122,10 +178,10 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
 
   const setupTokenResponse = await vaultController.createSetupToken({
     body: {
-      customer: mappedUserProfile.customerProfile ? {
-        merchantCustomerId: mappedUserProfile.customerProfile.userId,
-        id: mappedUserProfile.customerProfile.paypalCustomerId
-      } : undefined,
+      customer: {
+        merchantCustomerId: mappedCustomerProfile.userId,
+        id: mappedCustomerProfile.paypalCustomerId
+      },
       paymentSource: {
         card: event.arguments.paymentType === 'CARD' ? {
           billingAddress: billingAddressToUse ? {
@@ -154,32 +210,39 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
               countryCode: billingAddressToUse.countryCode,
             } : undefined,
           }
+        } : undefined,
+        paypal: event.arguments.paymentType === 'PAYPAL' ? {
+          description: 'James French Photo save payment information',
+          usagePattern: UsagePattern.Deferred,
+          usageType: PaypalPaymentTokenUsageType.Platform,
+          experienceContext: {
+            userAction: VaultUserAction.SetupNow,
+            returnUrl: event.arguments.returnUrl!,
+            cancelUrl: event.arguments.cancelUrl!,
+          }
         } : undefined
-        //TODO: implement other vaultTypes
       }
     }
   })
 
   const token = setupTokenResponse.result.id
   
-  if(!mappedUserProfile.customerProfile && setupTokenResponse.result.customer?.id) {
-    const customerProfileResponse = await dynamoClient.models.CustomerProfile.create({
+  if(setupTokenResponse.result.customer?.id) {
+    const customerProfileResponse = await dynamoClient.models.CustomerProfile.update({
       userEmail: event.arguments.userEmail.toLowerCase(),
-      userId: event.arguments.userId,
       paypalCustomerId: setupTokenResponse.result.customer.id
     })
+    mappedCustomerProfile.paypalCustomerId = setupTokenResponse.result.customer.id
     if(!customerProfileResponse.data) {
       response = {
         status: 'Fail',
-        error: 'Failed to create customer profile'
+        error: 'Failed to map paypal customer id to customer profile'
       }
       return response
     }
   }
 
-  const customerId = mappedUserProfile.customerProfile?.paypalCustomerId ?? setupTokenResponse.result.id
-
-  if(!customerId) {
+  if(!mappedCustomerProfile.paypalCustomerId) {
     response = {
       status: 'Fail',
       error: 'Failed to create or retrieve customer profile'
@@ -198,7 +261,7 @@ export const handler: Schema['SavePaymentInformation']['functionHandler'] = asyn
   response = {
     status: 'Success',
     setupTokenResponse: token,
-    customerId: customerId
+    customerId: mappedCustomerProfile.paypalCustomerId
   }
 
   return response

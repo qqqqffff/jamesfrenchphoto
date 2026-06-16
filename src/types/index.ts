@@ -192,7 +192,8 @@ export type PhotoCollection = {
     watermarkPath?: string,
     downloadable: boolean,
     items: number,
-    published: boolean
+    published: boolean,
+    collectionParticipantIds: string[]
 }
 
 export type PhotoSet = {

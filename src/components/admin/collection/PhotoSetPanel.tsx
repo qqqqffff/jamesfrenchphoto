@@ -28,8 +28,7 @@ import { AuthContext } from "../../../auth";
 import { PictureList } from "./picture-table/PictureList";
 import { PhotoPathService } from "../../../services/photoPathService";
 import Loading from "../../common/Loading";
-import { CollectionService, PublishCollectionParams, RepairItemCountsParams, RepairPathsParams } from "../../../services/collectionService";
-import { CgSpinner } from "react-icons/cg";
+import { CollectionService, PublishCollectionMutationParams } from "../../../services/collectionService";
 import { Publishable } from "./PhotoCollectionPanel";
 import { PublishableItems } from "./PublishableItems";
 import { useNavigate } from "@tanstack/react-router";
@@ -48,7 +47,7 @@ export type PhotoSetPanelProps = {
   parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>,
   auth: AuthContext,
   publishable: Publishable,
-  publishCollection: UseMutationResult<string | undefined, Error, PublishCollectionParams, unknown>
+  publishCollection: UseMutationResult<string | undefined, Error, PublishCollectionMutationParams, unknown>
 }
 
 export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({ 
@@ -122,65 +121,8 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
     mutationFn: (params: DeleteSetMutationParams) => PhotoSetService.deleteSetMutation(params)
   })
 
-  const repairPaths = useMutation({
-    mutationFn: (params: RepairPathsParams) => CollectionService.repairPathsMutation(params),
-    onSuccess: (data) => {
-      if(data) {
-        const temp: PhotoSet = {
-          ...photoSet,
-          paths: data,
-          items: data.length,
-        }
-
-        const tempCollection: PhotoCollection = {
-          ...photoCollection,
-          sets: photoCollection.sets.map((set) => {
-            return set.id === temp.id ? temp : set
-          }),
-          items: photoCollection.items - photoSet.items + temp.items
-        }
-
-        setPicturePaths(data)
-        parentUpdateSet(temp)
-        parentUpdateCollection(tempCollection)
-        parentUpdateCollections((prev) => {
-          const pTemp = [...prev]
-            .map((collection) => {
-              return collection.id === tempCollection.id ? tempCollection : collection
-            })
-
-          return pTemp
-        })
-
-        setNotification({ text: 'Repaired Collection\'s Paths', color: 'green' })
-        activeTimeout = setTimeout(() => {
-          setNotification(undefined)
-          activeTimeout = undefined
-        }, 5000)
-      }
-    }
-  })
-
   const reorderPaths = useMutation({
     mutationFn: (params: ReorderPathsParams) => PhotoSetService.reorderPathsMutation(params)
-  })
-
-  const repairItemCounts = useMutation({
-    mutationFn: (params: RepairItemCountsParams) => CollectionService.repairItemCountMutation(params),
-    onSuccess: (data) => {
-      if(data) {
-        parentUpdateCollection(data)
-        parentUpdateCollections((prev) => {
-          const temp = [...prev]
-            .map((collection) => {
-              return collection.id === data.id ? data : collection
-            })
-
-          return temp
-        })
-        parentUpdateSet(data.sets.find((set) => set.id === photoSet.id))
-      }
-    }
   })
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -620,37 +562,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
                 }}
               />Upload Pictures
             </Dropdown.Item>
-            <Dropdown.Item
-              className="disabled:cursor-wait flex flex-row items-center gap-2"
-              disabled={repairPaths.isPending}
-              onClick={() => {
-                repairPaths.mutate({
-                  collectionId: photoCollection.id,
-                  setId: photoSet.id,
-                  options: {
-                    logging: true
-                  }
-                })
-              }}
-            >
-              {repairPaths.isPending && (<CgSpinner size={24} className="animate-spin text-gray-600"/>)}
-              <span>Repair Photo Paths</span>
-            </Dropdown.Item>
-            <Dropdown.Item
-              className="disabled:cursor-wait flex flex-row items-center gap-2"
-              disabled={repairItemCounts.isPending}
-              onClick={() => {
-                repairItemCounts.mutate({
-                  collection: photoCollection,
-                  options: {
-                    logging: true
-                  }
-                })
-              }}
-            >
-              {repairItemCounts.isPending && (<CgSpinner size={24} className="animate-spin text-gray-600"/>)}
-              <span>Repair Item Counts</span>
-            </Dropdown.Item>
             <Dropdown.Item 
               onClick={() => setDeleteConfirmation(true)}
               className="text-red-400"
@@ -710,7 +621,6 @@ export const PhotoSetPanel: FC<PhotoSetPanelProps> = ({
             uploadInputRef={uploadInputRef}
             participantId={auth.user?.profile.activeParticipant?.id}
             pathsQuery={pathsQuery}
-            repairItemCounts={repairItemCounts}
           />
         )}
       </div>

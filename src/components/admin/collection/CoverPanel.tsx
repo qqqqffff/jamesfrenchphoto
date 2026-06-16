@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 import { CoverType, PhotoCollection } from "../../../types"
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query"
-import { PublishCollectionParams } from "../../../services/collectionService"
+import { PublishCollectionMutationParams } from "../../../services/collectionService"
 import { Cover } from "../../collection/Cover"
 
 interface CoverPanelProps {
   collection: PhotoCollection
   cover?: UseQueryResult<[string | undefined, string] | undefined, Error>,
-  updatePublishStatus: UseMutationResult<string | undefined, Error, PublishCollectionParams, unknown>
+  updatePublishStatus: UseMutationResult<string | undefined, Error, PublishCollectionMutationParams, unknown>
 }
 
 export const CoverPanel = (props: CoverPanelProps) => {

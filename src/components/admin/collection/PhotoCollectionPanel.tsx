@@ -10,11 +10,11 @@ import { useNavigate } from "@tanstack/react-router"
 import { PhotoSetPanel } from "./PhotoSetPanel"
 import { 
   CollectionService,
-  DeleteCollectionParams, 
-  DeleteCoverParams,  
-  PublishCollectionParams, 
-  UpdateCollectionParams,  
-  UploadCoverParams
+  DeleteCollectionMutationParams,
+  DeleteCoverMutationParams,
+  PublishCollectionMutationParams,
+  UpdateCollectionMutationParams,
+  UploadCoverMutationParams,
 } from "../../../services/collectionService"
 import Loading from "../../common/Loading"
 import { PublishableItems } from "./PublishableItems"
@@ -106,15 +106,15 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   const navigate = useNavigate()
 
   const deleteImage = useMutation({
-    mutationFn: (params: DeleteCoverParams) => CollectionService.deleteCoverMutation(params),
+    mutationFn: (params: DeleteCoverMutationParams) => CollectionService.deleteCoverMutation(params),
   })
 
   const updateCollection = useMutation({
-    mutationFn: (params: UpdateCollectionParams) => CollectionService.updateCollectionMutation(params)
+    mutationFn: (params: UpdateCollectionMutationParams) => CollectionService.updateCollectionMutation(params)
   })
 
   const deleteCollection = useMutation({
-    mutationFn: (params: DeleteCollectionParams) => CollectionService.deleteCollectionMutation(params)
+    mutationFn: (params: DeleteCollectionMutationParams) => CollectionService.deleteCollectionMutation(params)
   })
 
   const uploadWatermarks = useMutation({
@@ -137,7 +137,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   })
 
   const publishCollection = useMutation({
-    mutationFn: (params: PublishCollectionParams) => CollectionService.publishCollectionMutation(params),
+    mutationFn: (params: PublishCollectionMutationParams) => CollectionService.publishCollectionMutation(params),
     onSuccess: (data) => {
       if(data){
         const tempCollection: PhotoCollection = {
@@ -170,7 +170,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   const collectionParticipants = useQuery(CollectionService.getAllCollectionParticipantsQueryOptions(collection.id, { siTags: { } }))
 
   const uploadCover = useMutation({
-    mutationFn: (params: UploadCoverParams) => CollectionService.uploadCoverMutation(params),
+    mutationFn: (params: UploadCoverMutationParams) => CollectionService.uploadCoverMutation(params),
     onSuccess: (path) => {
       const tempCollection: PhotoCollection = {
         ...collection,
@@ -205,7 +205,7 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
   })
 
   const deleteCover = useMutation({
-    mutationFn: (params: DeleteCoverParams) => CollectionService.deleteCoverMutation(params),
+    mutationFn: (params: DeleteCoverMutationParams) => CollectionService.deleteCoverMutation(params),
     onSettled: () => {
       if(fileUpload.current) {
         uploadCover.mutate({
@@ -904,7 +904,6 @@ export const PhotoCollectionPanel: FC<PhotoCollectionPanelProps> = ({
                 participants={participants.data  && participants.data.pages.length > 0 ? participants.data.pages[participants.data.pages.length - 1].participants : []}
                 collectionParticipants={collectionParticipants}
                 userTags={availableTags}
-                updateCollectionMutation={updateCollection}
               />
             </div>
         ): (
