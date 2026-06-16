@@ -142,7 +142,8 @@ export async function mapUserTag(tagResponse: Schema['UserTag']['type'], options
             published: collectionResponse.data.published ?? false,
             //unnecessary or shallow depth only
             tags: [],
-            sets: []
+            sets: [],
+            collectionParticipantIds: []
           }
           collectionsMemo.push(mappedCollection)
 

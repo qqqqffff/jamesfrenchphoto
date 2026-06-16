@@ -1,4 +1,4 @@
-import { APIMutationResponse, CustomerBillingAddress } from ".";
+import { APIMutationResponse, CustomerBillingAddress, PhotoSet } from ".";
 
 export interface ChargeNoShowFeeAPIResponse extends Omit<APIMutationResponse, 'status'> {
   status: 'Success' | 'Fail' | 'ActionRequired'
@@ -34,4 +34,12 @@ export type CapturePaymentRequest = {
   paymentMethodId: string,
 } | {
   type: 'Card'
+}
+
+export type AdminRetrieveCollectionAPIResponse = {
+  status: 'Success',
+  photoSets: PhotoSet[]
+} | {
+  status: 'Fail',
+  error: string,
 }

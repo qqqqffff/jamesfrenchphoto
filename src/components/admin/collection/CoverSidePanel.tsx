@@ -5,7 +5,7 @@ import { PhotoCollection } from "../../../types"
 import { defaultColors } from "../../../utils"
 import { BiSolidSquareRounded } from "react-icons/bi"
 import { UseMutationResult } from "@tanstack/react-query"
-import { UpdateCollectionParams } from "../../../services/collectionService"
+import { UpdateCollectionMutationParams } from "../../../services/collectionService"
 
 interface CoverSidePanel {
   setUploadCoverVisible: Dispatch<SetStateAction<boolean>>
@@ -13,7 +13,7 @@ interface CoverSidePanel {
   updateParentCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   updateParentCollections: Dispatch<SetStateAction<PhotoCollection[]>>
   collection: PhotoCollection
-  updateCollectionMutation: UseMutationResult<void, Error, UpdateCollectionParams, unknown>
+  updateCollectionMutation: UseMutationResult<void, Error, UpdateCollectionMutationParams, unknown>
 }
 
 export const CoverSidePanel = (props: CoverSidePanel) => {

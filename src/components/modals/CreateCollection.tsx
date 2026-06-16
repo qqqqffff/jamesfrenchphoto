@@ -4,7 +4,7 @@ import { ModalProps } from "."
 import { PhotoCollection, PhotoSet, UserTag } from "../../types";
 import { textInputTheme } from "../../utils";
 import { useMutation } from "@tanstack/react-query";
-import { CollectionService, CreateCollectionParams, UpdateCollectionParams } from "../../services/collectionService";
+import { CollectionService, CreateCollectionMutationParams, UpdateCollectionMutationParams } from "../../services/collectionService";
 import { v4 } from 'uuid'
 
 interface CreateCollectionProps extends ModalProps {
@@ -23,6 +23,7 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ CollectionSer
       updatedAt: new Date().toISOString(),
       sets: [] as PhotoSet[],
       tags: [] as UserTag[],
+      collectionParticipantIds: [],
       items: 0
     }))
 
@@ -33,13 +34,13 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ CollectionSer
     }, [collection])
 
     const createCollection = useMutation({
-      mutationFn: (params: CreateCollectionParams) => CollectionService.createCollectionMutation(params),
+      mutationFn: (params: CreateCollectionMutationParams) => CollectionService.createCollectionMutation(params),
       onSuccess: () => onSubmit(collection),
       onSettled: () => clearState()
     })
 
     const updateCollection = useMutation({
-      mutationFn: (params: UpdateCollectionParams) => CollectionService.updateCollectionMutation(params),
+      mutationFn: (params: UpdateCollectionMutationParams) => CollectionService.updateCollectionMutation(params),
       onSuccess: () => onSubmit(collection),
       onSettled: () => clearState()
     })
@@ -54,6 +55,7 @@ export const CreateCollectionModal: FC<CreateCollectionProps> = ({ CollectionSer
         updatedAt: new Date().toISOString(),
         sets: [] as PhotoSet[],
         tags: [] as UserTag[],
+        collectionParticipantIds: [],
         items: 0
       })
       onClose()

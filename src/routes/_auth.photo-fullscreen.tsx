@@ -75,8 +75,9 @@ function RouteComponent() {
     })
   )
 
+  //TODO: use collection retrieval command
   const collectionQuery = useQuery({
-    ...data.CollectionService.getPhotoCollectionByIdQueryOptions(setQuery.data?.collectionId, { siPaths: false, siSets: true, siTags: false }),
+    ...data.CollectionService.getPhotoCollectionByIdQueryOptions(setQuery.data?.collectionId, { siSets: true, siTags: false }),
     enabled: setQuery.isSuccess
   })
 

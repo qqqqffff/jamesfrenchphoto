@@ -18,7 +18,13 @@ import {
   PaymentInitiator,
   StoredPaymentSourcePaymentType,
   StoreInVaultInstruction,
-  StoredPaymentSourceUsageType
+  StoredPaymentSourceUsageType,
+  UsagePattern,
+  PaypalPaymentTokenUsageType,
+  PaypalPaymentTokenCustomerType,
+  PaypalExperienceUserAction,
+  PayeePaymentMethodPreference,
+  PaypalExperienceLandingPage
 } from '@paypal/paypal-server-sdk'
 import { DateTime, Duration } from 'luxon'
 import { generatePayPalAuthAssertionHeader } from "../../../../scripts/generate-paypal-auth-assertion-header";
@@ -250,7 +256,7 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
         storedCredential: {
           paymentInitiator: PaymentInitiator.Customer,
           paymentType: timeslot.noshowFee !== undefined ? StoredPaymentSourcePaymentType.Recurring : StoredPaymentSourcePaymentType.OneTime,
-          usage: StoredPaymentSourceUsageType.Subsequent
+          usage: timeslot.noshowFee !== undefined ? StoredPaymentSourceUsageType.Derived : StoredPaymentSourceUsageType.Subsequent
         },
         attributes: {
           customer: timeslot.noshowFee !== undefined && customerProfile.paypalCustomerId ? {
@@ -285,8 +291,33 @@ export const handler: Schema['CreateShortNoticeCancelationOrder']['functionHandl
             storeInVault: timeslot.noshowFee !== undefined ? StoreInVaultInstruction.OnSuccess : undefined,
           }
         }
+      }) : undefined,
+      paypal: event.arguments.vaulting.vault && event.arguments.vaulting.paymentSource === 'PAYPAL' ? ({
+        storedCredential: {
+          paymentInitiator: PaymentInitiator.Customer,
+          usage: timeslot.noshowFee !== undefined ? StoredPaymentSourceUsageType.Derived : StoredPaymentSourceUsageType.First,
+          usagePattern: timeslot.noshowFee !== undefined ? UsagePattern.RecurringPrepaid : UsagePattern.Immediate,
+        },
+        attributes: {
+          customer: {
+            merchantCustomerId: customerProfile.userId
+          },
+          vault: {
+            storeInVault: StoreInVaultInstruction.OnSuccess,
+            description: "James French Photo save payment information",
+            usagePattern: timeslot.noshowFee !== undefined ? UsagePattern.RecurringPrepaid : UsagePattern.Immediate,
+            usageType: PaypalPaymentTokenUsageType.Platform,
+            customerType: PaypalPaymentTokenCustomerType.Consumer,
+          }
+        },
+        experienceContext: {
+          returnUrl: event.arguments.returnUrl,
+          cancelUrl: event.arguments.cancelUrl,
+          landingPage: PaypalExperienceLandingPage.Billing,
+          userAction: PaypalExperienceUserAction.PayNow,
+          paymentMethodPreference: PayeePaymentMethodPreference.ImmediatePaymentRequired,
+        }
       }) : undefined
-      //TODO: implement paypal payment vaulting
     }) : undefined
   }
 

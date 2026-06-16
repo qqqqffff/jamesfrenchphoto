@@ -110,9 +110,9 @@ function RouteComponent() {
     enabled: data.collection !== undefined
   })
 
+  //TODO: use alternate method for admin collection retrieval
   const collectionQuery = useQuery({
     ...data.CollectionService.getPhotoCollectionByIdQueryOptions(data.collection ?? '', {
-      siPaths: false,
       siSets: false,
       siTags: false,
     }),

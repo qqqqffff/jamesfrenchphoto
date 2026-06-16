@@ -73,16 +73,16 @@ function RouteComponent() {
   const shareTemplatesQuery = useQuery(data.ShareService.getAllShareTemplatesQueryOptions())
 
   //TODO: convert me to an infinite query and conditional enabling
+  //TODO: implement alternate method to favorites retrieval
+  //TODO: implement new admin collcetion indexing function
   const collectionsQuery = useQuery(data.CollectionService.getAllPhotoCollectionsQueryOptions({ 
     siTags: false,
-    siPaths: false,
     siSets: false,
   }))
   const collectionQuery = useQuery(
     data.CollectionService.getPhotoCollectionByIdQueryOptions(data.collection, {
       siSets: true,
       siTags: true,
-      participantId: data.auth.user?.profile.activeParticipant?.id
     })
   )
 

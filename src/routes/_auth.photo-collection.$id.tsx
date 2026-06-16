@@ -35,11 +35,10 @@ export const Route = createFileRoute('/_auth/photo-collection/$id')({
     if(!params.id) throw redirect({ to: destination })
     
 
+      //TODO: implement a different method for favorites retrieval and retrieval lambda function full collection retrieval
     const collection = await context.queryClient.ensureQueryData(
       collectionService.getPhotoCollectionByIdQueryOptions(params.id, { 
-        participantId: context.auth.user?.profile.activeParticipant?.id, 
         siSets: true, 
-        siPaths: false,
         unauthenticated: context.temporaryToken !== undefined,
       })
     )

@@ -7,7 +7,7 @@ import { isSetData } from './SetData';
 import { Set } from './Set';
 import { PhotoCollection, PhotoSet } from '../../../types';
 import { useMutation } from '@tanstack/react-query';
-import { CollectionService, ReorderSetsParams } from '../../../services/collectionService';
+import { CollectionService, ReorderSetMutationParams } from '../../../services/collectionService';
 import { PhotoSetService } from '../../../services/photoSetService';
 
 interface SetListProps extends ComponentProps<'div'> {
@@ -25,7 +25,7 @@ export const SetList = (props: SetListProps) => {
   const [sets, setSets] = useState<PhotoSet[]>(props.setList);
 
   const reorderSets = useMutation({
-    mutationFn: (params: ReorderSetsParams) => props.CollectionService.reorderSetsMutation(params)
+    mutationFn: (params: ReorderSetMutationParams) => props.CollectionService.reorderSetsMutation(params)
   })
 
   useEffect(() => {

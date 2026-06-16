@@ -1,7 +1,7 @@
 import { ComponentProps, Dispatch, MutableRefObject, SetStateAction, useCallback, useEffect, useRef, useState } from "react"
 import { DropzoneState, useDropzone } from "react-dropzone"
 import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query"
-import { CollectionService, DeleteCoverParams, PublishCollectionParams, UploadCoverParams } from "../../../services/collectionService"
+import { CollectionService, DeleteCoverMutationParams, PublishCollectionMutationParams, UploadCoverMutationParams } from "../../../services/collectionService"
 import { CgSpinner } from "react-icons/cg";
 import { ConfirmationModal } from "../../modals"
 import { PhotoCollection } from "../../../types";
@@ -18,7 +18,7 @@ interface CollectionThumbnailProps extends ComponentProps<'div'> {
   parentLoading?: boolean,
   updateParentCollection?: Dispatch<SetStateAction<PhotoCollection | undefined>>
   updateParentCollections?: Dispatch<SetStateAction<PhotoCollection[]>>
-  updatePublishStatus?: UseMutationResult<string | undefined, Error, PublishCollectionParams, unknown>
+  updatePublishStatus?: UseMutationResult<string | undefined, Error, PublishCollectionMutationParams, unknown>
 }
 
 export const CollectionThumbnail= ({ 
@@ -53,7 +53,7 @@ export const CollectionThumbnail= ({
   }, [fileUpload.current])
   
   const uploadCover = useMutation({
-    mutationFn: (params: UploadCoverParams) => CollectionService.uploadCoverMutation(params),
+    mutationFn: (params: UploadCoverMutationParams) => CollectionService.uploadCoverMutation(params),
     onSuccess: (path) => {
       let temp: PhotoCollection | undefined
       updateParentCollection!((prev) => {
@@ -93,7 +93,7 @@ export const CollectionThumbnail= ({
   })
 
   const deleteCover = useMutation({
-    mutationFn: (params: DeleteCoverParams) => CollectionService.deleteCoverMutation(params),
+    mutationFn: (params: DeleteCoverMutationParams) => CollectionService.deleteCoverMutation(params),
     onSettled: () => {
       if(fileUpload.current) {
         uploadCover.mutate({

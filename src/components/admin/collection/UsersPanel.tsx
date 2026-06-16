@@ -1,8 +1,8 @@
-import { Dispatch, SetStateAction, useEffect, useState } from "react"
+import { Dispatch, SetStateAction, useState } from "react"
 import { Participant, PhotoCollection, UserTag } from "../../../types"
 import { Dropdown, Radio, Tooltip } from "flowbite-react"
-import { useMutation, UseMutationResult, UseQueryResult } from "@tanstack/react-query"
-import { CollectionService, AddCollectionParticipantParams, RemoveCollectionParticipantParams, UpdateCollectionParams } from "../../../services/collectionService"
+import { useMutation, UseQueryResult } from "@tanstack/react-query"
+import { AddCollectionParticipantMutationParams, CollectionService, RemoveCollectionParticipantParams, UpdateCollectionMutationParams } from "../../../services/collectionService"
 import { ParticipantPanel } from "../../common/ParticipantPanel"
 
 interface UsersPanelProps {
@@ -10,30 +10,14 @@ interface UsersPanelProps {
   collection: PhotoCollection,
   parentUpdateCollection: Dispatch<SetStateAction<PhotoCollection | undefined>>
   parentUpdateCollections: Dispatch<SetStateAction<PhotoCollection[]>>
-  participants: Participant[]
+  participants: Participant[] //TODO: replace me with the infinite participant query
   collectionParticipants: UseQueryResult<Participant[] | undefined, Error>,
   userTags: UserTag[]
-  updateCollectionMutation: UseMutationResult<void, Error, UpdateCollectionParams, unknown>
 }
 
 export const UsersPanel = (props: UsersPanelProps) => {
-  const [participants, setParticipants] = useState<Participant[]>([])
-  const [collectionParticipants, setCollectionParticipants] = useState<Participant[]>([])
   const [search, setSearch] = useState<string>('')
   const [filterTag, setFilterTag] = useState<UserTag>()
-
-  useEffect(() => {
-    if(participants.some((participant) => !props.participants.some((parentParticipants) => parentParticipants.id === participant.id)) ||
-      props.participants.some((parentParticipants) => !participants.some((participant) => participant.id === parentParticipants.id))
-    ){
-      setParticipants(props.participants)
-    }
-    if(collectionParticipants.some((participant) => !props.collectionParticipants.data?.some((parentParticipants) => parentParticipants.id === participant.id)) ||
-      props.collectionParticipants.data?.some((parentParticipants) => !collectionParticipants.some((participant) => participant.id === parentParticipants.id))
-    ){
-      setCollectionParticipants(props.collectionParticipants.data ?? [])
-    }
-  }, [props.participants, props.collectionParticipants])
 
   function wrapTooltip(wrap: boolean, participant: Participant, child: JSX.Element): JSX.Element {
     if(wrap) {
@@ -76,15 +60,18 @@ export const UsersPanel = (props: UsersPanelProps) => {
   }
 
   const addCollectionParticipant = useMutation({
-    mutationFn: (params: AddCollectionParticipantParams) => props.CollectionService.addCollectionParticipantMutation(params)
+    mutationFn: (params: AddCollectionParticipantMutationParams) => props.CollectionService.addCollectionParticipantMutation(params)
   })
 
   const removeCollectionParticipant = useMutation({
     mutationFn: (params: RemoveCollectionParticipantParams) => props.CollectionService.removeCollectionParticipantMutation(params),
-    onSettled: () => {
-      props.collectionParticipants.refetch()
-    }
   })
+
+  const updateCollection = useMutation({
+    mutationFn: (params: UpdateCollectionMutationParams) => props.CollectionService.updateCollectionMutation(params)
+  })
+
+  const collectionParticipants = (props.collectionParticipants.data ?? [])
 
   return (
     <div className="flex flex-col max-h-[90vh] min-h-[90vh] py-2 px-12 w-full overflow-auto">
@@ -119,7 +106,11 @@ export const UsersPanel = (props: UsersPanelProps) => {
                 </Dropdown.Item>
                 <div className="flex flex-row justify-end w-full py-1">
                   <button 
-                    className="border rounded-lg hover:bg-gray-100 me-4 px-4"
+                    disabled={
+                      updateCollection.isPending ||
+                      removeCollectionParticipant.isPending
+                    }
+                    className="border rounded-lg enabled:hover:bg-gray-100 me-4 px-4 disabled:opacity-60"
                     onClick={() => {
                       if(allSelected) {
                         const tempCollection: PhotoCollection = {
@@ -127,7 +118,8 @@ export const UsersPanel = (props: UsersPanelProps) => {
                           tags: props.collection.tags.filter((cTag) => cTag.id !== tag.id)
                         }
 
-                        props.updateCollectionMutation.mutate({
+                        //TODO: convert me to an async mutation with a notification on error
+                        updateCollection.mutate({
                           collection: props.collection,
                           name: props.collection.name,
                           downloadable: props.collection.downloadable,
@@ -162,7 +154,8 @@ export const UsersPanel = (props: UsersPanelProps) => {
                           })
                         }
 
-                        props.updateCollectionMutation.mutate({
+                        //TODO: convert me to an async mutation with a notification on error
+                        updateCollection.mutate({
                           collection: props.collection,
                           tags: [...props.collection.tags, tag],
                           published: props.collection.published,
@@ -193,7 +186,7 @@ export const UsersPanel = (props: UsersPanelProps) => {
         </Dropdown>
       </div>
       
-      <div className="grid grid-cols-2 gap-x-10 gap-y-4">
+      <div className="grid grid-cols-2 gap-x-10 gap-y-4 max-h-[60vh] overflow-auto">
         {props.participants
           .filter((participant) => (
             (participant.firstName.toLowerCase().trim().includes(search.toLowerCase()) ||
@@ -204,7 +197,6 @@ export const UsersPanel = (props: UsersPanelProps) => {
           ))
           .sort((a, b) => a.lastName.localeCompare(b.lastName))
           .map((participant, index) => {
-            //TODO: convert me to a function
             const participantFirstName = participant.preferredName !== undefined && participant.preferredName !== '' ? participant.preferredName : participant.firstName
             const selected = collectionParticipants.some((selectedParticipant) => selectedParticipant.id === participant.id)
             const tagSelected = participant.userTags.some((tag) => props.collection.tags.some((colTag) => colTag.id === tag.id))
@@ -228,7 +220,14 @@ export const UsersPanel = (props: UsersPanelProps) => {
                         logging: true
                       }
                     })
-                    setCollectionParticipants(tempParticipants)
+                    props.parentUpdateCollection((prev) => prev ? {
+                      ...prev,
+                      collectionParticipantIds: tempParticipants.map((participant) => participant.id)
+                    } : undefined)
+                    props.parentUpdateCollections((prev) => prev.map((collection) => (collection.id === props.collection.id ? ({
+                      ...collection,
+                      collectionParticipantIds: tempParticipants.map((participant) => participant.id)
+                    }) : collection)))
                   }
                   else {
                     const tempParticipants = [...collectionParticipants, participant]
@@ -239,14 +238,20 @@ export const UsersPanel = (props: UsersPanelProps) => {
                         logging: true
                       }
                     })
-                    setCollectionParticipants(tempParticipants)
+                    props.parentUpdateCollection((prev) => prev ? {
+                      ...prev,
+                      collectionParticipantIds: tempParticipants.map((participant) => participant.id)
+                    } : undefined)
+                    props.parentUpdateCollections((prev) => prev.map((collection) => (collection.id === props.collection.id ? ({
+                      ...collection,
+                      collectionParticipantIds: tempParticipants.map((participant) => participant.id)
+                    }) : collection)))
                   }
                 }}
               >
                 <div className="flex flex-row gap-2 items-center text-nowrap">
                   <span className="italic">{`${participantFirstName}, `}</span>
                   <span className="italic">{participant.lastName}</span>
-                  
                 </div>
               </button>
             ))

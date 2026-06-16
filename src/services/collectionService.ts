@@ -1,12 +1,10 @@
-import { CoverType, Favorite, Participant, PhotoCollection, PhotoSet, PicturePath, UserTag, Watermark } from "../types";
+import { CoverType, Participant, PhotoCollection, PhotoSet, PicturePath, UserTag, Watermark } from "../types";
 import { Schema } from "../../amplify/data/resource";
 import { V6Client } from '@aws-amplify/api-graphql'
 import { queryOptions } from '@tanstack/react-query'
 import { downloadData, getUrl, remove, uploadData } from "aws-amplify/storage";
 import { parsePathName } from "../utils";
-import { getAllPaths } from "./photoPathService";
 import { mapParticipant } from "./userService";
-import { getParticipantFavoritesByCollection } from "./favoriteService";
 import { MapUserTagOptions } from "./tagService";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { SignatureV4 } from "@smithy/signature-v4";
@@ -16,114 +14,92 @@ import outputs from "../../amplify_outputs.json";
 interface MapCollectionOptions {
   siTags?: boolean
   siSets?: boolean
-  siPaths?: boolean
+  siParticipants?: boolean
   unauthenticated?: boolean
-  participantId?: string,
-}
-async function mapCollection(client: V6Client<Schema>, collectionResponse: Schema['PhotoCollection']['type'], options?: MapCollectionOptions): Promise<PhotoCollection> {
-  const mappedSets: PhotoSet[] = []
-  const mappedTags: UserTag[] = []
-  const favorites: Favorite[] = []
-
-  if(options?.participantId) {
-    const tempMappedCollection: PhotoCollection = {
-      ...collectionResponse,
-      coverPath: collectionResponse.coverPath ?? undefined,
-      coverType: {
-        textColor: collectionResponse.coverType?.textColor ?? undefined,
-        bgColor: collectionResponse.coverType?.bgColor ?? undefined,
-        placement: collectionResponse.coverType?.placement ?? undefined,
-        textPlacement: collectionResponse.coverType?.textPlacement ?? undefined,
-        date: collectionResponse.coverType?.date ?? undefined
-      },
-      publicCoverPath: collectionResponse.publicCoverPath ?? undefined,
-      downloadable: collectionResponse.downloadable ?? false,
-      watermarkPath: collectionResponse.watermarkPath ?? undefined,
-      tags: mappedTags,
-      sets: mappedSets,
-      items: collectionResponse.items ?? 0,
-      published: collectionResponse.published ?? false,
-    }
-
-    const favoritesResponse = await getParticipantFavoritesByCollection(client, options.participantId, collectionResponse.id, {
-      siCollection: tempMappedCollection,
-    })
-
-    if(favoritesResponse !== null) {
-      favorites.push(...favoritesResponse)
-    }
+  memos?: { //TODO: implement memoization in dependents
+    tagsMemo?: UserTag[]
   }
+}
+export async function mapCollection(collectionResponse: Schema['PhotoCollection']['type'], options?: MapCollectionOptions): Promise<PhotoCollection> {
+  const tagsMemo = options?.memos?.tagsMemo ?? []
 
-  if(!options || options.siSets){
-    let setsResponse = await collectionResponse.sets({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
-    let setData = setsResponse.data
+  const mappedSets = new Promise<PhotoSet[]>(async resolve => {
+    if(options?.siSets) {
+      let setsResponse = await collectionResponse.sets({ authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
+      let setData = setsResponse.data
 
-    while(setsResponse.nextToken) {
-      setsResponse = await collectionResponse.sets({ 
-        nextToken: setsResponse.nextToken, 
-        authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
-      })
-      setData.push(...setsResponse.data)
-    }
-
-    mappedSets.push(...await Promise.all(setData.map(async (set) => {
-      let mappedPaths: PicturePath[] = []
-
-      if(options?.siPaths) {
-        let pathResponse = await set.paths({
+      while(setsResponse.nextToken) {
+        setsResponse = await collectionResponse.sets({ 
+          nextToken: setsResponse.nextToken, 
           authMode: options?.unauthenticated ? 'identityPool' : 'userPool' 
         })
-        let pathData = pathResponse.data
+        setData.push(...setsResponse.data)
+      }
 
-        while(pathResponse.nextToken) {
-          pathResponse = await set.paths({ 
-            nextToken: pathResponse.nextToken,
-            authMode: options?.unauthenticated ? 'identityPool' : 'userPool'  
-          })
-          pathData.push(...pathResponse.data)
+      const sets = setData.map((set) => {
+        const mappedSet: PhotoSet = {
+          ...set,
+          watermarkPath: set.watermarkPath ?? undefined,
+          paths: [],
+          items: set.items ?? 0
         }
+        return mappedSet
+      })
+      resolve(sets)
+    }
+    resolve([])
+  })
 
-        mappedPaths.push(...(await Promise.all(
-          pathData.map(async (path) => {
-            let favorite: string | undefined = favorites.find((favorite) => favorite.pathId === path.id)?.id
-            return ({ ...path, favorites: favorite, url: '' })
-          })))
-        )
+  const mappedTags = new Promise<UserTag[]>(async resolve => {
+    if(options?.siTags && !options.unauthenticated) { //only allowed to query tags if user is authenticated
+      let tagResponse = await collectionResponse.tags()
+      let tagData = tagResponse.data
+
+      while(tagResponse.nextToken) {
+        tagResponse = await collectionResponse.tags({ nextToken: tagResponse.nextToken })
+        tagData.push(...tagResponse.data)
       }
 
-      const mappedSet: PhotoSet = {
-        ...set,
-        watermarkPath: set.watermarkPath ?? undefined,
-        paths: mappedPaths,
-        items: set.items ?? 0
-      }
-      return mappedSet
-    })))
-  }
+      const tags = await Promise.all(tagData.map(async (colTag) => {
+        const foundTag = tagsMemo.find((tag) => tag.id === colTag.tagId)
+        if(foundTag) return foundTag
 
-  if(!options || options.siTags){
-    let tagResponse = await collectionResponse.tags()
-    let tagData = tagResponse.data
+        const tag = await colTag.tag()
+        if(!tag.data) return
 
-    while(tagResponse.nextToken) {
-      tagResponse = await collectionResponse.tags({ nextToken: tagResponse.nextToken })
-      tagData.push(...tagResponse.data)
+        const mappedTag: UserTag = {
+          ...tag.data,
+          color: tag.data.color ?? undefined,
+          notifications: undefined,
+          //unnecessary
+          children: [],
+          participants: []
+        }
+        return mappedTag
+      }))
+
+      resolve(tags.filter((tag) => tag !== undefined))
     }
 
-    mappedTags.push(...(await Promise.all(tagData.map(async (collTag) => {
-      let tag = await collTag.tag()
-      if(!tag || !tag.data) return
-      const mappedTag: UserTag = {
-        ...tag.data,
-        color: tag.data.color ?? undefined,
-        notifications: undefined,
-        //TODO: implement children
-        children: [],
-        participants: []
+    resolve([])
+  })
+
+  const mappedParticipantIds = new Promise<string[]>(async resolve => {
+    if(options?.siParticipants && !options.unauthenticated) {
+      let participantsResponse = await collectionResponse.participants()
+      const participantsData = participantsResponse.data
+
+      while(participantsResponse.nextToken) {
+        participantsResponse = await collectionResponse.participants({ nextToken: participantsResponse.nextToken })
+        participantsData.push(...participantsResponse.data)
       }
-      return mappedTag
-    }))).filter((tag) => tag !== undefined))
-  }
+
+      resolve(participantsData.map((data) => data.participantId))
+    }
+    resolve([])
+  })
+
+  const mappedData = await Promise.all([mappedSets, mappedTags, mappedParticipantIds])
   
   const mappedCollection: PhotoCollection = {
     ...collectionResponse,
@@ -138,10 +114,11 @@ async function mapCollection(client: V6Client<Schema>, collectionResponse: Schem
     publicCoverPath: collectionResponse.publicCoverPath ?? undefined,
     downloadable: collectionResponse.downloadable ?? false,
     watermarkPath: collectionResponse.watermarkPath ?? undefined,
-    tags: mappedTags,
-    sets: mappedSets,
+    tags: mappedData[1],
+    sets: mappedData[0],
     items: collectionResponse.items ?? 0,
     published: collectionResponse.published ?? false,
+    collectionParticipantIds: mappedData[2]
   }
 
   return mappedCollection
@@ -165,7 +142,7 @@ async function getAllPhotoCollections(client: V6Client<Schema>, options?: GetAll
     const mappedCollections: PhotoCollection[] = await Promise.all(
       collectionData.map((collection) => {
         if(options?.logging) console.log(collection)
-        return mapCollection(client, collection, options)
+        return mapCollection(collection, options)
       })
     )
     const end = new Date().getTime()
@@ -201,7 +178,7 @@ export async function getAllCollectionsFromUserTagId(client: V6Client<Schema>, t
       if(foundCollection) return foundCollection
       const collectionResponse = (await collection.collection()).data
       if(collectionResponse !== null) {
-        return mapCollection(client, collectionResponse, options)
+        return mapCollection(collectionResponse, options)
       }
     })
   )).filter((collection) => collection !== undefined))
@@ -236,7 +213,7 @@ export async function getAllCollectionsFromUserTagIds(client: V6Client<Schema>, 
               !collectionResponse.data 
             ) return
             
-            const collection = await mapCollection(client, collectionResponse.data, options)
+            const collection = await mapCollection(collectionResponse.data, options)
             tempMemo.push(collection)
 
             return collection
@@ -318,7 +295,7 @@ export async function getCollectionById(client: V6Client<Schema>, collectionId?:
   const collection = await client.models.PhotoCollection.get({ id: collectionId }, { authMode: options?.unauthenticated ? 'identityPool' : 'userPool' })
   if(!collection || !collection.data) return null
   
-  return mapCollection(client, collection.data, options)
+  return mapCollection(collection.data, options)
 }
 
 interface GetAllCollectionParticipantsOptions {
@@ -372,7 +349,7 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
     if(foundCollection !== undefined) return foundCollection
     const collectionResponse = await collectionTag.collection()
     if(collectionResponse.data === null) return
-    const mappedCollection = await mapCollection(client, collectionResponse.data, options)
+    const mappedCollection = await mapCollection(collectionResponse.data, options)
     tempMemo.push(mappedCollection)
     return mappedCollection
   })))
@@ -382,14 +359,14 @@ async function getParticipantCollections(client: V6Client<Schema>, participantId
   return mappedCollections
 }
 
-export interface CreateCollectionParams {
+export interface CreateCollectionMutationParams {
   collection: PhotoCollection
   options?: {
       logging: boolean
   },
 }
 
-export interface UpdateCollectionParams extends CreateCollectionParams {
+export interface UpdateCollectionMutationParams extends CreateCollectionMutationParams {
     tags?: UserTag[],
     name: string,
     downloadable: boolean
@@ -400,7 +377,7 @@ export interface UpdateCollectionParams extends CreateCollectionParams {
     coverType?: CoverType
 }
 
-export interface PublishCollectionParams {
+export interface PublishCollectionMutationParams {
     collectionId: string,
     publishStatus: boolean,
     path: string,
@@ -410,14 +387,14 @@ export interface PublishCollectionParams {
     }
 }
 
-export interface DeleteCollectionParams {
+export interface DeleteCollectionMutationParams {
     collectionId: string,
     options?: {
         logging: boolean
     }
 }
 
-export interface DeleteCoverParams {
+export interface DeleteCoverMutationParams {
     cover?: string,
     collectionId: string,
     replacement?: boolean,
@@ -426,7 +403,7 @@ export interface DeleteCoverParams {
     }
 }
 
-export interface UploadCoverParams {
+export interface UploadCoverMutationParams {
     cover: File,
     collectionId: string,
     options?: {
@@ -434,7 +411,7 @@ export interface UploadCoverParams {
     }
 }
 
-export interface ReorderSetsParams {
+export interface ReorderSetMutationParams {
   collectionId: string,
   sets: PhotoSet[],
   options?: {
@@ -442,7 +419,7 @@ export interface ReorderSetsParams {
   }
 }
 
-export interface AddCollectionParticipantParams {
+export interface AddCollectionParticipantMutationParams {
     participantIds: string[],
     collectionId: string,
     options?: {
@@ -450,23 +427,7 @@ export interface AddCollectionParticipantParams {
     }
 }
 
-export interface RemoveCollectionParticipantParams extends AddCollectionParticipantParams {}
-
-export interface RepairPathsParams {
-  collectionId: string,
-  setId: string,
-  options?: {
-    logging?: boolean
-  }
-}
-
-export interface RepairItemCountsParams {
-  collection: PhotoCollection,
-  refetchAllSets?: boolean,
-  options?: {
-    logging?: boolean
-  }
-}
+export interface RemoveCollectionParticipantParams extends AddCollectionParticipantMutationParams {}
 
 export class CollectionService {
   private client: V6Client<Schema>
@@ -475,7 +436,7 @@ export class CollectionService {
     this.client = client
   }
 
-  async createCollectionMutation(params: CreateCollectionParams) {
+  async createCollectionMutation(params: CreateCollectionMutationParams) {
     const collectionResponse = await this.client.models.PhotoCollection.create({
       id: params.collection.id,
       name: params.collection.name,
@@ -485,7 +446,7 @@ export class CollectionService {
     if(params.options?.logging) console.log(collectionResponse)
   }
 
-  async updateCollectionMutation(params: UpdateCollectionParams) {
+  async updateCollectionMutation(params: UpdateCollectionMutationParams) {
     const newTags = (params.tags ?? []).filter((tag) => 
       !params.collection.tags.some((colTag) => colTag.id === tag.id))
 
@@ -564,7 +525,7 @@ export class CollectionService {
     }
   }
 
-  async publishCollectionMutation(params: PublishCollectionParams): Promise<string | undefined> {
+  async publishCollectionMutation(params: PublishCollectionMutationParams): Promise<string | undefined> {
     try{
       if(params.publishStatus){
         const responsePublishPublic = await this.client.queries.AddPublicPhoto({
@@ -605,8 +566,9 @@ export class CollectionService {
   }
 
   //TODO: delete linkages -> participant collections -> favorites -> collection tags explore more
-  async deleteCollectionMutation(params: DeleteCollectionParams) {
-    const collection = await getCollectionById(this.client, params.collectionId, { siPaths: true, siSets: true })
+  async deleteCollectionMutation(params: DeleteCollectionMutationParams) {
+    //TODO: use admin collection index retriever to delete
+    const collection = await getCollectionById(this.client, params.collectionId, { siSets: true })
     
     if(!collection) return
 
@@ -646,7 +608,7 @@ export class CollectionService {
     if(params.options?.logging) console.log(response)
   }
 
-  async deleteCoverMutation(params: DeleteCoverParams){
+  async deleteCoverMutation(params: DeleteCoverMutationParams){
     if(!params.cover) return
     const s3response = remove({
       path: params.cover,
@@ -663,7 +625,7 @@ export class CollectionService {
     }
   }
 
-  async uploadCoverMutation(params: UploadCoverParams){
+  async uploadCoverMutation(params: UploadCoverMutationParams){
     const s3response = await uploadData({
         path: `photo-collections/covers/${params.collectionId}_${params.cover.name}`,
         data: params.cover,
@@ -680,7 +642,7 @@ export class CollectionService {
   }
 
   //TODO: make me more performant (less api calls)
-  async reorderSetsMutation(params: ReorderSetsParams){
+  async reorderSetsMutation(params: ReorderSetMutationParams){
     const response = await Promise.all(params.sets.map(async (set) => {
       const dynamoResponse = await this.client.models.PhotoSet.update({
         id: set.id,
@@ -692,13 +654,29 @@ export class CollectionService {
     if(params.options?.logging) console.log(response)
   }
 
-  //TODO: validate that the participants already do not have a existing collection
-  async addCollectionParticipantMutation(params: AddCollectionParticipantParams) {
-    const responses = await Promise.all(params.participantIds.map((id) => {
-      return this.client.models.ParticipantCollections.create({
-        participantId: id,
-        collectionId: params.collectionId,
+  async addCollectionParticipantMutation(params: AddCollectionParticipantMutationParams) {
+    let participantCollections = await this.client.models.ParticipantCollections.listParticipantCollectionsByCollectionId({
+      collectionId: params.collectionId
+    })
+    const data = participantCollections.data
+
+    while(participantCollections.nextToken) {
+      participantCollections = await this.client.models.ParticipantCollections.listParticipantCollectionsByCollectionId({
+        collectionId: params.collectionId
+      }, {
+        nextToken: participantCollections.nextToken
       })
+      data.push(...participantCollections.data)
+    }
+    
+
+    const responses = await Promise.all(params.participantIds
+      .filter((id) => !data.some((participantCollection) => participantCollection.participantId === id))
+      .map((id) => {
+        return this.client.models.ParticipantCollections.create({
+          participantId: id,
+          collectionId: params.collectionId,
+        })
     }))
 
     if(params.options?.logging) console.log(responses)
@@ -733,90 +711,6 @@ export class CollectionService {
     }))
 
     if(params.options?.logging) console.log(responses)
-  }
-
-  async repairPathsMutation(params: RepairPathsParams) {
-    const repairPathsResponse = await this.client.queries.RepairPaths({
-      collection: params.collectionId,
-      set: params.setId
-    })
-
-    if(params.options?.logging) console.log(repairPathsResponse)
-
-    if(repairPathsResponse.data) {
-      try {
-        const returnResponse = JSON.parse(repairPathsResponse.data.toString()) as 
-        {
-          paths: PicturePath[],
-          responses: {
-            set: any,
-            paths: any,
-          }
-        }
-
-        if(params.options?.logging) console.log(returnResponse.responses)
-        return returnResponse.paths
-      } catch(err) {
-        //TODO: better error handling
-        if(params.options?.logging) console.log(err)
-        return undefined
-      }
-    }
-  }
-
-  async repairItemCountMutation (params: RepairItemCountsParams): Promise<PhotoCollection | undefined> {
-    const collectionResponse = params.refetchAllSets ?
-      await getCollectionById(this.client, params.collection.id, {
-        siPaths: false,
-        siSets: true,
-        siTags: false,
-      }) : params.collection
-
-    if(collectionResponse) {
-      
-      //TODO: potential for preformance increase
-      const updatedSets: { 
-        response: Schema['PhotoSet']['updateType'] | null, 
-        set: PhotoSet 
-      }[] = await Promise.all(collectionResponse.sets
-        .map(async (set) => {
-          const paths = await getAllPaths(this.client, set.id)
-
-          const updateSetResponse = (await this.client.models.PhotoSet.update({
-            id: set.id,
-            items: paths.length
-          })).data
-
-          return ({
-            response: updateSetResponse,
-            set: {
-              ...set,
-              items: paths.length
-            }
-          })
-        })
-      )
-
-      if(params.options?.logging) console.log(updatedSets.map((set) => set.response))
-
-      const itemCount = updatedSets
-        .map((set) => set.set)
-        .reduce((prev, cur) => prev += cur.items, 0)
-
-      const updateResponse = await this.client.models.PhotoCollection.update({
-        id: collectionResponse.id,
-        items: itemCount
-      })
-
-      if(params.options?.logging) console.log(updateResponse)
-
-        //TODO: do a performative update to dipslay updated item count
-      return {
-        ...params.collection,
-        sets: updatedSets.map((set) => set.set),
-        items: itemCount
-      }
-    }
   }
 
   getAllCollectionsFromUserTagIdQueryOptions = (tagId?: string, options?: GetAllCollectionsFromUserTagIdsOptions) => queryOptions({
