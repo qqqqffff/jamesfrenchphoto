@@ -64,10 +64,6 @@ const retrieveCollection = new RetrieveCollection(
   }
 )
 
-// Grant the Cognito authenticated identity pool role permission to invoke the function URL
-const authenticatedRole = backend.auth.resources.authenticatedUserIamRole
-retrieveCollection.fn.grantInvokeUrl(authenticatedRole)
-
 // backend.autoCompleteAddress.resources.lambda.
 const geoPlacesAutoComplete = new PolicyStatement({
   sid: 'AllowAutoCompleteAddress',

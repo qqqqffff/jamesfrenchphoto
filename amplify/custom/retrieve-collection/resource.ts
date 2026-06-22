@@ -45,7 +45,7 @@ export class RetrieveCollection extends Construct {
 
     this.functionUrl = new FunctionUrl(this, 'RetrieveCollectionUrl', {
       function: this.fn,
-      authType: FunctionUrlAuthType.AWS_IAM,
+      authType: FunctionUrlAuthType.NONE,
       invokeMode: InvokeMode.RESPONSE_STREAM,
       cors: {
         allowedOrigins: ['*'],

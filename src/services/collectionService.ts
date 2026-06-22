@@ -7,8 +7,6 @@ import { parsePathName } from "../utils";
 import { mapParticipant } from "./userService";
 import { MapUserTagOptions } from "./tagService";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { SignatureV4 } from "@smithy/signature-v4";
-import { Sha256 } from "@aws-crypto/sha256-browser";
 import outputs from "../../amplify_outputs.json";
 
 interface MapCollectionOptions {
@@ -762,44 +760,16 @@ export class CollectionService {
 
   async *retrieveCollectionStream(collectionId: string, validate: boolean): AsyncGenerator<PhotoSet> {
     const session = await fetchAuthSession()
-    const credentials = session.credentials
     const token = session.tokens?.accessToken?.toString() ?? ''
-
-    if (!credentials) throw new Error('No credentials available')
 
     const functionUrl: string = (outputs as Record<string, unknown> & { custom?: Record<string, string> }).custom?.retrieveCollectionUrl ?? ''
     if (!functionUrl) throw new Error('retrieveCollectionUrl not found in outputs')
 
-    const parsedUrl = new URL(functionUrl)
     const body = JSON.stringify({ collectionId, validate, token })
-
-    const signer = new SignatureV4({
-      credentials: {
-        accessKeyId: credentials.accessKeyId,
-        secretAccessKey: credentials.secretAccessKey,
-        sessionToken: credentials.sessionToken,
-      },
-      region: parsedUrl.hostname.split('.')[2] ?? 'us-east-1',
-      service: 'lambda',
-      sha256: Sha256,
-    })
-
-    const signed = await signer.sign({
-      method: 'POST',
-      protocol: 'https:',
-      hostname: parsedUrl.hostname,
-      path: parsedUrl.pathname,
-      headers: {
-        host: parsedUrl.hostname,
-        'content-type': 'application/json',
-        'content-length': String(new TextEncoder().encode(body).length),
-      },
-      body,
-    })
 
     const response = await fetch(functionUrl, {
       method: 'POST',
-      headers: signed.headers as Record<string, string>,
+      headers: { 'content-type': 'application/json' },
       body,
     })
 
